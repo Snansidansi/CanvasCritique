@@ -124,7 +124,7 @@
     {#each filteredProjects as project (project.id)}
       {@const progress = getProjectProgress(project)}
       {@const remaining = getRemainingTasks(project)}
-      <article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary transition-colors group relative overflow-hidden shadow-sm">
+      <article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary transition-colors group relative overflow-hidden shadow-sm self-start w-full">
         <div class="absolute top-0 left-0 w-1.5 h-full bg-primary hidden group-hover:block transition-all"></div>
         
         <div>
@@ -138,8 +138,15 @@
             
             <div class="flex gap-2">
               <button 
+                onclick={() => store.exportProject(project)}
+                class="text-outline hover:text-primary transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer" 
+                title="Export Project"
+              >
+                <span class="material-symbols-outlined text-[20px]">file_download</span>
+              </button>
+              <button 
                 onclick={() => store.deleteProject(project.id)}
-                class="text-outline hover:text-error transition-colors p-1 rounded hover:bg-surface-container-high" 
+                class="text-outline hover:text-error transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer" 
                 title="Delete Project"
               >
                 <span class="material-symbols-outlined text-[20px]">delete</span>
