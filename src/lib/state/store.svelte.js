@@ -95,6 +95,7 @@ class ScribeFlowStore {
   activeProject = $state(null);
   activeTask = $state(null);
   editingTask = $state(null);
+  quickAddTaskData = $state(null);
   settings = $state(defaultSettings);
 
   constructor() {

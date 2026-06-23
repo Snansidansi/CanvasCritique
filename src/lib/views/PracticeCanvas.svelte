@@ -13,8 +13,12 @@
   // Toggles and options
   let showTask = $state(true);
   let showSolution = $state(false);
-  let activeBg = $state('grid'); // 'grid' | 'lines' | 'blank'
+  let activeBg = $state('grid'); // 'grid' | 'lines' | 'blank' | 'custom'
+  let customBgUrl = $state(null);
   
+  // Sidebar collapsed state
+  let isControlsCollapsed = $state(false);
+
   // Brush configuration
   let strokeColor = $state('#000000');
   let brushWidth = $state(2);
@@ -25,6 +29,7 @@
   let feedbackText = $state('');
   let feedbackScore = $state(null);
   let showFeedback = $state(false);
+  let hasCheckedWork = $state(false);
 
   // Canvas element references
   let canvasElement = $state(null);
@@ -162,9 +167,27 @@
   }
 
   function clearCanvas() {
-    strokeHistory = [];
-    redoStack = [];
-    redraw();
+    if (strokeHistory.length === 0) return;
+    
+    const isConfirmed = confirm("Are you sure you want to clear your drawing canvas? This will discard your current calligraphy sketch.");
+    if (isConfirmed) {
+      strokeHistory = [];
+      redoStack = [];
+      redraw();
+    }
+  }
+
+  // Handle custom background upload
+  function handleCustomBgUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      customBgUrl = event.target.result;
+      activeBg = 'custom';
+    };
+    reader.readAsDataURL(file);
   }
 
   // Multimodal AI Grading
@@ -173,6 +196,7 @@
     
     isChecking = true;
     showFeedback = true;
+    hasCheckedWork = true;
     feedbackText = "Analyzing stroke geometries and guidelines alignment...";
     feedbackScore = null;
 
@@ -290,104 +314,261 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
   }
 
   function handleBack() {
-    store.setView('dashboard');
+    store.setView('project-detail');
+  }
+
+  function cycleBackgrounds() {
+    if (activeBg === 'grid') {
+      activeBg = 'lines';
+    } else if (activeBg === 'lines') {
+      activeBg = 'blank';
+    } else if (activeBg === 'blank') {
+      if (customBgUrl) activeBg = 'custom';
+      else activeBg = 'grid';
+    } else {
+      activeBg = 'grid';
+    }
   }
 </script>
 
+<input 
+  type="file" 
+  id="customBgInput" 
+  accept="image/*" 
+  onchange={handleCustomBgUpload} 
+  class="hidden" 
+/>
+
 <div class="flex-grow flex overflow-hidden h-full">
   <!-- Inner sidebar for background and lesson properties -->
-  <aside class="bg-surface-container-low border-r border-outline-variant w-64 flex flex-col py-6 px-4 shrink-0 select-none">
-    <div class="flex items-center gap-2 mb-8 mt-2">
+  <aside 
+    class="bg-surface-container-low border-r border-outline-variant flex flex-col py-6 shrink-0 select-none transition-all duration-300 relative z-30
+           {isControlsCollapsed ? 'w-16 px-2' : 'w-64 px-4'}"
+  >
+    <!-- Toggle Header -->
+    <div class="flex items-center mb-8 mt-2 justify-center {!isControlsCollapsed ? 'px-1 w-full' : ''}">
+      {#if !isControlsCollapsed}
+        <button 
+          onclick={handleBack}
+          class="material-symbols-outlined text-primary hover:bg-surface-container-high p-1 rounded-lg cursor-pointer"
+          title="Back to Projects"
+        >
+          arrow_back
+        </button>
+        <span class="font-bold text-xs uppercase tracking-wide text-on-surface-variant ml-2">Practice Controls</span>
+      {/if}
       <button 
-        onclick={handleBack}
-        class="material-symbols-outlined text-primary hover:bg-surface-container-high p-1 rounded-lg"
-        title="Back to Projects"
+        onclick={() => isControlsCollapsed = !isControlsCollapsed}
+        class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-high p-1.5 rounded-lg cursor-pointer {isControlsCollapsed ? 'mx-auto' : 'ml-auto'}"
+        title={isControlsCollapsed ? "Expand Controls" : "Collapse Controls"}
       >
-        arrow_back
-      </button>
-      <span class="font-bold text-xs uppercase tracking-wide text-on-surface-variant">Practice Controls</span>
-    </div>
-
-    <!-- Choose Background -->
-    <div class="space-y-3 mb-8">
-      <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Choose Background</p>
-      <div class="grid grid-cols-3 gap-2">
-        <button 
-          onclick={() => activeBg = 'grid'}
-          class="aspect-square rounded border-2 bg-white flex flex-col items-center justify-center gap-1 transition-all hover:bg-surface-container-high
-                 {activeBg === 'grid' ? 'border-primary text-primary' : 'border-outline-variant text-on-surface-variant'}" 
-          title="Grid Lines"
-        >
-          <span class="material-symbols-outlined text-sm">grid_3x3</span>
-          <span class="text-[9px] font-bold">Grid</span>
-        </button>
-        <button 
-          onclick={() => activeBg = 'lines'}
-          class="aspect-square rounded border bg-white flex flex-col items-center justify-center gap-1 transition-all hover:bg-surface-container-high
-                 {activeBg === 'lines' ? 'border-primary border-2 text-primary' : 'border-outline-variant text-on-surface-variant'}" 
-          title="Ruled Lines"
-        >
-          <span class="material-symbols-outlined text-sm">reorder</span>
-          <span class="text-[9px] font-bold">Lines</span>
-        </button>
-        <button 
-          onclick={() => activeBg = 'blank'}
-          class="aspect-square rounded border bg-white flex flex-col items-center justify-center gap-1 transition-all hover:bg-surface-container-high
-                 {activeBg === 'blank' ? 'border-primary border-2 text-primary' : 'border-outline-variant text-on-surface-variant'}" 
-          title="Blank Paper"
-        >
-          <span class="material-symbols-outlined text-sm">check_box_outline_blank</span>
-          <span class="text-[9px] font-bold">Blank</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Task options -->
-    <div class="space-y-4">
-      <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Workspace Mode</p>
-      
-      <!-- Show task toggle -->
-      <div class="flex items-center justify-between bg-surface-container-lowest p-3 rounded-lg border border-outline-variant/50">
-        <span class="text-xs font-semibold text-on-surface">Split Instructions</span>
-        <label class="relative inline-flex items-center cursor-pointer select-none">
-          <input 
-            type="checkbox" 
-            bind:checked={showTask}
-            class="sr-only peer" 
-          />
-          <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-        </label>
-      </div>
-
-      <!-- Show solution overlay toggle -->
-      <div class="flex items-center justify-between bg-surface-container-lowest p-3 rounded-lg border border-outline-variant/50">
-        <span class="text-xs font-semibold text-on-surface">Overlay Solution</span>
-        <label class="relative inline-flex items-center cursor-pointer select-none">
-          <input 
-            type="checkbox" 
-            bind:checked={showSolution}
-            class="sr-only peer" 
-          />
-          <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-        </label>
-      </div>
-    </div>
-
-    <div class="mt-auto pt-4 border-t border-outline-variant/30 flex flex-col gap-2">
-      <button 
-        onclick={clearCanvas}
-        class="w-full flex items-center justify-center gap-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container-highest py-2.5 rounded-lg text-xs font-bold"
-      >
-        <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
-        Clear Canvas
+        {isControlsCollapsed ? 'menu' : 'menu_open'}
       </button>
     </div>
+
+    {#if !isControlsCollapsed}
+      <!-- Choose Background -->
+      <div class="space-y-3 mb-8">
+        <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Choose Background</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button 
+            onclick={() => activeBg = 'grid'}
+            class="aspect-square rounded border-2 bg-white flex flex-col items-center justify-center gap-1 transition-all hover:bg-surface-container-high
+                   {activeBg === 'grid' ? 'border-primary text-primary' : 'border-outline-variant text-on-surface-variant'}" 
+            title="Grid Lines"
+          >
+            <span class="material-symbols-outlined text-sm">grid_3x3</span>
+            <span class="text-[9px] font-bold">Grid</span>
+          </button>
+          <button 
+            onclick={() => activeBg = 'lines'}
+            class="aspect-square rounded border bg-white flex flex-col items-center justify-center gap-1 transition-all hover:bg-surface-container-high
+                   {activeBg === 'lines' ? 'border-primary border-2 text-primary' : 'border-outline-variant text-on-surface-variant'}" 
+            title="Ruled Lines"
+          >
+            <span class="material-symbols-outlined text-sm">reorder</span>
+            <span class="text-[9px] font-bold">Lines</span>
+          </button>
+          <button 
+            onclick={() => activeBg = 'blank'}
+            class="aspect-square rounded border bg-white flex flex-col items-center justify-center gap-1 transition-all hover:bg-surface-container-high
+                   {activeBg === 'blank' ? 'border-primary border-2 text-primary' : 'border-outline-variant text-on-surface-variant'}" 
+            title="Blank Paper"
+          >
+            <span class="material-symbols-outlined text-sm">check_box_outline_blank</span>
+            <span class="text-[9px] font-bold">Blank</span>
+          </button>
+          <button 
+            onclick={() => document.getElementById('customBgInput').click()}
+            class="aspect-square rounded border bg-white flex flex-col items-center justify-center gap-1 transition-all hover:bg-surface-container-high
+                   {activeBg === 'custom' ? 'border-primary border-2 text-primary' : 'border-outline-variant text-on-surface-variant'}" 
+            title="Custom Image Background"
+          >
+            <span class="material-symbols-outlined text-sm">{customBgUrl ? 'wallpaper' : 'image'}</span>
+            <span class="text-[9px] font-bold truncate max-w-full px-1">{customBgUrl ? 'Custom' : 'Upload'}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Task options -->
+      <div class="space-y-4">
+        <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Workspace Mode</p>
+        
+        <!-- Show task toggle -->
+        <div class="flex items-center justify-between bg-surface-container-lowest p-3 rounded-lg border border-outline-variant/50">
+          <span class="text-xs font-semibold text-on-surface">Show Task</span>
+          <label class="relative inline-flex items-center cursor-pointer select-none">
+            <input 
+              type="checkbox" 
+              bind:checked={showTask}
+              class="sr-only peer" 
+            />
+            <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </div>
+
+        <!-- Show solution overlay toggle -->
+        <div class="flex items-center justify-between bg-surface-container-lowest p-3 rounded-lg border border-outline-variant/50">
+          <span class="text-xs font-semibold text-on-surface">Show Solution</span>
+          <label class="relative inline-flex items-center cursor-pointer select-none">
+            <input 
+              type="checkbox" 
+              bind:checked={showSolution}
+              class="sr-only peer" 
+            />
+            <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </div>
+
+        <!-- Show AI solutions toggle (only visible after checkWork has run) -->
+        {#if hasCheckedWork}
+          <div class="flex items-center justify-between bg-surface-container-lowest p-3 rounded-lg border border-outline-variant/50">
+            <span class="text-xs font-semibold text-on-surface">AI Critique</span>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                bind:checked={showFeedback}
+                class="sr-only peer" 
+              />
+              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+        {/if}
+      </div>
+
+      <div class="mt-auto pt-4 border-t border-outline-variant/30 flex flex-col gap-2">
+        <button 
+          onclick={clearCanvas}
+          class="w-full flex items-center justify-center gap-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container-highest py-2.5 rounded-lg text-xs font-bold cursor-pointer"
+        >
+          <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+          Clear Canvas
+        </button>
+      </div>
+    {:else}
+      <!-- Collapsed Controls Menu Icons List -->
+      <div class="flex flex-grow flex-col gap-5 items-center mt-4">
+        <!-- Back button -->
+        <button 
+          onclick={handleBack}
+          class="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant group relative"
+          title="Back to Project"
+        >
+          <span class="material-symbols-outlined">arrow_back</span>
+          <div class="absolute left-14 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+            Back to Project
+          </div>
+        </button>
+
+        <div class="h-[1px] w-6 bg-outline-variant/40"></div>
+
+        <!-- Cycle background button -->
+        <button 
+          onclick={cycleBackgrounds}
+          class="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant group relative"
+          title="Cycle Background"
+        >
+          <span class="material-symbols-outlined">
+            {activeBg === 'grid' ? 'grid_3x3' : activeBg === 'lines' ? 'reorder' : activeBg === 'blank' ? 'check_box_outline_blank' : 'wallpaper'}
+          </span>
+          <div class="absolute left-14 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+            Bg: {activeBg}
+          </div>
+        </button>
+
+        <!-- Custom background trigger upload -->
+        <button 
+          onclick={() => document.getElementById('customBgInput').click()}
+          class="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant group relative"
+          title="Upload Custom Bg"
+        >
+          <span class="material-symbols-outlined">upload_file</span>
+          <div class="absolute left-14 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+            Upload custom bg
+          </div>
+        </button>
+
+        <div class="h-[1px] w-6 bg-outline-variant/40"></div>
+
+        <!-- Toggle task layout -->
+        <button 
+          onclick={() => showTask = !showTask}
+          class="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant group relative {showTask ? 'bg-primary/10 text-primary' : ''}"
+          title="Toggle Instructions"
+        >
+          <span class="material-symbols-outlined">menu_book</span>
+          <div class="absolute left-14 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+            Toggle Instructions
+          </div>
+        </button>
+
+        <!-- Toggle solution layout -->
+        <button 
+          onclick={() => showSolution = !showSolution}
+          class="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant group relative {showSolution ? 'bg-primary/10 text-primary' : ''}"
+          title="Toggle Solution Goal"
+        >
+          <span class="material-symbols-outlined">visibility</span>
+          <div class="absolute left-14 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+            Toggle Solution
+          </div>
+        </button>
+
+        <!-- Toggle AI feedback panel if checked work -->
+        {#if hasCheckedWork}
+          <button 
+            onclick={() => showFeedback = !showFeedback}
+            class="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant group relative {showFeedback ? 'bg-primary/10 text-primary animate-pulse' : ''}"
+            title="Toggle AI Critique"
+          >
+            <span class="material-symbols-outlined">neurology</span>
+            <div class="absolute left-14 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+              Toggle AI Critique
+            </div>
+          </button>
+        {/if}
+
+        <div class="h-[1px] w-6 bg-outline-variant/40 mt-auto"></div>
+
+        <!-- Clear canvas -->
+        <button 
+          onclick={clearCanvas}
+          class="p-2 rounded-lg hover:bg-error-container hover:text-error text-on-surface-variant group relative mt-auto"
+          title="Clear Canvas"
+        >
+          <span class="material-symbols-outlined">delete_sweep</span>
+          <div class="absolute left-14 bg-error text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+            Clear Canvas
+          </div>
+        </button>
+      </div>
+    {/if}
   </aside>
 
   <!-- Workspace Shell -->
   <main class="flex-grow flex flex-col min-w-0 h-full">
     <!-- Top Navigation Bar -->
-    <header class="bg-white border-b border-outline-variant flex justify-between items-center w-full px-8 py-4 shrink-0 z-20">
+    <header class="bg-white border-b border-outline-variant flex justify-between items-center w-full px-8 py-4 shrink-0 z-20 select-none">
       <div class="flex items-center gap-6 min-w-0">
         <h1 class="font-bold text-lg text-primary truncate">{task.name}</h1>
       </div>
@@ -415,7 +596,7 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
 
         <button 
           onclick={checkWork}
-          class="bg-primary text-white px-5 py-2 rounded-lg text-sm font-semibold hover:shadow-lg active:scale-[0.98] transition-all flex items-center gap-2"
+          class="bg-primary text-white px-5 py-2 rounded-lg text-sm font-semibold hover:shadow-lg active:scale-[0.98] transition-all flex items-center gap-2 cursor-pointer"
         >
           <span class="material-symbols-outlined text-[18px]">neurology</span>
           Check Work
@@ -426,25 +607,40 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
     <!-- Interactive practice screen split layout -->
     <div class="flex-grow flex overflow-hidden relative">
       
-      <!-- Left side: task description, instructions (collapsible) -->
-      {#if showTask}
-        <section class="w-1/2 bg-white border-r border-outline-variant flex flex-col overflow-y-auto hide-scrollbar">
-          <div class="w-full flex-grow flex flex-col p-8 space-y-6">
-            <div>
+      <!-- Left side: split screen task description and solution -->
+      {#if showTask || showSolution}
+        <section class="w-1/2 bg-white border-r border-outline-variant flex flex-col overflow-hidden h-full">
+          {#if showTask && showSolution}
+            <!-- Split Layout (50/50 horizontal) -->
+            <div class="h-1/2 flex flex-col overflow-y-auto border-b border-outline-variant p-8 hide-scrollbar">
+              <h2 class="text-lg font-bold text-on-surface mb-3 pb-1 border-b border-outline-variant/30">{task.name} Instructions</h2>
+              <div class="space-y-4 text-xs text-on-surface-variant leading-relaxed whitespace-pre-line">
+                {task.instructions}
+              </div>
+            </div>
+            <div class="h-1/2 flex flex-col overflow-y-auto p-8 hide-scrollbar bg-surface-container-low/20">
+              <h2 class="text-lg font-bold text-on-surface mb-3 pb-1 border-b border-outline-variant/30">Evaluation Goal / Solution</h2>
+              <p class="text-xs text-on-surface-variant leading-relaxed whitespace-pre-line">
+                {task.solution}
+              </p>
+            </div>
+          {:else if showTask}
+            <!-- Instructions Only -->
+            <div class="w-full flex-grow flex flex-col p-8 space-y-6 overflow-y-auto hide-scrollbar">
               <h2 class="text-xl font-bold text-on-surface mb-4 pb-2 border-b border-outline-variant">{task.name} Instructions</h2>
-              
               <div class="space-y-4 text-sm text-on-surface-variant leading-relaxed whitespace-pre-line">
                 {task.instructions}
               </div>
             </div>
-
-            <div class="p-5 bg-surface-container-low rounded-xl border border-outline-variant/30 space-y-2">
-              <h3 class="font-bold text-xs text-on-surface uppercase tracking-wider">Evaluation Goal</h3>
-              <p class="text-xs text-on-surface-variant leading-relaxed">
+          {:else if showSolution}
+            <!-- Solution Only -->
+            <div class="w-full flex-grow flex flex-col p-8 space-y-6 overflow-y-auto hide-scrollbar bg-surface-container-low/20">
+              <h2 class="text-xl font-bold text-on-surface mb-4 pb-2 border-b border-outline-variant">Evaluation Goal / Solution</h2>
+              <p class="text-sm text-on-surface-variant leading-relaxed whitespace-pre-line">
                 {task.solution}
               </p>
             </div>
-          </div>
+          {/if}
         </section>
       {/if}
 
@@ -458,13 +654,11 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
           <div class="absolute inset-0 canvas-guidelines slant-guidelines pointer-events-none opacity-45 z-0"></div>
         {:else if activeBg === 'lines'}
           <div class="absolute inset-0 canvas-guidelines pointer-events-none opacity-45 z-0"></div>
-        {/if}
-
-        <!-- Solution Overlay Template -->
-        {#if showSolution}
-          <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 select-none z-0">
-            <span class="text-6xl font-serif italic text-primary select-none font-bold">Spencerian Loops</span>
-          </div>
+        {:else if activeBg === 'custom' && customBgUrl}
+          <div 
+            class="absolute inset-0 pointer-events-none opacity-40 z-0 bg-cover bg-center"
+            style="background-image: url({customBgUrl})"
+          ></div>
         {/if}
 
         <!-- Drawing Canvas -->

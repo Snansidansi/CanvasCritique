@@ -47,8 +47,13 @@
     const cat = quickTaskCategory[projectId] || 'Basics';
     if (!name || !name.trim()) return;
 
-    store.addTask(projectId, name.trim(), 'Practice this script standard layout.', 'Draw clean, flowing lines.', cat);
-    
+    store.selectProject(store.projects.find(p => p.id === projectId));
+    store.quickAddTaskData = {
+      name: name.trim(),
+      category: cat
+    };
+    store.setView('task-editor');
+
     // Clear input
     quickTaskName[projectId] = '';
   }
@@ -201,9 +206,13 @@
                           {task.name}
                         </button>
 
-                        <span class="material-symbols-outlined text-outline text-[16px] cursor-pointer hover:text-primary" onclick={() => openPractice(task, project)}>
-                          draw
-                        </span>
+                        <button 
+                          onclick={() => { store.selectProject(project); store.setEditingTask(task); }} 
+                          class="opacity-0 group-hover/task-item:opacity-100 text-outline hover:text-primary transition-opacity p-0.5 focus:opacity-100 focus:outline-none cursor-pointer"
+                          title="Edit Task"
+                        >
+                          <span class="material-symbols-outlined text-[18px]">edit</span>
+                        </button>
                       </div>
                     {/each}
                   </div>
@@ -272,7 +281,7 @@
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-semibold text-on-surface-variant" for="projIcon">Icon Style</label>
           <div class="grid grid-cols-4 gap-2">
-            {#each ['history_edu', 'draw', 'ink_pen', 'edit_square'] as icon}
+            {#each ['history_edu', 'draw', 'ink_pen', 'edit_square', 'palette', 'brush', 'format_paint', 'signature', 'gesture', 'border_color', 'content_cut', 'text_fields'] as icon}
               <button 
                 type="button" 
                 onclick={() => newProjectIcon = icon}

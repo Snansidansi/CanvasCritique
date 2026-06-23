@@ -23,6 +23,11 @@
       solution = store.editingTask.solution;
       category = store.editingTask.category || 'Basics';
       targetProjectId = store.activeProject?.id || '';
+    } else if (store.quickAddTaskData) {
+      taskName = store.quickAddTaskData.name;
+      category = store.quickAddTaskData.category || 'Basics';
+      targetProjectId = store.activeProject?.id || (store.projects[0]?.id || '');
+      store.quickAddTaskData = null; // Clear it out
     } else {
       targetProjectId = store.activeProject?.id || (store.projects[0]?.id || '');
     }

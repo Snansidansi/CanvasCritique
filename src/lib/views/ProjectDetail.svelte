@@ -209,25 +209,16 @@
                     </button>
                   </div>
 
-                  <!-- Hover actions (Edit & Practice) -->
+                  <!-- Hover actions (Edit) -->
                   <div class="flex items-center gap-2">
-                    <!-- Task Edit Pen Icon: Hidden by default, shown on hover -->
+                    <!-- Task Edit Pen Icon: Always visible -->
                     <button 
                       onclick={() => handleEditTask(task)}
-                      class="text-outline hover:text-primary transition-all p-1.5 rounded hover:bg-surface-container opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none cursor-pointer duration-100" 
+                      class="text-outline hover:text-primary transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm" 
                       title="Edit Task Details"
                     >
-                      <span class="material-symbols-outlined text-[18px]">edit</span>
-                    </button>
-
-                    <!-- Practice draw button -->
-                    <button 
-                      onclick={() => openPractice(task)}
-                      class="bg-primary-fixed/20 hover:bg-primary text-primary hover:text-on-primary font-bold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
-                      title="Practice this task"
-                    >
-                      <span class="material-symbols-outlined text-[16px]">draw</span>
-                      Practice
+                      <span class="material-symbols-outlined text-[16px]">edit</span>
+                      Edit
                     </button>
                   </div>
                 </div>
