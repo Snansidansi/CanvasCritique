@@ -289,6 +289,81 @@
     return { x: minX, y: minY, width, height };
   }
 
+  function parseMarkdown(md) {
+    if (!md) return '';
+    let html = md;
+    
+    // Escape HTML entities to prevent XSS
+    html = html
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Parse bold: **text** -> <strong>text</strong>
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // Parse links: [text](#href) -> <a href="$2" class="text-primary hover:underline font-bold pointer-events-auto">$1</a>
+    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary hover:underline font-bold pointer-events-auto">$1</a>');
+
+    // Parse list items and headings
+    html = html.split('\n').map(line => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        return `<li class="ml-4 list-disc my-1">${trimmed.substring(2)}</li>`;
+      }
+      if (trimmed.startsWith('# ')) {
+        return `<h1 class="text-base font-bold text-on-surface mt-3 mb-2 border-b border-outline-variant/30 pb-0.5">${trimmed.substring(2)}</h1>`;
+      }
+      if (trimmed.startsWith('## ')) {
+        return `<h2 class="text-sm font-bold text-on-surface mt-3 mb-1">${trimmed.substring(3)}</h2>`;
+      }
+      if (trimmed.startsWith('### ')) {
+        return `<h3 class="text-xs font-bold text-on-surface mt-2 mb-1">${trimmed.substring(4)}</h3>`;
+      }
+      if (trimmed === '') {
+        return '<div class="h-2"></div>';
+      }
+      return `<p class="my-1">${line}</p>`;
+    }).join('\n');
+
+    return html;
+  }
+
+  function handleCritiqueClick(e) {
+    const link = e.target.closest('a');
+    if (link) {
+      const href = link.getAttribute('href');
+      if (href && href.startsWith('#')) {
+        e.preventDefault();
+        const markerId = href.substring(1);
+        
+        // Find marker by index (e.g. marker-0) or by exact ID
+        let marker = feedbackMarkers.find(m => m.id === markerId);
+        if (!marker) {
+          const indexMatch = markerId.match(/marker-(\d+)/);
+          if (indexMatch) {
+            const idx = parseInt(indexMatch[1]);
+            marker = feedbackMarkers[idx];
+          }
+        }
+        if (!marker) {
+          marker = feedbackMarkers.find(m => m.id === markerId || m.id.endsWith(markerId));
+        }
+
+        if (marker) {
+          activeTooltipMarker = marker;
+          if (canvasContainer) {
+            canvasContainer.scrollTo({
+              left: Math.max(0, marker.canvasX - canvasContainer.clientWidth / 2),
+              top: Math.max(0, marker.canvasY - canvasContainer.clientHeight / 2),
+              behavior: 'smooth'
+            });
+          }
+        }
+      }
+    }
+  }
+
   // Multimodal AI Grading using Cropped PNG bounding box
   async function checkWork() {
     feedbackMarkers = [];
@@ -409,7 +484,7 @@
       // Simulate grading if no API key is saved (to demonstrate the feature)
       setTimeout(() => {
         const mockResponse = {
-          generalCritique: "📝 **AI Feedback Mockup (API key missing)**\n\nTo test real AI evaluations, please enter your Gemini API key in **Settings**.\n\n*General Critique*:\n- Excellent slant consistency! Most letters follow the 55-degree layout slant lines nicely.\n- The loop size is consistent, but watch the crossing intersection of the ascender loops; they should cross exactly at the header line.\n- Stroke thickness contrasts nicely. Nice transition to heavier pressure on downward strokes.",
+          generalCritique: "📝 **AI Feedback Mockup (API key missing)**\n\nTo test real AI evaluations, please enter your Gemini API key in **Settings**.\n\n*General Critique*:\n- Excellent slant consistency! Most letters follow the 55-degree layout slant lines nicely (see [slant guide crossing](#mock-1)).\n- The loop size is consistent, but watch the crossing intersection of the ascender loops; they should cross exactly at the header line (see [loop crossover](#mock-2)).\n- Stroke thickness contrasts nicely. Nice transition to heavier pressure on downward strokes (see [pressure drop](#mock-3)).",
           grade: 88,
           markers: [
             {
@@ -436,6 +511,10 @@
                 { x: Math.round(widthVal * 0.75), y: Math.round(heightVal * 0.7) },
                 { x: Math.round(widthVal * 0.8), y: Math.round(heightVal * 0.5) },
                 { x: Math.round(widthVal * 0.85), y: Math.round(heightVal * 0.3) }
+              ],
+              box2d: [
+                { x: Math.round(widthVal * 0.7), y: Math.round(heightVal * 0.3) },
+                { x: Math.round(widthVal * 0.9), y: Math.round(heightVal * 0.7) }
               ]
             }
           ]
@@ -776,7 +855,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
       </div>
 
       <!-- Divider element and Clear button -->
-      <div class="h-5 w-[1px] bg-outline-variant/30 hidden sm:block"></div>
+      <div class="h-5 w-px bg-outline-variant/30 hidden sm:block"></div>
       <button 
         onclick={clearCanvas}
         class="flex items-center gap-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-highest px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none"
@@ -829,11 +908,15 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
       >
         {#each activeLeftPanels as panel, idx}
           {#if idx > 0}
-            <div class="h-[1px] w-full bg-outline-variant/30"></div>
+            <div class="h-px w-full bg-outline-variant/30"></div>
           {/if}
-          <div class="flex-1 flex flex-col overflow-y-auto p-6 hide-scrollbar {panel.id === 'solution' ? 'bg-surface-container-low/20' : panel.id === 'feedback' ? 'bg-primary/5' : ''}">
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div 
+            onclick={panel.isFeedback ? handleCritiqueClick : null}
+            class="flex-1 flex flex-col overflow-y-auto p-6 hide-scrollbar {panel.id === 'solution' ? 'bg-surface-container-low/20' : panel.id === 'feedback' ? 'bg-primary/5' : ''}"
+          >
             <div class="flex items-center justify-between mb-3 pb-1 border-b border-outline-variant/30">
-              <h2 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+              <h2 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5 font-sans select-none">
                 {#if panel.id === 'task'}
                   <span class="material-symbols-outlined text-base text-primary">menu_book</span>
                 {:else if panel.id === 'solution'}
@@ -844,7 +927,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
                 {panel.title}
               </h2>
               {#if panel.id === 'feedback' && feedbackScore !== null}
-                <div class="bg-primary text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+                <div class="bg-primary text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-sm select-none">
                   Score: {feedbackScore}
                 </div>
               {/if}
@@ -852,13 +935,13 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
             
             {#if panel.isFeedback}
               {#if isChecking}
-                <div class="flex flex-col items-center justify-center py-8 gap-3 my-auto">
+                <div class="flex flex-col items-center justify-center py-8 gap-3 my-auto select-none">
                   <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                   <p class="text-xs text-on-surface-variant text-center">{feedbackText}</p>
                 </div>
               {:else}
-                <div class="text-xs text-on-surface-variant leading-relaxed whitespace-pre-line prose prose-sm dark:prose-invert">
-                  {feedbackText}
+                <div class="text-xs text-on-surface-variant leading-relaxed prose prose-sm dark:prose-invert">
+                  {@html parseMarkdown(feedbackText)}
                 </div>
               {/if}
             {:else}
@@ -917,7 +1000,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
 
         <!-- Feedback Markers Layer -->
         {#if hasCheckedWork && !isChecking}
-          <!-- Render Underline strokes first (below the icons) -->
+          <!-- Render Underline strokes and rectangular highlights first (below the icons) -->
           <svg class="absolute inset-0 pointer-events-none z-20 w-full h-full">
             {#each feedbackMarkers as marker}
               {#if marker.underlinePoints && marker.underlinePoints.length > 1}
@@ -928,6 +1011,25 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   fill="none"
+                />
+              {/if}
+              {#if marker.box2d && marker.box2d.length === 2}
+                {@const p1 = marker.box2d[0]}
+                {@const p2 = marker.box2d[1]}
+                {@const x = Math.min(p1.x, p2.x) + marker.boundingBoxOffset.x}
+                {@const y = Math.min(p1.y, p2.y) + marker.boundingBoxOffset.y}
+                {@const w = Math.abs(p2.x - p1.x)}
+                {@const h = Math.abs(p2.y - p1.y)}
+                <rect
+                  {x}
+                  {y}
+                  width={w}
+                  height={h}
+                  stroke="rgba(239, 68, 68, 0.5)"
+                  stroke-width="2"
+                  stroke-dasharray="4,4"
+                  fill="rgba(239, 68, 68, 0.1)"
+                  rx="4"
                 />
               {/if}
             {/each}
