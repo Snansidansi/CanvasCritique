@@ -152,6 +152,13 @@ class ScribeFlowStore {
       } else {
         this.settings = defaultSettings;
       }
+      
+      // Normalize openRouterProvider to an array
+      if (this.settings.openRouterProvider && typeof this.settings.openRouterProvider === 'string') {
+        this.settings.openRouterProvider = [this.settings.openRouterProvider];
+      } else if (!this.settings.openRouterProvider) {
+        this.settings.openRouterProvider = ['Google'];
+      }
     } catch (e) {
       console.error('Error loading settings', e);
       this.settings = defaultSettings;
