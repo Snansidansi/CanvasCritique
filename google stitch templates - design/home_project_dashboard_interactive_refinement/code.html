@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ScribeFlow - Home</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed": "#dde1ff",
+                    "on-secondary-fixed": "#001159",
+                    "surface-dim": "#d8dadc",
+                    "on-secondary": "#ffffff",
+                    "surface-container": "#eceef0",
+                    "on-primary-fixed": "#001356",
+                    "on-secondary-container": "#1a2f8b",
+                    "on-background": "#191c1e",
+                    "secondary-fixed": "#dee1ff",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-low": "#f2f4f6",
+                    "primary": "#0040e0",
+                    "primary-fixed-dim": "#b8c3ff",
+                    "inverse-primary": "#b8c3ff",
+                    "surface-tint": "#124af0",
+                    "secondary": "#4457b3",
+                    "inverse-on-surface": "#eff1f3",
+                    "on-tertiary-fixed": "#141b2c",
+                    "background": "#f7f9fb",
+                    "on-primary-fixed-variant": "#0035be",
+                    "surface-variant": "#e0e3e5",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-container": "#656d81",
+                    "secondary-container": "#8b9dfe",
+                    "on-primary-container": "#efefff",
+                    "primary-container": "#2e5bff",
+                    "secondary-fixed-dim": "#bac3ff",
+                    "error-container": "#ffdad6",
+                    "error": "#ba1a1a",
+                    "on-surface-variant": "#434656",
+                    "on-secondary-fixed-variant": "#2b3e99",
+                    "outline": "#747688",
+                    "surface-bright": "#f7f9fb",
+                    "on-error": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "tertiary-fixed-dim": "#bfc6dd",
+                    "on-tertiary-container": "#edf0ff",
+                    "surface-container-high": "#e6e8ea",
+                    "on-tertiary-fixed-variant": "#3f4759",
+                    "surface-container-highest": "#e0e3e5",
+                    "inverse-surface": "#2d3133",
+                    "tertiary": "#4d5568",
+                    "surface": "#f7f9fb",
+                    "outline-variant": "#c4c5d9",
+                    "tertiary-fixed": "#dbe2fa",
+                    "on-surface": "#191c1e",
+                    "on-primary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "section-gap": "48px",
+                    "gutter": "24px",
+                    "container-padding": "40px",
+                    "unit": "8px",
+                    "sidebar-width": "280px"
+            },
+            "fontFamily": {
+                    "label-md": ["Inter", "sans-serif"],
+                    "headline-md": ["Inter", "sans-serif"],
+                    "headline-lg": ["Inter", "sans-serif"],
+                    "label-sm": ["Inter", "sans-serif"],
+                    "headline-lg-mobile": ["Inter", "sans-serif"],
+                    "body-md": ["Inter", "sans-serif"],
+                    "body-lg": ["Inter", "sans-serif"]
+            },
+            "fontSize": {
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        /* Custom styles to ensure material symbols render correctly based on config */
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased min-h-screen">
+<!-- SideNavBar Component -->
+<nav class="fixed left-0 top-0 h-full w-[280px] border-r border-outline-variant bg-surface-container-low flex flex-col py-6 px-4 z-20 hidden md:flex">
+<!-- Header -->
+<div class="mb-8 px-4">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">ScribeFlow</h1>
+</div>
+<!-- CTA -->
+<div class="mb-6 px-2">
+<button class="w-full flex justify-center items-center gap-2 bg-primary text-on-primary py-3 px-4 rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity shadow-sm">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                New Project
+            </button>
+</div>
+<!-- Navigation Tabs -->
+<div class="flex-1 flex flex-col gap-1">
+<!-- Active Tab -->
+<a class="flex items-center gap-3 bg-secondary-container text-on-secondary-container rounded-lg px-4 py-3 border-l-4 border-primary scale-[0.98] transition-transform font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="home" data-weight="fill">home</span>
+                Home
+            </a>
+<!-- Inactive Tabs -->
+</div>
+<!-- Footer Tabs -->
+<div class="mt-auto flex flex-col gap-1 border-t border-outline-variant pt-4">
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 hover:bg-surface-variant transition-colors duration-200 rounded-lg font-label-md text-label-md" href="#"><span class="material-symbols-outlined" data-icon="settings">settings</span>Settings</a></div>
+</nav>
+<!-- TopAppBar Component -->
+<header class="fixed docked full-width top-0 w-full px-gutter h-16 md:pl-[304px] bg-surface flex justify-between items-center z-10">
+<!-- Brand/Title (Visible on mobile mostly, or as page context) -->
+<div class="flex items-center md:hidden">
+<span class="font-headline-md text-headline-md font-black text-primary">ScribeFlow</span>
+</div>
+<div class="hidden md:flex text-on-surface font-headline-md text-headline-md">
+            Projects Dashboard
+        </div>
+<!-- Search & Actions -->
+<div class="flex items-center gap-4 flex-1 justify-end">
+<!-- Search Bar (on_right) -->
+<div class="relative w-full max-w-xs hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant text-[20px]">search</span>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-full py-2 pl-10 pr-4 font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" placeholder="Search projects..." type="text"/>
+</div>
+<!-- Trailing Icons -->
+<button class="text-on-surface-variant hover:text-primary transition-colors p-2 rounded-full hover:bg-surface-variant">
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="pt-[80px] md:pl-[280px] min-h-screen p-container-padding flex flex-col gap-section-gap">
+<!-- Welcome & Primary Action Section -->
+<section class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-background">Welcome back, Designer</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-2">You have 3 active projects in progress.</p>
+</div>
+<button class="bg-surface-container-low text-on-surface p-3 rounded-lg border border-outline-variant shadow-sm hover:bg-surface-variant transition-colors flex items-center justify-center flex-shrink-0" title="Import Project"><span class="material-symbols-outlined text-[20px]">file_upload</span></button><button class="bg-primary text-on-primary font-label-md text-label-md py-3 px-6 rounded-lg shadow-sm hover:opacity-90 transition-opacity flex items-center gap-2 flex-shrink-0">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+                Create New Project
+            </button>
+</section>
+<!-- Projects Grid (Bento/Card Layout) -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Project Card 1 -->
+<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary transition-colors group relative overflow-hidden shadow-sm">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary hidden group-hover:block transition-all"></div>
+<div>
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-secondary-container rounded-lg text-on-secondary-container">
+<span class="material-symbols-outlined text-[24px]">history_edu</span>
+</div>
+<div class="flex gap-2">
+<button class="text-outline hover:text-primary transition-colors" title="Export">
+<span class="material-symbols-outlined text-[20px]">file_download</span>
+</button>
+<button class="text-outline hover:text-primary transition-colors" title="Import">
+<span class="material-symbols-outlined text-[20px]">file_upload</span>
+</button>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-1 group-hover:text-primary transition-colors">Spencerian Script</h3>
+<p class="font-body-md text-body-md text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">task_alt</span> 24 Tasks Remaining
+                    </p>
+</div>
+<div class="mt-6 pt-4 border-t border-surface-variant flex justify-between items-center">
+<div class="w-full bg-surface-variant rounded-full h-1.5 mr-4">
+<div class="bg-primary h-1.5 rounded-full" style="width: 45%"></div>
+</div>
+<button class="flex items-center gap-1 text-primary font-label-sm text-label-sm hover:underline whitespace-nowrap">
+<span class="material-symbols-outlined text-[16px]">add</span> Add Task
+                    </button>
+</div>
+<div class="mt-4 pt-4 border-t border-outline-variant"><details class="group/tasks" open=""><summary class="flex items-center justify-between cursor-pointer list-none font-label-sm text-label-sm text-on-surface-variant hover:text-primary"><span class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">list</span> View Tasks</span><div class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] hidden group-hover:block hover:text-primary" title="Quick Add Task">add</span><span class="material-symbols-outlined transition-transform group-open/tasks:rotate-180">expand_more</span></div></summary><div class="mt-3 space-y-4"><div class="space-y-2"><p class="text-label-sm font-bold text-outline uppercase tracking-wider">Basics</p><div class="flex items-center gap-2 text-body-md group/task-item cursor-move"><span class="material-symbols-outlined text-outline-variant text-[18px] opacity-0 group-hover/task-item:opacity-100">drag_indicator</span><span class="material-symbols-outlined text-primary">check_box</span><span class="text-on-surface flex-1">Grip &amp; Posture</span><span class="material-symbols-outlined text-outline text-[18px] opacity-0 group-hover/task-item:opacity-100 cursor-pointer hover:text-primary">edit</span></div><div class="flex items-center gap-2 text-body-md group/task-item cursor-move"><span class="material-symbols-outlined text-outline-variant text-[18px] opacity-0 group-hover/task-item:opacity-100">drag_indicator</span><span class="material-symbols-outlined text-outline">check_box_outline_blank</span><span class="text-on-surface flex-1">Basic Ovals</span><span class="material-symbols-outlined text-outline text-[18px] opacity-0 group-hover/task-item:opacity-100 cursor-pointer hover:text-primary">edit</span></div></div><button class="w-full mt-4 py-2 border border-dashed border-outline-variant rounded-lg text-label-sm text-on-surface-variant hover:border-primary hover:text-primary transition-colors">+ Create New Topic</button></div></details></div></article>
+<!-- Project Card 2 -->
+<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary transition-colors group relative overflow-hidden shadow-sm">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary hidden group-hover:block transition-all"></div>
+<div>
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-primary-fixed-dim rounded-lg text-on-primary-fixed-variant">
+<span class="material-symbols-outlined text-[24px]">draw</span>
+</div>
+<div class="flex gap-2">
+<button class="text-outline hover:text-primary transition-colors" title="Export">
+<span class="material-symbols-outlined text-[20px]">file_download</span>
+</button>
+<button class="text-outline hover:text-primary transition-colors" title="Import">
+<span class="material-symbols-outlined text-[20px]">file_upload</span>
+</button>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-1 group-hover:text-primary transition-colors">Copperplate Basics</h3>
+<p class="font-body-md text-body-md text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">task_alt</span> 12 Tasks Remaining
+                    </p>
+</div>
+<div class="mt-6 pt-4 border-t border-surface-variant flex justify-between items-center">
+<div class="w-full bg-surface-variant rounded-full h-1.5 mr-4">
+<div class="bg-primary h-1.5 rounded-full" style="width: 15%"></div>
+</div>
+<button class="flex items-center gap-1 text-primary font-label-sm text-label-sm hover:underline whitespace-nowrap">
+<span class="material-symbols-outlined text-[16px]">add</span> Add Task
+                    </button>
+</div>
+<div class="mt-4 pt-4 border-t border-outline-variant"><details class="group/tasks"><summary class="flex items-center justify-between cursor-pointer list-none font-label-sm text-label-sm text-on-surface-variant hover:text-primary"><span class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">list</span> View Tasks</span><div class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] hidden group-hover:block hover:text-primary" title="Quick Add Task">add</span><span class="material-symbols-outlined transition-transform group-open/tasks:rotate-180">expand_more</span></div></summary><div class="mt-3 space-y-4"><div class="space-y-2"><p class="text-label-sm font-bold text-outline uppercase tracking-wider">Intermediate</p><div class="flex items-center gap-2 text-body-md group/task-item cursor-move"><span class="material-symbols-outlined text-outline-variant text-[18px] opacity-0 group-hover/task-item:opacity-100">drag_indicator</span><span class="material-symbols-outlined text-primary">check_box</span><span class="text-on-surface flex-1">Lowercase Connectors</span><span class="material-symbols-outlined text-outline text-[18px] opacity-0 group-hover/task-item:opacity-100 cursor-pointer hover:text-primary">edit</span></div></div><button class="w-full mt-4 py-2 border border-dashed border-outline-variant rounded-lg text-label-sm text-on-surface-variant hover:border-primary hover:text-primary transition-colors">+ Create New Topic</button></div></details></div></article>
+<!-- Project Card 3 -->
+<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary transition-colors group relative overflow-hidden shadow-sm">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary hidden group-hover:block transition-all"></div>
+<div>
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-tertiary-fixed-dim rounded-lg text-on-tertiary-fixed-variant">
+<span class="material-symbols-outlined text-[24px]">ink_pen</span>
+</div>
+<div class="flex gap-2">
+<button class="text-outline hover:text-primary transition-colors" title="Export">
+<span class="material-symbols-outlined text-[20px]">file_download</span>
+</button>
+<button class="text-outline hover:text-primary transition-colors" title="Import">
+<span class="material-symbols-outlined text-[20px]">file_upload</span>
+</button>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-1 group-hover:text-primary transition-colors">Business Penmanship</h3>
+<p class="font-body-md text-body-md text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">task_alt</span> 5 Tasks Remaining
+                    </p>
+</div>
+<div class="mt-6 pt-4 border-t border-surface-variant flex justify-between items-center">
+<div class="w-full bg-surface-variant rounded-full h-1.5 mr-4">
+<div class="bg-primary h-1.5 rounded-full" style="width: 85%"></div>
+</div>
+<button class="flex items-center gap-1 text-primary font-label-sm text-label-sm hover:underline whitespace-nowrap">
+<span class="material-symbols-outlined text-[16px]">add</span> Add Task
+                    </button>
+</div>
+<div class="mt-4 pt-4 border-t border-outline-variant"><details class="group/tasks"><summary class="flex items-center justify-between cursor-pointer list-none font-label-sm text-label-sm text-on-surface-variant hover:text-primary"><span class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">list</span> View Tasks</span><div class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] hidden group-hover:block hover:text-primary" title="Quick Add Task">add</span><span class="material-symbols-outlined transition-transform group-open/tasks:rotate-180">expand_more</span></div></summary><div class="mt-3 space-y-4"><div class="space-y-2"><p class="text-label-sm font-bold text-outline uppercase tracking-wider">Advanced</p><div class="flex items-center gap-2 text-body-md group/task-item cursor-move"><span class="material-symbols-outlined text-outline-variant text-[18px] opacity-0 group-hover/task-item:opacity-100">drag_indicator</span><span class="material-symbols-outlined text-outline">check_box_outline_blank</span><span class="text-on-surface flex-1">Flourishing Basics</span><span class="material-symbols-outlined text-outline text-[18px] opacity-0 group-hover/task-item:opacity-100 cursor-pointer hover:text-primary">edit</span></div></div><button class="w-full mt-4 py-2 border border-dashed border-outline-variant rounded-lg text-label-sm text-on-surface-variant hover:border-primary hover:text-primary transition-colors">+ Create New Topic</button></div></details></div></article>
+<!-- Create New Project Card (Alternative entry point) -->
+</section>
+</main>
+</body></html>
