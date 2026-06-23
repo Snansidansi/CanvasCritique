@@ -4,6 +4,7 @@
   
   // Views
   import Dashboard from './lib/views/Dashboard.svelte';
+  import ProjectDetail from './lib/views/ProjectDetail.svelte';
   import PracticeCanvas from './lib/views/PracticeCanvas.svelte';
   import Settings from './lib/views/Settings.svelte';
   import TaskEditor from './lib/views/TaskEditor.svelte';
@@ -17,6 +18,8 @@
   <div class="flex-grow flex flex-col min-w-0 relative h-full">
     {#if store.currentView === 'dashboard'}
       <Dashboard />
+    {:else if store.currentView === 'project-detail'}
+      <ProjectDetail />
     {:else if store.currentView === 'practice'}
       <PracticeCanvas />
     {:else if store.currentView === 'settings'}

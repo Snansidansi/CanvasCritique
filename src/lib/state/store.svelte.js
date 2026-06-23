@@ -8,6 +8,7 @@ const defaultProjects = [
     id: 'spencerian',
     name: 'Spencerian Script',
     icon: 'history_edu',
+    categories: ['Basics', 'Intermediate', 'Advanced'],
     tasks: [
       {
         id: 'sp-1',
@@ -39,6 +40,7 @@ const defaultProjects = [
     id: 'copperplate',
     name: 'Copperplate Basics',
     icon: 'draw',
+    categories: ['Basics', 'Intermediate', 'Advanced'],
     tasks: [
       {
         id: 'cp-1',
@@ -62,6 +64,7 @@ const defaultProjects = [
     id: 'penmanship',
     name: 'Business Penmanship',
     icon: 'ink_pen',
+    categories: ['Basics', 'Intermediate', 'Advanced'],
     tasks: [
       {
         id: 'bp-1',
@@ -87,10 +90,11 @@ const defaultSettings = {
 // State classes for Svelte 5 Runes reactivity
 class ScribeFlowStore {
   // Runes
-  currentView = $state('dashboard'); // 'dashboard' | 'practice' | 'settings' | 'task-editor'
+  currentView = $state('dashboard'); // 'dashboard' | 'practice' | 'settings' | 'task-editor' | 'project-detail'
   projects = $state([]);
   activeProject = $state(null);
   activeTask = $state(null);
+  editingTask = $state(null);
   settings = $state(defaultSettings);
 
   constructor() {
@@ -102,7 +106,14 @@ class ScribeFlowStore {
     try {
       const savedProjects = localStorage.getItem(STORAGE_KEY_PROJECTS);
       if (savedProjects) {
-        this.projects = JSON.parse(savedProjects);
+        const parsed = JSON.parse(savedProjects);
+        // Ensure default categories exist
+        parsed.forEach(p => {
+          if (!p.categories) {
+            p.categories = ['Basics', 'Intermediate', 'Advanced'];
+          }
+        });
+        this.projects = parsed;
       } else {
         this.projects = defaultProjects;
         this.saveProjects();
@@ -174,17 +185,45 @@ class ScribeFlowStore {
     this.setView('practice');
   }
 
+  setEditingTask(task) {
+    this.editingTask = task;
+    this.setView('task-editor');
+  }
+
   // Mutation actions
   addProject(name, icon = 'history_edu') {
     const newProj = {
       id: 'proj-' + Date.now(),
       name,
       icon,
+      categories: ['Basics', 'Intermediate', 'Advanced'],
       tasks: []
     };
     this.projects.push(newProj);
     this.saveProjects();
+    
+    if (this.activeProject && this.activeProject.id === newProj.id) {
+      this.activeProject = newProj;
+    }
     return newProj;
+  }
+
+  addCategory(projectId, categoryName) {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+    
+    if (!project.categories) {
+      project.categories = ['Basics', 'Intermediate', 'Advanced'];
+    }
+    
+    if (!project.categories.includes(categoryName)) {
+      project.categories.push(categoryName);
+      this.saveProjects();
+    }
+    
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
   }
 
   addTask(projectId, name, instructions, solution, category = 'Basics') {
@@ -201,9 +240,65 @@ class ScribeFlowStore {
     };
 
     project.tasks.push(newTask);
+    
+    // Auto-add category if it isn't listed
+    if (project.categories && !project.categories.includes(category)) {
+      project.categories.push(category);
+    }
+    
     this.saveProjects();
 
     // Update active project reference if it is active
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
+  }
+
+  updateTask(projectId, taskId, updatedData) {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const task = project.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    task.name = updatedData.name;
+    task.instructions = updatedData.instructions;
+    task.solution = updatedData.solution;
+    task.category = updatedData.category;
+
+    // Auto-add category if it isn't listed
+    if (project.categories && !project.categories.includes(updatedData.category)) {
+      project.categories.push(updatedData.category);
+    }
+
+    this.saveProjects();
+
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
+    if (this.activeTask && this.activeTask.id === taskId) {
+      this.activeTask = task;
+    }
+  }
+
+  reorderTasks(projectId, category, taskIdsOrder) {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    // Filter tasks by category vs others
+    const categoryTasks = project.tasks.filter(t => (t.category || 'Basics') === category);
+    const otherTasks = project.tasks.filter(t => (t.category || 'Basics') !== category);
+
+    // Reorder categoryTasks in-place based on taskIdsOrder index
+    categoryTasks.sort((a, b) => {
+      const idxA = taskIdsOrder.indexOf(a.id);
+      const idxB = taskIdsOrder.indexOf(b.id);
+      return idxA - idxB;
+    });
+
+    project.tasks = [...otherTasks, ...categoryTasks];
+    this.saveProjects();
+
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }

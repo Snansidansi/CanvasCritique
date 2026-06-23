@@ -27,12 +27,19 @@
     store.selectTask(task);
   }
 
+  function handleNavigateProject(project) {
+    store.selectProject(project);
+    store.setView('project-detail');
+  }
+
   function handleCreateProject(e) {
     e.preventDefault();
     if (!newProjectName.trim()) return;
     const proj = store.addProject(newProjectName.trim(), newProjectIcon);
     newProjectName = '';
     isAddProjectOpen = false;
+    // Go to project detail immediately for the new project
+    handleNavigateProject(proj);
   }
 
   function handleQuickAddTask(projectId) {
@@ -116,9 +123,12 @@
         
         <div>
           <div class="flex justify-between items-start mb-4">
-            <div class="p-3 bg-secondary-container text-on-secondary-container rounded-lg">
+            <button 
+              onclick={() => handleNavigateProject(project)}
+              class="w-12 h-12 flex items-center justify-center bg-secondary-container text-on-secondary-container rounded-lg shrink-0 focus:outline-none cursor-pointer"
+            >
               <span class="material-symbols-outlined text-[24px]">{project.icon || 'history_edu'}</span>
-            </div>
+            </button>
             
             <div class="flex gap-2">
               <button 
@@ -131,20 +141,28 @@
             </div>
           </div>
 
-          <h3 class="font-bold text-lg text-on-surface mb-1 group-hover:text-primary transition-colors">{project.name}</h3>
-          <p class="text-sm text-on-surface-variant flex items-center gap-1">
-            <span class="material-symbols-outlined text-[16px] text-primary">task_alt</span> 
-            {remaining} {remaining === 1 ? 'Task' : 'Tasks'} Remaining
-          </p>
+          <button 
+            onclick={() => handleNavigateProject(project)}
+            class="text-left w-full focus:outline-none cursor-pointer group"
+          >
+            <h3 class="font-bold text-lg text-on-surface mb-1 group-hover:text-primary transition-colors">{project.name}</h3>
+            <p class="text-sm text-on-surface-variant flex items-center gap-1">
+              <span class="material-symbols-outlined text-[16px] text-primary">task_alt</span> 
+              {remaining} {remaining === 1 ? 'Task' : 'Tasks'} Remaining
+            </p>
+          </button>
         </div>
 
         <!-- Progress bar -->
-        <div class="mt-6 pt-4 border-t border-surface-variant flex justify-between items-center">
+        <button 
+          onclick={() => handleNavigateProject(project)}
+          class="mt-6 pt-4 border-t border-surface-variant flex justify-between items-center w-full focus:outline-none cursor-pointer text-left"
+        >
           <div class="w-full bg-surface-variant rounded-full h-2 mr-4">
             <div class="bg-primary h-2 rounded-full transition-all duration-300" style="width: {progress}%"></div>
           </div>
           <span class="text-xs font-bold text-on-surface-variant">{progress}%</span>
-        </div>
+        </button>
 
         <!-- Tasks details expandable list -->
         <div class="mt-4 pt-4 border-t border-outline-variant">
