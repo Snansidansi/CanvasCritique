@@ -159,12 +159,15 @@
   function clearCanvas() {
     if (strokeHistory.length === 0) return;
     
-    const isConfirmed = confirm("Are you sure you want to clear your drawing canvas? This will discard your current calligraphy sketch.");
-    if (isConfirmed) {
-      strokeHistory = [];
-      redoStack = [];
-      redraw();
-    }
+    store.confirm(
+      'Clear Drawing Canvas',
+      'Are you sure you want to clear your drawing canvas? This will discard your current calligraphy sketch.',
+      () => {
+        strokeHistory = [];
+        redoStack = [];
+        redraw();
+      }
+    );
   }
 
   // Draggable splitter panel sizing
@@ -571,10 +574,14 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
                   </button>
                   <button 
                     onclick={() => {
-                      if (confirm(`Delete background template "${customBg.name}"?`)) {
-                        if (activeBg === customBg.id) activeBg = 'grid';
-                        store.deleteCustomBackground(customBg.id);
-                      }
+                      store.confirm(
+                        'Delete Background Template',
+                        `Are you sure you want to delete the background template "${customBg.name}"?`,
+                        () => {
+                          if (activeBg === customBg.id) activeBg = 'grid';
+                          store.deleteCustomBackground(customBg.id);
+                        }
+                      );
                     }}
                     class="p-1.5 text-outline hover:text-error opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none cursor-pointer"
                     title="Delete Background"

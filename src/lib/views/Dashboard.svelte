@@ -160,7 +160,11 @@
                 <span class="material-symbols-outlined text-[20px]">file_download</span>
               </button>
               <button 
-                onclick={() => store.deleteProject(project.id)}
+                onclick={() => store.confirm(
+                  'Delete Lesson Script',
+                  `Are you sure you want to delete "${project.name}"? This will permanently discard this calligraphy script project, its task lists, reference files, and historical practice logs.`,
+                  () => store.deleteProject(project.id)
+                )}
                 class="text-outline hover:text-error transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer" 
                 title="Delete Project"
               >

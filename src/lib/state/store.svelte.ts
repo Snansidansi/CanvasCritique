@@ -105,6 +105,7 @@ class ScribeFlowStore {
   quickAddTaskData = $state(null);
   settings = $state(defaultSettings);
   customBackgrounds = $state([]);
+  confirmDialog = $state(null);
 
   // Getters for dynamic API/Model selection
   get apiKey() {
@@ -450,6 +451,21 @@ class ScribeFlowStore {
       this.activeTask = null;
       this.setView('dashboard');
     }
+  }
+
+  confirm(title, message, onConfirm, onCancel = null) {
+    this.confirmDialog = {
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        this.confirmDialog = null;
+      },
+      onCancel: () => {
+        if (onCancel) onCancel();
+        this.confirmDialog = null;
+      }
+    };
   }
 }
 
