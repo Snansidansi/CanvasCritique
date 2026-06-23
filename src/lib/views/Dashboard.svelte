@@ -43,11 +43,12 @@
   }
 
   function handleQuickAddTask(projectId) {
+    const project = store.projects.find(p => p.id === projectId);
     const name = quickTaskName[projectId];
-    const cat = quickTaskCategory[projectId] || 'Basics';
+    const cat = quickTaskCategory[projectId] || (project?.categories && project.categories[0]) || 'Basics';
     if (!name || !name.trim()) return;
 
-    store.selectProject(store.projects.find(p => p.id === projectId));
+    store.selectProject(project);
     store.quickAddTaskData = {
       name: name.trim(),
       category: cat
@@ -237,9 +238,9 @@
                     bind:value={quickTaskCategory[project.id]}
                     class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-[10px] text-on-surface-variant"
                   >
-                    <option value="Basics">Basics</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
+                    {#each project.categories || ['Basics', 'Intermediate', 'Advanced'] as category}
+                      <option value={category}>{category}</option>
+                    {/each}
                   </select>
                   
                   <button 
