@@ -14,7 +14,7 @@
   let showTask = $state(true);
   let showSolution = $state(false);
   let activeBg = $state('grid'); // 'grid' | 'lines' | 'blank' | custom template ID
-  let bgOpacity = $state(45); // Background template opacity range 1-100
+  let bgOpacity = $state(15); // Background template opacity range 1-100
   let customBgUrl = $state(null);
   
   // Resizable left panel splitter state
@@ -518,7 +518,17 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
           onclick={() => bgDropdownOpen = !bgDropdownOpen}
           class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-variant rounded-lg bg-surface hover:bg-surface-container cursor-pointer focus:outline-none"
         >
-          <span class="material-symbols-outlined text-base">wallpaper</span>
+          {#if activeBg === 'grid'}
+            <span class="material-symbols-outlined text-base">grid_3x3</span>
+          {:else if activeBg === 'lines'}
+            <span class="material-symbols-outlined text-base">reorder</span>
+          {:else if activeBg === 'blank'}
+            <span class="material-symbols-outlined text-base">check_box_outline_blank</span>
+          {:else if currentBgObject && currentBgObject.icon && currentBgObject.icon.startsWith('data:image/')}
+            <img src={currentBgObject.icon} class="w-4 h-4 object-contain rounded" alt="" />
+          {:else}
+            <span class="material-symbols-outlined text-base">image</span>
+          {/if}
           <span>Bg: {
             activeBg === 'grid' ? 'Grid' :
             activeBg === 'lines' ? 'Lines' :
@@ -574,6 +584,7 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
                   </button>
                   <button 
                     onclick={() => {
+                      bgDropdownOpen = false;
                       store.confirm(
                         'Delete Background Template',
                         `Are you sure you want to delete the background template "${customBg.name}"?`,
@@ -765,7 +776,7 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
             class="absolute inset-0 canvas-guidelines pointer-events-none z-0"
             style="opacity: {bgOpacity / 100}; background-repeat: repeat;"
           ></div>
-        {:else if activeBg === 'custom' && currentBgUrl}
+        {:else if currentBgUrl}
           <div 
             class="absolute inset-0 pointer-events-none z-0 bg-repeat"
             style="background-image: url({currentBgUrl}); opacity: {bgOpacity / 100}; background-repeat: repeat;"

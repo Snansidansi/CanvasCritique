@@ -44,8 +44,8 @@
     <!-- Home / Dashboard link -->
     <button 
       onclick={() => handleNavigate('dashboard')}
-      class="w-full flex items-center rounded-lg px-4 py-3 transition-all font-semibold text-sm relative group
-             {isCollapsed ? 'justify-center' : 'gap-3'}
+      class="w-full flex items-center rounded-lg transition-all font-semibold text-sm relative group
+             {isCollapsed ? 'justify-center px-0 py-3' : 'gap-3 px-4 py-3'}
              {store.currentView === 'dashboard' ? 'bg-secondary-container text-on-secondary-container border-l-4 border-primary' : 'text-on-surface-variant hover:bg-surface-container-highest'}"
     >
       <span class="material-symbols-outlined" data-weight={store.currentView === 'dashboard' ? 'fill' : 'normal'}>home</span>
@@ -72,7 +72,7 @@
         <button 
           onclick={() => handleNavigate('project-detail', project)}
           class="w-full flex items-center rounded-lg hover:bg-surface-container-highest text-on-surface-variant text-left relative group
-                 {isCollapsed ? 'justify-center p-3' : 'gap-3 px-4 py-2 text-sm'}
+                 {isCollapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-4 py-2 text-sm'}
                  {store.activeProject?.id === project.id && (store.currentView === 'project-detail' || store.currentView === 'practice') ? 'bg-surface-container font-semibold text-primary' : ''}"
         >
           {#if project.icon && project.icon.startsWith('data:image/')}
@@ -96,8 +96,8 @@
   <div class="mt-auto border-t border-outline-variant/30 pt-4 flex flex-col gap-1">
     <button 
       onclick={() => handleNavigate('settings')}
-      class="w-full flex items-center rounded-lg px-4 py-3 transition-all font-semibold text-sm relative group
-             {isCollapsed ? 'justify-center' : 'gap-3'}
+      class="w-full flex items-center rounded-lg transition-all font-semibold text-sm relative group
+             {isCollapsed ? 'justify-center px-0 py-3' : 'gap-3 px-4 py-3'}
              {store.currentView === 'settings' ? 'bg-secondary-container text-on-secondary-container border-l-4 border-primary' : 'text-on-surface-variant hover:bg-surface-container-highest'}"
     >
       <span class="material-symbols-outlined" data-weight={store.currentView === 'settings' ? 'fill' : 'normal'}>settings</span>
