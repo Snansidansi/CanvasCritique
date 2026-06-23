@@ -1,5 +1,6 @@
 <script>
   import { store } from '../state/store.svelte.js';
+  import { onMount } from 'svelte';
 
   // Local state for settings view tabs
   let activeTab = $state('settings'); // 'settings' | 'data'
@@ -12,24 +13,101 @@
   let openRouterModelOpen = $state(false);
   let openRouterProviderOpen = $state(false);
 
-  // Constants for autocomplete dropdowns
-  const geminiModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash-8b'];
-  const openRouterModels = [
+  // Autocomplete search states
+  let providerSearchTerm = $state('');
+  let showOnlyVisionModels = $state(true);
+
+  // Connection test state
+  let connectionTestStatus = $state(''); // 'idle' | 'testing' | 'success' | 'error'
+  let connectionTestMessage = $state('');
+
+  // Default models and providers list
+  let geminiModelsList = $state(['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash-8b']);
+  let openRouterModelsList = $state([
     'google/gemini-flash-1.5',
     'meta-llama/llama-3.1-8b-instruct',
     'anthropic/claude-3.5-sonnet'
-  ];
+  ]);
   const openRouterProviders = ['Google', 'OpenAI', 'Anthropic', 'Meta', 'Mistral'];
+
+  // Dynamic model fetching
+  async function fetchGeminiModels() {
+    const key = store.settings.geminiApiKey;
+    if (!key) return;
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.models && data.models.length > 0) {
+          const models = data.models
+            .filter(m => m.supportedGenerationMethods.includes('generateContent'))
+            .map(m => m.name.replace('models/', ''));
+          if (models.length > 0) {
+            geminiModelsList = models;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching Gemini models:', e);
+    }
+  }
+
+  async function fetchOpenRouterModels() {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/models');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.data && data.data.length > 0) {
+          const models = data.data.map(m => m.id);
+          if (models.length > 0) {
+            openRouterModelsList = models;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching OpenRouter models:', e);
+    }
+  }
+
+  // Hook dynamic model listing triggers
+  $effect(() => {
+    if (store.settings.geminiApiKey) {
+      fetchGeminiModels();
+    }
+  });
+
+  onMount(() => {
+    fetchOpenRouterModels();
+    if (store.settings.geminiApiKey) {
+      fetchGeminiModels();
+    }
+  });
 
   // Filtered dropdown suggestions based on active text input values
   let filteredGeminiModels = $derived(
-    geminiModels.filter(m => m.toLowerCase().includes(store.settings.geminiModel.toLowerCase()))
+    geminiModelsList
+      .filter(m => {
+        if (!showOnlyVisionModels) return true;
+        const name = m.toLowerCase();
+        return name.includes('1.5') || name.includes('2.0') || name.includes('vision') || name.includes('flash') || name.includes('pro');
+      })
+      .filter(m => m.toLowerCase().includes(store.settings.geminiModel.toLowerCase()))
   );
+
   let filteredOpenRouterModels = $derived(
-    openRouterModels.filter(m => m.toLowerCase().includes(store.settings.openRouterModel.toLowerCase()))
+    openRouterModelsList
+      .filter(m => {
+        if (!showOnlyVisionModels) return true;
+        const name = m.toLowerCase();
+        return name.includes('vision') || name.includes('gemini') || name.includes('claude-3') || name.includes('gpt-4o') || name.includes('pixtral') || name.includes('llava');
+      })
+      .filter(m => m.toLowerCase().includes(store.settings.openRouterModel.toLowerCase()))
   );
+
   let filteredOpenRouterProviders = $derived(
-    openRouterProviders.filter(p => p.toLowerCase().includes(store.settings.openRouterProvider.toLowerCase()))
+    openRouterProviders
+      .filter(p => !(store.settings.openRouterProvider || []).includes(p))
+      .filter(p => p.toLowerCase().includes(providerSearchTerm.toLowerCase()))
   );
 
   function setTheme(theme) {
@@ -44,6 +122,114 @@
 
   function handleInputChange() {
     store.saveSettings();
+  }
+
+  // Native folder pick wrapper or mock directory selector
+  async function selectFolder(type) {
+    try {
+      if (window.__TAURI__) {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const selected = await open({
+          directory: true,
+          multiple: false,
+          title: 'Select Export Directory'
+        });
+        if (selected) {
+          if (type === 'settings') {
+            store.settings.exportPathSettings = selected;
+          } else {
+            store.settings.exportPathData = selected;
+          }
+          store.saveSettings();
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn('Tauri dialog plugin not available, falling back to browser folder select mock:', e);
+    }
+
+    // Fallback: Web browser simulated absolute directory path pick
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.webkitdirectory = true;
+    input.onchange = (e) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        const firstFile = files[0];
+        const folderName = firstFile.webkitRelativePath.split('/')[0] || 'backups';
+        const finalPath = `/home/user/Downloads/${folderName}`;
+        if (type === 'settings') {
+          store.settings.exportPathSettings = finalPath;
+        } else {
+          store.settings.exportPathData = finalPath;
+        }
+        store.saveSettings();
+      }
+    };
+    input.click();
+  }
+
+  // API Connection Verification
+  async function testApiConnection() {
+    connectionTestStatus = 'testing';
+    connectionTestMessage = 'Testing connection to active model...';
+
+    const provider = store.settings.apiProvider;
+    const apiKey = store.apiKey;
+    const model = store.model;
+
+    if (!apiKey) {
+      connectionTestStatus = 'error';
+      connectionTestMessage = 'Error: Please enter an API key first.';
+      return;
+    }
+
+    try {
+      if (provider === 'gemini') {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: "Hello! Reply in one short word." }] }]
+          })
+        });
+        const data = await response.json();
+        if (response.ok && data.candidates && data.candidates[0]) {
+          connectionTestStatus = 'success';
+          connectionTestMessage = 'Success! Connection verified successfully.';
+        } else {
+          connectionTestStatus = 'error';
+          connectionTestMessage = `Error: ${data.error?.message || 'Invalid API key or model.'}`;
+        }
+      } else {
+        const url = 'https://openrouter.ai/api/v1/chat/completions';
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://scribeflow.app',
+            'X-Title': 'ScribeFlow'
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [{ role: "user", content: "Hello! Reply in one short word." }]
+          })
+        });
+        const data = await response.json();
+        if (response.ok && data.choices && data.choices[0]) {
+          connectionTestStatus = 'success';
+          connectionTestMessage = 'Success! Connection verified successfully.';
+        } else {
+          connectionTestStatus = 'error';
+          connectionTestMessage = `Error: ${data.error?.message || 'Invalid API key or model.'}`;
+        }
+      }
+    } catch (err) {
+      connectionTestStatus = 'error';
+      connectionTestMessage = `Network Error: ${err.message || err}`;
+    }
   }
 
   // Settings export/import
@@ -263,14 +449,23 @@
               <!-- Export Destination Path -->
               <div class="flex flex-col gap-1.5">
                 <label class="text-xs font-semibold text-on-surface" for="exportPathSettings">Export Destination Path</label>
-                <input 
-                  type="text" 
-                  id="exportPathSettings"
-                  bind:value={store.settings.exportPathSettings}
-                  onchange={handleInputChange}
-                  placeholder="e.g. /home/user/backups/scribeflow_settings.json" 
-                  class="w-full bg-surface-container-highest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
-                />
+                <div class="flex gap-2">
+                  <input 
+                    type="text" 
+                    id="exportPathSettings"
+                    bind:value={store.settings.exportPathSettings}
+                    onchange={handleInputChange}
+                    placeholder="e.g. /home/user/backups/scribeflow_settings.json" 
+                    class="flex-grow bg-surface-container-highest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                  />
+                  <button 
+                    type="button"
+                    onclick={() => selectFolder('settings')}
+                    class="bg-surface-container-low border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors px-4 py-2 rounded-lg font-semibold text-sm cursor-pointer shrink-0"
+                  >
+                    Browse...
+                  </button>
+                </div>
               </div>
 
               <!-- Export Frequency -->
@@ -363,14 +558,23 @@
               <!-- Export Destination Path -->
               <div class="flex flex-col gap-1.5">
                 <label class="text-xs font-semibold text-on-surface" for="exportPathData">Export Destination Path</label>
-                <input 
-                  type="text" 
-                  id="exportPathData"
-                  bind:value={store.settings.exportPathData}
-                  onchange={handleInputChange}
-                  placeholder="e.g. /home/user/backups/scribeflow_data.json" 
-                  class="w-full bg-surface-container-highest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
-                />
+                <div class="flex gap-2">
+                  <input 
+                    type="text" 
+                    id="exportPathData"
+                    bind:value={store.settings.exportPathData}
+                    onchange={handleInputChange}
+                    placeholder="e.g. /home/user/backups/scribeflow_data.json" 
+                    class="flex-grow bg-surface-container-highest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                  />
+                  <button 
+                    type="button"
+                    onclick={() => selectFolder('data')}
+                    class="bg-surface-container-low border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors px-4 py-2 rounded-lg font-semibold text-sm cursor-pointer shrink-0"
+                  >
+                    Browse...
+                  </button>
+                </div>
               </div>
 
               <!-- Export Frequency -->
@@ -468,6 +672,22 @@
                 class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
               />
             </div>
+
+            <!-- Vision Capabilities Toggle -->
+            <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
+              <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-primary">visibility</span>
+                Show Only Vision Models
+              </span>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  bind:checked={showOnlyVisionModels}
+                  class="sr-only peer" 
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
             
             <!-- Gemini Model (Searchable Autocomplete) -->
             <div class="flex flex-col gap-1.5 relative">
@@ -532,55 +752,23 @@
               />
             </div>
 
-            <!-- OpenRouter Provider (Searchable Autocomplete) -->
-            <div class="flex flex-col gap-1.5 relative">
-              <label class="text-xs font-semibold text-on-surface" for="openRouterProvider">Provider</label>
-              <div class="relative">
+            <!-- Vision Capabilities Toggle -->
+            <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
+              <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-primary">visibility</span>
+                Show Only Vision Models
+              </span>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
                 <input 
-                  type="text" 
-                  id="openRouterProvider"
-                  bind:value={store.settings.openRouterProvider}
-                  onfocus={() => openRouterProviderOpen = true}
-                  oninput={handleInputChange}
-                  placeholder="Select or type provider..."
-                  class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                  type="checkbox" 
+                  bind:checked={showOnlyVisionModels}
+                  class="sr-only peer" 
                 />
-                <button 
-                  type="button"
-                  onclick={() => openRouterProviderOpen = !openRouterProviderOpen}
-                  class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant flex items-center justify-center cursor-pointer"
-                >
-                  <span class="material-symbols-outlined">{openRouterProviderOpen ? 'expand_less' : 'expand_more'}</span>
-                </button>
-              </div>
-
-              {#if openRouterProviderOpen}
-                <!-- Invisible click-away overlay -->
-                <button type="button" class="fixed inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" aria-label="Close dropdown" onclick={() => openRouterProviderOpen = false}></button>
-                <!-- Dropdown card -->
-                <div class="absolute top-[calc(100%+4px)] left-0 w-full bg-surface-container-high border border-outline-variant rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto custom-scrollbar p-1">
-                  {#if filteredOpenRouterProviders.length > 0}
-                    {#each filteredOpenRouterProviders as providerOption}
-                      <button
-                        type="button"
-                        onclick={() => {
-                          store.settings.openRouterProvider = providerOption;
-                          openRouterProviderOpen = false;
-                          handleInputChange();
-                        }}
-                        class="w-full text-left px-3 py-2 text-sm rounded-md transition-colors hover:bg-primary/10 hover:text-primary cursor-pointer {store.settings.openRouterProvider === providerOption ? 'bg-primary/5 text-primary font-semibold' : 'text-on-surface'}"
-                      >
-                        {providerOption}
-                      </button>
-                    {/each}
-                  {:else}
-                    <div class="px-3 py-2 text-xs text-on-surface-variant italic">Press enter or type custom provider...</div>
-                  {/if}
-                </div>
-              {/if}
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
             </div>
 
-            <!-- OpenRouter Model (Searchable Autocomplete) -->
+            <!-- OpenRouter Model (Searchable Autocomplete) - PLACED FIRST -->
             <div class="flex flex-col gap-1.5 relative">
               <label class="text-xs font-semibold text-on-surface" for="openRouterModel">Model Selection</label>
               <div class="relative">
@@ -627,8 +815,123 @@
                 </div>
               {/if}
             </div>
+
+            <!-- OpenRouter Provider (Searchable Multiple Tag Autocomplete) - PLACED SECOND -->
+            <div class="flex flex-col gap-1.5 relative">
+              <span class="text-xs font-semibold text-on-surface">Selected Providers</span>
+              
+              <!-- Selected Tags list -->
+              <div class="flex flex-wrap gap-2 mb-1">
+                {#each store.settings.openRouterProvider || ['Google'] as providerTag}
+                  <div class="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 text-xs px-2.5 py-1 rounded-full font-semibold">
+                    <span>{providerTag}</span>
+                    <button
+                      type="button"
+                      onclick={() => {
+                        const current = store.settings.openRouterProvider || ['Google'];
+                        if (current.length > 1) {
+                          store.settings.openRouterProvider = current.filter(p => p !== providerTag);
+                        } else {
+                          alert("Please keep at least one provider selected.");
+                        }
+                        handleInputChange();
+                      }}
+                      class="flex items-center justify-center w-4 h-4 rounded-full hover:bg-primary/20 text-primary cursor-pointer border-0 p-0 text-[12px] font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
+                {/each}
+              </div>
+
+              <div class="relative">
+                <input 
+                  type="text" 
+                  id="openRouterProvider"
+                  bind:value={providerSearchTerm}
+                  onfocus={() => openRouterProviderOpen = true}
+                  placeholder="Type to search and add providers..."
+                  class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                />
+                <button 
+                  type="button"
+                  onclick={() => openRouterProviderOpen = !openRouterProviderOpen}
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant flex items-center justify-center cursor-pointer"
+                >
+                  <span class="material-symbols-outlined">{openRouterProviderOpen ? 'expand_less' : 'expand_more'}</span>
+                </button>
+              </div>
+
+              {#if openRouterProviderOpen}
+                <!-- Invisible click-away overlay -->
+                <button type="button" class="fixed inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" aria-label="Close dropdown" onclick={() => openRouterProviderOpen = false}></button>
+                <!-- Dropdown card -->
+                <div class="absolute top-[calc(100%+4px)] left-0 w-full bg-surface-container-high border border-outline-variant rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto custom-scrollbar p-1">
+                  {#if filteredOpenRouterProviders.length > 0}
+                    {#each filteredOpenRouterProviders as providerOption}
+                      <button
+                        type="button"
+                        onclick={() => {
+                          const current = store.settings.openRouterProvider || ['Google'];
+                          if (!current.includes(providerOption)) {
+                            store.settings.openRouterProvider = [...current, providerOption];
+                          }
+                          providerSearchTerm = '';
+                          openRouterProviderOpen = false;
+                          handleInputChange();
+                        }}
+                        class="w-full text-left px-3 py-2 text-sm rounded-md transition-colors hover:bg-primary/10 hover:text-primary cursor-pointer text-on-surface"
+                      >
+                        + Add {providerOption}
+                      </button>
+                    {/each}
+                  {:else}
+                    <div class="px-3 py-2 text-xs text-on-surface-variant italic">No matching providers found.</div>
+                  {/if}
+                </div>
+              {/if}
+            </div>
           </div>
         {/if}
+
+        <!-- Connection Test Panel -->
+        <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              onclick={testApiConnection}
+              disabled={connectionTestStatus === 'testing'}
+              class="bg-secondary-container text-on-secondary-container hover:bg-secondary-container-high disabled:opacity-50 transition-all px-4 py-2 rounded-lg font-semibold text-sm cursor-pointer flex items-center gap-2"
+            >
+              <span class="material-symbols-outlined text-[18px]">cell_tower</span>
+              Test Connection
+            </button>
+            
+            {#if connectionTestStatus === 'testing'}
+              <span class="text-xs text-on-surface-variant flex items-center gap-1.5 animate-pulse">
+                <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                Testing...
+              </span>
+            {:else}
+              {#if connectionTestStatus === 'success'}
+                <span class="text-xs text-emerald-500 font-semibold flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                  Verified
+                </span>
+              {:else if connectionTestStatus === 'error'}
+                <span class="text-xs text-error font-semibold flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-[16px]">error</span>
+                  Failed
+                </span>
+              {/if}
+            {/if}
+          </div>
+          {#if connectionTestMessage}
+            <p class="text-xs {connectionTestStatus === 'success' ? 'text-emerald-500/80' : connectionTestStatus === 'error' ? 'text-error/80' : 'text-on-surface-variant'}">
+              {connectionTestMessage}
+            </p>
+          {/if}
+        </div>
       </div>
     </section>
   </div>
