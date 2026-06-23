@@ -85,7 +85,7 @@ const defaultSettings = {
   openRouterApiKey: '',
   geminiModel: 'gemini-1.5-flash',
   openRouterModel: 'google/gemini-flash-1.5',
-  openRouterProvider: 'Google',
+  openRouterProvider: ['Google'],
   autoExport: true,
   exportFrequency: { days: 7, hours: 0, minutes: 30 },
   exportPathSettings: '',
@@ -104,6 +104,7 @@ class ScribeFlowStore {
   editingTask = $state(null);
   quickAddTaskData = $state(null);
   settings = $state(defaultSettings);
+  customBackgrounds = $state([]);
 
   // Getters for dynamic API/Model selection
   get apiKey() {
@@ -164,6 +165,19 @@ class ScribeFlowStore {
       this.settings = defaultSettings;
     }
 
+    // Load Custom Backgrounds
+    try {
+      const savedCustomBgs = localStorage.getItem('scribeflow_custom_backgrounds');
+      if (savedCustomBgs) {
+        this.customBackgrounds = JSON.parse(savedCustomBgs);
+      } else {
+        this.customBackgrounds = [];
+      }
+    } catch (e) {
+      console.error('Error loading custom backgrounds', e);
+      this.customBackgrounds = [];
+    }
+
     // Apply initial theme
     this.applyTheme(this.settings.theme);
   }
@@ -176,6 +190,27 @@ class ScribeFlowStore {
   saveSettings() {
     localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(this.settings));
     this.applyTheme(this.settings.theme);
+  }
+
+  saveCustomBackgrounds() {
+    localStorage.setItem('scribeflow_custom_backgrounds', JSON.stringify(this.customBackgrounds));
+  }
+
+  addCustomBackground(name, url, icon = null) {
+    const newBg = {
+      id: 'custom-bg-' + Date.now(),
+      name,
+      url,
+      icon: icon || url
+    };
+    this.customBackgrounds.push(newBg);
+    this.saveCustomBackgrounds();
+    return newBg;
+  }
+
+  deleteCustomBackground(id) {
+    this.customBackgrounds = this.customBackgrounds.filter(bg => bg.id !== id);
+    this.saveCustomBackgrounds();
   }
 
   applyTheme(theme) {

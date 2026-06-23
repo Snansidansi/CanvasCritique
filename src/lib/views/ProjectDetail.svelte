@@ -113,7 +113,11 @@
     
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 flex items-center justify-center bg-secondary-container text-on-secondary-container rounded-lg shrink-0">
-        <span class="material-symbols-outlined text-[20px]">{project.icon || 'history_edu'}</span>
+        {#if project.icon && project.icon.startsWith('data:image/')}
+          <img src={project.icon} class="w-8 h-8 object-contain rounded" alt="" />
+        {:else}
+          <span class="material-symbols-outlined text-[20px]">{project.icon || 'history_edu'}</span>
+        {/if}
       </div>
       <h1 class="font-bold text-lg text-on-surface truncate">{project.name}</h1>
     </div>

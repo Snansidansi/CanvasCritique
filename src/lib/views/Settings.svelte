@@ -28,7 +28,46 @@
     'meta-llama/llama-3.1-8b-instruct',
     'anthropic/claude-3.5-sonnet'
   ]);
-  const openRouterProviders = ['Google', 'OpenAI', 'Anthropic', 'Meta', 'Mistral'];
+  let openRouterModelsFullList = $state([]);
+
+  function fuzzyMatch(text, query) {
+    if (!query) return true;
+    const target = text.toLowerCase();
+    const search = query.toLowerCase();
+    
+    let searchIdx = 0;
+    for (let i = 0; i < target.length; i++) {
+      if (target[i] === search[searchIdx]) {
+        searchIdx++;
+        if (searchIdx === search.length) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // Dynamic provider extraction
+  let openRouterProviders = $derived.by(() => {
+    const providersSet = new Set();
+    openRouterModelsList.forEach(m => {
+      const parts = m.split('/');
+      if (parts.length > 1) {
+        const p = parts[0];
+        let name = p;
+        if (p === 'openai') name = 'OpenAI';
+        else if (p === 'google') name = 'Google';
+        else if (p === 'anthropic') name = 'Anthropic';
+        else if (p === 'meta-llama') name = 'Meta';
+        else if (p === 'mistralai') name = 'Mistral';
+        else name = p.charAt(0).toUpperCase() + p.slice(1);
+        providersSet.add(name);
+      }
+    });
+    // Add default popular ones just in case
+    ['Google', 'OpenAI', 'Anthropic', 'Meta', 'Mistral'].forEach(p => providersSet.add(p));
+    return Array.from(providersSet).sort();
+  });
 
   // Dynamic model fetching
   async function fetchGeminiModels() {
@@ -58,6 +97,7 @@
       if (response.ok) {
         const data = await response.json();
         if (data.data && data.data.length > 0) {
+          openRouterModelsFullList = data.data;
           const models = data.data.map(m => m.id);
           if (models.length > 0) {
             openRouterModelsList = models;
@@ -91,23 +131,48 @@
         const name = m.toLowerCase();
         return name.includes('1.5') || name.includes('2.0') || name.includes('vision') || name.includes('flash') || name.includes('pro');
       })
-      .filter(m => m.toLowerCase().includes(store.settings.geminiModel.toLowerCase()))
+      .filter(m => fuzzyMatch(m, store.settings.geminiModel))
   );
 
   let filteredOpenRouterModels = $derived(
-    openRouterModelsList
+    (openRouterModelsFullList.length > 0 ? openRouterModelsFullList : openRouterModelsList.map(id => ({ id })))
+      // 1. Filter by Selected Providers
+      .filter(m => {
+        const selected = store.settings.openRouterProvider || [];
+        if (selected.length === 0) return true; // Show all if none selected
+        
+        const parts = m.id.split('/');
+        if (parts.length > 1) {
+          const provider = parts[0].toLowerCase();
+          return selected.some(p => {
+            const lowerP = p.toLowerCase();
+            if (lowerP === 'meta' && provider === 'meta-llama') return true;
+            if (lowerP === 'mistral' && provider === 'mistralai') return true;
+            return lowerP === provider || provider.includes(lowerP) || lowerP.includes(provider);
+          });
+        }
+        return false;
+      })
+      // 2. Filter by Vision capability
       .filter(m => {
         if (!showOnlyVisionModels) return true;
-        const name = m.toLowerCase();
-        return name.includes('vision') || name.includes('gemini') || name.includes('claude-3') || name.includes('gpt-4o') || name.includes('pixtral') || name.includes('llava');
+        const id = m.id.toLowerCase();
+        const description = (m.description || '').toLowerCase();
+        const name = (m.name || '').toLowerCase();
+        const modality = m.architecture?.modality || '';
+        
+        if (modality.includes('image') || modality.includes('multimodal')) return true;
+        return id.includes('vision') || id.includes('gemini') || id.includes('claude-3') || id.includes('gpt-4o') || id.includes('pixtral') || id.includes('llava') || description.includes('vision') || description.includes('multimodal') || description.includes('image input') || name.includes('vision') || name.includes('vl');
       })
-      .filter(m => m.toLowerCase().includes(store.settings.openRouterModel.toLowerCase()))
+      // 3. Search query fuzzy match
+      .map(m => m.id)
+      .filter(id => fuzzyMatch(id, store.settings.openRouterModel))
   );
 
   let filteredOpenRouterProviders = $derived(
     openRouterProviders
       .filter(p => !(store.settings.openRouterProvider || []).includes(p))
-      .filter(p => p.toLowerCase().includes(providerSearchTerm.toLowerCase()))
+      .filter(p => fuzzyMatch(p, providerSearchTerm))
   );
 
   function setTheme(theme) {
@@ -823,18 +888,14 @@
               
               <!-- Selected Tags list -->
               <div class="flex flex-wrap gap-2 mb-1">
-                {#each store.settings.openRouterProvider || ['Google'] as providerTag}
+                {#each store.settings.openRouterProvider || [] as providerTag}
                   <div class="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 text-xs px-2.5 py-1 rounded-full font-semibold">
                     <span>{providerTag}</span>
                     <button
                       type="button"
                       onclick={() => {
-                        const current = store.settings.openRouterProvider || ['Google'];
-                        if (current.length > 1) {
-                          store.settings.openRouterProvider = current.filter(p => p !== providerTag);
-                        } else {
-                          alert("Please keep at least one provider selected.");
-                        }
+                        const current = store.settings.openRouterProvider || [];
+                        store.settings.openRouterProvider = current.filter(p => p !== providerTag);
                         handleInputChange();
                       }}
                       class="flex items-center justify-center w-4 h-4 rounded-full hover:bg-primary/20 text-primary cursor-pointer border-0 p-0 text-[12px] font-bold"
@@ -845,7 +906,14 @@
                 {/each}
               </div>
 
-              <div class="relative">
+              {#if (store.settings.openRouterProvider || []).length === 0}
+                <p class="text-xs text-error font-semibold flex items-center gap-1 mt-1">
+                  <span class="material-symbols-outlined text-[16px] text-error">warning</span>
+                  Warning: No provider selected! Model filtering will show all.
+                </p>
+              {/if}
+
+              <div class="relative mt-1">
                 <input 
                   type="text" 
                   id="openRouterProvider"

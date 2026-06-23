@@ -37,9 +37,20 @@
     if (!newProjectName.trim()) return;
     const proj = store.addProject(newProjectName.trim(), newProjectIcon);
     newProjectName = '';
+    newProjectIcon = 'history_edu';
     isAddProjectOpen = false;
     // Go to project detail immediately for the new project
     handleNavigateProject(proj);
+  }
+
+  function handleCustomIconUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      newProjectIcon = event.target.result;
+    };
+    reader.readAsDataURL(file);
   }
 
   function handleQuickAddTask(projectId) {
@@ -133,7 +144,11 @@
               onclick={() => handleNavigateProject(project)}
               class="w-12 h-12 flex items-center justify-center bg-secondary-container text-on-secondary-container rounded-lg shrink-0 focus:outline-none cursor-pointer"
             >
-              <span class="material-symbols-outlined text-[24px]">{project.icon || 'history_edu'}</span>
+              {#if project.icon && project.icon.startsWith('data:image/')}
+                <img src={project.icon} class="w-6 h-6 object-contain rounded" alt="" />
+              {:else}
+                <span class="material-symbols-outlined text-[24px]">{project.icon || 'history_edu'}</span>
+              {/if}
             </button>
             
             <div class="flex gap-2">
@@ -299,6 +314,22 @@
                 <span class="material-symbols-outlined text-[24px]">{icon}</span>
               </button>
             {/each}
+          </div>
+          
+          <div class="flex flex-col gap-1 mt-2">
+            <span class="text-xs font-semibold text-on-surface-variant">Or Upload Custom Icon</span>
+            <input 
+              type="file" 
+              accept="image/*"
+              onchange={handleCustomIconUpload}
+              class="text-xs text-on-surface bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 focus:outline-none cursor-pointer"
+            />
+            {#if newProjectIcon && newProjectIcon.startsWith('data:image/')}
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-[10px] text-primary font-semibold">Custom Preview:</span>
+                <img src={newProjectIcon} class="w-8 h-8 object-contain rounded border border-primary/20 bg-white" alt="Preview" />
+              </div>
+            {/if}
           </div>
         </div>
 

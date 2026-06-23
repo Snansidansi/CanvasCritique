@@ -75,7 +75,11 @@
                  {isCollapsed ? 'justify-center p-3' : 'gap-3 px-4 py-2 text-sm'}
                  {store.activeProject?.id === project.id && (store.currentView === 'project-detail' || store.currentView === 'practice') ? 'bg-surface-container font-semibold text-primary' : ''}"
         >
-          <span class="material-symbols-outlined text-[18px] shrink-0">{project.icon || 'history_edu'}</span>
+          {#if project.icon && project.icon.startsWith('data:image/')}
+            <img src={project.icon} class="w-[18px] h-[18px] object-contain rounded shrink-0" alt="" />
+          {:else}
+            <span class="material-symbols-outlined text-[18px] shrink-0">{project.icon || 'history_edu'}</span>
+          {/if}
           {#if !isCollapsed}
             <span class="truncate">{project.name}</span>
           {:else}
