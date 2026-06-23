@@ -963,6 +963,49 @@
           </div>
         {/if}
 
+        <!-- Evaluation Payload Settings -->
+        <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
+          <h4 class="text-sm font-bold text-on-surface">Evaluation Details</h4>
+          <p class="text-xs text-on-surface-variant leading-relaxed">
+            Configure what task details are sent to the AI model during "Check Work" evaluations.
+          </p>
+          <div class="flex flex-col gap-2 mt-1">
+            <!-- Send Task Details Toggle -->
+            <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
+              <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-primary">description</span>
+                Send Task Instructions & Details
+              </span>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  bind:checked={store.settings.sendTaskMedia}
+                  onchange={handleInputChange}
+                  class="sr-only peer" 
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+            
+            <!-- Send Solution Details Toggle -->
+            <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
+              <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-primary">fact_check</span>
+                Send Evaluation Goal & Solution Details
+              </span>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  bind:checked={store.settings.sendSolutionMedia}
+                  onchange={handleInputChange}
+                  class="sr-only peer" 
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
         <!-- Connection Test Panel -->
         <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
           <div class="flex items-center gap-3">

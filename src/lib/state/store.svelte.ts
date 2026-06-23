@@ -91,7 +91,9 @@ const defaultSettings = {
   exportPathSettings: '',
   exportPathData: '',
   autoExportData: true,
-  exportFrequencyData: { days: 7, hours: 0, minutes: 30 }
+  exportFrequencyData: { days: 7, hours: 0, minutes: 30 },
+  sendTaskMedia: true,
+  sendSolutionMedia: true
 };
 
 // State classes for Svelte 5 Runes reactivity

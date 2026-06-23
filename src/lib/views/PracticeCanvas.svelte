@@ -42,6 +42,8 @@
   let feedbackScore = $state(null);
   let showFeedback = $state(false);
   let hasCheckedWork = $state(false);
+  let feedbackMarkers = $state([]);
+  let activeTooltipMarker = $state(null);
 
   // Canvas element references
   let canvasElement = $state(null);
@@ -63,6 +65,12 @@
       ? null
       : (currentBgObject ? currentBgObject.url : customBgUrl)
   );
+
+  let activeLeftPanels = $derived([
+    showTask && { id: 'task', title: `${task.name} Instructions`, content: task.instructions },
+    showSolution && { id: 'solution', title: 'Evaluation Goal / Solution', content: task.solution },
+    showFeedback && hasCheckedWork && { id: 'feedback', title: 'AI Critique & Feedback', isFeedback: true }
+  ].filter(Boolean));
 
   onMount(() => {
     if (canvasElement) {
@@ -283,12 +291,18 @@
 
   // Multimodal AI Grading using Cropped PNG bounding box
   async function checkWork() {
+    feedbackMarkers = [];
+    activeTooltipMarker = null;
     isChecking = true;
     showFeedback = true;
     hasCheckedWork = true;
     feedbackText = "Analyzing stroke geometries and guidelines alignment...";
+    feedbackScore = null;
 
+    let boxOffset = { x: 0, y: 0 };
     let base64Data;
+    let widthVal = 800;
+    let heightVal = 600;
     try {
       const box = getStrokesBoundingBox();
       if (!box) {
@@ -296,11 +310,17 @@
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = canvasContainer ? canvasContainer.clientWidth : 800;
         tempCanvas.height = canvasContainer ? canvasContainer.clientHeight : 600;
+        widthVal = tempCanvas.width;
+        heightVal = tempCanvas.height;
         const tempCtx = tempCanvas.getContext('2d');
         tempCtx.fillStyle = '#FFFFFF';
         tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
         base64Data = tempCanvas.toDataURL('image/png').split(',')[1];
+        boxOffset = { x: 0, y: 0 };
       } else {
+        widthVal = box.width;
+        heightVal = box.height;
+        boxOffset = { x: box.x, y: box.y };
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = box.width;
         tempCanvas.height = box.height;
@@ -317,7 +337,7 @@
           
           const lineSpacing = 32;
           const startY = Math.floor(box.y / lineSpacing) * lineSpacing - box.y;
-          tempCtx.strokeStyle = '#e2e8f0';
+          tempCtx.strokeStyle = '#000000';
           tempCtx.lineWidth = 1;
           for (let y = startY; y < box.height; y += lineSpacing) {
             tempCtx.beginPath();
@@ -327,7 +347,7 @@
           }
 
           if (activeBg === 'grid') {
-            tempCtx.strokeStyle = 'rgba(226, 232, 240, 0.5)';
+            tempCtx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
             const step = 40;
             const angleRad = (65 * Math.PI) / 180;
             const dx = box.height / Math.tan(angleRad);
@@ -388,8 +408,47 @@
     if (!apiKey) {
       // Simulate grading if no API key is saved (to demonstrate the feature)
       setTimeout(() => {
-        feedbackText = `📝 **AI Feedback Mockup (API key missing)**\n\nTo test real AI evaluations, please enter your Gemini API key in **Settings**.\n\n*General Critique*:\n- Excellent slant consistency! Most letters follow the 55-degree layout slant lines nicely.\n- The loop size is consistent, but watch the crossing intersection of the ascender loops; they should cross exactly at the header line.\n- Stroke thickness contrasts nicely. Nice transition to heavier pressure on downward strokes.`;
-        feedbackScore = 88;
+        const mockResponse = {
+          generalCritique: "📝 **AI Feedback Mockup (API key missing)**\n\nTo test real AI evaluations, please enter your Gemini API key in **Settings**.\n\n*General Critique*:\n- Excellent slant consistency! Most letters follow the 55-degree layout slant lines nicely.\n- The loop size is consistent, but watch the crossing intersection of the ascender loops; they should cross exactly at the header line.\n- Stroke thickness contrasts nicely. Nice transition to heavier pressure on downward strokes.",
+          grade: 88,
+          markers: [
+            {
+              id: 'mock-1',
+              x: Math.round(widthVal * 0.25),
+              y: Math.round(heightVal * 0.35),
+              type: 'correct',
+              feedback: 'Great start of the stroke! Consistent weight and smooth curve.'
+            },
+            {
+              id: 'mock-2',
+              x: Math.round(widthVal * 0.55),
+              y: Math.round(heightVal * 0.65),
+              type: 'partial',
+              feedback: 'The loop crossing is slightly off here. It should cross exactly at the horizontal header line.'
+            },
+            {
+              id: 'mock-3',
+              x: Math.round(widthVal * 0.8),
+              y: Math.round(heightVal * 0.5),
+              type: 'incorrect',
+              feedback: 'Slant angle deviates here. Try to align with the 55-degree guide lines.',
+              underlinePoints: [
+                { x: Math.round(widthVal * 0.75), y: Math.round(heightVal * 0.7) },
+                { x: Math.round(widthVal * 0.8), y: Math.round(heightVal * 0.5) },
+                { x: Math.round(widthVal * 0.85), y: Math.round(heightVal * 0.3) }
+              ]
+            }
+          ]
+        };
+
+        feedbackText = mockResponse.generalCritique;
+        feedbackScore = mockResponse.grade;
+        feedbackMarkers = mockResponse.markers.map(m => ({
+          ...m,
+          canvasX: m.x + boxOffset.x,
+          canvasY: m.y + boxOffset.y,
+          boundingBoxOffset: { ...boxOffset }
+        }));
         isChecking = false;
       }, 2000);
       return;
@@ -398,8 +457,8 @@
     try {
       const prompt = `You are a strict but encouraging penmanship teacher. Analyze this drawing canvas screenshot.
 The student is practicing: "${task.name}".
-Instructions given: "${task.instructions}".
-Expected Solution: "${task.solution}".
+${store.settings.sendTaskMedia ? `Instructions given: "${task.instructions}".` : ''}
+${store.settings.sendSolutionMedia ? `Expected Solution: "${task.solution}".` : ''}
 
 Examine:
 1. Slant lines consistency (normally 55 degrees).
@@ -407,7 +466,25 @@ Examine:
 3. Ascent and descent line crossings.
 4. Spacing between letters.
 
-Provide a constructive critique in Markdown. Keep it brief. Return a final numerical grade (0-100) inside double brackets like this: [[Grade: 85]].`;
+The image dimensions are ${widthVal}x${heightVal} pixels.
+You must return a JSON object with the following schema:
+{
+  "generalCritique": "Markdown formatted string containing your overall critique. Keep it brief and constructive.",
+  "grade": number (0-100),
+  "markers": [
+    {
+      "x": number (X coordinate on the image in pixels, range [0, ${widthVal}]),
+      "y": number (Y coordinate on the image in pixels, range [0, ${heightVal}]),
+      "type": "correct" | "incorrect" | "partial",
+      "feedback": "Brief feedback specific to this location.",
+      "underlinePoints": [ // Optional. Only provide if type is "incorrect" or "partial" and you want to draw a red underline highlight.
+        {"x": number, "y": number}, ... (a list of coordinate points on the image in pixels to draw a line connecting them)
+      ]
+    }
+  ]
+}
+
+Return ONLY this JSON object. Do not include any other conversational text.`;
 
       let response;
       if (provider === 'gemini') {
@@ -430,7 +507,10 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
                   }
                 ]
               }
-            ]
+            ],
+            generationConfig: {
+              responseMimeType: "application/json"
+            }
           })
         });
       } else {
@@ -470,19 +550,49 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
         textResult = resData.choices?.[0]?.message?.content || 'No response from AI.';
       }
 
-      // Extract grade if present
-      const gradeRegex = /\[\[Grade:\s*(\d+)\]\]/i;
-      const match = textResult.match(gradeRegex);
-      if (match) {
-        feedbackScore = parseInt(match[1]);
-        feedbackText = textResult.replace(gradeRegex, '').trim();
-      } else {
-        feedbackText = textResult;
-        feedbackScore = 75; // Default score if model forgot format
+      // Parse JSON from textResult
+      let parsed;
+      try {
+        let cleanText = textResult.trim();
+        if (cleanText.startsWith('```json')) {
+          cleanText = cleanText.substring(7);
+        } else if (cleanText.startsWith('```')) {
+          cleanText = cleanText.substring(3);
+        }
+        if (cleanText.endsWith('```')) {
+          cleanText = cleanText.substring(0, cleanText.length - 3);
+        }
+        cleanText = cleanText.trim();
+        parsed = JSON.parse(cleanText);
+      } catch (jsonErr) {
+        console.error('Failed to parse JSON response, falling back to markdown wrap:', jsonErr);
+        parsed = {
+          generalCritique: textResult,
+          grade: 75,
+          markers: []
+        };
       }
+
+      feedbackText = parsed.generalCritique || 'No written critique provided.';
+      feedbackScore = typeof parsed.grade === 'number' ? parsed.grade : 75;
+      
+      const rawMarkers = parsed.markers || [];
+      feedbackMarkers = rawMarkers.map((m, index) => ({
+        id: `marker-${Date.now()}-${index}`,
+        x: m.x,
+        y: m.y,
+        canvasX: m.x + boxOffset.x,
+        canvasY: m.y + boxOffset.y,
+        type: m.type || 'partial',
+        feedback: m.feedback || '',
+        underlinePoints: m.underlinePoints || null,
+        boundingBoxOffset: { ...boxOffset }
+      }));
+
     } catch (err) {
       feedbackText = `❌ **Error evaluating work:**\n\n${err.message}\n\nPlease double check your settings, model selections, and connection details.`;
       feedbackScore = 0;
+      feedbackMarkers = [];
     } finally {
       isChecking = false;
     }
@@ -711,43 +821,53 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
   <!-- Interactive practice screen split layout -->
   <div class="flex-grow flex overflow-hidden relative w-full">
     
-    <!-- Left side: split screen task description and solution -->
-    {#if showTask || showSolution}
+    <!-- Left side: dynamic split screen task, solution, and critique -->
+    {#if activeLeftPanels.length > 0}
       <section 
         class="bg-white border-r border-outline-variant flex flex-col overflow-hidden h-full shrink-0"
         style="width: {splitWidth}px;"
       >
-        {#if showTask && showSolution}
-          <!-- Split Layout (50/50 horizontal) -->
-          <div class="h-1/2 flex flex-col overflow-y-auto border-b border-outline-variant p-8 hide-scrollbar">
-            <h2 class="text-lg font-bold text-on-surface mb-3 pb-1 border-b border-outline-variant/30">{task.name} Instructions</h2>
-            <div class="space-y-4 text-xs text-on-surface-variant leading-relaxed whitespace-pre-line">
-              {task.instructions}
+        {#each activeLeftPanels as panel, idx}
+          {#if idx > 0}
+            <div class="h-[1px] w-full bg-outline-variant/30"></div>
+          {/if}
+          <div class="flex-1 flex flex-col overflow-y-auto p-6 hide-scrollbar {panel.id === 'solution' ? 'bg-surface-container-low/20' : panel.id === 'feedback' ? 'bg-primary/5' : ''}">
+            <div class="flex items-center justify-between mb-3 pb-1 border-b border-outline-variant/30">
+              <h2 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+                {#if panel.id === 'task'}
+                  <span class="material-symbols-outlined text-base text-primary">menu_book</span>
+                {:else if panel.id === 'solution'}
+                  <span class="material-symbols-outlined text-base text-primary">visibility</span>
+                {:else}
+                  <span class="material-symbols-outlined text-base text-primary">neurology</span>
+                {/if}
+                {panel.title}
+              </h2>
+              {#if panel.id === 'feedback' && feedbackScore !== null}
+                <div class="bg-primary text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+                  Score: {feedbackScore}
+                </div>
+              {/if}
             </div>
+            
+            {#if panel.isFeedback}
+              {#if isChecking}
+                <div class="flex flex-col items-center justify-center py-8 gap-3 my-auto">
+                  <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  <p class="text-xs text-on-surface-variant text-center">{feedbackText}</p>
+                </div>
+              {:else}
+                <div class="text-xs text-on-surface-variant leading-relaxed whitespace-pre-line prose prose-sm dark:prose-invert">
+                  {feedbackText}
+                </div>
+              {/if}
+            {:else}
+              <div class="text-xs text-on-surface-variant leading-relaxed whitespace-pre-line">
+                {panel.content}
+              </div>
+            {/if}
           </div>
-          <div class="h-1/2 flex flex-col overflow-y-auto p-8 hide-scrollbar bg-surface-container-low/20">
-            <h2 class="text-lg font-bold text-on-surface mb-3 pb-1 border-b border-outline-variant/30">Evaluation Goal / Solution</h2>
-            <p class="text-xs text-on-surface-variant leading-relaxed whitespace-pre-line">
-              {task.solution}
-            </p>
-          </div>
-        {:else if showTask}
-          <!-- Instructions Only -->
-          <div class="w-full flex-grow flex flex-col p-8 space-y-6 overflow-y-auto hide-scrollbar">
-            <h2 class="text-xl font-bold text-on-surface mb-4 pb-2 border-b border-outline-variant">{task.name} Instructions</h2>
-            <div class="space-y-4 text-sm text-on-surface-variant leading-relaxed whitespace-pre-line">
-              {task.instructions}
-            </div>
-          </div>
-        {:else if showSolution}
-          <!-- Solution Only -->
-          <div class="w-full flex-grow flex flex-col p-8 space-y-6 overflow-y-auto hide-scrollbar bg-surface-container-low/20">
-            <h2 class="text-xl font-bold text-on-surface mb-4 pb-2 border-b border-outline-variant">Evaluation Goal / Solution</h2>
-            <p class="text-sm text-on-surface-variant leading-relaxed whitespace-pre-line">
-              {task.solution}
-            </p>
-          </div>
-        {/if}
+        {/each}
       </section>
 
       <!-- Draggable Split Separator -->
@@ -794,6 +914,86 @@ Provide a constructive critique in Markdown. Keep it brief. Return a final numer
           onmouseleave={stopDrawing}
           class="absolute inset-0 w-full h-full z-10 bg-transparent"
         ></canvas>
+
+        <!-- Feedback Markers Layer -->
+        {#if hasCheckedWork && !isChecking}
+          <!-- Render Underline strokes first (below the icons) -->
+          <svg class="absolute inset-0 pointer-events-none z-20 w-full h-full">
+            {#each feedbackMarkers as marker}
+              {#if marker.underlinePoints && marker.underlinePoints.length > 1}
+                <path
+                  d={marker.underlinePoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x + marker.boundingBoxOffset.x} ${p.y + marker.boundingBoxOffset.y}`).join(' ')}
+                  stroke="rgba(239, 68, 68, 0.4)"
+                  stroke-width="8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  fill="none"
+                />
+              {/if}
+            {/each}
+          </svg>
+
+          <!-- Render Clickable Icons -->
+          {#each feedbackMarkers as marker (marker.id)}
+            <button
+              type="button"
+              onclick={() => activeTooltipMarker = marker}
+              class="absolute z-30 w-8 h-8 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full shadow-lg border cursor-pointer hover:scale-110 active:scale-95 transition-all focus:outline-none
+                     {marker.type === 'correct' ? 'bg-emerald-500 text-white border-emerald-400' : 
+                      marker.type === 'incorrect' ? 'bg-red-500 text-white border-red-400' : 
+                      'bg-amber-500 text-white border-amber-400'}"
+              style="left: {marker.canvasX}px; top: {marker.canvasY}px;"
+              title="Click for feedback"
+            >
+              <span class="material-symbols-outlined text-[18px]">
+                {marker.type === 'correct' ? 'check' : 
+                 marker.type === 'incorrect' ? 'close' : 
+                 'question_mark'}
+              </span>
+            </button>
+          {/each}
+
+          {#if activeTooltipMarker}
+            <!-- Tooltip Overlay -->
+            <!-- Click-away background -->
+            <button 
+              type="button" 
+              class="absolute inset-0 bg-transparent z-40 cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" 
+              onclick={() => activeTooltipMarker = null}
+              aria-label="Dismiss feedback"
+            ></button>
+
+            <div 
+              class="absolute z-50 bg-white dark:bg-inverse-surface border border-outline-variant/60 rounded-xl p-4 w-72 shadow-2xl flex flex-col gap-2 -translate-x-1/2 mt-6 animate-fade-in"
+              style="left: {activeTooltipMarker.canvasX}px; top: {activeTooltipMarker.canvasY}px;"
+            >
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-base 
+                  {activeTooltipMarker.type === 'correct' ? 'text-emerald-500' : 
+                   activeTooltipMarker.type === 'incorrect' ? 'text-red-500' : 
+                   'text-amber-500'}">
+                  {activeTooltipMarker.type === 'correct' ? 'check_circle' : 
+                   activeTooltipMarker.type === 'incorrect' ? 'cancel' : 
+                   'warning'}
+                </span>
+                <span class="text-xs font-bold uppercase tracking-wider text-on-surface">
+                  {activeTooltipMarker.type === 'correct' ? 'Correct Stroke' : 
+                   activeTooltipMarker.type === 'incorrect' ? 'Needs Correction' : 
+                   'Slight Imprecision'}
+                </span>
+                <button 
+                  onclick={() => activeTooltipMarker = null} 
+                  class="ml-auto material-symbols-outlined text-[16px] text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer border-0 bg-transparent p-0 flex items-center justify-center"
+                >
+                  close
+                </button>
+              </div>
+              <p class="text-xs text-on-surface-variant leading-relaxed">
+                {activeTooltipMarker.feedback}
+              </p>
+            </div>
+          {/if}
+        {/if}
       </div>
 
       <!-- Floating Tool Palette -->
