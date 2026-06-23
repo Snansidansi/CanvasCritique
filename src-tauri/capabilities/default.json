@@ -1,0 +1,14 @@
+{
+  "$schema": "../capabilities-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for the ScribeFlow application window.",
+  "windows": [
+    "*"
+  ],
+  "permissions": [
+    "core:default",
+    "path:default",
+    "event:default",
+    "window:default"
+  ]
+}
