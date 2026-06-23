@@ -5,12 +5,12 @@
   let project = $derived(store.activeProject || {
     name: 'No Project Selected',
     icon: 'history_edu',
-    categories: ['Basics', 'Intermediate', 'Advanced'],
+    categories: [],
     tasks: []
   });
 
   // Categories list
-  let categories = $derived(project.categories || ['Basics', 'Intermediate', 'Advanced']);
+  let categories = $derived(project.categories || []);
 
   // Local state for category addition
   let newCategoryName = $state('');
@@ -65,7 +65,6 @@
     e.dataTransfer.setData('text/plain', taskId);
   }
 
-  // dragover handler
   function handleDragOver(e) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -73,19 +72,27 @@
 
   function handleDrop(e, category, targetIndex) {
     e.preventDefault();
-    if (!draggedTaskId || draggedCategory !== category) return;
+    e.stopPropagation();
+    if (!draggedTaskId) return;
 
-    const categoryTasks = getCategoryTasks(category);
-    const draggedIndex = categoryTasks.findIndex(t => t.id === draggedTaskId);
-    if (draggedIndex === -1) return;
+    store.moveAndReorderTask(project.id, draggedTaskId, category, targetIndex);
 
-    // Reorder array locally
-    const [draggedItem] = categoryTasks.splice(draggedIndex, 1);
-    categoryTasks.splice(targetIndex, 0, draggedItem);
+    // Reset drag state
+    draggedTaskId = null;
+    draggedCategory = null;
+  }
 
-    // Save order
-    const taskIdsOrder = categoryTasks.map(t => t.id);
-    store.reorderTasks(project.id, category, taskIdsOrder);
+  function handleDropOnContainer(e, category) {
+    e.preventDefault();
+    if (!draggedTaskId) return;
+    
+    // Ignore if dropped directly on a task item inside the container
+    if (e.target !== e.currentTarget && e.target.closest('[draggable="true"]')) {
+      return;
+    }
+
+    const catTasks = getCategoryTasks(category);
+    store.moveAndReorderTask(project.id, draggedTaskId, category, catTasks.length);
 
     // Reset drag state
     draggedTaskId = null;
@@ -113,10 +120,20 @@
   </div>
 
   <div class="flex items-center gap-3">
+    <!-- Export Project Button -->
+    <button 
+      onclick={() => store.exportProject(project)}
+      class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
+      title="Export Project"
+    >
+      <span class="material-symbols-outlined text-[18px]">file_download</span>
+      Export Project
+    </button>
+
     <!-- Inline Create New Task -->
     <button 
       onclick={handleAddTask}
-      class="bg-primary text-on-primary font-semibold text-xs py-2.5 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm"
+      class="bg-primary text-on-primary font-semibold text-xs py-2.5 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
     >
       <span class="material-symbols-outlined text-[18px]">add_circle</span>
       Create New Task
@@ -164,7 +181,7 @@
       {#each categories as category}
         {@const catTasks = getCategoryTasks(category)}
         <div class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-6 flex flex-col gap-4">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between border-b border-outline-variant/20 pb-3">
             <button
               type="button"
               onclick={() => {
@@ -178,7 +195,7 @@
             >
               {category}
             </button>
-            <span class="text-xs text-on-surface-variant font-semibold bg-surface px-2.5 py-1 rounded-full border border-outline-variant/30">
+            <span class="text-xs text-on-surface-variant font-semibold bg-surface px-2.5 py-1 rounded-full border border-outline-variant/30 animate-fade-in">
               {catTasks.length} {catTasks.length === 1 ? 'task' : 'tasks'}
             </span>
           </div>
@@ -187,6 +204,7 @@
           <div 
             class="flex flex-col gap-2 min-h-[50px]"
             ondragover={handleDragOver}
+            ondrop={(e) => handleDropOnContainer(e, category)}
           >
             {#if catTasks.length > 0}
               {#each catTasks as task, index (task.id)}
@@ -214,7 +232,7 @@
 
                     <button 
                       onclick={() => openPractice(task)}
-                      class="text-left font-semibold text-sm text-on-surface hover:text-primary hover:underline transition-colors
+                      class="text-left font-semibold text-sm text-on-surface hover:text-primary hover:underline transition-colors focus:outline-none
                              {task.completed ? 'line-through text-outline' : ''}"
                     >
                       {task.name}
@@ -271,13 +289,13 @@
           <button 
             type="button" 
             onclick={() => isAddCategoryOpen = false}
-            class="px-4 py-2 border border-outline-variant text-on-surface-variant text-sm font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer"
+            class="px-4 py-2 border border-outline-variant text-on-surface-variant text-sm font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
           >
             Cancel
           </button>
           <button 
             type="submit"
-            class="px-4 py-2 bg-primary text-on-primary text-sm font-semibold rounded-lg hover:opacity-90 cursor-pointer"
+            class="px-4 py-2 bg-primary text-on-primary text-sm font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
           >
             Create Section
           </button>
