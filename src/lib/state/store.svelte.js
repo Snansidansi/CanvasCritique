@@ -128,10 +128,10 @@ class ScribeFlowStore {
       const savedProjects = localStorage.getItem(STORAGE_KEY_PROJECTS);
       if (savedProjects) {
         const parsed = JSON.parse(savedProjects);
-        // Ensure default categories exist
+        // Ensure categories exist
         parsed.forEach(p => {
           if (!p.categories) {
-            p.categories = ['Basics', 'Intermediate', 'Advanced'];
+            p.categories = [];
           }
         });
         this.projects = parsed;
@@ -224,7 +224,7 @@ class ScribeFlowStore {
       id: 'proj-' + Date.now(),
       name,
       icon,
-      categories: ['Basics', 'Intermediate', 'Advanced'],
+      categories: [],
       tasks: []
     };
     this.projects.push(newProj);
@@ -241,7 +241,7 @@ class ScribeFlowStore {
     if (!project) return;
     
     if (!project.categories) {
-      project.categories = ['Basics', 'Intermediate', 'Advanced'];
+      project.categories = [];
     }
     
     if (!project.categories.includes(categoryName)) {
@@ -254,7 +254,33 @@ class ScribeFlowStore {
     }
   }
 
-  addTask(projectId, name, instructions, solution, category = 'Basics') {
+  renameCategory(projectId, oldName, newName) {
+    if (!newName || !newName.trim() || oldName === newName) return;
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    // 1. Rename inside categories array
+    if (project.categories) {
+      project.categories = project.categories.map(c => c === oldName ? newName.trim() : c);
+    }
+
+    // 2. Rename inside tasks
+    if (project.tasks) {
+      project.tasks.forEach(t => {
+        if ((t.category || 'Basics') === oldName) {
+          t.category = newName.trim();
+        }
+      });
+    }
+
+    this.saveProjects();
+    
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
+  }
+
+  addTask(projectId, name, instructions, solution, category = 'Basics', instructionFile = null, solutionFile = null) {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -264,7 +290,9 @@ class ScribeFlowStore {
       completed: false,
       instructions,
       solution,
-      category
+      category,
+      instructionFile,
+      solutionFile
     };
 
     project.tasks.push(newTask);
@@ -293,6 +321,8 @@ class ScribeFlowStore {
     task.instructions = updatedData.instructions;
     task.solution = updatedData.solution;
     task.category = updatedData.category;
+    task.instructionFile = updatedData.instructionFile;
+    task.solutionFile = updatedData.solutionFile;
 
     // Auto-add category if it isn't listed
     if (project.categories && !project.categories.includes(updatedData.category)) {
