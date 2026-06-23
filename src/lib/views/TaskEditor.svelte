@@ -12,9 +12,11 @@
   // Derived edit state
   let isEditMode = $derived(store.editingTask !== null);
 
-  // Drag and drop mock states
+  // File names and object references
   let instructionFileName = $state('');
   let solutionFileName = $state('');
+  let instructionFile = $state(null);
+  let solutionFile = $state(null);
 
   onMount(() => {
     if (store.editingTask) {
@@ -23,6 +25,16 @@
       solution = store.editingTask.solution;
       category = store.editingTask.category || 'Basics';
       targetProjectId = store.activeProject?.id || '';
+      
+      // Load saved files
+      if (store.editingTask.instructionFile) {
+        instructionFile = store.editingTask.instructionFile;
+        instructionFileName = store.editingTask.instructionFile.name;
+      }
+      if (store.editingTask.solutionFile) {
+        solutionFile = store.editingTask.solutionFile;
+        solutionFileName = store.editingTask.solutionFile.name;
+      }
     } else if (store.quickAddTaskData) {
       taskName = store.quickAddTaskData.name;
       category = store.quickAddTaskData.category || 'Basics';
@@ -54,7 +66,9 @@
         name: taskName.trim(),
         instructions: instructions.trim() || 'No instructions provided.',
         solution: solution.trim() || 'Review drawing output.',
-        category
+        category,
+        instructionFile,
+        solutionFile
       });
       store.editingTask = null;
     } else {
@@ -63,7 +77,9 @@
         taskName.trim(),
         instructions.trim() || 'No instructions provided.',
         solution.trim() || 'Review drawing output.',
-        category
+        category,
+        instructionFile,
+        solutionFile
       );
     }
 
@@ -79,16 +95,30 @@
     store.setView(store.activeProject ? 'project-detail' : 'dashboard');
   }
 
-  // Simulated file uploads
-  function simulateUpload(type) {
-    const fileName = prompt("Enter a file name to upload (mocked):", "template_lines.png");
-    if (fileName) {
+  function triggerUpload(type) {
+    const input = document.getElementById(`${type}FileInput`);
+    if (input) input.click();
+  }
+
+  function handleFileSelect(e, type) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const fileData = {
+        name: file.name,
+        dataUrl: event.target.result // Base64 Data URL
+      };
       if (type === 'instruction') {
-        instructionFileName = fileName;
+        instructionFileName = file.name;
+        instructionFile = fileData;
       } else {
-        solutionFileName = fileName;
+        solutionFileName = file.name;
+        solutionFile = fileData;
       }
-    }
+    };
+    reader.readAsDataURL(file);
   }
 </script>
 
@@ -156,12 +186,19 @@
         ></textarea>
       </div>
 
-      <!-- Instruction Material Upload mock -->
+      <!-- Instruction Material Upload -->
       <div class="flex flex-col gap-2">
         <span class="text-sm font-semibold text-on-surface">Instruction Reference Material</span>
+        <input 
+          type="file" 
+          id="instructionFileInput" 
+          accept="image/*,application/pdf"
+          class="hidden" 
+          onchange={(e) => handleFileSelect(e, 'instruction')}
+        />
         <button 
           type="button"
-          onclick={() => simulateUpload('instruction')}
+          onclick={() => triggerUpload('instruction')}
           class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer"
         >
           <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
@@ -188,12 +225,19 @@
         ></textarea>
       </div>
 
-      <!-- Expected Solution Material Upload mock -->
+      <!-- Expected Solution Material Upload -->
       <div class="flex flex-col gap-2">
         <span class="text-sm font-semibold text-on-surface">Expected Solution Material</span>
+        <input 
+          type="file" 
+          id="solutionFileInput" 
+          accept="image/*,application/pdf"
+          class="hidden" 
+          onchange={(e) => handleFileSelect(e, 'solution')}
+        />
         <button 
           type="button"
-          onclick={() => simulateUpload('solution')}
+          onclick={() => triggerUpload('solution')}
           class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer"
         >
           <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
