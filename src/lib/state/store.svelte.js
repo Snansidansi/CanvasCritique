@@ -362,6 +362,33 @@ class ScribeFlowStore {
     }
   }
 
+  moveAndReorderTask(projectId, taskId, targetCategory, targetIndex) {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const task = project.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    // Update category
+    task.category = targetCategory;
+
+    // Filter tasks
+    const otherTasks = project.tasks.filter(t => t.id !== taskId);
+    const targetCategoryTasks = otherTasks.filter(t => (t.category || 'Basics') === targetCategory);
+    const nonTargetCategoryTasks = otherTasks.filter(t => (t.category || 'Basics') !== targetCategory);
+
+    // Insert task at targetIndex
+    targetCategoryTasks.splice(targetIndex, 0, task);
+
+    // Set new tasks array
+    project.tasks = [...nonTargetCategoryTasks, ...targetCategoryTasks];
+    this.saveProjects();
+
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
+  }
+
   toggleTaskCompleted(projectId, taskId) {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
