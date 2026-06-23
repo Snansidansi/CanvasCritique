@@ -275,12 +275,13 @@
 
               <!-- Export Frequency -->
               <div>
-                <label class="font-semibold text-xs text-on-surface block mb-3">Export Frequency</label>
+                <span class="font-semibold text-xs text-on-surface block mb-3">Export Frequency</span>
                 <div class="grid grid-cols-3 gap-4">
                   <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold text-on-surface-variant uppercase">Days</label>
+                    <label for="exportFreqDays" class="text-[10px] font-bold text-on-surface-variant uppercase">Days</label>
                     <input 
                       type="number" 
+                      id="exportFreqDays"
                       bind:value={store.settings.exportFrequency.days}
                       onchange={handleInputChange}
                       min="0"
@@ -288,9 +289,10 @@
                     />
                   </div>
                   <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold text-on-surface-variant uppercase">Hours</label>
+                    <label for="exportFreqHours" class="text-[10px] font-bold text-on-surface-variant uppercase">Hours</label>
                     <input 
                       type="number" 
+                      id="exportFreqHours"
                       bind:value={store.settings.exportFrequency.hours}
                       onchange={handleInputChange}
                       min="0"
@@ -299,9 +301,10 @@
                     />
                   </div>
                   <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold text-on-surface-variant uppercase">Minutes</label>
+                    <label for="exportFreqMinutes" class="text-[10px] font-bold text-on-surface-variant uppercase">Minutes</label>
                     <input 
                       type="number" 
+                      id="exportFreqMinutes"
                       bind:value={store.settings.exportFrequency.minutes}
                       onchange={handleInputChange}
                       min="0"
@@ -372,12 +375,13 @@
 
               <!-- Export Frequency -->
               <div>
-                <label class="font-semibold text-xs text-on-surface block mb-3">Export Frequency</label>
+                <span class="font-semibold text-xs text-on-surface block mb-3">Export Frequency</span>
                 <div class="grid grid-cols-3 gap-4">
                   <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold text-on-surface-variant uppercase">Days</label>
+                    <label for="exportFreqDaysData" class="text-[10px] font-bold text-on-surface-variant uppercase">Days</label>
                     <input 
                       type="number" 
+                      id="exportFreqDaysData"
                       bind:value={store.settings.exportFrequencyData.days}
                       onchange={handleInputChange}
                       min="0"
@@ -385,9 +389,10 @@
                     />
                   </div>
                   <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold text-on-surface-variant uppercase">Hours</label>
+                    <label for="exportFreqHoursData" class="text-[10px] font-bold text-on-surface-variant uppercase">Hours</label>
                     <input 
                       type="number" 
+                      id="exportFreqHoursData"
                       bind:value={store.settings.exportFrequencyData.hours}
                       onchange={handleInputChange}
                       min="0"
@@ -396,9 +401,10 @@
                     />
                   </div>
                   <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold text-on-surface-variant uppercase">Minutes</label>
+                    <label for="exportFreqMinutesData" class="text-[10px] font-bold text-on-surface-variant uppercase">Minutes</label>
                     <input 
                       type="number" 
+                      id="exportFreqMinutesData"
                       bind:value={store.settings.exportFrequencyData.minutes}
                       onchange={handleInputChange}
                       min="0"
@@ -487,7 +493,7 @@
 
               {#if geminiModelOpen}
                 <!-- Invisible click-away overlay -->
-                <div class="fixed inset-0 z-40 bg-transparent" onclick={() => geminiModelOpen = false}></div>
+                <button type="button" class="fixed inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" aria-label="Close dropdown" onclick={() => geminiModelOpen = false}></button>
                 <!-- Dropdown card -->
                 <div class="absolute top-[calc(100%+4px)] left-0 w-full bg-surface-container-high border border-outline-variant rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto custom-scrollbar p-1">
                   {#if filteredGeminiModels.length > 0}
@@ -550,7 +556,7 @@
 
               {#if openRouterProviderOpen}
                 <!-- Invisible click-away overlay -->
-                <div class="fixed inset-0 z-40 bg-transparent" onclick={() => openRouterProviderOpen = false}></div>
+                <button type="button" class="fixed inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" aria-label="Close dropdown" onclick={() => openRouterProviderOpen = false}></button>
                 <!-- Dropdown card -->
                 <div class="absolute top-[calc(100%+4px)] left-0 w-full bg-surface-container-high border border-outline-variant rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto custom-scrollbar p-1">
                   {#if filteredOpenRouterProviders.length > 0}
@@ -598,7 +604,7 @@
 
               {#if openRouterModelOpen}
                 <!-- Invisible click-away overlay -->
-                <div class="fixed inset-0 z-40 bg-transparent" onclick={() => openRouterModelOpen = false}></div>
+                <button type="button" class="fixed inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" aria-label="Close dropdown" onclick={() => openRouterModelOpen = false}></button>
                 <!-- Dropdown card -->
                 <div class="absolute top-[calc(100%+4px)] left-0 w-full bg-surface-container-high border border-outline-variant rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto custom-scrollbar p-1">
                   {#if filteredOpenRouterModels.length > 0}
