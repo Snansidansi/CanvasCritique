@@ -115,20 +115,7 @@
 
     <form onsubmit={handleSave} class="flex flex-col gap-8 bg-surface-container-lowest p-6 rounded-xl border border-outline-variant shadow-sm">
       
-      <!-- Script / Project Target (Hidden or disabled if editing to preserve logic, or selectible) -->
-      <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-on-surface" for="targetProj">Target Script Project</label>
-        <select 
-          id="targetProj"
-          bind:value={targetProjectId}
-          disabled={isEditMode}
-          class="w-full bg-transparent border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all disabled:opacity-50"
-        >
-          {#each store.projects as project}
-            <option value={project.id}>{project.name}</option>
-          {/each}
-        </select>
-      </div>
+
 
       <!-- Task Name -->
       <div class="flex flex-col gap-2 group">
@@ -171,7 +158,7 @@
 
       <!-- Instruction Material Upload mock -->
       <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-on-surface">Instruction Reference Material</label>
+        <span class="text-sm font-semibold text-on-surface">Instruction Reference Material</span>
         <button 
           type="button"
           onclick={() => simulateUpload('instruction')}
@@ -199,6 +186,26 @@
           rows="4"
           class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y shadow-sm focus:outline-none"
         ></textarea>
+      </div>
+
+      <!-- Expected Solution Material Upload mock -->
+      <div class="flex flex-col gap-2">
+        <span class="text-sm font-semibold text-on-surface">Expected Solution Material</span>
+        <button 
+          type="button"
+          onclick={() => simulateUpload('solution')}
+          class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer"
+        >
+          <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+            <span class="material-symbols-outlined text-[24px]">upload_file</span>
+          </div>
+          <div class="text-center">
+            <p class="text-sm font-semibold text-on-surface">
+              {solutionFileName ? `Selected: ${solutionFileName}` : 'Tap to upload or drag reference image'}
+            </p>
+            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG (Max 25MB)</p>
+          </div>
+        </button>
       </div>
 
       <!-- Save / Cancel Buttons -->
