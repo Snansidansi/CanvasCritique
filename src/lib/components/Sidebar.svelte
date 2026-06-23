@@ -19,7 +19,7 @@
 
 <!-- Desktop Sidebar Navigation -->
 <aside 
-  class="bg-surface-container-low border-r border-outline-variant flex flex-col py-6 shrink-0 transition-all duration-300 relative z-30 h-screen
+  class="bg-surface-container-low border-r border-outline-variant flex flex-col py-6 shrink-0 transition-all duration-300 relative z-30 h-screen overflow-x-hidden
          {isCollapsed ? 'w-16 px-2' : 'w-64 px-4'}"
 >
   <!-- Header -->
@@ -67,7 +67,7 @@
         <div class="h-[1px] w-8 bg-outline-variant/30"></div>
       {/if}
     </div>
-    <div class="flex flex-col gap-1 overflow-y-auto max-h-[50vh] custom-scrollbar">
+    <div class="flex flex-col gap-1 overflow-y-auto overflow-x-hidden max-h-[50vh] custom-scrollbar">
       {#each store.projects as project}
         <button 
           onclick={() => handleNavigate('project-detail', project)}
