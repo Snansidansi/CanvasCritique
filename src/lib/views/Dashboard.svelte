@@ -1,5 +1,5 @@
 <script>
-  import { store } from '../state/store.svelte.js';
+  import { store } from '../state/store.svelte';
 
   // Local state
   let searchQuery = $state('');

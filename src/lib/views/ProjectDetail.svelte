@@ -1,5 +1,5 @@
 <script>
-  import { store } from '../state/store.svelte.js';
+  import { store } from '../state/store.svelte';
 
   // Derived project state from store
   let project = $derived(store.activeProject || {

@@ -1,5 +1,5 @@
 <script>
-  import { store } from './lib/state/store.svelte.js';
+  import { store } from './lib/state/store.svelte';
   import Sidebar from './lib/components/Sidebar.svelte';
   
   // Views

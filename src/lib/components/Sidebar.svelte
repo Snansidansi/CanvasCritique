@@ -1,5 +1,5 @@
 <script>
-  import { store } from '../state/store.svelte.js';
+  import { store } from '../state/store.svelte';
 
   // Local state for sidebar expansion on desktop
   let isCollapsed = $state(false);
