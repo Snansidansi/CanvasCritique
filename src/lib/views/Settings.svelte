@@ -128,7 +128,8 @@
   async function selectFolder(type) {
     try {
       if (window.__TAURI__) {
-        const { open } = await import('@tauri-apps/plugin-dialog');
+        const moduleName = '@tauri-apps/plugin-dialog';
+        const { open } = await import(/* @vite-ignore */ moduleName);
         const selected = await open({
           directory: true,
           multiple: false,
