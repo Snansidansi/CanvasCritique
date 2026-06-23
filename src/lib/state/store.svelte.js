@@ -81,10 +81,17 @@ const defaultProjects = [
 const defaultSettings = {
   theme: 'light',
   apiProvider: 'gemini',
-  apiKey: '',
-  model: 'gemini-1.5-flash',
+  geminiApiKey: '',
+  openRouterApiKey: '',
+  geminiModel: 'gemini-1.5-flash',
+  openRouterModel: 'google/gemini-flash-1.5',
+  openRouterProvider: 'Google',
   autoExport: true,
-  exportFrequency: { days: 7, hours: 0, minutes: 30 }
+  exportFrequency: { days: 7, hours: 0, minutes: 30 },
+  exportPathSettings: '',
+  exportPathData: '',
+  autoExportData: true,
+  exportFrequencyData: { days: 7, hours: 0, minutes: 30 }
 };
 
 // State classes for Svelte 5 Runes reactivity
@@ -97,6 +104,19 @@ class ScribeFlowStore {
   editingTask = $state(null);
   quickAddTaskData = $state(null);
   settings = $state(defaultSettings);
+
+  // Getters for dynamic API/Model selection
+  get apiKey() {
+    return this.settings.apiProvider === 'gemini' 
+      ? this.settings.geminiApiKey 
+      : this.settings.openRouterApiKey;
+  }
+
+  get model() {
+    return this.settings.apiProvider === 'gemini'
+      ? this.settings.geminiModel
+      : this.settings.openRouterModel;
+  }
 
   constructor() {
     this.loadState();

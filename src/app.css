@@ -133,3 +133,28 @@ body {
   transform: translateX(100%);
   border-color: white;
 }
+
+/* Dark theme overrides */
+.dark {
+  --color-background: #121314;
+  --color-on-background: #eff1f3;
+  --color-surface: #1e1f21;
+  --color-on-surface: #eff1f3;
+  --color-surface-variant: #2d2e30;
+  --color-on-surface-variant: #c4c5d9;
+  --color-surface-bright: #2d2e30;
+  --color-surface-dim: #0d0e10;
+  
+  --color-surface-container: #1b1c1e;
+  --color-surface-container-low: #151618;
+  --color-surface-container-lowest: #0b0c0d;
+  --color-surface-container-high: #242528;
+  --color-surface-container-highest: #2b2c30;
+  
+  --color-inverse-surface: #f7f9fb;
+  --color-inverse-on-surface: #191c1e;
+  
+  --color-outline: #8e9099;
+  --color-outline-variant: #3e4045;
+}
+
