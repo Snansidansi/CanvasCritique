@@ -1,0 +1,182 @@
+<script>
+  import { store } from '../state/store.svelte.js';
+
+  // Form states
+  let taskName = $state('');
+  let targetProjectId = $state(store.activeProject?.id || (store.projects[0]?.id || ''));
+  let instructions = $state('');
+  let solution = $state('');
+  let category = $state('Basics');
+
+  // Drag and drop mock states
+  let instructionFileName = $state('');
+  let solutionFileName = $state('');
+
+  function handleSave(e) {
+    e.preventDefault();
+    if (!taskName.trim()) {
+      alert('Please enter a task name.');
+      return;
+    }
+    if (!targetProjectId) {
+      alert('Please select a project or create one first.');
+      return;
+    }
+
+    store.addTask(
+      targetProjectId,
+      taskName.trim(),
+      instructions.trim() || 'No instructions provided.',
+      solution.trim() || 'Review drawing output.',
+      category
+    );
+
+    // Reset and return
+    taskName = '';
+    instructions = '';
+    solution = '';
+    store.setView('dashboard');
+  }
+
+  function handleCancel() {
+    store.setView('dashboard');
+  }
+
+  // Simulated file uploads
+  function simulateUpload(type) {
+    const fileName = prompt("Enter a file name to upload (mocked):", "template_lines.png");
+    if (fileName) {
+      if (type === 'instruction') {
+        instructionFileName = fileName;
+      } else {
+        solutionFileName = fileName;
+      }
+    }
+  }
+</script>
+
+<header class="w-full bg-surface border-b border-outline-variant flex items-center justify-between px-8 h-16 shrink-0 z-20">
+  <button 
+    onclick={handleCancel}
+    class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors p-2 rounded-full -ml-2 focus:outline-none"
+  >
+    arrow_back
+  </button>
+  <span class="font-bold text-primary tracking-tight text-lg">ScribeFlow</span>
+  <div class="w-8"></div> <!-- Spacer -->
+</header>
+
+<main class="flex-grow overflow-y-auto bg-surface p-8 custom-scrollbar h-full">
+  <div class="max-w-3xl mx-auto flex flex-col gap-8">
+    <header class="flex flex-col gap-2">
+      <h1 class="text-2xl font-bold text-on-surface">Create Task</h1>
+      <p class="text-sm text-on-surface-variant">Define the parameters and provide reference materials for this assignment.</p>
+    </header>
+
+    <form onsubmit={handleSave} class="flex flex-col gap-8 bg-surface-container-lowest p-6 rounded-xl border border-outline-variant shadow-sm">
+      
+      <!-- Script / Project Target -->
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-on-surface" for="targetProj">Target Script Project</label>
+        <select 
+          id="targetProj"
+          bind:value={targetProjectId}
+          class="w-full bg-transparent border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+        >
+          {#each store.projects as project}
+            <option value={project.id}>{project.name}</option>
+          {/each}
+        </select>
+      </div>
+
+      <!-- Task Name -->
+      <div class="flex flex-col gap-2 group">
+        <label class="text-sm font-semibold text-on-surface group-focus-within:text-primary transition-colors" for="taskName">Task Name</label>
+        <input 
+          id="taskName" 
+          type="text" 
+          bind:value={taskName}
+          placeholder="e.g., Spencerian Loops, Ascenders"
+          class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-2.5 text-base text-on-surface placeholder:text-outline focus:ring-0 focus:border-primary focus:border-b-2 transition-all focus:outline-none"
+          required
+        />
+      </div>
+
+      <!-- Category Level -->
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-on-surface" for="category">Difficulty Category</label>
+        <select 
+          id="category"
+          bind:value={category}
+          class="w-full bg-transparent border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+        >
+          <option value="Basics">Basics</option>
+          <option value="Intermediate">Intermediate</option>
+          <option value="Advanced">Advanced</option>
+        </select>
+      </div>
+
+      <!-- Instructions -->
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-on-surface" for="instructions">Instructions</label>
+        <textarea 
+          id="instructions" 
+          bind:value={instructions}
+          placeholder="Write detailed step-by-step instructions. Markdown is supported." 
+          rows="5"
+          class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y shadow-sm focus:outline-none"
+        ></textarea>
+      </div>
+
+      <!-- Instruction Material Upload mock -->
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-on-surface" for="instructions">Instruction Reference Material</label>
+        <button 
+          type="button"
+          onclick={() => simulateUpload('instruction')}
+          class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none"
+        >
+          <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+            <span class="material-symbols-outlined text-[24px]">upload_file</span>
+          </div>
+          <div class="text-center">
+            <p class="text-sm font-semibold text-on-surface">
+              {instructionFileName ? `Selected: ${instructionFileName}` : 'Tap to upload or drag reference image'}
+            </p>
+            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG (Max 25MB)</p>
+          </div>
+        </button>
+      </div>
+
+      <!-- Expected Solution -->
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-on-surface" for="solution">Expected Solution / Evaluation Criteria</label>
+        <textarea 
+          id="solution" 
+          bind:value={solution}
+          placeholder="Provide the expected outcome (e.g., 'Ensure slant matches 55 degrees'). This prompt is passed to the AI to grade the handwriting." 
+          rows="4"
+          class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y shadow-sm focus:outline-none"
+        ></textarea>
+      </div>
+
+      <!-- Save / Cancel Buttons -->
+      <div class="flex justify-end gap-3 mt-4">
+        <button 
+          type="button" 
+          onclick={handleCancel}
+          class="px-5 py-2.5 border border-outline-variant text-on-surface-variant font-semibold text-sm rounded-lg hover:bg-surface-container"
+        >
+          Cancel
+        </button>
+        <button 
+          type="submit" 
+          class="px-6 py-2.5 bg-primary text-on-primary font-semibold text-sm rounded-lg hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,64,224,0.15)] flex items-center gap-2"
+        >
+          <span class="material-symbols-outlined text-[18px]">save</span>
+          Save Task
+        </button>
+      </div>
+    </form>
+  </div>
+</main>

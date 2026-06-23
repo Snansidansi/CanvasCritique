@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0040e0;
+  --color-primary-container: #2e5bff;
+  --color-primary-fixed: #dde1ff;
+  --color-primary-fixed-dim: #b8c3ff;
+  --color-on-primary-fixed: #001356;
+  --color-on-primary-fixed-variant: #0035be;
+  --color-on-primary: #ffffff;
+  
+  --color-secondary: #4457b3;
+  --color-secondary-container: #8b9dfe;
+  --color-secondary-fixed: #dee1ff;
+  --color-secondary-fixed-dim: #bac3ff;
+  --color-on-secondary-fixed: #001159;
+  --color-on-secondary-fixed-variant: #2b3e99;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #1a2f8b;
+  
+  --color-tertiary: #4d5568;
+  --color-tertiary-container: #656d81;
+  --color-tertiary-fixed: #dbe2fa;
+  --color-tertiary-fixed-dim: #bfc6dd;
+  --color-on-tertiary-fixed: #141b2c;
+  --color-on-tertiary-fixed-variant: #3f4759;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #edf0ff;
+  
+  --color-background: #f7f9fb;
+  --color-on-background: #191c1e;
+  
+  --color-surface: #f7f9fb;
+  --color-on-surface: #191c1e;
+  --color-surface-variant: #e0e3e5;
+  --color-on-surface-variant: #434656;
+  --color-surface-bright: #f7f9fb;
+  --color-surface-dim: #d8dadc;
+  
+  --color-surface-container: #eceef0;
+  --color-surface-container-low: #f2f4f6;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e6e8ea;
+  --color-surface-container-highest: #e0e3e5;
+  
+  --color-inverse-surface: #2d3133;
+  --color-inverse-on-surface: #eff1f3;
+  --color-inverse-primary: #b8c3ff;
+  --color-surface-tint: #124af0;
+  
+  --color-outline: #747688;
+  --color-outline-variant: #c4c5d9;
+  
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  --radius-DEFAULT: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-full: 9999px;
+
+  --spacing-unit: 8px;
+  --spacing-gutter: 24px;
+  --spacing-container-padding: 40px;
+  --spacing-sidebar-width: 280px;
+  --spacing-section-gap: 48px;
+
+  --font-sans: "Inter", sans-serif;
+}
+
+/* Custom global rules */
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Handwriting Practice Canvas Styles */
+.canvas-guidelines {
+  background-image: linear-gradient(#e2e8f0 1px, transparent 1px);
+  background-size: 100% 32px;
+}
+
+.slant-guidelines {
+  background-image: repeating-linear-gradient(65deg, transparent, transparent 40px, rgba(226, 232, 240, 0.5) 40px, rgba(226, 232, 240, 0.5) 41px);
+}
+
+/* Hide scrollbar utility */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom scrollbar for settings and details */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c4c5d9;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #747688;
+}
+
+/* Disable browser toggle handle styles */
+.toggle-checkbox:checked {
+  right: 0;
+  border-color: #0040e0;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+  background-color: #0040e0;
+}
+
+.toggle-checkbox:checked + .toggle-label::after {
+  transform: translateX(100%);
+  border-color: white;
+}
