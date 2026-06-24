@@ -29,6 +29,7 @@
     'anthropic/claude-3.5-sonnet'
   ]);
   let openRouterModelsFullList = $state([]);
+  let activeModelProviders = $state([]);
 
   function fuzzyMatch(text, query) {
     if (!query) return true;
@@ -47,26 +48,52 @@
     return false;
   }
 
-  // Dynamic provider extraction
-  let openRouterProviders = $derived.by(() => {
-    const providersSet = new Set();
-    openRouterModelsList.forEach(m => {
-      const parts = m.split('/');
-      if (parts.length > 1) {
-        const p = parts[0];
-        let name = p;
-        if (p === 'openai') name = 'OpenAI';
-        else if (p === 'google') name = 'Google';
-        else if (p === 'anthropic') name = 'Anthropic';
-        else if (p === 'meta-llama') name = 'Meta';
-        else if (p === 'mistralai') name = 'Mistral';
-        else name = p.charAt(0).toUpperCase() + p.slice(1);
-        providersSet.add(name);
+  // Dynamic hosting providers fetching for the selected model
+  async function fetchActiveModelProviders() {
+    const model = store.settings.openRouterModel;
+    if (!model) {
+      activeModelProviders = [];
+      return;
+    }
+    try {
+      const response = await fetch(`https://openrouter.ai/api/v1/models/${model}/endpoints`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.data && data.data.endpoints) {
+          const providers = data.data.endpoints.map(e => e.provider_name).filter(Boolean);
+          const uniqueProviders = Array.from(new Set(providers)).sort();
+          activeModelProviders = uniqueProviders;
+          
+          // Prune selected providers that are no longer valid for this model
+          const current = store.settings.openRouterProvider || [];
+          const valid = current.filter(p => uniqueProviders.includes(p));
+          if (valid.length !== current.length) {
+            store.settings.openRouterProvider = valid;
+            store.saveSettings();
+          }
+        } else {
+          activeModelProviders = [];
+        }
+      } else {
+        activeModelProviders = [];
       }
-    });
-    // Add default popular ones just in case
-    ['Google', 'OpenAI', 'Anthropic', 'Meta', 'Mistral'].forEach(p => providersSet.add(p));
-    return Array.from(providersSet).sort();
+    } catch (e) {
+      console.error('Error fetching model providers:', e);
+      activeModelProviders = [];
+    }
+  }
+
+  $effect(() => {
+    const model = store.settings.openRouterModel;
+    fetchActiveModelProviders();
+  });
+
+  // Dynamic provider list based on active model's endpoints or default popular hosting providers
+  let openRouterProviders = $derived.by(() => {
+    if (activeModelProviders.length > 0) {
+      return activeModelProviders;
+    }
+    return ['Google', 'OpenAI', 'Anthropic', 'Meta', 'Mistral', 'Together', 'DeepInfra', 'Lepton', 'Groq', 'Alibaba Cloud'].sort();
   });
 
   // Dynamic model fetching
@@ -136,24 +163,7 @@
 
   let filteredOpenRouterModels = $derived(
     (openRouterModelsFullList.length > 0 ? openRouterModelsFullList : openRouterModelsList.map(id => ({ id })))
-      // 1. Filter by Selected Providers
-      .filter(m => {
-        const selected = store.settings.openRouterProvider || [];
-        if (selected.length === 0) return true; // Show all if none selected
-        
-        const parts = m.id.split('/');
-        if (parts.length > 1) {
-          const provider = parts[0].toLowerCase();
-          return selected.some(p => {
-            const lowerP = p.toLowerCase();
-            if (lowerP === 'meta' && provider === 'meta-llama') return true;
-            if (lowerP === 'mistral' && provider === 'mistralai') return true;
-            return lowerP === provider || provider.includes(lowerP) || lowerP.includes(provider);
-          });
-        }
-        return false;
-      })
-      // 2. Filter by Vision capability
+      // Filter by Vision capability
       .filter(m => {
         if (!showOnlyVisionModels) return true;
         const id = m.id.toLowerCase();
@@ -162,9 +172,9 @@
         const modality = m.architecture?.modality || '';
         
         if (modality.includes('image') || modality.includes('multimodal')) return true;
-        return id.includes('vision') || id.includes('gemini') || id.includes('claude-3') || id.includes('gpt-4o') || id.includes('pixtral') || id.includes('llava') || description.includes('vision') || description.includes('multimodal') || description.includes('image input') || name.includes('vision') || name.includes('vl');
+        return id.includes('vision') || id.includes('gemini') || id.includes('claude-3') || id.includes('gpt-4o') || id.includes('pixtral') || id.includes('llava') || description.includes('vision') || description.includes('multimodal') || description.includes('image input') || name.includes('vision') || name.includes('vl') || id.includes('vl');
       })
-      // 3. Search query fuzzy match
+      // Search query fuzzy match
       .map(m => m.id)
       .filter(id => fuzzyMatch(id, store.settings.openRouterModel))
   );
@@ -270,6 +280,16 @@
         }
       } else {
         const url = 'https://openrouter.ai/api/v1/chat/completions';
+        const requestBody = {
+          model: model,
+          messages: [{ role: "user", content: "Hello! Reply in one short word." }]
+        };
+        const selectedProviders = store.settings.openRouterProvider || [];
+        if (selectedProviders.length > 0) {
+          requestBody.provider = {
+            order: selectedProviders
+          };
+        }
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -278,10 +298,7 @@
             'HTTP-Referer': 'https://scribeflow.app',
             'X-Title': 'ScribeFlow'
           },
-          body: JSON.stringify({
-            model: model,
-            messages: [{ role: "user", content: "Hello! Reply in one short word." }]
-          })
+          body: JSON.stringify(requestBody)
         });
         const data = await response.json();
         if (response.ok && data.choices && data.choices[0]) {
@@ -443,6 +460,63 @@
             </div>
           </div>
           <p class="text-center text-sm font-semibold {store.settings.theme === 'system' ? 'text-primary' : 'text-on-surface-variant'}">System</p>
+        </button>
+      </div>
+    </section>
+
+    <!-- Canvas Preferences Section -->
+    <section class="mb-8 bg-surface p-6 md:p-8 rounded-xl border border-outline-variant shadow-sm">
+      <div class="flex items-center gap-3 mb-6 border-b border-outline-variant pb-4">
+        <span class="material-symbols-outlined text-primary">edit_road</span>
+        <h3 class="text-lg font-bold text-on-surface">Canvas Preferences</h3>
+      </div>
+      <p class="text-xs text-on-surface-variant mb-4 leading-relaxed">
+        Choose between a truly infinite freeform canvas or structured A4 format page sheets.
+      </p>
+      
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Infinite Canvas Card -->
+        <button 
+          type="button"
+          onclick={() => { store.settings.canvasMode = 'infinite'; store.saveSettings(); }}
+          class="cursor-pointer group text-left focus:outline-none"
+        >
+          <div class="border rounded-lg p-4 mb-2 bg-surface-container-low flex flex-col justify-between h-28 relative overflow-hidden transition-all
+                 {store.settings.canvasMode === 'infinite' ? 'border-primary border-2 bg-primary/5' : 'border-outline-variant hover:border-primary'}"
+          >
+            {#if store.settings.canvasMode === 'infinite'}
+              <div class="absolute top-2 right-2 w-4 h-4 rounded-full bg-primary flex items-center justify-center z-10">
+                <span class="material-symbols-outlined text-[10px] text-white font-bold">check</span>
+              </div>
+            {/if}
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-2xl text-primary font-bold">all_out</span>
+              <span class="font-bold text-sm text-on-surface">Infinite Canvas</span>
+            </div>
+            <p class="text-xs text-on-surface-variant">Truly infinite workspace like OneNote. Scroll and pan freely in any direction.</p>
+          </div>
+        </button>
+
+        <!-- A4 Format Card -->
+        <button 
+          type="button"
+          onclick={() => { store.settings.canvasMode = 'a4'; store.saveSettings(); }}
+          class="cursor-pointer group text-left focus:outline-none"
+        >
+          <div class="border rounded-lg p-4 mb-2 bg-surface-container-low flex flex-col justify-between h-28 relative overflow-hidden transition-all
+                 {store.settings.canvasMode === 'a4' ? 'border-primary border-2 bg-primary/5' : 'border-outline-variant hover:border-primary'}"
+          >
+            {#if store.settings.canvasMode === 'a4'}
+              <div class="absolute top-2 right-2 w-4 h-4 rounded-full bg-primary flex items-center justify-center z-10">
+                <span class="material-symbols-outlined text-[10px] text-white font-bold">check</span>
+              </div>
+            {/if}
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-2xl text-primary font-bold">description</span>
+              <span class="font-bold text-sm text-on-surface">A4 Format Sheets</span>
+            </div>
+            <p class="text-xs text-on-surface-variant">Structured page-by-page sheets. Add, select, and delete individual A4 pages.</p>
+          </div>
         </button>
       </div>
     </section>
@@ -907,9 +981,9 @@
               </div>
 
               {#if (store.settings.openRouterProvider || []).length === 0}
-                <p class="text-xs text-error font-semibold flex items-center gap-1 mt-1">
-                  <span class="material-symbols-outlined text-[16px] text-error">warning</span>
-                  Warning: No provider selected! Model filtering will show all.
+                <p class="text-xs text-on-surface-variant font-semibold flex items-center gap-1 mt-1">
+                  <span class="material-symbols-outlined text-[16px] text-primary">info</span>
+                  OpenRouter will automatically choose the best available provider.
                 </p>
               {/if}
 
@@ -941,7 +1015,7 @@
                       <button
                         type="button"
                         onclick={() => {
-                          const current = store.settings.openRouterProvider || ['Google'];
+                          const current = store.settings.openRouterProvider || [];
                           if (!current.includes(providerOption)) {
                             store.settings.openRouterProvider = [...current, providerOption];
                           }
@@ -951,7 +1025,7 @@
                         }}
                         class="w-full text-left px-3 py-2 text-sm rounded-md transition-colors hover:bg-primary/10 hover:text-primary cursor-pointer text-on-surface"
                       >
-                        + Add {providerOption}
+                        {providerOption}
                       </button>
                     {/each}
                   {:else}

@@ -85,7 +85,7 @@ const defaultSettings = {
   openRouterApiKey: '',
   geminiModel: 'gemini-1.5-flash',
   openRouterModel: 'google/gemini-flash-1.5',
-  openRouterProvider: ['Google'],
+  openRouterProvider: [],
   autoExport: true,
   exportFrequency: { days: 7, hours: 0, minutes: 30 },
   exportPathSettings: '',
@@ -93,7 +93,8 @@ const defaultSettings = {
   autoExportData: true,
   exportFrequencyData: { days: 7, hours: 0, minutes: 30 },
   sendTaskMedia: true,
-  sendSolutionMedia: true
+  sendSolutionMedia: true,
+  canvasMode: 'infinite'
 };
 
 // State classes for Svelte 5 Runes reactivity
@@ -161,7 +162,7 @@ class ScribeFlowStore {
       if (this.settings.openRouterProvider && typeof this.settings.openRouterProvider === 'string') {
         this.settings.openRouterProvider = [this.settings.openRouterProvider];
       } else if (!this.settings.openRouterProvider) {
-        this.settings.openRouterProvider = ['Google'];
+        this.settings.openRouterProvider = [];
       }
     } catch (e) {
       console.error('Error loading settings', e);
