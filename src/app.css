@@ -157,6 +157,7 @@ body {
   --color-inverse-surface: #f7f9fb;
   --color-inverse-on-surface: #191c1e;
   
+  --color-primary: #6b9cff;
   --color-outline: #8e9099;
   --color-outline-variant: #3e4045;
 }

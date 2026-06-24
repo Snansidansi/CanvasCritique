@@ -98,6 +98,17 @@
     draggedTaskId = null;
     draggedCategory = null;
   }
+  // Guidelines state
+  let guidelinesExpanded = $state(false);
+  let guidelinesDebounce = null;
+
+  function handleGuidelinesChange(e) {
+    const value = e.target.value;
+    if (guidelinesDebounce) clearTimeout(guidelinesDebounce);
+    guidelinesDebounce = setTimeout(() => {
+      store.updateProjectGuidelines(project.id, value);
+    }, 500);
+  }
 </script>
 
 <!-- TopAppBar -->
@@ -146,7 +157,7 @@
 </header>
 
 <!-- Main details area -->
-<main class="flex-grow overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar h-full">
+<main class="grow overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar h-full">
   <!-- Stats & Progress banner -->
   <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
     <div class="space-y-1">
@@ -164,6 +175,44 @@
         <div class="bg-primary h-2 rounded-full transition-all duration-300" style="width: {progress}%"></div>
       </div>
     </div>
+  </section>
+
+  <!-- General Guidelines Section -->
+  <section class="bg-surface-container-low border border-outline-variant/60 rounded-xl overflow-hidden">
+    <button 
+      onclick={() => guidelinesExpanded = !guidelinesExpanded}
+      class="w-full flex items-center justify-between px-6 py-4 cursor-pointer bg-transparent border-0 text-left focus:outline-none hover:bg-surface-container-lowest/50 transition-colors"
+    >
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-[20px] text-primary">description</span>
+        <div>
+          <h3 class="font-bold text-sm text-on-surface">General Guidelines</h3>
+          <p class="text-[11px] text-on-surface-variant mt-0.5">
+            These guidelines are sent to the AI for every task in this lesson
+          </p>
+        </div>
+      </div>
+      <span class="material-symbols-outlined text-on-surface-variant text-[20px] transition-transform" 
+            style="transform: rotate({guidelinesExpanded ? '180' : '0'}deg)">
+        expand_more
+      </span>
+    </button>
+
+    {#if guidelinesExpanded}
+      <div class="px-6 pb-5 border-t border-outline-variant/30 pt-4">
+        <textarea
+          value={project.guidelines || ''}
+          oninput={handleGuidelinesChange}
+          placeholder="e.g., Always show your working, write neatly, answers must include units..."
+          rows="4"
+          class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-y min-h-20"
+        ></textarea>
+        <p class="text-[10px] text-on-surface-variant mt-2 flex items-center gap-1">
+          <span class="material-symbols-outlined text-[12px]">info</span>
+          These instructions will be included when the AI checks the student's work on any task in this lesson.
+        </p>
+      </div>
+    {/if}
   </section>
 
   <!-- Categories section lists -->
@@ -206,7 +255,7 @@
 
           <!-- Draggable task list -->
           <div 
-            class="flex flex-col gap-2 min-h-[50px]"
+            class="flex flex-col gap-2 min-h-12.5"
             ondragover={handleDragOver}
             ondrop={(e) => handleDropOnContainer(e, category)}
           >
@@ -272,7 +321,7 @@
 <!-- Add custom category modal -->
 {#if isAddCategoryOpen}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm select-none">
-    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-[360px] shadow-xl flex flex-col gap-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-90 shadow-xl flex flex-col gap-4">
       <h3 class="font-bold text-lg text-on-surface">Add Custom Topic Section</h3>
       
       <form onsubmit={handleAddCategorySubmit} class="flex flex-col gap-4">

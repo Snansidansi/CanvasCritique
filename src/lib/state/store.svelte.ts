@@ -8,6 +8,7 @@ const defaultProjects = [
     id: 'spencerian',
     name: 'Spencerian Script',
     icon: 'history_edu',
+    guidelines: '',
     categories: ['Basics', 'Intermediate', 'Advanced'],
     tasks: [
       {
@@ -40,6 +41,7 @@ const defaultProjects = [
     id: 'copperplate',
     name: 'Copperplate Basics',
     icon: 'draw',
+    guidelines: '',
     categories: ['Basics', 'Intermediate', 'Advanced'],
     tasks: [
       {
@@ -78,6 +80,48 @@ const defaultProjects = [
   }
 ];
 
+export const DEFAULT_SYSTEM_PROMPT = `You are a thorough but encouraging teacher evaluating a student's handwritten work.
+
+Task name: "{{task_name}}"
+{{task_instructions}}
+{{task_solution}}
+{{guidelines}}
+{{page_info}}
+
+**Image dimensions (IMPORTANT for marker placement):**
+{{image_dimensions}}
+The images provided are cropped versions of the canvas. 
+Your marker x,y coordinates MUST be relative to the top-left corner (0,0) of the corresponding cropped image.
+Place the marker EXACTLY where you would logically put a checkmark or cross on the paper next to the student's answer.
+
+**Your job:**
+1. Read the student's handwritten answers from the image(s).
+2. Compare each answer against the expected solution and task instructions.
+3. Mark each answer/exercise as correct, incorrect, or partially correct. Be extremely accurate and strict about correctness!
+4. Do NOT critique handwriting quality, neatness, or penmanship unless the task instructions explicitly ask for it.
+5. Focus on whether the student's answers/work is factually and logically correct.
+6. If an answer is incorrect, your feedback MUST explicitly state why it is wrong and what the correct answer should be.
+
+You must return a JSON object with the following schema:
+{
+  "generalCritique": "Markdown formatted string containing your overall feedback. Keep it brief, constructive, and focused on correctness. Mention which exercises are correct and which need fixing.",
+  "grade": number (0-100, based on correctness of answers),
+  "markers": [
+    {
+      "pageIndex": number (0-based index of the image in the sent sequence, default to 0 if only one image),
+      "x": number (X coordinate in pixels relative to the top-left of the cropped page image bounds),
+      "y": number (Y coordinate in pixels relative to the top-left of the cropped page image bounds),
+      "type": "correct" | "incorrect" | "partial",
+      "feedback": "Specific feedback. If correct, ONLY write 'Correct'. If incorrect, explain what is wrong and provide the correct expected answer.",
+      "underlinePoints": [ // Optional. Only for incorrect or partial answers to highlight the problematic area.
+        {"x": number, "y": number}, ... (coordinate points on the image in pixels)
+      ]
+    }
+  ]
+}
+
+Return ONLY this JSON object. Do not include any other conversational text.`;
+
 const defaultSettings = {
   theme: 'light',
   apiProvider: 'gemini',
@@ -86,15 +130,18 @@ const defaultSettings = {
   geminiModel: 'gemini-1.5-flash',
   openRouterModel: 'google/gemini-flash-1.5',
   openRouterProvider: [],
-  autoExport: true,
+  openRouterReasoning: true,
+  autoExport: false,
   exportFrequency: { days: 7, hours: 0, minutes: 30 },
   exportPathSettings: '',
   exportPathData: '',
-  autoExportData: true,
+  autoExportData: false,
   exportFrequencyData: { days: 7, hours: 0, minutes: 30 },
   sendTaskMedia: true,
   sendSolutionMedia: true,
-  canvasMode: 'infinite'
+  canvasMode: 'infinite',
+  customSystemPrompt: '',
+  systemPromptEditingEnabled: false
 };
 
 // State classes for Svelte 5 Runes reactivity
@@ -109,11 +156,12 @@ class ScribeFlowStore {
   settings = $state(defaultSettings);
   customBackgrounds = $state([]);
   confirmDialog = $state(null);
+  canvasSaves = $state({});
 
   // Getters for dynamic API/Model selection
   get apiKey() {
-    return this.settings.apiProvider === 'gemini' 
-      ? this.settings.geminiApiKey 
+    return this.settings.apiProvider === 'gemini'
+      ? this.settings.geminiApiKey
       : this.settings.openRouterApiKey;
   }
 
@@ -157,7 +205,7 @@ class ScribeFlowStore {
       } else {
         this.settings = defaultSettings;
       }
-      
+
       // Normalize openRouterProvider to an array
       if (this.settings.openRouterProvider && typeof this.settings.openRouterProvider === 'string') {
         this.settings.openRouterProvider = [this.settings.openRouterProvider];
@@ -180,6 +228,19 @@ class ScribeFlowStore {
     } catch (e) {
       console.error('Error loading custom backgrounds', e);
       this.customBackgrounds = [];
+    }
+
+    // Load Canvas Saves
+    try {
+      const savedSaves = localStorage.getItem('scribeflow_canvas_saves');
+      if (savedSaves) {
+        this.canvasSaves = JSON.parse(savedSaves);
+      } else {
+        this.canvasSaves = {};
+      }
+    } catch (e) {
+      console.error('Error loading canvas saves', e);
+      this.canvasSaves = {};
     }
 
     // Apply initial theme
@@ -263,12 +324,13 @@ class ScribeFlowStore {
       id: 'proj-' + Date.now(),
       name,
       icon,
+      guidelines: '',
       categories: [],
       tasks: []
     };
     this.projects.push(newProj);
     this.saveProjects();
-    
+
     if (this.activeProject && this.activeProject.id === newProj.id) {
       this.activeProject = newProj;
     }
@@ -278,16 +340,16 @@ class ScribeFlowStore {
   addCategory(projectId, categoryName) {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
-    
+
     if (!project.categories) {
       project.categories = [];
     }
-    
+
     if (!project.categories.includes(categoryName)) {
       project.categories.push(categoryName);
       this.saveProjects();
     }
-    
+
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }
@@ -313,7 +375,7 @@ class ScribeFlowStore {
     }
 
     this.saveProjects();
-    
+
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }
@@ -335,12 +397,12 @@ class ScribeFlowStore {
     };
 
     project.tasks.push(newTask);
-    
+
     // Auto-add category if it isn't listed
     if (project.categories && !project.categories.includes(category)) {
       project.categories.push(category);
     }
-    
+
     this.saveProjects();
 
     // Update active project reference if it is active
@@ -356,16 +418,18 @@ class ScribeFlowStore {
     const task = project.tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    task.name = updatedData.name;
-    task.instructions = updatedData.instructions;
-    task.solution = updatedData.solution;
-    task.category = updatedData.category;
-    task.instructionFile = updatedData.instructionFile;
-    task.solutionFile = updatedData.solutionFile;
+    if (updatedData.name !== undefined) task.name = updatedData.name;
+    if (updatedData.instructions !== undefined) task.instructions = updatedData.instructions;
+    if (updatedData.solution !== undefined) task.solution = updatedData.solution;
+    if (updatedData.category !== undefined) task.category = updatedData.category;
+    if (updatedData.instructionFile !== undefined) task.instructionFile = updatedData.instructionFile;
+    if (updatedData.solutionFile !== undefined) task.solutionFile = updatedData.solutionFile;
+    if (updatedData.completed !== undefined) task.completed = updatedData.completed;
+    if (updatedData.critique !== undefined) task.critique = updatedData.critique;
 
     // Auto-add category if it isn't listed
-    if (project.categories && !project.categories.includes(updatedData.category)) {
-      project.categories.push(updatedData.category);
+    if (task.category && project.categories && !project.categories.includes(task.category)) {
+      project.categories.push(task.category);
     }
 
     this.saveProjects();
@@ -446,6 +510,16 @@ class ScribeFlowStore {
     }
   }
 
+  updateProjectGuidelines(projectId, guidelines) {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+    project.guidelines = guidelines;
+    this.saveProjects();
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
+  }
+
   deleteProject(projectId) {
     this.projects = this.projects.filter(p => p.id !== projectId);
     this.saveProjects();
@@ -469,6 +543,15 @@ class ScribeFlowStore {
         this.confirmDialog = null;
       }
     };
+  }
+
+  saveCanvasState(taskId, data) {
+    this.canvasSaves[taskId] = data;
+    localStorage.setItem('scribeflow_canvas_saves', JSON.stringify(this.canvasSaves));
+  }
+
+  getCanvasState(taskId) {
+    return this.canvasSaves[taskId] || null;
   }
 }
 

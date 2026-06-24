@@ -121,7 +121,7 @@
 </header>
 
 <!-- Main Scrollable Content -->
-<main class="flex-grow overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar">
+<main class="grow overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar">
   <!-- Welcome and stats -->
   <section class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
     <div>
@@ -288,7 +288,7 @@
 <!-- Create Project Modal Dialog -->
 {#if isAddProjectOpen}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-[400px] shadow-xl flex flex-col gap-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-100 shadow-xl flex flex-col gap-4">
       <h3 class="font-bold text-lg text-on-surface">Create Calligraphy Script</h3>
       
       <form onsubmit={handleCreateProject} class="flex flex-col gap-4">

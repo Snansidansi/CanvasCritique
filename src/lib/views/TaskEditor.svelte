@@ -134,7 +134,7 @@
   <div class="w-8"></div> <!-- Spacer -->
 </header>
 
-<main class="flex-grow overflow-y-auto bg-surface p-8 custom-scrollbar h-full">
+<main class="grow overflow-y-auto bg-surface p-8 custom-scrollbar h-full">
   <div class="max-w-3xl mx-auto flex flex-col gap-8">
     <header class="flex flex-col gap-2">
       <h1 class="text-2xl font-bold text-on-surface">{isEditMode ? 'Edit Task' : 'Create Task'}</h1>

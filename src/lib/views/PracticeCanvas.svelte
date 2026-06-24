@@ -1,5 +1,5 @@
 <script>
-  import { store } from '../state/store.svelte';
+  import { store, DEFAULT_SYSTEM_PROMPT } from '../state/store.svelte';
   import { onMount, tick } from 'svelte';
 
   // Active task details from store
@@ -34,7 +34,8 @@
   // Brush configuration
   let strokeColor = $state('#000000');
   let brushWidth = $state(2);
-  let activeTool = $state('pen'); // 'pen' | 'eraser' | 'pan'
+  let eraserWidth = $state(24);
+  let activeTool = $state('pen'); // 'pen' | 'eraser' | 'pan' | 'select'
 
   let cursorClass = $derived.by(() => {
     if (activeTool === 'pan') {
@@ -42,6 +43,9 @@
     }
     if (activeTool === 'eraser') {
       return 'cursor-cell';
+    }
+    if (activeTool === 'select') {
+      return 'cursor-default';
     }
     return 'cursor-crosshair';
   });
@@ -51,6 +55,7 @@
   let feedbackText = $state('');
   let feedbackScore = $state(null);
   let showFeedback = $state(false);
+  let showCritiqueBanner = $state(false);
   let hasCheckedWork = $state(false);
   let feedbackMarkers = $state([]);
   let activeTooltipMarker = $state(null);
@@ -86,7 +91,82 @@
   
   let canvasWidth = $derived(canvasMode === 'infinite' ? containerWidth : 800);
   let canvasHeight = $derived(canvasMode === 'infinite' ? containerHeight : 1130);
+  let a4Scale = $derived(
+    canvasMode === 'a4' 
+      ? Math.max(0.1, Math.min(
+          containerWidth > 32 ? (containerWidth - 32) / 800 : 0.1,
+          containerHeight > 32 ? (containerHeight - 32) / 1130 : 0.1
+        )) 
+      : 1
+  );
   let ctx = null;
+
+  // Recent colors and custom color picker states
+  let recentColors = $state(['#000000', '#1d4ed8', '#dc2626', '#059669']);
+  let colorInput = $state(null);
+  let customColorVal = $state('#000000');
+
+  // Selection states
+  let selectionBox = $state(null); // { x1, y1, x2, y2 }
+  let selectedStrokes = $state([]); // array of stroke objects
+  let copiedStrokes = $state([]); // array of copied stroke objects
+  let isMovingSelection = $state(false);
+  let selectionDragStart = { x: 0, y: 0 };
+  let contextMenu = $state(null); // { x, y, canvasX, canvasY }
+  let longPressTimer = null;
+
+  let selectionBoundingBox = $derived.by(() => {
+    if (selectedStrokes.length === 0) return null;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const stroke of selectedStrokes) {
+      const halfWidth = stroke.width / 2;
+      for (const p of stroke.points) {
+        if (p.x - halfWidth < minX) minX = p.x - halfWidth;
+        if (p.y - halfWidth < minY) minY = p.y - halfWidth;
+        if (p.x + halfWidth > maxX) maxX = p.x + halfWidth;
+        if (p.y + halfWidth > maxY) maxY = p.y + halfWidth;
+      }
+    }
+    if (minX === Infinity) return null;
+    return { minX, minY, maxX, maxY };
+  });
+
+  function selectColor(color) {
+    strokeColor = color;
+    activeTool = 'pen';
+  }
+
+  function addColorToPalette() {
+    if (recentColors.includes(strokeColor)) return;
+    if (recentColors.length >= 8) {
+      recentColors = [...recentColors.slice(1), strokeColor];
+    } else {
+      recentColors = [...recentColors, strokeColor];
+    }
+    localStorage.setItem('scribeflow_recent_colors', JSON.stringify(recentColors));
+  }
+
+  function removeColorFromPalette(idx) {
+    if (recentColors.length <= 1) return;
+    recentColors = recentColors.filter((_, i) => i !== idx);
+    localStorage.setItem('scribeflow_recent_colors', JSON.stringify(recentColors));
+  }
+
+  let isCustomColorInPalette = $derived(recentColors.includes(strokeColor));
+
+  onMount(() => {
+    const savedRecents = localStorage.getItem('scribeflow_recent_colors');
+    if (savedRecents) {
+      try {
+        recentColors = JSON.parse(savedRecents);
+      } catch (e) {
+        // Fallback
+      }
+    }
+  });
 
   // Active stroke lists mapped as derived properties
   let strokeHistory = $derived(
@@ -157,21 +237,118 @@
     const activeStrokeLen = currentStroke.length;
     const scale = zoomScale;
     const bgImg = currentBgImage;
+    
+    // Selection visual triggers
+    const selBox = selectionBox;
+    const selStrokesLen = selectedStrokes.length;
+    const isMoving = isMovingSelection;
+    const bounds = selectionBoundingBox;
 
     if (ctx && canvasElement) {
       redraw();
     }
   });
 
-  // Watch canvasMode to reset page/panning state
+  let lastTaskId = $state(null);
+  $effect(() => {
+    if (task && task.id && task.id !== lastTaskId) {
+      lastTaskId = task.id;
+      if (task.critique) {
+        feedbackText = task.critique.feedbackText || '';
+        feedbackScore = task.critique.feedbackScore || null;
+        feedbackMarkers = task.critique.feedbackMarkers || [];
+        hasCheckedWork = true;
+        showFeedback = true;
+        showCritiqueBanner = false;
+      } else {
+        feedbackText = '';
+        feedbackScore = null;
+        feedbackMarkers = [];
+        hasCheckedWork = false;
+        showFeedback = false;
+        showCritiqueBanner = false;
+      }
+    }
+  });
+
+  // Watch canvasMode or activeTool to reset selection/panning state
   $effect(() => {
     const mode = canvasMode;
+    const tool = activeTool;
     activeTooltipMarker = null;
     isPanning = false;
     isDrawing = false;
     currentStroke = [];
     zoomScale = 1;
     panOffset = { x: 0, y: 0 };
+    
+    // Reset selection states
+    selectionBox = null;
+    if (activeTool !== 'select') {
+      selectedStrokes = [];
+    }
+    isMovingSelection = false;
+    contextMenu = null;
+  });
+
+  // Save drawing state helper
+  let saveTimeout = null;
+  function saveToStoreDebounced() {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      saveToStore();
+      saveTimeout = null;
+    }, 300);
+  }
+
+  function saveToStore() {
+    if (!task || !task.id) return;
+    store.saveCanvasState(task.id, {
+      pages: JSON.parse(JSON.stringify(pages)),
+      infiniteStrokes: JSON.parse(JSON.stringify(infiniteStrokes)),
+      infiniteRedo: JSON.parse(JSON.stringify(infiniteRedo)),
+      panOffset: { ...panOffset },
+      zoomScale,
+      activePageIndex
+    });
+  }
+
+
+
+  // Load saved drawing state when active task shifts
+  $effect(() => {
+    const taskId = task.id;
+    if (taskId) {
+      const saved = store.getCanvasState(taskId);
+      if (saved) {
+        pages = saved.pages || [
+          {
+            id: 'page-' + Date.now(),
+            strokeHistory: [],
+            redoStack: []
+          }
+        ];
+        infiniteStrokes = saved.infiniteStrokes || [];
+        infiniteRedo = saved.infiniteRedo || [];
+        panOffset = saved.panOffset || { x: 0, y: 0 };
+        zoomScale = saved.zoomScale || 1;
+        activePageIndex = saved.activePageIndex || 0;
+      } else {
+        // Clear canvas if no state was previously saved
+        pages = [
+          {
+            id: 'page-' + Date.now(),
+            strokeHistory: [],
+            redoStack: []
+          }
+        ];
+        infiniteStrokes = [];
+        infiniteRedo = [];
+        panOffset = { x: 0, y: 0 };
+        zoomScale = 1;
+        activePageIndex = 0;
+      }
+    }
   });
 
   function getCoords(e) {
@@ -187,17 +364,57 @@
       };
     } else {
       return {
-        x: screenX,
-        y: screenY
+        x: screenX / a4Scale,
+        y: screenY / a4Scale
       };
     }
   }
 
+  // Helper to check if a point lies inside a selection box
+  function isPointInBounds(x, y, bounds) {
+    if (!bounds) return false;
+    return x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY;
+  }
+
+  // Helper to find all strokes inside a marquee selection box
+  function getStrokesInMarquee(x1, y1, x2, y2) {
+    const minX = Math.min(x1, x2);
+    const maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2);
+    const maxY = Math.max(y1, y2);
+    
+    return strokeHistory.filter(stroke => {
+      // A stroke is selected if at least one point lies within the selection rectangle
+      return stroke.points.some(p => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
+    });
+  }
+
+  // Variables to track long-press start positions
+  let longPressStartPos = { x: 0, y: 0 };
+
   function handleMouseDown(e) {
     if (!ctx || !canvasElement) return;
+
+    // Check for right-click: open paste context menu
+    if (e.button === 2) {
+      const coords = getCoords(e);
+      const rect = canvasContainer.getBoundingClientRect();
+      contextMenu = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        canvasX: coords.x,
+        canvasY: coords.y
+      };
+      e.preventDefault();
+      return;
+    }
+
+    // Dismiss context menu on click elsewhere
+    contextMenu = null;
+    if (longPressTimer) clearTimeout(longPressTimer);
     
-    // Check if middle click, right click, or Hand tool
-    const isPanAction = canvasMode === 'infinite' && (e.button === 1 || e.button === 2 || activeTool === 'pan');
+    // Check if middle click or Hand tool
+    const isPanAction = canvasMode === 'infinite' && (e.button === 1 || activeTool === 'pan');
     
     if (isPanAction) {
       isPanning = true;
@@ -207,15 +424,56 @@
       return;
     }
     
-    // Only allow drawing on left-click
+    // Only allow drawing/selecting on left-click
     if (e.button !== 0) return;
-    
-    isDrawing = true;
-    const pt = getCoords(e);
-    currentStroke = [pt];
+
+    const coords = getCoords(e);
+
+    // Setup long-press (600ms) timer for context menu (stylus paste shortcut)
+    longPressStartPos = { x: e.clientX, y: e.clientY };
+    longPressTimer = setTimeout(() => {
+      const rect = canvasContainer.getBoundingClientRect();
+      contextMenu = {
+        x: longPressStartPos.x - rect.left,
+        y: longPressStartPos.y - rect.top,
+        canvasX: coords.x,
+        canvasY: coords.y
+      };
+      // Cancel active draw or selection marquee drag
+      isDrawing = false;
+      selectionBox = null;
+      isMovingSelection = false;
+    }, 600);
+
+    if (activeTool === 'select') {
+      // Check if clicking inside current selection bounding box
+      const bounds = selectionBoundingBox;
+      if (isPointInBounds(coords.x, coords.y, bounds)) {
+        isMovingSelection = true;
+        selectionDragStart = { x: coords.x, y: coords.y };
+        selectionBox = null;
+      } else {
+        // Start marquee select drawing
+        selectedStrokes = [];
+        selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
+        isMovingSelection = false;
+      }
+    } else {
+      isDrawing = true;
+      currentStroke = [coords];
+    }
   }
 
   function handleMouseMove(e) {
+    // If long-press is active, cancel it if cursor moves > 5px
+    if (longPressTimer) {
+      const dist = Math.hypot(e.clientX - longPressStartPos.x, e.clientY - longPressStartPos.y);
+      if (dist > 5) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+
     if (isPanning) {
       const dx = e.clientX - panStart.x;
       const dy = e.clientY - panStart.y;
@@ -235,46 +493,94 @@
       e.preventDefault();
       return;
     }
+
+    const coords = getCoords(e);
     
-    if (!isDrawing) return;
-    
-    const pt = getCoords(e);
-    currentStroke.push(pt);
+    if (activeTool === 'select') {
+      if (isMovingSelection && selectedStrokes.length > 0) {
+        const dx = coords.x - selectionDragStart.x;
+        const dy = coords.y - selectionDragStart.y;
+        
+        for (const stroke of selectedStrokes) {
+          for (const p of stroke.points) {
+            p.x += dx;
+            p.y += dy;
+          }
+        }
+        
+        selectionDragStart = { x: coords.x, y: coords.y };
+        
+        // Trigger Svelte 5 reactivity updates
+        selectedStrokes = [...selectedStrokes];
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
+        } else {
+          infiniteStrokes = [...infiniteStrokes];
+        }
+      } else if (selectionBox) {
+        selectionBox.x2 = coords.x;
+        selectionBox.y2 = coords.y;
+      }
+    } else if (isDrawing) {
+      currentStroke.push(coords);
+    }
   }
 
   function handleMouseUp() {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
     if (isPanning) {
       isPanning = false;
+      saveToStore();
       return;
     }
     
-    if (!isDrawing) return;
-    isDrawing = false;
-    
-    if (currentStroke.length > 0) {
-      const newStroke = {
-        color: activeTool === 'eraser' ? '#FFFFFF' : strokeColor,
-        width: activeTool === 'eraser' ? 24 : brushWidth,
-        points: [...currentStroke]
-      };
-      
-      if (canvasMode === 'a4') {
-        pages[activePageIndex].strokeHistory.push(newStroke);
-        pages[activePageIndex].redoStack = [];
-      } else {
-        infiniteStrokes.push(newStroke);
-        infiniteRedo = [];
+    if (activeTool === 'select') {
+      if (selectionBox) {
+        selectedStrokes = getStrokesInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2);
+        selectionBox = null;
       }
+      if (isMovingSelection) {
+        saveToStore();
+      }
+      isMovingSelection = false;
+    } else if (isDrawing) {
+      isDrawing = false;
+      
+      if (currentStroke.length > 0) {
+        const newStroke = {
+          color: activeTool === 'eraser' ? 'eraser' : strokeColor,
+          width: activeTool === 'eraser' ? eraserWidth : brushWidth,
+          points: [...currentStroke]
+        };
+        
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].strokeHistory.push(newStroke);
+          pages[activePageIndex].redoStack = [];
+        } else {
+          infiniteStrokes.push(newStroke);
+          infiniteRedo = [];
+        }
+        saveToStore();
+      }
+      currentStroke = [];
     }
-    currentStroke = [];
   }
 
   function handleMouseLeave() {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
     if (isDrawing) {
       handleMouseUp();
     }
     if (isPanning) {
       isPanning = false;
+      saveToStore();
     }
   }
 
@@ -306,6 +612,7 @@
       
       zoomScale = newScale;
       panOffset = { x: newPanX, y: newPanY };
+      saveToStoreDebounced();
     } else {
       // Normal scroll wheel panning on infinite canvas
       if (canvasMode === 'infinite') {
@@ -317,26 +624,35 @@
         newPanY = Math.min(0, newPanY);
         
         panOffset = { x: newPanX, y: newPanY };
+        saveToStoreDebounced();
       }
     }
   }
 
-  function drawStroke(stroke) {
+  function drawStroke(ctxTarget, stroke) {
     if (stroke.points.length === 0) return;
     
-    ctx.save();
-    ctx.beginPath();
-    ctx.strokeStyle = stroke.color;
-    ctx.lineWidth = stroke.width;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    ctxTarget.save();
+    ctxTarget.beginPath();
     
-    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-    for (let i = 1; i < stroke.points.length; i++) {
-      ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+    if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') {
+      ctxTarget.globalCompositeOperation = 'destination-out';
+      ctxTarget.strokeStyle = 'rgba(0,0,0,1)';
+    } else {
+      ctxTarget.globalCompositeOperation = 'source-over';
+      ctxTarget.strokeStyle = stroke.color;
     }
-    ctx.stroke();
-    ctx.restore();
+    
+    ctxTarget.lineWidth = stroke.width;
+    ctxTarget.lineCap = 'round';
+    ctxTarget.lineJoin = 'round';
+    
+    ctxTarget.moveTo(stroke.points[0].x, stroke.points[0].y);
+    for (let i = 1; i < stroke.points.length; i++) {
+      ctxTarget.lineTo(stroke.points[i].x, stroke.points[i].y);
+    }
+    ctxTarget.stroke();
+    ctxTarget.restore();
   }
 
   function drawGuidelinesInWorld(ctxTarget, xStart, yStart, wVisible, hVisible) {
@@ -380,10 +696,9 @@
     if (!ctx || !canvasElement) return;
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     
-    if (canvasMode === 'a4') {
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-    }
+    // Always fill background with white to keep calligraphy canvas white in all modes (including dark mode)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     
     // Draw guidelines back layer and custom background
     ctx.save();
@@ -425,27 +740,73 @@
     }
     ctx.restore();
     
-    // Draw historical strokes
-    ctx.save();
+    // Create temporary offscreen transparent canvas to draw ink strokes
+    const offscreen = document.createElement('canvas');
+    offscreen.width = canvasWidth;
+    offscreen.height = canvasHeight;
+    const oCtx = offscreen.getContext('2d');
+    
+    oCtx.save();
     if (canvasMode === 'infinite') {
-      ctx.translate(panOffset.x, panOffset.y);
-      ctx.scale(zoomScale, zoomScale);
+      oCtx.translate(panOffset.x, panOffset.y);
+      oCtx.scale(zoomScale, zoomScale);
     }
     
+    // Draw historical strokes
     for (const stroke of strokeHistory) {
-      drawStroke(stroke);
+      drawStroke(oCtx, stroke);
     }
     
     // Draw active drawing stroke
     if (currentStroke.length > 0) {
-      drawStroke({
-        color: activeTool === 'eraser' ? '#FFFFFF' : strokeColor,
-        width: activeTool === 'eraser' ? 24 : brushWidth,
+      drawStroke(oCtx, {
+        color: activeTool === 'eraser' ? 'eraser' : strokeColor,
+        width: activeTool === 'eraser' ? eraserWidth : brushWidth,
         points: currentStroke
       });
     }
     
-    ctx.restore();
+    oCtx.restore();
+    
+    // Composite offscreen strokes canvas back onto the main canvas
+    ctx.drawImage(offscreen, 0, 0);
+    
+    // Draw selection tools marquee box (if actively selecting)
+    if (activeTool === 'select' && selectionBox) {
+      ctx.save();
+      if (canvasMode === 'infinite') {
+        ctx.translate(panOffset.x, panOffset.y);
+        ctx.scale(zoomScale, zoomScale);
+      }
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 1.5 / (canvasMode === 'infinite' ? zoomScale : 1);
+      ctx.setLineDash([4, 4]);
+      const sx = Math.min(selectionBox.x1, selectionBox.x2);
+      const sy = Math.min(selectionBox.y1, selectionBox.y2);
+      const sw = Math.abs(selectionBox.x2 - selectionBox.x1);
+      const sh = Math.abs(selectionBox.y2 - selectionBox.y1);
+      ctx.strokeRect(sx, sy, sw, sh);
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.05)';
+      ctx.fillRect(sx, sy, sw, sh);
+      ctx.restore();
+    }
+    
+    // Draw selection bounding box (if strokes are selected)
+    if (activeTool === 'select' && selectionBoundingBox) {
+      const bounds = selectionBoundingBox;
+      ctx.save();
+      if (canvasMode === 'infinite') {
+        ctx.translate(panOffset.x, panOffset.y);
+        ctx.scale(zoomScale, zoomScale);
+      }
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 2 / (canvasMode === 'infinite' ? zoomScale : 1);
+      ctx.setLineDash([6, 3]);
+      ctx.strokeRect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+      ctx.fillStyle = 'rgba(37, 99, 235, 0.05)';
+      ctx.fillRect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+      ctx.restore();
+    }
   }
 
   function handleUndo() {
@@ -460,6 +821,7 @@
         infiniteRedo.push(last);
       }
     }
+    saveToStore();
   }
 
   function handleRedo() {
@@ -474,6 +836,7 @@
         infiniteStrokes.push(next);
       }
     }
+    saveToStore();
   }
 
   function clearCanvas() {
@@ -492,9 +855,129 @@
           infiniteStrokes = [];
           infiniteRedo = [];
         }
+        saveToStore();
       }
     );
   }
+
+  function copySelected() {
+    if (selectedStrokes.length === 0) return;
+    copiedStrokes = JSON.parse(JSON.stringify(selectedStrokes));
+  }
+
+  function deleteSelected() {
+    if (selectedStrokes.length === 0) return;
+    
+    if (canvasMode === 'a4') {
+      pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(
+        s => !selectedStrokes.includes(s)
+      );
+      pages[activePageIndex].redoStack = [];
+    } else {
+      infiniteStrokes = infiniteStrokes.filter(
+        s => !selectedStrokes.includes(s)
+      );
+      infiniteRedo = [];
+    }
+    
+    selectedStrokes = [];
+    contextMenu = null;
+    saveToStore();
+  }
+
+  function pasteStrokes(targetX, targetY) {
+    if (copiedStrokes.length === 0) return;
+    
+    const strokesToPaste = JSON.parse(JSON.stringify(copiedStrokes));
+    
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const stroke of strokesToPaste) {
+      for (const p of stroke.points) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      }
+    }
+    
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const dx = targetX - centerX;
+    const dy = targetY - centerY;
+    
+    for (const stroke of strokesToPaste) {
+      for (const p of stroke.points) {
+        p.x += dx;
+        p.y += dy;
+      }
+    }
+    
+    if (canvasMode === 'a4') {
+      pages[activePageIndex].strokeHistory.push(...strokesToPaste);
+      pages[activePageIndex].redoStack = [];
+      pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
+    } else {
+      infiniteStrokes.push(...strokesToPaste);
+      infiniteRedo = [];
+      infiniteStrokes = [...infiniteStrokes];
+    }
+    
+    selectedStrokes = strokesToPaste;
+    activeTool = 'select';
+    contextMenu = null;
+    saveToStore();
+  }
+
+  // Handle global keyboard shortcuts
+  onMount(() => {
+    function handleKeyDown(e) {
+      // Don't intercept if inside an input or textarea
+      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      if (e.ctrlKey && e.key.toLowerCase() === 'c') {
+        if (selectedStrokes.length > 0) {
+          copySelected();
+          e.preventDefault();
+        }
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'v') {
+        if (copiedStrokes.length > 0) {
+          if (canvasMode === 'infinite') {
+            const centerX = (containerWidth / 2 - panOffset.x) / zoomScale;
+            const centerY = (containerHeight / 2 - panOffset.y) / zoomScale;
+            pasteStrokes(centerX, centerY);
+          } else {
+            pasteStrokes(400, 565); // A4 center
+          }
+          e.preventDefault();
+        }
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+        e.preventDefault();
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+        handleRedo();
+        e.preventDefault();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedStrokes.length > 0) {
+          deleteSelected();
+          e.preventDefault();
+        }
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  });
 
   // Draggable splitter panel sizing
   function startSplitDrag(e) {
@@ -703,6 +1186,7 @@
     activeTooltipMarker = null;
     isChecking = true;
     showFeedback = true;
+    showCritiqueBanner = true;
     hasCheckedWork = true;
     feedbackText = "Analyzing stroke geometries and guidelines alignment...";
     feedbackScore = null;
@@ -763,9 +1247,6 @@
           tempCtx.save();
           tempCtx.translate(-box.x, -box.y);
           
-          // Draw active guidelines background template offset relative to bounding box
-          drawGuidelinesInWorld(tempCtx, box.x, box.y, box.width, box.height);
-          
           // Draw custom background pattern image if present
           if (currentBgUrl) {
             try {
@@ -782,23 +1263,47 @@
               console.error('Error drawing custom background pattern on crop:', err);
             }
           }
+
+          // Draw active guidelines background template offset relative to bounding box
+          drawGuidelinesInWorld(tempCtx, box.x, box.y, box.width, box.height);
           
-          // Draw drawing stroke lines offset by bounding box coordinates
-          for (const stroke of item.p.strokeHistory) {
-            tempCtx.beginPath();
-            tempCtx.strokeStyle = stroke.color;
-            tempCtx.lineWidth = stroke.width;
-            tempCtx.lineCap = 'round';
-            tempCtx.lineJoin = 'round';
-            
-            const p0 = stroke.points[0];
-            tempCtx.moveTo(p0.x, p0.y);
-            for (let i = 1; i < stroke.points.length; i++) {
-              tempCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-            }
-            tempCtx.stroke();
-          }
           tempCtx.restore();
+          
+          // Draw drawing stroke lines offset by bounding box coordinates on a separate transparent canvas
+          const strokesCanvas = document.createElement('canvas');
+          strokesCanvas.width = box.width;
+          strokesCanvas.height = box.height;
+          const strokesCtx = strokesCanvas.getContext('2d');
+          
+          strokesCtx.save();
+          strokesCtx.translate(-box.x, -box.y);
+          for (const stroke of item.p.strokeHistory) {
+            strokesCtx.save();
+            strokesCtx.beginPath();
+            if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') {
+              strokesCtx.globalCompositeOperation = 'destination-out';
+              strokesCtx.strokeStyle = 'rgba(0,0,0,1)';
+            } else {
+              strokesCtx.globalCompositeOperation = 'source-over';
+              strokesCtx.strokeStyle = stroke.color;
+            }
+            strokesCtx.lineWidth = stroke.width;
+            strokesCtx.lineCap = 'round';
+            strokesCtx.lineJoin = 'round';
+            
+            if (stroke.points.length > 0) {
+              strokesCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+              for (let i = 1; i < stroke.points.length; i++) {
+                strokesCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+              }
+              strokesCtx.stroke();
+            }
+            strokesCtx.restore();
+          }
+          strokesCtx.restore();
+          
+          // Draw the composited strokes layer on top of guidelines
+          tempCtx.drawImage(strokesCanvas, 0, 0);
           
           base64Data = tempCanvas.toDataURL('image/png').split(',')[1];
         }
@@ -878,38 +1383,28 @@
 Your JSON response MUST specify the 'pageIndex' for each marker to identify which page image it is located on (0-based index corresponding to the image sequence).`
         : `Examine the single infinite canvas screenshot. The image represents Page Index 0.`;
 
-      const prompt = `You are a strict but encouraging penmanship teacher. Analyze the calligraphy drawing canvas screenshots.
-The student is practicing: "${task.name}".
-${store.settings.sendTaskMedia ? `Instructions given: "${task.instructions}".` : ''}
-${store.settings.sendSolutionMedia ? `Expected Solution: "${task.solution}".` : ''}
+      // Build image dimensions info for accurate marker placement
+      const imageDimensionsInfo = pageBoxes.map((box, i) => 
+        `Image ${i}: ${box.width}px wide × ${box.height}px tall.`
+      ).join('\n');
 
-${pageInfoPrompt}
+      // Get project-level guidelines if available
+      const projectGuidelines = store.activeProject?.guidelines?.trim();
+      const guidelinesPrompt = projectGuidelines 
+        ? `\nAdditional grading guidelines from the teacher:\n"${projectGuidelines}"\nPlease take these guidelines into account when evaluating the student's work.\n`
+        : '';
 
-Examine:
-1. Slant lines consistency (normally 55 degrees).
-2. Stroke smoothness and hand shakiness.
-3. Ascent and descent line crossings.
-4. Spacing between letters.
+      const promptTemplate = store.settings.customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
+      const taskInstructionsText = store.settings.sendTaskMedia ? `Task instructions: "${task.instructions}"` : '';
+      const expectedSolutionText = store.settings.sendSolutionMedia ? `Expected correct solution: "${task.solution}"` : '';
 
-Each image's bounding box dimensions are provided. You must return a JSON object with the following schema:
-{
-  "generalCritique": "Markdown formatted string containing your overall critique. Keep it brief and constructive.",
-  "grade": number (0-100),
-  "markers": [
-    {
-      "pageIndex": number (0-based index of the image in the sent sequence, e.g. 0 for the first image, 1 for the second, etc. Default to 0 if only one image),
-      "x": number (X coordinate on the cropped page image in pixels),
-      "y": number (Y coordinate on the cropped page image in pixels),
-      "type": "correct" | "incorrect" | "partial",
-      "feedback": "Brief feedback specific to this location.",
-      "underlinePoints": [ // Optional. Only provide if type is "incorrect" or "partial" and you want to draw a red underline highlight.
-        {"x": number, "y": number}, ... (a list of coordinate points on the image in pixels to draw a line connecting them)
-      ]
-    }
-  ]
-}
-
-Return ONLY this JSON object. Do not include any other conversational text.`;
+      const prompt = promptTemplate
+        .replace(/\{\{task_name\}\}/g, task.name)
+        .replace(/\{\{task_instructions\}\}/g, taskInstructionsText)
+        .replace(/\{\{task_solution\}\}/g, expectedSolutionText)
+        .replace(/\{\{guidelines\}\}/g, guidelinesPrompt)
+        .replace(/\{\{page_info\}\}/g, pageInfoPrompt)
+        .replace(/\{\{image_dimensions\}\}/g, imageDimensionsInfo);
 
       let response;
       if (provider === 'gemini') {
@@ -954,7 +1449,10 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
                 }))
               ]
             }
-          ]
+          ],
+          reasoning: {
+            exclude: !store.settings.openRouterReasoning
+          }
         };
         const selectedProviders = store.settings.openRouterProvider || [];
         if (selectedProviders.length > 0) {
@@ -1030,6 +1528,16 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
         };
       });
 
+      if (store.activeProject && store.activeTask) {
+        store.updateTask(store.activeProject.id, store.activeTask.id, {
+          critique: {
+            feedbackText,
+            feedbackScore,
+            feedbackMarkers
+          }
+        });
+      }
+
     } catch (err) {
       feedbackText = `❌ **Error evaluating work:**\n\n${err.message}\n\nPlease double check your settings, model selections, and connection details.`;
       feedbackScore = 0;
@@ -1045,7 +1553,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
 </script>
 
 <!-- Integrated ScribeFlow Toolbar & Top Header -->
-<div class="flex-grow flex flex-col min-w-0 h-full overflow-hidden">
+<div class="grow flex flex-col min-w-0 h-full overflow-hidden">
   
   <header class="bg-surface border-b border-outline-variant flex items-center justify-between w-full px-6 py-3 shrink-0 z-20 select-none gap-4">
     <!-- Left: Back link and Title -->
@@ -1057,7 +1565,16 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
       >
         arrow_back
       </button>
-      <h1 class="font-bold text-base text-primary truncate max-w-[200px]">{task.name}</h1>
+      <h1 class="font-bold text-base text-primary truncate max-w-50">{task.name}</h1>
+      <button 
+        onclick={() => store.updateTask(store.activeProject.id, task.id, { completed: !task.completed })}
+        class="ml-1 flex items-center justify-center p-1 rounded-full border border-outline-variant hover:bg-surface-container-high transition-colors focus:outline-none cursor-pointer {task.completed ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' : 'text-on-surface-variant'}"
+        title={task.completed ? "Mark Incomplete" : "Mark Completed"}
+      >
+        <span class="material-symbols-outlined text-[18px]">
+          {task.completed ? 'check_circle' : 'radio_button_unchecked'}
+        </span>
+      </button>
     </div>
 
     <!-- Center: Premium Practice Controls Toolbar -->
@@ -1094,7 +1611,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
           <button type="button" class="fixed inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" onclick={() => bgDropdownOpen = false}></button>
           
           <!-- Dropdown Options Box -->
-          <div class="absolute top-[calc(100%+4px)] left-0 bg-surface-container-high border border-outline-variant rounded-lg shadow-lg z-50 py-1 min-w-[200px] max-h-60 overflow-y-auto custom-scrollbar">
+          <div class="absolute top-[calc(100%+4px)] left-0 bg-surface-container-high border border-outline-variant rounded-lg shadow-lg z-50 py-1 min-w-50 max-h-60 overflow-y-auto custom-scrollbar">
             <button 
               onclick={() => { activeBg = 'grid'; bgDropdownOpen = false; }}
               class="w-full text-left px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer {activeBg === 'grid' ? 'bg-primary/5 text-primary font-bold' : 'text-on-surface'}"
@@ -1124,14 +1641,14 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
                 <div class="flex items-center justify-between hover:bg-primary/10 hover:text-primary group px-1">
                   <button 
                     onclick={() => { activeBg = customBg.id; bgDropdownOpen = false; }}
-                    class="flex-grow text-left px-2 py-2 text-xs flex items-center gap-2 cursor-pointer {activeBg === customBg.id ? 'bg-primary/5 text-primary font-bold' : 'text-on-surface'}"
+                    class="grow text-left px-2 py-2 text-xs flex items-center gap-2 cursor-pointer {activeBg === customBg.id ? 'bg-primary/5 text-primary font-bold' : 'text-on-surface'}"
                   >
                     {#if customBg.icon && customBg.icon.startsWith('data:image/')}
                       <img src={customBg.icon} class="w-4 h-4 object-contain rounded" alt="" />
                     {:else}
                       <span class="material-symbols-outlined text-base">image</span>
                     {/if}
-                    <span class="truncate max-w-[120px]">{customBg.name}</span>
+                    <span class="truncate max-w-30">{customBg.name}</span>
                   </button>
                   <button 
                     onclick={() => {
@@ -1192,6 +1709,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
                 y: Math.min(0, panOffset.y)
               };
             }
+            saveToStore();
           }}
           disabled={zoomScale <= 0.2}
           class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
@@ -1204,6 +1722,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
           onclick={() => {
             zoomScale = 1;
             panOffset = { x: 0, y: 0 };
+            saveToStore();
           }}
           class="px-2 py-1 text-[10px] text-on-surface hover:bg-surface-container-high rounded font-semibold select-none cursor-pointer transition-colors"
           title="Reset Zoom & Pan"
@@ -1214,6 +1733,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
         <button 
           onclick={() => {
             zoomScale = Math.min(4.0, zoomScale + 0.1);
+            saveToStore();
           }}
           disabled={zoomScale >= 4.0}
           class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
@@ -1231,6 +1751,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
               if (activePageIndex > 0) {
                 activePageIndex--;
                 activeTooltipMarker = null;
+                saveToStore();
               }
             }}
             disabled={activePageIndex === 0}
@@ -1249,6 +1770,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
               if (activePageIndex < pages.length - 1) {
                 activePageIndex++;
                 activeTooltipMarker = null;
+                saveToStore();
               }
             }}
             disabled={activePageIndex === pages.length - 1}
@@ -1267,6 +1789,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
               });
               activePageIndex = pages.length - 1;
               activeTooltipMarker = null;
+              saveToStore();
             }}
             class="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors focus:outline-none cursor-pointer flex items-center justify-center"
             title="Add Page"
@@ -1286,6 +1809,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
                       activePageIndex = pages.length - 1;
                     }
                     activeTooltipMarker = null;
+                    saveToStore();
                   }
                 );
               }}
@@ -1322,7 +1846,12 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
 
         {#if hasCheckedWork}
           <button 
-            onclick={() => showFeedback = !showFeedback}
+            onclick={() => {
+              showFeedback = !showFeedback;
+              if (!showFeedback) {
+                showCritiqueBanner = false;
+              }
+            }}
             class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold focus:outline-none cursor-pointer transition-all flex items-center gap-1
                    {showFeedback ? 'border-primary bg-primary/10 text-primary animate-pulse' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}"
             title="Toggle AI Critique"
@@ -1377,7 +1906,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
   </header>
 
   <!-- Interactive practice screen split layout -->
-  <div class="flex-grow flex overflow-hidden relative w-full">
+  <div class="grow flex overflow-hidden relative w-full">
     
     <!-- Left side: dynamic split screen task, solution, and critique -->
     {#if activeLeftPanels.length > 0}
@@ -1446,8 +1975,8 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
       bind:this={canvasContainer} 
       bind:clientWidth={containerWidth}
       bind:clientHeight={containerHeight}
-      class="flex-grow relative h-full w-full select-none
-             {canvasMode === 'infinite' ? 'overflow-hidden bg-surface-container-lowest cursor-crosshair' : 'overflow-auto p-8 bg-surface-container-lowest flex justify-center items-start custom-scrollbar'}"
+      class="grow relative h-full w-full select-none
+             {canvasMode === 'infinite' ? 'overflow-hidden bg-surface-container-lowest cursor-crosshair' : 'overflow-hidden bg-surface-container-lowest flex justify-center items-center'}"
     >
       {#if canvasMode === 'infinite'}
         <!-- Infinite Canvas Wrapper -->
@@ -1462,11 +1991,11 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
             onmouseleave={handleMouseLeave}
             onwheel={handleWheel}
             oncontextmenu={e => e.preventDefault()}
-            class="absolute inset-0 w-full h-full z-10 bg-transparent {cursorClass}"
+            class="absolute inset-0 w-full h-full z-10 bg-white {cursorClass}"
           ></canvas>
 
           <!-- SVG Overlays for Markers (Infinite Mode) -->
-          {#if hasCheckedWork && !isChecking}
+          {#if showFeedback && hasCheckedWork && !isChecking}
             <svg class="absolute inset-0 pointer-events-none z-20 w-full h-full">
               {#each feedbackMarkers as marker}
                 {#if marker.underlinePoints && marker.underlinePoints.length > 1}
@@ -1508,14 +2037,14 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
               <button
                 type="button"
                 onclick={() => activeTooltipMarker = marker}
-                class="absolute z-30 w-8 h-8 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full shadow-lg border cursor-pointer hover:scale-110 active:scale-95 transition-all focus:outline-none
+                class="absolute z-30 w-6 h-6 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full shadow-lg border cursor-pointer hover:scale-110 active:scale-95 transition-all focus:outline-none
                        {marker.type === 'correct' ? 'bg-emerald-500 text-white border-emerald-400' : 
                         marker.type === 'incorrect' ? 'bg-red-500 text-white border-red-400' : 
                         'bg-amber-500 text-white border-amber-400'}"
                 style="left: {(marker.canvasX) * zoomScale + panOffset.x}px; top: {(marker.canvasY) * zoomScale + panOffset.y}px;"
                 title="Click for feedback"
               >
-                <span class="material-symbols-outlined text-[18px]">
+                <span class="material-symbols-outlined text-[13px]">
                   {marker.type === 'correct' ? 'check' : 
                    marker.type === 'incorrect' ? 'close' : 
                    'question_mark'}
@@ -1546,9 +2075,9 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
                      'warning'}
                   </span>
                   <span class="text-xs font-bold uppercase tracking-wider text-on-surface">
-                    {activeTooltipMarker.type === 'correct' ? 'Correct Stroke' : 
-                     activeTooltipMarker.type === 'incorrect' ? 'Needs Correction' : 
-                     'Slight Imprecision'}
+                    {activeTooltipMarker.type === 'correct' ? 'Correct' : 
+                     activeTooltipMarker.type === 'incorrect' ? 'Incorrect' : 
+                     'Partial'}
                   </span>
                   <button 
                     onclick={() => activeTooltipMarker = null} 
@@ -1566,7 +2095,10 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
         </div>
       {:else}
         <!-- A4 Page Card Layout -->
-        <div class="relative bg-white shadow-xl border border-outline-variant rounded-sm shrink-0" style="width: 800px; height: 1130px;">
+        <div 
+          class="relative bg-white shadow-xl border border-outline-variant rounded-sm shrink-0 origin-center" 
+          style="width: 800px; height: 1130px; transform: scale({a4Scale});"
+        >
           <canvas 
             bind:this={canvasElement}
             width="800"
@@ -1575,11 +2107,12 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
             onmousemove={handleMouseMove}
             onmouseup={handleMouseUp}
             onmouseleave={handleMouseLeave}
+            oncontextmenu={e => e.preventDefault()}
             class="absolute inset-0 w-full h-full z-10 bg-transparent {cursorClass}"
           ></canvas>
 
           <!-- SVG Overlays for Markers (A4 Page Mode, filtered by current page index) -->
-          {#if hasCheckedWork && !isChecking}
+          {#if showFeedback && hasCheckedWork && !isChecking}
             <svg class="absolute inset-0 pointer-events-none z-20 w-full h-full">
               {#each feedbackMarkers.filter(m => m.pageIndex === activePageIndex) as marker}
                 {#if marker.underlinePoints && marker.underlinePoints.length > 1}
@@ -1613,66 +2146,155 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
                 {/if}
               {/each}
             </svg>
+          {/if}
+        </div>
 
-            <!-- Clickable Marker Buttons (A4 Page Mode) -->
-            {#each feedbackMarkers.filter(m => m.pageIndex === activePageIndex) as marker (marker.id)}
-              <button
-                type="button"
-                onclick={() => activeTooltipMarker = marker}
-                class="absolute z-30 w-8 h-8 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full shadow-lg border cursor-pointer hover:scale-110 active:scale-95 transition-all focus:outline-none
-                       {marker.type === 'correct' ? 'bg-emerald-500 text-white border-emerald-400' : 
-                        marker.type === 'incorrect' ? 'bg-red-500 text-white border-red-400' : 
-                        'bg-amber-500 text-white border-amber-400'}"
-                style="left: {marker.canvasX}px; top: {marker.canvasY}px;"
-                title="Click for feedback"
-              >
-                <span class="material-symbols-outlined text-[18px]">
-                  {marker.type === 'correct' ? 'check' : 
-                   marker.type === 'incorrect' ? 'close' : 
-                   'question_mark'}
+        <!-- Clickable Marker Buttons (A4 Page Mode) - Placed outside the scaled div to remain crisp and full size -->
+        {#if showFeedback && hasCheckedWork && !isChecking}
+          {@const leftOffset = (containerWidth - 800 * a4Scale) / 2}
+          {@const topOffset = (containerHeight - 1130 * a4Scale) / 2}
+          
+          {#each feedbackMarkers.filter(m => m.pageIndex === activePageIndex) as marker (marker.id)}
+            <button
+              type="button"
+              onclick={() => activeTooltipMarker = marker}
+              class="absolute z-30 w-6 h-6 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full shadow-lg border cursor-pointer hover:scale-110 active:scale-95 transition-all focus:outline-none
+                     {marker.type === 'correct' ? 'bg-emerald-500 text-white border-emerald-400' : 
+                      marker.type === 'incorrect' ? 'bg-red-500 text-white border-red-400' : 
+                      'bg-amber-500 text-white border-amber-400'}"
+              style="left: {marker.canvasX * a4Scale + leftOffset}px; top: {marker.canvasY * a4Scale + topOffset}px;"
+              title="Click for feedback"
+            >
+              <span class="material-symbols-outlined text-[13px]">
+                {marker.type === 'correct' ? 'check' : 
+                 marker.type === 'incorrect' ? 'close' : 
+                 'question_mark'}
+              </span>
+            </button>
+          {/each}
+
+          <!-- Tooltip Overlay -->
+          {#if activeTooltipMarker && activeTooltipMarker.pageIndex === activePageIndex}
+            <button 
+              type="button" 
+              class="absolute inset-0 bg-transparent z-40 cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" 
+              onclick={() => activeTooltipMarker = null}
+              aria-label="Dismiss feedback"
+            ></button>
+
+            <div 
+              class="absolute z-50 bg-surface-container-high border border-outline-variant/60 rounded-xl p-4 w-72 shadow-2xl flex flex-col gap-2 -translate-x-1/2 mt-6 animate-fade-in"
+              style="left: {activeTooltipMarker.canvasX * a4Scale + leftOffset}px; top: {activeTooltipMarker.canvasY * a4Scale + topOffset}px;"
+            >
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-base 
+                  {activeTooltipMarker.type === 'correct' ? 'text-emerald-500' : 
+                   activeTooltipMarker.type === 'incorrect' ? 'text-red-500' : 
+                   'text-amber-500'}">
+                  {activeTooltipMarker.type === 'correct' ? 'check_circle' : 
+                   activeTooltipMarker.type === 'incorrect' ? 'cancel' : 
+                   'warning'}
                 </span>
-              </button>
-            {/each}
-
-            <!-- Tooltip Overlay -->
-            {#if activeTooltipMarker && activeTooltipMarker.pageIndex === activePageIndex}
-              <button 
-                type="button" 
-                class="absolute inset-0 bg-transparent z-40 cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" 
-                onclick={() => activeTooltipMarker = null}
-                aria-label="Dismiss feedback"
-              ></button>
-
-              <div 
-                class="absolute z-50 bg-surface-container-high border border-outline-variant/60 rounded-xl p-4 w-72 shadow-2xl flex flex-col gap-2 -translate-x-1/2 mt-6 animate-fade-in"
-                style="left: {activeTooltipMarker.canvasX}px; top: {activeTooltipMarker.canvasY}px;"
-              >
-                <div class="flex items-center gap-2">
-                  <span class="material-symbols-outlined text-base 
-                    {activeTooltipMarker.type === 'correct' ? 'text-emerald-500' : 
-                     activeTooltipMarker.type === 'incorrect' ? 'text-red-500' : 
-                     'text-amber-500'}">
-                    {activeTooltipMarker.type === 'correct' ? 'check_circle' : 
-                     activeTooltipMarker.type === 'incorrect' ? 'cancel' : 
-                     'warning'}
-                  </span>
-                  <span class="text-xs font-bold uppercase tracking-wider text-on-surface">
-                    {activeTooltipMarker.type === 'correct' ? 'Correct Stroke' : 
-                     activeTooltipMarker.type === 'incorrect' ? 'Needs Correction' : 
-                     'Slight Imprecision'}
-                  </span>
-                  <button 
-                    onclick={() => activeTooltipMarker = null} 
-                    class="ml-auto material-symbols-outlined text-[16px] text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer border-0 bg-transparent p-0 flex items-center justify-center"
-                  >
-                    close
-                  </button>
-                </div>
-                <p class="text-xs text-on-surface-variant leading-relaxed">
-                  {activeTooltipMarker.feedback}
-                </p>
+                <span class="text-xs font-bold uppercase tracking-wider text-on-surface">
+                  {activeTooltipMarker.type === 'correct' ? 'Correct' : 
+                   activeTooltipMarker.type === 'incorrect' ? 'Incorrect' : 
+                   'Partial'}
+                </span>
+                <button 
+                  onclick={() => activeTooltipMarker = null} 
+                  class="ml-auto material-symbols-outlined text-[16px] text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer border-0 bg-transparent p-0 flex items-center justify-center"
+                >
+                  close
+                </button>
               </div>
-            {/if}
+              <p class="text-xs text-on-surface-variant leading-relaxed">
+                {activeTooltipMarker.feedback}
+              </p>
+            </div>
+          {/if}
+        {/if}
+      {/if}
+
+      <!-- Selection Bounding Box Floating Options -->
+      {#if activeTool === 'select' && selectionBoundingBox}
+        {@const bounds = selectionBoundingBox}
+        {@const leftOffset = canvasMode === 'a4' ? (containerWidth - 800 * a4Scale) / 2 : panOffset.x}
+        {@const topOffset = canvasMode === 'a4' ? (containerHeight - 1130 * a4Scale) / 2 : panOffset.y}
+        {@const scale = canvasMode === 'a4' ? a4Scale : zoomScale}
+        {@const boxLeft = bounds.minX * scale + leftOffset}
+        {@const boxTop = bounds.minY * scale + topOffset}
+        {@const boxWidth = (bounds.maxX - bounds.minX) * scale}
+        
+        <div 
+          class="absolute z-30 bg-surface-container-high border border-outline-variant shadow-lg rounded-lg px-2 py-1 flex items-center gap-1 -translate-y-full -mt-2.5 font-sans"
+          style="left: {boxLeft + boxWidth / 2}px; top: {boxTop}px; transform: translate(-50%, -100%);"
+        >
+          <button 
+            onclick={copySelected}
+            class="px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent"
+            title="Copy strokes (Ctrl+C)"
+          >
+            <span class="material-symbols-outlined text-[14px]">content_copy</span>
+            <span>Copy</span>
+          </button>
+          <div class="w-px h-3 bg-outline-variant/50"></div>
+          <button 
+            onclick={deleteSelected}
+            class="px-2.5 py-1 text-[10px] font-bold text-error hover:bg-error/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent"
+            title="Delete strokes (Delete)"
+          >
+            <span class="material-symbols-outlined text-[14px]">delete</span>
+            <span>Delete</span>
+          </button>
+          <div class="w-px h-3 bg-outline-variant/50"></div>
+          <button 
+            onclick={() => selectedStrokes = []}
+            class="px-2.5 py-1 text-[10px] font-bold text-outline hover:bg-surface-container rounded cursor-pointer transition-colors border-0 bg-transparent"
+            title="Clear Selection"
+          >
+            <span>Cancel</span>
+          </button>
+        </div>
+      {/if}
+
+      <!-- Custom Right-Click / Long-Press Paste Context Menu -->
+      {#if contextMenu}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <button 
+          type="button"
+          class="absolute inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none"
+          onclick={() => contextMenu = null}
+        ></button>
+        
+        <div 
+          class="absolute z-50 bg-surface-container-high border border-outline-variant shadow-xl rounded-xl py-1.5 w-40 flex flex-col font-sans text-xs select-none"
+          style="left: {contextMenu.x}px; top: {contextMenu.y}px;"
+        >
+          <button 
+            onclick={() => pasteStrokes(contextMenu.canvasX, contextMenu.canvasY)}
+            disabled={copiedStrokes.length === 0}
+            class="w-full text-left px-4 py-2 hover:bg-primary/10 hover:text-primary disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-on-surface flex items-center gap-2 cursor-pointer font-semibold border-0 bg-transparent"
+          >
+            <span class="material-symbols-outlined text-[16px]">content_paste</span>
+            <span>Paste</span>
+          </button>
+          
+          {#if selectedStrokes.length > 0}
+            <div class="h-px bg-outline-variant/30 my-1"></div>
+            <button 
+              onclick={() => { copySelected(); contextMenu = null; }}
+              class="w-full text-left px-4 py-2 hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer font-semibold border-0 bg-transparent"
+            >
+              <span class="material-symbols-outlined text-[16px]">content_copy</span>
+              <span>Copy</span>
+            </button>
+            <button 
+              onclick={() => { deleteSelected(); contextMenu = null; }}
+              class="w-full text-left px-4 py-2 hover:bg-error/10 hover:text-error flex items-center gap-2 cursor-pointer font-semibold border-0 bg-transparent"
+            >
+              <span class="material-symbols-outlined text-[16px]">delete</span>
+              <span>Delete</span>
+            </button>
           {/if}
         </div>
       {/if}
@@ -1681,23 +2303,55 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
       <div class="fixed bottom-6 right-6 bg-surface-container/95 backdrop-blur-md px-5 py-2.5 rounded-full flex items-center gap-5 shadow-lg border border-outline-variant/30 transition-all hover:scale-[1.02] z-20 select-none">
         
         <!-- Color Pickers -->
-        <div class="flex items-center gap-2 border-r border-outline-variant pr-4">
-          {#each [
-            { color: '#000000', title: 'Black' },
-            { color: '#1d4ed8', title: 'Blue' },
-            { color: '#dc2626', title: 'Red' },
-            { color: '#059669', title: 'Green' }
-          ] as item}
-            <button 
-              onclick={() => { strokeColor = item.color; activeTool = 'pen'; }}
-              class="w-6 h-6 rounded-full cursor-pointer border-2 transition-transform hover:scale-110" 
-              style="background-color: {item.color}; border-color: {strokeColor === item.color && activeTool === 'pen' ? '#0040e0' : 'transparent'};"
-              title={item.title}
-            ></button>
+        <div class="flex items-center gap-1.5 border-r border-outline-variant pr-4">
+          {#each recentColors as color, idx}
+            <div class="relative group">
+              <button 
+                onclick={() => selectColor(color)}
+                class="w-6 h-6 rounded-full cursor-pointer border-2 transition-all hover:scale-110 focus:outline-none" 
+                style="background-color: {color}; border-color: {strokeColor === color && activeTool === 'pen' ? 'var(--md-sys-color-primary, #1d4ed8)' : 'rgba(0, 0, 0, 0.15)'}; transform: {strokeColor === color && activeTool === 'pen' ? 'scale(1.15)' : 'none'}; box-shadow: {strokeColor === color && activeTool === 'pen' ? '0 0 0 2px var(--md-sys-color-primary-container, rgba(29,78,216,0.25))' : '0 1px 2px rgba(0,0,0,0.1)'};"
+                title="Click to select"
+              ></button>
+              {#if recentColors.length > 1}
+                <button
+                  onclick={() => removeColorFromPalette(idx)}
+                  class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-error text-on-error text-[9px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-0 shadow-sm z-10 hover:scale-110"
+                  title="Remove from palette"
+                >×</button>
+              {/if}
+            </div>
           {/each}
+          
+          <!-- Save to palette button (visible when custom color not in palette) -->
+          {#if !isCustomColorInPalette && activeTool === 'pen'}
+            <button
+              onclick={addColorToPalette}
+              class="w-6 h-6 rounded-full cursor-pointer border-2 border-dashed border-primary/60 hover:border-primary hover:bg-primary/10 transition-all flex items-center justify-center text-primary hover:scale-110 focus:outline-none"
+              title="Save current color to palette"
+            >
+              <span class="material-symbols-outlined text-[14px]">add</span>
+            </button>
+          {/if}
+
+          <!-- Custom Color Picker Button -->
+          <button 
+            onclick={() => colorInput?.click()}
+            class="w-6 h-6 rounded-full cursor-pointer border border-outline-variant/60 hover:scale-110 active:scale-[0.9] transition-all flex items-center justify-center relative overflow-hidden shrink-0"
+            style="background: conic-gradient(from 0deg, red, yellow, lime, aqua, blue, magenta, red);"
+            title="Pick custom color"
+          >
+            <span class="material-symbols-outlined text-[13px] text-white font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">palette</span>
+          </button>
+          <input 
+            type="color" 
+            bind:this={colorInput} 
+            value={strokeColor} 
+            onchange={(e) => selectColor(e.target.value)} 
+            class="hidden" 
+          />
         </div>
 
-        <!-- Tool selectors (Pen / Eraser / Hand) and Brush slider -->
+        <!-- Tool selectors (Pen / Eraser / Hand / Select) and Brush slider -->
         <div class="flex items-center gap-4 text-xs font-semibold">
           <button 
             onclick={() => activeTool = 'pen'}
@@ -1717,6 +2371,16 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
             <span class="text-[9px]">Eraser</span>
           </button>
 
+          <button 
+            onclick={() => activeTool = 'select'}
+            class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors
+                   {activeTool === 'select' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
+            title="Selection Tool"
+          >
+            <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'select' ? 'fill' : 'normal'}>select_all</span>
+            <span class="text-[9px]">Select</span>
+          </button>
+
           {#if canvasMode === 'infinite'}
             <button 
               onclick={() => activeTool = 'pan'}
@@ -1728,11 +2392,34 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
               <span class="text-[9px]">Hand</span>
             </button>
           {/if}
+
+          <!-- Floating Undo / Redo Buttons -->
+          <div class="h-5 w-px bg-outline-variant/30"></div>
+          
+          <button 
+            onclick={handleUndo}
+            disabled={strokeHistory.length === 0}
+            class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer"
+            title="Undo (Ctrl+Z)"
+          >
+            <span class="material-symbols-outlined text-[20px]">undo</span>
+            <span class="text-[9px]">Undo</span>
+          </button>
+          
+          <button 
+            onclick={handleRedo}
+            disabled={redoStack.length === 0}
+            class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer"
+            title="Redo (Ctrl+Y)"
+          >
+            <span class="material-symbols-outlined text-[20px]">redo</span>
+            <span class="text-[9px]">Redo</span>
+          </button>
           
           <!-- Pen stroke width controller -->
           {#if activeTool === 'pen'}
             <div class="flex items-center gap-1.5 border-l border-outline-variant pl-4">
-              <span class="text-[10px] text-outline">Size</span>
+              <span class="text-[10px] text-outline">Pen Size</span>
               <input 
                 type="range" 
                 min="1" 
@@ -1743,16 +2430,31 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
               <span class="text-[10px] text-on-surface min-w-3">{brushWidth}px</span>
             </div>
           {/if}
+          
+          <!-- Eraser stroke width controller -->
+          {#if activeTool === 'eraser'}
+            <div class="flex items-center gap-1.5 border-l border-outline-variant pl-4">
+              <span class="text-[10px] text-outline">Eraser Size</span>
+              <input 
+                type="range" 
+                min="4" 
+                max="80" 
+                bind:value={eraserWidth} 
+                class="w-16 h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary" 
+              />
+              <span class="text-[10px] text-on-surface min-w-3">{eraserWidth}px</span>
+            </div>
+          {/if}
         </div>
       </div>
 
       <!-- AI Grading / Critique Overlay -->
-      {#if showFeedback}
+      {#if showCritiqueBanner}
         <div class="absolute top-4 right-4 bg-surface-container-high/95 backdrop-blur-md border border-outline-variant/40 rounded-xl p-5 w-80 shadow-2xl z-30 flex flex-col gap-3 max-h-[85%] overflow-y-auto custom-scrollbar transition-all">
           <div class="flex justify-between items-start">
             <span class="text-xs font-bold uppercase tracking-wider text-outline">AI Penmanship Teacher</span>
             <button 
-              onclick={() => showFeedback = false}
+              onclick={() => showCritiqueBanner = false}
               class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer"
             >
               close
@@ -1793,7 +2495,7 @@ Return ONLY this JSON object. Do not include any other conversational text.`;
 <!-- Custom Background Creator Modal Popup -->
 {#if isCustomBgModalOpen}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm select-none">
-    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-[400px] shadow-xl flex flex-col gap-4">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-100 shadow-xl flex flex-col gap-4">
       <h3 class="font-bold text-base text-on-surface">Add Custom Background Template</h3>
       
       <form onsubmit={handleAddCustomBg} class="flex flex-col gap-4">
