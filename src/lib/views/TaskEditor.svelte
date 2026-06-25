@@ -189,6 +189,207 @@
   function handleModalMouseUp() {
     isModalDragging = false;
   }
+
+  // Paste from clipboard logic
+  async function handlePasteFromClipboard(type: 'instruction' | 'solution') {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      let addedAny = false;
+
+      for (const item of clipboardItems) {
+        // Check for images
+        const imageType = item.types.find(t => t.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const ext = imageType.split('/')[1] || 'png';
+          const base64Data = await blobToBase64(blob);
+          const newFile = {
+            name: `clipboard_image_${Date.now()}.${ext}`,
+            dataUrl: base64Data
+          };
+          if (type === 'instruction') {
+            instructionFiles = [...instructionFiles, newFile];
+          } else {
+            solutionFiles = [...solutionFiles, newFile];
+          }
+          addedAny = true;
+          continue;
+        }
+
+        // Check for text
+        const textType = item.types.find(t => t === 'text/plain' || t === 'text/html');
+        if (textType) {
+          const blob = await item.getType(textType);
+          const text = await blob.text();
+          const base64Data = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
+          const newFile = {
+            name: `clipboard_text_${Date.now()}.txt`,
+            dataUrl: base64Data
+          };
+          if (type === 'instruction') {
+            instructionFiles = [...instructionFiles, newFile];
+          } else {
+            solutionFiles = [...solutionFiles, newFile];
+          }
+          addedAny = true;
+        }
+      }
+
+      if (addedAny) {
+        store.showNotification('Pasted from clipboard successfully!', 'success');
+      } else {
+        store.showNotification('No image or text found in clipboard.', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to read clipboard:', err);
+      // Fallback to text reading if full read is blocked/unsupported
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          const base64Data = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
+          const newFile = {
+            name: `clipboard_text_${Date.now()}.txt`,
+            dataUrl: base64Data
+          };
+          if (type === 'instruction') {
+            instructionFiles = [...instructionFiles, newFile];
+          } else {
+            solutionFiles = [...solutionFiles, newFile];
+          }
+          store.showNotification('Pasted text from clipboard successfully!', 'success');
+        } else {
+          store.showNotification('Clipboard is empty or does not contain text.', 'error');
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback readText also failed:', fallbackErr);
+        store.showNotification('Could not paste from clipboard. Please allow permission.', 'error');
+      }
+    }
+  }
+
+  function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // Pointer-based media drag state
+  let draggedFileIndex = $state<number | null>(null);
+  let draggedFileType = $state<'instruction' | 'solution' | null>(null);
+  let hoveredFileIndex = $state<number | null>(null);
+  let isMediaDragActive = $state(false);
+  
+  let mediaDragGhostEl: HTMLElement | null = null;
+  let mediaDragPointerStartX = 0;
+  let mediaDragPointerStartY = 0;
+  let mediaDragGhostOffsetX = 0;
+  let mediaDragGhostOffsetY = 0;
+
+  function handleFilePointerDown(e: PointerEvent, index: number, type: 'instruction' | 'solution') {
+    if (e.button !== 0 && e.button !== -1) return;
+    const target = e.currentTarget as HTMLElement;
+    
+    // Ignore if close/remove button is clicked or if preview is clicked
+    if ((e.target as HTMLElement).closest('.remove-file-btn') || (e.target as HTMLElement).closest('.preview-file-click')) return;
+
+    e.preventDefault();
+
+    mediaDragPointerStartX = e.clientX;
+    mediaDragPointerStartY = e.clientY;
+
+    try { target.setPointerCapture(e.pointerId); } catch (_) {}
+
+    function onMove(me: PointerEvent) {
+      const dx = me.clientX - mediaDragPointerStartX;
+      const dy = me.clientY - mediaDragPointerStartY;
+
+      if (!isMediaDragActive && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+        isMediaDragActive = true;
+        draggedFileIndex = index;
+        draggedFileType = type;
+
+        const ghost = target.cloneNode(true) as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        ghost.style.cssText = `
+          position: fixed;
+          pointer-events: none;
+          z-index: 9999;
+          width: ${rect.width}px;
+          opacity: 0.85;
+          left: ${rect.left}px;
+          top: ${rect.top}px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+          border-radius: 0.5rem;
+          transform: scale(1.02);
+          transition: none;
+        `;
+        mediaDragGhostOffsetX = me.clientX - rect.left;
+        mediaDragGhostOffsetY = me.clientY - rect.top;
+        document.body.appendChild(ghost);
+        mediaDragGhostEl = ghost;
+      }
+
+      if (!isMediaDragActive) return;
+
+      if (mediaDragGhostEl) {
+        mediaDragGhostEl.style.left = `${me.clientX - mediaDragGhostOffsetX}px`;
+        mediaDragGhostEl.style.top  = `${me.clientY - mediaDragGhostOffsetY}px`;
+      }
+
+      if (mediaDragGhostEl) mediaDragGhostEl.style.display = 'none';
+      const el = document.elementFromPoint(me.clientX, me.clientY);
+      if (mediaDragGhostEl) mediaDragGhostEl.style.display = '';
+
+      const fileRow = el?.closest('[data-file-index]') as HTMLElement | null;
+      if (fileRow && fileRow.dataset.fileType === type) {
+        hoveredFileIndex = parseInt(fileRow.dataset.fileIndex || '0', 10);
+      } else {
+        hoveredFileIndex = null;
+      }
+    }
+
+    function onUp(ue: PointerEvent) {
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
+      try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
+
+      if (mediaDragGhostEl) {
+        mediaDragGhostEl.remove();
+        mediaDragGhostEl = null;
+      }
+
+      if (isMediaDragActive && draggedFileIndex !== null && hoveredFileIndex !== null && draggedFileIndex !== hoveredFileIndex) {
+        reorderFiles(type, draggedFileIndex, hoveredFileIndex);
+      }
+
+      isMediaDragActive = false;
+      draggedFileIndex = null;
+      draggedFileType = null;
+      hoveredFileIndex = null;
+    }
+
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
+  }
+
+  function reorderFiles(type: 'instruction' | 'solution', from: number, to: number) {
+    if (type === 'instruction') {
+      const list = [...instructionFiles];
+      const [moved] = list.splice(from, 1);
+      list.splice(to, 0, moved);
+      instructionFiles = list;
+    } else {
+      const list = [...solutionFiles];
+      const [moved] = list.splice(from, 1);
+      list.splice(to, 0, moved);
+      solutionFiles = list;
+    }
+  }
 </script>
 
 <main class="grow overflow-y-auto bg-surface p-8 custom-scrollbar h-full">
@@ -288,17 +489,39 @@
           </div>
         </button>
 
+        <!-- Paste from Clipboard button -->
+        <button
+          type="button"
+          onclick={() => handlePasteFromClipboard('instruction')}
+          class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
+        >
+          <span class="material-symbols-outlined text-[16px]">content_paste</span>
+          Paste Image/Text from Clipboard
+        </button>
+
         {#if instructionFiles.length > 0}
           <div class="mt-2 flex flex-col gap-1.5">
             {#each instructionFiles as file, index}
-              <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm">
+              {#if isMediaDragActive && draggedFileType === 'instruction' && hoveredFileIndex === index}
+                <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
+              {/if}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <div 
+                data-file-index={index}
+                data-file-type="instruction"
+                onpointerdown={(e) => handleFilePointerDown(e, index, 'instruction')}
+                class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none {isMediaDragActive && draggedFileType === 'instruction' && draggedFileIndex === index ? 'opacity-40 scale-95' : ''}"
+              >
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div 
                   onclick={() => openPreview(file)}
-                  class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow"
+                  class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
                   title="Click to preview file"
                 >
+                  <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
+                    drag_indicator
+                  </span>
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
                     {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : 'image')}
                   </span>
@@ -309,7 +532,7 @@
                   onclick={() => {
                     instructionFiles = instructionFiles.filter((_, i) => i !== index);
                   }}
-                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0"
+                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
                   title="Remove"
                 >
                   close
@@ -359,17 +582,39 @@
           </div>
         </button>
 
+        <!-- Paste from Clipboard button -->
+        <button
+          type="button"
+          onclick={() => handlePasteFromClipboard('solution')}
+          class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
+        >
+          <span class="material-symbols-outlined text-[16px]">content_paste</span>
+          Paste Image/Text from Clipboard
+        </button>
+
         {#if solutionFiles.length > 0}
           <div class="mt-2 flex flex-col gap-1.5">
             {#each solutionFiles as file, index}
-              <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm">
+              {#if isMediaDragActive && draggedFileType === 'solution' && hoveredFileIndex === index}
+                <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
+              {/if}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <div 
+                data-file-index={index}
+                data-file-type="solution"
+                onpointerdown={(e) => handleFilePointerDown(e, index, 'solution')}
+                class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none {isMediaDragActive && draggedFileType === 'solution' && draggedFileIndex === index ? 'opacity-40 scale-95' : ''}"
+              >
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div 
                   onclick={() => openPreview(file)}
-                  class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow"
+                  class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
                   title="Click to preview file"
                 >
+                  <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
+                    drag_indicator
+                  </span>
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
                     {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : 'image')}
                   </span>
@@ -380,7 +625,7 @@
                   onclick={() => {
                     solutionFiles = solutionFiles.filter((_, i) => i !== index);
                   }}
-                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0"
+                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
                   title="Remove"
                 >
                   close
