@@ -660,9 +660,8 @@ class CanvasCritiqueStore {
       this.saveProjects();
       this.selectProject(lastImported);
       this.setView('project-detail');
-      alert('Lesson(s) imported successfully!');
     } else {
-      alert('Could not find any valid lesson to import.');
+      console.warn('Could not find any valid lesson to import.');
     }
   }
 

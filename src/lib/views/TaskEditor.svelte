@@ -127,22 +127,81 @@
     // Reset value so selection event triggers even for the same files
     target.value = '';
   }
+
+  // Preview modal states & handlers
+  let previewFile = $state<{ name: string; dataUrl: string } | null>(null);
+  let modalZoom = $state(1);
+  let modalPan = $state({ x: 0, y: 0 });
+  let isModalDragging = $state(false);
+  let modalDragStart = { x: 0, y: 0 };
+  let modalBasePan = { x: 0, y: 0 };
+
+  function decodeBase64Text(dataUrl: string): string {
+    if (!dataUrl) return '';
+    try {
+      const base64Data = dataUrl.split(',')[1];
+      return decodeURIComponent(escape(atob(base64Data)));
+    } catch (e) {
+      console.error('Failed to decode text document', e);
+      return 'Error: Failed to decode text document.';
+    }
+  }
+
+  function openPreview(file: { name: string; dataUrl: string }) {
+    previewFile = file;
+    modalZoom = 1;
+    modalPan = { x: 0, y: 0 };
+  }
+
+  function closePreview() {
+    previewFile = null;
+  }
+
+  function handleModalWheel(e: WheelEvent) {
+    e.preventDefault();
+    const zoomFactor = 0.1;
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const newZoom = modalZoom + direction * zoomFactor;
+    modalZoom = Math.max(0.5, Math.min(newZoom, 8)); // clamp between 0.5x and 8x
+    if (modalZoom === 1) {
+      modalPan = { x: 0, y: 0 };
+    }
+  }
+
+  function handleModalMouseDown(e: MouseEvent) {
+    if (modalZoom <= 1) return; // Only pan when zoomed in
+    isModalDragging = true;
+    modalDragStart = { x: e.clientX, y: e.clientY };
+    modalBasePan = { ...modalPan };
+  }
+
+  function handleModalMouseMove(e: MouseEvent) {
+    if (!isModalDragging) return;
+    const dx = e.clientX - modalDragStart.x;
+    const dy = e.clientY - modalDragStart.y;
+    modalPan = {
+      x: modalBasePan.x + dx,
+      y: modalBasePan.y + dy
+    };
+  }
+
+  function handleModalMouseUp() {
+    isModalDragging = false;
+  }
 </script>
 
-<header class="w-full bg-surface border-b border-outline-variant flex items-center justify-between px-8 h-16 shrink-0 z-20 select-none">
-  <button 
-    onclick={handleCancel}
-    class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors p-2 rounded-full -ml-2 focus:outline-none cursor-pointer"
-    title="Cancel"
-  >
-    arrow_back
-  </button>
-  <span class="font-bold text-primary tracking-tight text-lg">CanvasCritique</span>
-  <div class="w-8"></div> <!-- Spacer -->
-</header>
-
 <main class="grow overflow-y-auto bg-surface p-8 custom-scrollbar h-full">
-  <div class="max-w-3xl mx-auto flex flex-col gap-8">
+  <div class="max-w-3xl mx-auto flex flex-col gap-6">
+    <div class="flex items-center -ml-2">
+      <button 
+        onclick={handleCancel}
+        class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors p-2 rounded-full focus:outline-none cursor-pointer"
+        title="Cancel"
+      >
+        arrow_back
+      </button>
+    </div>
+
     <header class="flex flex-col gap-2">
       <h1 class="text-2xl font-bold text-on-surface">{isEditMode ? 'Edit Task' : 'Create Task'}</h1>
       <p class="text-sm text-on-surface-variant">
@@ -233,18 +292,24 @@
           <div class="mt-2 flex flex-col gap-1.5">
             {#each instructionFiles as file, index}
               <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm">
-                <div class="flex items-center gap-2 min-w-0">
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div 
+                  onclick={() => openPreview(file)}
+                  class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow"
+                  title="Click to preview file"
+                >
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
                     {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
                   </span>
-                  <span class="text-xs text-on-surface truncate font-medium">{file.name}</span>
+                  <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
                 </div>
                 <button 
                   type="button"
                   onclick={() => {
                     instructionFiles = instructionFiles.filter((_, i) => i !== index);
                   }}
-                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0"
                   title="Remove"
                 >
                   close
@@ -298,18 +363,24 @@
           <div class="mt-2 flex flex-col gap-1.5">
             {#each solutionFiles as file, index}
               <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm">
-                <div class="flex items-center gap-2 min-w-0">
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div 
+                  onclick={() => openPreview(file)}
+                  class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow"
+                  title="Click to preview file"
+                >
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
                     {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
                   </span>
-                  <span class="text-xs text-on-surface truncate font-medium">{file.name}</span>
+                  <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
                 </div>
                 <button 
                   type="button"
                   onclick={() => {
                     solutionFiles = solutionFiles.filter((_, i) => i !== index);
                   }}
-                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0"
                   title="Remove"
                 >
                   close
@@ -340,3 +411,63 @@
     </form>
   </div>
 </main>
+
+{#if previewFile}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div 
+    onclick={closePreview}
+    class="fixed inset-0 z-100 flex flex-col justify-center items-center bg-black/85 backdrop-blur-sm p-8 select-none"
+  >
+    <div 
+      onclick={(e) => e.stopPropagation()}
+      class="relative w-full h-full max-w-6xl max-h-[90vh] bg-surface rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-outline-variant"
+    >
+      <!-- Modal Header -->
+      <header class="flex items-center justify-between px-6 py-4 border-b border-outline-variant select-none shrink-0 bg-surface">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="material-symbols-outlined text-primary text-[20px] shrink-0">
+            {previewFile.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (previewFile.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
+          </span>
+          <h2 class="font-bold text-sm text-on-surface truncate pr-6">{previewFile.name}</h2>
+        </div>
+        <button 
+          type="button" 
+          onclick={closePreview}
+          class="material-symbols-outlined text-[20px] text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+        >
+          close
+        </button>
+      </header>
+
+      <!-- Modal Body (Max size view with Zoom / Pan support for images) -->
+      <div 
+        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalWheel : null}
+        onmousedown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalMouseDown : null}
+        onmousemove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalMouseMove : null}
+        onmouseup={handleModalMouseUp}
+        onmouseleave={handleModalMouseUp}
+        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') ? 'overflow-auto' : 'overflow-hidden relative'}"
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}` : ''}
+      >
+        {#if previewFile.name.toLowerCase().endsWith('.pdf')}
+          <iframe 
+            src={previewFile.dataUrl} 
+            title={previewFile.name} 
+            class="w-full h-full border-0 rounded-lg shadow-sm"
+          ></iframe>
+        {:else if previewFile.name.toLowerCase().endsWith('.txt')}
+          <pre class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-sm font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant">{decodeBase64Text(previewFile.dataUrl)}</pre>
+        {:else}
+          <img 
+            src={previewFile.dataUrl} 
+            alt={previewFile.name} 
+            class="max-w-full max-h-full object-contain rounded-lg shadow-md select-none pointer-events-none transition-transform duration-75 ease-out"
+            style="transform: translate({modalPan.x}px, {modalPan.y}px) scale({modalZoom}); transform-origin: center center;"
+            draggable="false"
+          />
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
