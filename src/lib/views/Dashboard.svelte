@@ -170,7 +170,7 @@
 >
   <!-- Header bar -->
   <header
-    class="h-16 px-8 border-b border-outline-variant bg-surface flex justify-between items-center z-10 shrink-0"
+    class="h-16 pl-8 pr-4 border-b border-outline-variant bg-surface flex justify-between items-center z-10 shrink-0"
   >
     <div class="text-on-surface font-semibold text-lg">Lesson Dashboard</div>
 
