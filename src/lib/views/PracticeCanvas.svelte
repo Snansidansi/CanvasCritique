@@ -501,6 +501,7 @@
         };
         // Cancel active draw or selection marquee drag
         isDrawing = false;
+        currentStroke = [];
         selectionBox = null;
         isMovingSelection = false;
       }, 600);
