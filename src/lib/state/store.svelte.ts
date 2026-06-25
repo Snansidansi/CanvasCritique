@@ -54,6 +54,7 @@ export interface Settings {
   exportFrequencyData: { days: number; hours: number; minutes: number };
   sendTaskMedia: boolean;
   sendSolutionMedia: boolean;
+  sendCanvasBackground: boolean;
   canvasMode: string;
   customSystemPrompt: string;
   systemPromptEditingEnabled: boolean;
@@ -249,6 +250,7 @@ const defaultSettings: Settings = {
   exportFrequencyData: { days: 7, hours: 0, minutes: 30 },
   sendTaskMedia: true,
   sendSolutionMedia: true,
+  sendCanvasBackground: true,
   canvasMode: 'infinite',
   customSystemPrompt: '',
   systemPromptEditingEnabled: false,

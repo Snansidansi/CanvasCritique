@@ -27,6 +27,7 @@ export interface CheckWorkSettings {
   openRouterProvider?: string[];
   sendTaskMedia?: boolean;
   sendSolutionMedia?: boolean;
+  sendCanvasBackground?: boolean;
   language?: string;
   customSystemPrompt?: string;
 }
@@ -132,28 +133,31 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
         tempCtx.fillStyle = '#FFFFFF';
         tempCtx.fillRect(0, 0, box.width, box.height);
         
-        tempCtx.save();
+         tempCtx.save();
         tempCtx.translate(-box.x, -box.y);
         
-        // Draw custom background pattern image if present
-        if (currentBgUrl) {
-          try {
-            const img = await loadImage(currentBgUrl);
-            tempCtx.save();
-            tempCtx.globalAlpha = bgOpacity / 100;
-            const pattern = tempCtx.createPattern(img, 'repeat');
-            if (pattern) {
-              tempCtx.fillStyle = pattern;
-              tempCtx.fillRect(box.x, box.y, box.width, box.height);
+        const drawBackground = settings.sendCanvasBackground ?? true;
+        if (drawBackground) {
+          // Draw custom background pattern image if present
+          if (currentBgUrl) {
+            try {
+              const img = await loadImage(currentBgUrl);
+              tempCtx.save();
+              tempCtx.globalAlpha = bgOpacity / 100;
+              const pattern = tempCtx.createPattern(img, 'repeat');
+              if (pattern) {
+                tempCtx.fillStyle = pattern;
+                tempCtx.fillRect(box.x, box.y, box.width, box.height);
+              }
+              tempCtx.restore();
+            } catch (err) {
+              console.error('Error drawing custom background pattern on crop:', err);
             }
-            tempCtx.restore();
-          } catch (err) {
-            console.error('Error drawing custom background pattern on crop:', err);
           }
-        }
 
-        // Draw active guidelines background template offset relative to bounding box
-        drawGuidelinesInWorld(tempCtx, box.x, box.y, box.width, box.height, activeBg, bgOpacity);
+          // Draw active guidelines background template offset relative to bounding box
+          drawGuidelinesInWorld(tempCtx, box.x, box.y, box.width, box.height, activeBg, bgOpacity);
+        }
         
         tempCtx.restore();
       }

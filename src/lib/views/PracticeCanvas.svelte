@@ -1230,6 +1230,7 @@
           openRouterProvider: store.settings.openRouterProvider,
           sendTaskMedia: store.settings.sendTaskMedia,
           sendSolutionMedia: store.settings.sendSolutionMedia,
+          sendCanvasBackground: store.settings.sendCanvasBackground,
           language: store.settings.language,
           customSystemPrompt: store.settings.customSystemPrompt
         },
