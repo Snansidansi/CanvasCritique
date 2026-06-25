@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store, type Project } from '../state/store.svelte';
   import TaskSelectionBar from '../components/project/TaskSelectionBar.svelte';
+  import LessonSettingsModal from '../components/project/LessonSettingsModal.svelte';
 
   // Derived project state from store
   let project = $derived(store.activeProject || ({
@@ -12,6 +13,9 @@
     tasks: [],
     profileId: ''
   } as Project));
+
+  // Lesson settings modal open state
+  let showSettingsOverrideModal = $state(false);
 
   // Categories list
   let categories = $derived(project.categories || []);
@@ -433,6 +437,18 @@
       Export Lesson
     </button>
 
+    <!-- Lesson Settings Override Button -->
+    {#if project.id !== 'No Lesson Selected'}
+      <button 
+        onclick={() => showSettingsOverrideModal = true}
+        class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
+        title="Lesson AI & Evaluation Settings"
+      >
+        <span class="material-symbols-outlined text-[18px]">settings</span>
+        Settings
+      </button>
+    {/if}
+
     <!-- Selection Mode Toggle (Step 3) -->
     {#if project.id !== 'No Lesson Selected' && project.tasks.length > 0}
       <button 
@@ -791,4 +807,8 @@
       selectedTaskIds.clear();
     }}
   />
+{/if}
+
+{#if project && project.id && project.id !== 'No Lesson Selected'}
+  <LessonSettingsModal bind:isOpen={showSettingsOverrideModal} {project} />
 {/if}

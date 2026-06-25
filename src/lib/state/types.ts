@@ -18,6 +18,22 @@ export interface Task {
   } | null;
 }
 
+export interface ProjectSettingsOverride {
+  overrideSettings: boolean;
+  apiProvider?: string;
+  geminiModel?: string;
+  openRouterModel?: string;
+  openRouterProvider?: string[];
+  openRouterReasoning?: boolean;
+  sendTaskMedia?: boolean;
+  sendSolutionMedia?: boolean;
+  sendCanvasBackground?: boolean;
+  sendTaskText?: boolean;
+  sendSolutionText?: boolean;
+  customSystemPrompt?: string;
+  language?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -27,6 +43,7 @@ export interface Project {
   tasks: Task[];
   profileId: string;
   hideCompleted?: boolean;
+  settingsOverride?: ProjectSettingsOverride;
 }
 
 export interface StylusButton {

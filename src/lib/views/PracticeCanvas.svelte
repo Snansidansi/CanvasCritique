@@ -1364,6 +1364,10 @@
     feedbackScore = null;
 
     try {
+      const effectiveSettings = store.activeProject
+        ? store.getEffectiveSettings(store.activeProject.id)
+        : store.settings;
+
       const result = await runCheckWork({
         canvasMode: canvasMode as 'infinite' | 'a4',
         pages,
@@ -1374,20 +1378,20 @@
         task,
         projectGuidelines: store.activeProject?.guidelines?.trim(),
         settings: {
-          apiProvider: store.settings.apiProvider,
-          geminiApiKey: store.settings.geminiApiKey,
-          openRouterApiKey: store.settings.openRouterApiKey,
-          geminiModel: store.settings.geminiModel,
-          openRouterModel: store.settings.openRouterModel,
-          openRouterReasoning: store.settings.openRouterReasoning,
-          openRouterProvider: store.settings.openRouterProvider,
-          sendTaskMedia: store.settings.sendTaskMedia,
-          sendSolutionMedia: store.settings.sendSolutionMedia,
-          sendCanvasBackground: store.settings.sendCanvasBackground,
-          sendTaskText: store.settings.sendTaskText,
-          sendSolutionText: store.settings.sendSolutionText,
-          language: store.settings.language,
-          customSystemPrompt: store.settings.customSystemPrompt
+          apiProvider: effectiveSettings.apiProvider,
+          geminiApiKey: effectiveSettings.geminiApiKey,
+          openRouterApiKey: effectiveSettings.openRouterApiKey,
+          geminiModel: effectiveSettings.geminiModel,
+          openRouterModel: effectiveSettings.openRouterModel,
+          openRouterReasoning: effectiveSettings.openRouterReasoning,
+          openRouterProvider: effectiveSettings.openRouterProvider,
+          sendTaskMedia: effectiveSettings.sendTaskMedia,
+          sendSolutionMedia: effectiveSettings.sendSolutionMedia,
+          sendCanvasBackground: effectiveSettings.sendCanvasBackground,
+          sendTaskText: effectiveSettings.sendTaskText,
+          sendSolutionText: effectiveSettings.sendSolutionText,
+          language: effectiveSettings.language,
+          customSystemPrompt: effectiveSettings.customSystemPrompt
         },
         defaultSystemPrompt: DEFAULT_SYSTEM_PROMPT
       });

@@ -56,6 +56,30 @@ class CanvasCritiqueStore {
       : this.settings.openRouterModel;
   }
 
+  getEffectiveSettings(projectId: string): Settings {
+    const project = this.projects.find(p => p.id === projectId);
+    const globalSettings = this.settings;
+    if (project && project.settingsOverride && project.settingsOverride.overrideSettings) {
+      const override = project.settingsOverride;
+      return {
+        ...globalSettings,
+        apiProvider: override.apiProvider ?? globalSettings.apiProvider,
+        geminiModel: override.geminiModel ?? globalSettings.geminiModel,
+        openRouterModel: override.openRouterModel ?? globalSettings.openRouterModel,
+        openRouterReasoning: override.openRouterReasoning ?? globalSettings.openRouterReasoning,
+        openRouterProvider: override.openRouterProvider ?? globalSettings.openRouterProvider,
+        sendTaskMedia: override.sendTaskMedia ?? globalSettings.sendTaskMedia,
+        sendSolutionMedia: override.sendSolutionMedia ?? globalSettings.sendSolutionMedia,
+        sendCanvasBackground: override.sendCanvasBackground ?? globalSettings.sendCanvasBackground,
+        sendTaskText: override.sendTaskText ?? globalSettings.sendTaskText,
+        sendSolutionText: override.sendSolutionText ?? globalSettings.sendSolutionText,
+        customSystemPrompt: override.customSystemPrompt !== undefined && override.customSystemPrompt !== null ? override.customSystemPrompt : globalSettings.customSystemPrompt,
+        language: override.language ?? globalSettings.language
+      };
+    }
+    return globalSettings;
+  }
+
   constructor() {
     this.loadState();
   }
