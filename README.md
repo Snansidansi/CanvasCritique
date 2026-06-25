@@ -1,4 +1,4 @@
-# CanvasCritique 🎨✍️
+# CanvasCritique
 
 A beautiful, feature-rich desktop application for practicing calligraphy and handwriting, built using Svelte 5, Vite, and Tauri v2. CanvasCritique integrates with Gemini AI to provide real-time, interactive visual feedback directly on your drawing canvas.
 
@@ -11,7 +11,7 @@ A beautiful, feature-rich desktop application for practicing calligraphy and han
 
 ---
 
-## 🌟 What It Is
+## What It Is
 
 **CanvasCritique** is a modern desktop application that bridges the gap between traditional handwriting practice and digital feedback. Built for students, calligraphy enthusiasts, and language learners, it lets you practice strokes on a digital canvas and receive targeted, visual, and qualitative critique from state-of-the-art AI models.
 
@@ -19,7 +19,7 @@ No more guessing if your stroke order, angle, height, or proportions are correct
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
 * **Interactive Practice Canvas:**
   * Support for both structured **A4 Page layouts** and an **Infinite Canvas**.
@@ -42,7 +42,7 @@ No more guessing if your stroke order, angle, height, or proportions are correct
 
 ---
 
-## 🔍 How It Works
+## How It Works
 
 ```mermaid
 graph TD
@@ -64,7 +64,7 @@ The AI analyzes your strokes against the guidelines and solutions. It returns ge
 
 ---
 
-## 📸 Gallery & Interface Placeholders
+## Gallery & Interface Placeholders
 
 Below are placeholders to showcase the core user interface of the application:
 
@@ -90,7 +90,7 @@ Below are placeholders to showcase the core user interface of the application:
 
 ---
 
-## 🛠️ WSL Development & Windows Build Guide
+## WSL Development & Windows Build Guide
 
 To develop this project inside WSL (Windows Subsystem for Linux) and compile it into a native Windows executable (`.exe`), follow this guide.
 
