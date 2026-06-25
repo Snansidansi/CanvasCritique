@@ -223,6 +223,7 @@
   let isPointerPen = $state(false);
   let isSelectToolOneShot = $state(false);
   let lastPointerType = $state('mouse');
+  let hoverPos = $state(null);
 
   let previousTool = $state('pen');
   $effect(() => {
@@ -327,16 +328,24 @@
     }
   });
 
-  // Watch canvasMode or activeTool to reset selection/panning state
+  // Watch canvasMode to reset zoom/pan
+  let lastCanvasMode = '';
   $effect(() => {
-    const mode = canvasMode;
+    const currentMode = canvasMode;
+    if (currentMode !== lastCanvasMode) {
+      lastCanvasMode = currentMode;
+      zoomScale = 1;
+      panOffset = { x: 0, y: 0 };
+    }
+  });
+
+  // Watch activeTool to reset selection/drawing states
+  $effect(() => {
     const tool = activeTool;
     activeTooltipMarker = null;
     isPanning = false;
     isDrawing = false;
     currentStroke = [];
-    zoomScale = 1;
-    panOffset = { x: 0, y: 0 };
     
     // Reset selection states
     selectionBox = null;
@@ -452,6 +461,9 @@
     if (!ctx || !canvasElement) return;
 
     lastPointerType = e.pointerType;
+    if (e.isPrimary) {
+      activePointers.clear();
+    }
     activePointers.set(e.pointerId, e);
 
     // Palm rejection: If pen is active, ignore and purge finger touches
@@ -652,6 +664,23 @@
 
   function handlePointerMove(e) {
     lastPointerType = e.pointerType;
+
+    if (canvasContainer) {
+      const rect = canvasContainer.getBoundingClientRect();
+      hoverPos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+
+    if (e.buttons === 0) {
+      activePointers.clear();
+      isDrawing = false;
+      isPanning = false;
+      isPinching = false;
+      return;
+    }
+
     activePointers.set(e.pointerId, e);
 
     // Palm rejection: If pen is active, ignore and purge finger touches
@@ -832,6 +861,7 @@
   }
 
   function handlePointerLeave(e) {
+    hoverPos = null;
     activePointers.delete(e.pointerId);
 
     if (isPinching) {
@@ -860,6 +890,7 @@
   }
 
   function handlePointerCancel(e) {
+    hoverPos = null;
     activePointers.delete(e.pointerId);
     if (isPinching) {
       if (activePointers.size < 2) {
