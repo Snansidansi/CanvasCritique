@@ -12,6 +12,9 @@
   let importIncludeCritique = $state(true);
   let importIncludeCanvas = $state(true);
   let importIncludeCompleted = $state(true);
+  let importMergeOption = $state('new'); // 'new' | 'merge'
+  let importMergeProjectId = $state('');
+  let importMergeMode = $state('update'); // 'update' | 'skip'
 
   // Sync checkboxes with store dialog state when opened
   $effect(() => {
@@ -27,6 +30,16 @@
       importIncludeCritique = store.importDialog.hasCritique;
       importIncludeCanvas = store.importDialog.hasCanvas;
       importIncludeCompleted = true;
+      
+      const activeProjList = store.projects.filter(p => p.profileId === store.activeProfileId);
+      if (store.importDialog.targetProjectId) {
+        importMergeOption = 'merge';
+        importMergeProjectId = store.importDialog.targetProjectId;
+      } else {
+        importMergeOption = 'new';
+        importMergeProjectId = activeProjList[0]?.id || '';
+      }
+      importMergeMode = 'update';
     }
   });
 
@@ -279,6 +292,63 @@
         </label>
       </div>
 
+      <!-- Import Location / Merge Options (Step 2) -->
+      <div class="border-t border-outline-variant/30 pt-3 flex flex-col gap-3">
+        <span class="text-xs font-bold text-on-surface">Import Location</span>
+        
+        {#if dialog.targetProjectId}
+          {@const targetProj = store.projects.find(p => p.id === dialog.targetProjectId)}
+          <div class="p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs text-on-surface flex items-center gap-2">
+            <span class="material-symbols-outlined text-[18px] text-primary">merge</span>
+            <span>Importing tasks directly into <strong>{targetProj?.name || 'current lesson'}</strong></span>
+          </div>
+        {:else}
+          <div class="flex gap-4">
+            <label class="flex items-center gap-2 text-xs text-on-surface cursor-pointer select-none">
+              <input type="radio" name="importMergeOption" value="new" bind:group={importMergeOption} class="text-primary focus:ring-primary h-4 w-4" />
+              <span>New Lesson</span>
+            </label>
+            {#if store.projects.filter(p => p.profileId === store.activeProfileId).length > 0}
+              <label class="flex items-center gap-2 text-xs text-on-surface cursor-pointer select-none">
+                <input type="radio" name="importMergeOption" value="merge" bind:group={importMergeOption} class="text-primary focus:ring-primary h-4 w-4" />
+                <span>Merge with Existing</span>
+              </label>
+            {/if}
+          </div>
+
+          {#if importMergeOption === 'merge'}
+            <div class="flex flex-col gap-1.5 animate-fade-in">
+              <label for="mergeSelect" class="text-[11px] font-bold text-on-surface-variant">Select Target Lesson</label>
+              <select
+                id="mergeSelect"
+                bind:value={importMergeProjectId}
+                class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-xs text-on-surface focus:outline-none focus:border-primary w-full"
+              >
+                {#each store.projects.filter(p => p.profileId === store.activeProfileId) as p}
+                  <option value={p.id}>{p.name}</option>
+                {/each}
+              </select>
+            </div>
+          {/if}
+        {/if}
+
+        {#if dialog.targetProjectId || importMergeOption === 'merge'}
+          <div class="flex flex-col gap-1.5 animate-fade-in">
+            <span class="text-[11px] font-bold text-on-surface-variant">For Tasks with the Same Name</span>
+            <div class="flex flex-col gap-2">
+              <label class="flex items-center gap-2 text-xs text-on-surface cursor-pointer select-none">
+                <input type="radio" name="importMergeMode" value="update" bind:group={importMergeMode} class="text-primary focus:ring-primary h-4 w-4" />
+                <span>Overwrite/Update details</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs text-on-surface cursor-pointer select-none">
+                <input type="radio" name="importMergeMode" value="skip" bind:group={importMergeMode} class="text-primary focus:ring-primary h-4 w-4" />
+                <span>Keep existing task (do not update)</span>
+              </label>
+            </div>
+          </div>
+        {/if}
+      </div>
+
       <div class="flex justify-end gap-3 mt-2">
         <button
           onclick={dialog.onCancel}
@@ -287,7 +357,13 @@
           Cancel
         </button>
         <button
-          onclick={() => dialog.onConfirm({ importCritique: importIncludeCritique, importCanvas: importIncludeCanvas, importCompleted: importIncludeCompleted })}
+          onclick={() => dialog.onConfirm({
+            importCritique: importIncludeCritique,
+            importCanvas: importIncludeCanvas,
+            importCompleted: importIncludeCompleted,
+            mergeProjectId: (dialog.targetProjectId || importMergeOption === 'merge') ? importMergeProjectId : undefined,
+            mergeMode: (dialog.targetProjectId || importMergeOption === 'merge') ? (importMergeMode as 'update' | 'skip') : undefined
+          })}
           class="px-4 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
         >
           Import Lesson

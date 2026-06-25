@@ -95,7 +95,14 @@ export interface ImportDialog {
   projectData: any;
   hasCritique: boolean;
   hasCanvas: boolean;
-  onConfirm: (options: { importCritique: boolean; importCanvas: boolean; importCompleted: boolean }) => void;
+  targetProjectId?: string;
+  onConfirm: (options: {
+    importCritique: boolean;
+    importCanvas: boolean;
+    importCompleted: boolean;
+    mergeProjectId?: string;
+    mergeMode?: 'update' | 'skip';
+  }) => void;
   onCancel: () => void;
 }
 
@@ -830,7 +837,7 @@ class CanvasCritiqueStore {
     return this.canvasSaves[taskId] || null;
   }
 
-  importProject(projectData: any): void {
+  importProject(projectData: any, targetProjectId?: string): void {
     const data = Array.isArray(projectData) ? projectData : [projectData];
 
     let hasCritique = false;
@@ -854,6 +861,7 @@ class CanvasCritiqueStore {
       projectData,
       hasCritique,
       hasCanvas,
+      targetProjectId,
       onConfirm: (options) => {
         this.executeImportProject(projectData, options);
         this.importDialog = null;
@@ -864,85 +872,186 @@ class CanvasCritiqueStore {
     };
   }
 
-  private executeImportProject(projectData: any, options: { importCritique: boolean; importCanvas: boolean; importCompleted: boolean }): void {
+  private executeImportProject(
+    projectData: any,
+    options: {
+      importCritique: boolean;
+      importCanvas: boolean;
+      importCompleted: boolean;
+      mergeProjectId?: string;
+      mergeMode?: 'update' | 'skip';
+    }
+  ): void {
     const data = Array.isArray(projectData) ? projectData : [projectData];
     let lastImported: Project | null = null;
 
-    for (const proj of data) {
-      if (!proj || typeof proj !== 'object' || !proj.name) continue;
+    const mergeProject = options.mergeProjectId
+      ? this.projects.find(p => p.id === options.mergeProjectId)
+      : null;
 
-      let newId = proj.id;
-      if (!newId || this.projects.some(p => p.id === newId)) {
-        newId = 'proj-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    if (mergeProject) {
+      for (const proj of data) {
+        if (!proj || typeof proj !== 'object') continue;
+
+        const importedCanvasSaves = proj.canvasSaves || {};
+        const importedTasks = proj.tasks || [];
+
+        for (const t of importedTasks) {
+          if (!t.name) continue;
+
+          // Match by name (case-insensitive, trimmed)
+          const matchedTask = mergeProject.tasks.find(
+            et => et.name.trim().toLowerCase() === t.name.trim().toLowerCase()
+          );
+
+          if (matchedTask) {
+            if (options.mergeMode === 'update') {
+              matchedTask.instructions = t.instructions !== undefined ? t.instructions : matchedTask.instructions;
+              matchedTask.solution = t.solution !== undefined ? t.solution : matchedTask.solution;
+              matchedTask.category = t.category !== undefined ? t.category : matchedTask.category;
+
+              if (t.instructionFiles !== undefined) {
+                matchedTask.instructionFiles = t.instructionFiles;
+              } else if (t.instructionFile) {
+                matchedTask.instructionFiles = [t.instructionFile];
+              }
+
+              if (t.solutionFiles !== undefined) {
+                matchedTask.solutionFiles = t.solutionFiles;
+              } else if (t.solutionFile) {
+                matchedTask.solutionFiles = [t.solutionFile];
+              }
+
+              if (options.importCompleted) {
+                matchedTask.completed = !!t.completed;
+              }
+
+              if (options.importCritique) {
+                matchedTask.critique = t.critique !== undefined ? t.critique : null;
+              }
+
+              if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
+                this.canvasSaves[matchedTask.id] = importedCanvasSaves[t.id];
+              }
+            }
+          } else {
+            // Add new task
+            let taskId = t.id;
+            const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(et => et.id === taskId));
+            if (!taskId || isDuplicateId) {
+              taskId = 'task-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+            }
+
+            if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
+              this.canvasSaves[taskId] = importedCanvasSaves[t.id];
+            }
+
+            let instructionFiles = t.instructionFiles || [];
+            if (t.instructionFile && instructionFiles.length === 0) {
+              instructionFiles = [t.instructionFile];
+            }
+            let solutionFiles = t.solutionFiles || [];
+            if (t.solutionFile && solutionFiles.length === 0) {
+              solutionFiles = [t.solutionFile];
+            }
+
+            const newTask: Task = {
+              ...t,
+              id: taskId,
+              completed: options.importCompleted ? !!t.completed : false,
+              instructionFiles,
+              solutionFiles,
+              instructionFile: null,
+              solutionFile: null
+            };
+
+            if (!options.importCritique) {
+              delete newTask.critique;
+            }
+
+            mergeProject.tasks.push(newTask);
+
+            const cat = newTask.category || 'Basics';
+            if (mergeProject.categories && !mergeProject.categories.includes(cat)) {
+              mergeProject.categories.push(cat);
+            }
+          }
+        }
       }
+      lastImported = mergeProject;
+    } else {
+      // Import as a new lesson
+      for (const proj of data) {
+        if (!proj || typeof proj !== 'object' || !proj.name) continue;
 
-      const categories = proj.categories || [];
-      const importedCanvasSaves = proj.canvasSaves || {};
-
-      const tasks = (proj.tasks || []).map((t: any, idx: number) => {
-        const oldTaskId = t.id;
-        let taskId = t.id;
-        // Check if taskId is already in use by any task in any project
-        const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(existingTask => existingTask.id === taskId));
-        if (!taskId || isDuplicateId) {
-          taskId = 'task-' + Date.now() + '-' + idx + '-' + Math.random().toString(36).substring(2, 5);
+        let newId = proj.id;
+        if (!newId || this.projects.some(p => p.id === newId)) {
+          newId = 'proj-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
         }
 
-        // Migrate canvas save under the new task ID
-        if (options.importCanvas && oldTaskId && importedCanvasSaves[oldTaskId]) {
-          this.canvasSaves[taskId] = importedCanvasSaves[oldTaskId];
-        }
+        const categories = proj.categories || [];
+        const importedCanvasSaves = proj.canvasSaves || {};
 
-        let instructionFiles = t.instructionFiles || [];
-        if (t.instructionFile && instructionFiles.length === 0) {
-          instructionFiles = [t.instructionFile];
-        }
-        let solutionFiles = t.solutionFiles || [];
-        if (t.solutionFile && solutionFiles.length === 0) {
-          solutionFiles = [t.solutionFile];
-        }
+        const tasks = (proj.tasks || []).map((t: any, idx: number) => {
+          const oldTaskId = t.id;
+          let taskId = t.id;
+          const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(existingTask => existingTask.id === taskId));
+          if (!taskId || isDuplicateId) {
+            taskId = 'task-' + Date.now() + '-' + idx + '-' + Math.random().toString(36).substring(2, 5);
+          }
 
-        const taskCopy = {
-          ...t,
-          id: taskId,
-          completed: options.importCompleted ? !!t.completed : false,
-          instructionFiles,
-          solutionFiles,
-          instructionFile: null,
-          solutionFile: null
+          if (options.importCanvas && oldTaskId && importedCanvasSaves[oldTaskId]) {
+            this.canvasSaves[taskId] = importedCanvasSaves[oldTaskId];
+          }
+
+          let instructionFiles = t.instructionFiles || [];
+          if (t.instructionFile && instructionFiles.length === 0) {
+            instructionFiles = [t.instructionFile];
+          }
+          let solutionFiles = t.solutionFiles || [];
+          if (t.solutionFile && solutionFiles.length === 0) {
+            solutionFiles = [t.solutionFile];
+          }
+
+          const taskCopy = {
+            ...t,
+            id: taskId,
+            completed: options.importCompleted ? !!t.completed : false,
+            instructionFiles,
+            solutionFiles,
+            instructionFile: null,
+            solutionFile: null
+          };
+
+          if (!options.importCritique) {
+            delete taskCopy.critique;
+          }
+
+          return taskCopy;
+        });
+
+        const newProj: Project = {
+          ...proj,
+          id: newId,
+          name: proj.name,
+          icon: proj.icon || 'history_edu',
+          guidelines: proj.guidelines || '',
+          categories,
+          tasks,
+          profileId: this.activeProfileId
         };
 
-        if (!options.importCritique) {
-          delete taskCopy.critique;
+        if ('canvasSaves' in newProj) {
+          delete (newProj as any).canvasSaves;
         }
 
-        return taskCopy;
-      });
-
-      const newProj: Project = {
-        ...proj,
-        id: newId,
-        name: proj.name,
-        icon: proj.icon || 'history_edu',
-        guidelines: proj.guidelines || '',
-        categories,
-        tasks,
-        profileId: this.activeProfileId
-      };
-
-      // Remove canvasSaves from the stored project object since it's now imported to store.canvasSaves
-      if ('canvasSaves' in newProj) {
-        delete (newProj as any).canvasSaves;
+        this.projects.push(newProj);
+        lastImported = newProj;
       }
-
-      this.projects.push(newProj);
-      lastImported = newProj;
     }
 
     if (lastImported) {
-      // Save canvas state after importing
       localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
-      
       this.saveProjects();
       this.selectProject(lastImported);
       this.setView('project-detail');
