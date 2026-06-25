@@ -565,8 +565,8 @@
         <!-- Send Task Details Toggle -->
         <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
           <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-[18px] text-primary">description</span>
-            Send Task Instructions & Details
+            <span class="material-symbols-outlined text-[18px] text-primary">image</span>
+            Send Task Media Attachments
           </span>
           <label class="relative inline-flex items-center cursor-pointer select-none">
             <input 
@@ -582,8 +582,8 @@
         <!-- Send Solution Details Toggle -->
         <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
           <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-[18px] text-primary">fact_check</span>
-            Send Evaluation Goal & Solution Details
+            <span class="material-symbols-outlined text-[18px] text-primary">image</span>
+            Send Solution Media Attachments
           </span>
           <label class="relative inline-flex items-center cursor-pointer select-none">
             <input 

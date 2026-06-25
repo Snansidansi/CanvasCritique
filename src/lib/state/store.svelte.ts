@@ -187,6 +187,22 @@ class CanvasCritiqueStore {
           if (!p.categories) {
             p.categories = [];
           }
+          if (p.tasks) {
+            p.tasks.forEach(t => {
+              if (t.instructionFile && (!t.instructionFiles || t.instructionFiles.length === 0)) {
+                t.instructionFiles = [t.instructionFile];
+              }
+              if (t.solutionFile && (!t.solutionFiles || t.solutionFiles.length === 0)) {
+                t.solutionFiles = [t.solutionFile];
+              }
+              if (!t.instructionFiles) {
+                t.instructionFiles = [];
+              }
+              if (!t.solutionFiles) {
+                t.solutionFiles = [];
+              }
+            });
+          }
         });
         this.projects = parsed;
       } else {
@@ -382,7 +398,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  addTask(projectId, name, instructions, solution, category = 'Basics', instructionFile = null, solutionFile = null) {
+  addTask(projectId, name, instructions, solution, category = 'Basics', instructionFiles = [], solutionFiles = []) {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -393,8 +409,8 @@ class CanvasCritiqueStore {
       instructions,
       solution,
       category,
-      instructionFile,
-      solutionFile
+      instructionFiles,
+      solutionFiles
     };
 
     project.tasks.push(newTask);
@@ -423,6 +439,8 @@ class CanvasCritiqueStore {
     if (updatedData.instructions !== undefined) task.instructions = updatedData.instructions;
     if (updatedData.solution !== undefined) task.solution = updatedData.solution;
     if (updatedData.category !== undefined) task.category = updatedData.category;
+    if (updatedData.instructionFiles !== undefined) task.instructionFiles = updatedData.instructionFiles;
+    if (updatedData.solutionFiles !== undefined) task.solutionFiles = updatedData.solutionFiles;
     if (updatedData.instructionFile !== undefined) task.instructionFile = updatedData.instructionFile;
     if (updatedData.solutionFile !== undefined) task.solutionFile = updatedData.solutionFile;
     if (updatedData.completed !== undefined) task.completed = updatedData.completed;

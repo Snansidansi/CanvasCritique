@@ -1331,8 +1331,8 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       const promptTemplate = store.settings.customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
       const sendTaskMedia = store.settings.sendTaskMedia ?? true;
       const sendSolutionMedia = store.settings.sendSolutionMedia ?? true;
-      const taskInstructionsText = sendTaskMedia ? `Task instructions: "${task.instructions}"` : '';
-      const expectedSolutionText = sendSolutionMedia ? `Expected correct solution: "${task.solution}"` : '';
+      const taskInstructionsText = task.instructions ? `Task instructions: "${task.instructions}"` : '';
+      const expectedSolutionText = task.solution ? `Expected correct solution: "${task.solution}"` : '';
 
       let prompt = promptTemplate;
       
@@ -1395,18 +1395,36 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       const additionalGeminiParts = [];
       const additionalOpenRouterParts = [];
 
-      if (sendTaskMedia && task.instructionFile) {
-        const geminiPart = getInlineDataFromMedia(task.instructionFile);
-        if (geminiPart) additionalGeminiParts.push(geminiPart);
-        const orPart = getOpenRouterMedia(task.instructionFile);
-        if (orPart) additionalOpenRouterParts.push(orPart);
+      if (sendTaskMedia) {
+        if (task.instructionFiles && Array.isArray(task.instructionFiles)) {
+          task.instructionFiles.forEach(file => {
+            const geminiPart = getInlineDataFromMedia(file);
+            if (geminiPart) additionalGeminiParts.push(geminiPart);
+            const orPart = getOpenRouterMedia(file);
+            if (orPart) additionalOpenRouterParts.push(orPart);
+          });
+        } else if (task.instructionFile) {
+          const geminiPart = getInlineDataFromMedia(task.instructionFile);
+          if (geminiPart) additionalGeminiParts.push(geminiPart);
+          const orPart = getOpenRouterMedia(task.instructionFile);
+          if (orPart) additionalOpenRouterParts.push(orPart);
+        }
       }
 
-      if (sendSolutionMedia && task.solutionFile) {
-        const geminiPart = getInlineDataFromMedia(task.solutionFile);
-        if (geminiPart) additionalGeminiParts.push(geminiPart);
-        const orPart = getOpenRouterMedia(task.solutionFile);
-        if (orPart) additionalOpenRouterParts.push(orPart);
+      if (sendSolutionMedia) {
+        if (task.solutionFiles && Array.isArray(task.solutionFiles)) {
+          task.solutionFiles.forEach(file => {
+            const geminiPart = getInlineDataFromMedia(file);
+            if (geminiPart) additionalGeminiParts.push(geminiPart);
+            const orPart = getOpenRouterMedia(file);
+            if (orPart) additionalOpenRouterParts.push(orPart);
+          });
+        } else if (task.solutionFile) {
+          const geminiPart = getInlineDataFromMedia(task.solutionFile);
+          if (geminiPart) additionalGeminiParts.push(geminiPart);
+          const orPart = getOpenRouterMedia(task.solutionFile);
+          if (orPart) additionalOpenRouterParts.push(orPart);
+        }
       }
 
       let response;

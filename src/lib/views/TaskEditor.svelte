@@ -13,10 +13,8 @@
   let isEditMode = $derived(store.editingTask !== null);
 
   // File names and object references
-  let instructionFileName = $state('');
-  let solutionFileName = $state('');
-  let instructionFile = $state(null);
-  let solutionFile = $state(null);
+  let instructionFiles = $state([]);
+  let solutionFiles = $state([]);
 
   onMount(() => {
     if (store.editingTask) {
@@ -27,13 +25,16 @@
       targetProjectId = store.activeProject?.id || '';
       
       // Load saved files
-      if (store.editingTask.instructionFile) {
-        instructionFile = store.editingTask.instructionFile;
-        instructionFileName = store.editingTask.instructionFile.name;
+      if (store.editingTask.instructionFiles && Array.isArray(store.editingTask.instructionFiles)) {
+        instructionFiles = [...store.editingTask.instructionFiles];
+      } else if (store.editingTask.instructionFile) {
+        instructionFiles = [store.editingTask.instructionFile];
       }
-      if (store.editingTask.solutionFile) {
-        solutionFile = store.editingTask.solutionFile;
-        solutionFileName = store.editingTask.solutionFile.name;
+
+      if (store.editingTask.solutionFiles && Array.isArray(store.editingTask.solutionFiles)) {
+        solutionFiles = [...store.editingTask.solutionFiles];
+      } else if (store.editingTask.solutionFile) {
+        solutionFiles = [store.editingTask.solutionFile];
       }
     } else if (store.quickAddTaskData) {
       taskName = store.quickAddTaskData.name;
@@ -67,8 +68,11 @@
         instructions: instructions.trim() || 'No instructions provided.',
         solution: solution.trim() || 'Review drawing output.',
         category,
-        instructionFile,
-        solutionFile
+        instructionFiles,
+        solutionFiles,
+        // Reset single legacy files to keep database clean
+        instructionFile: null,
+        solutionFile: null
       });
       store.editingTask = null;
     } else {
@@ -78,8 +82,8 @@
         instructions.trim() || 'No instructions provided.',
         solution.trim() || 'Review drawing output.',
         category,
-        instructionFile,
-        solutionFile
+        instructionFiles,
+        solutionFiles
       );
     }
 
@@ -100,25 +104,28 @@
     if (input) input.click();
   }
 
-  function handleFileSelect(e, type) {
-    const file = e.target.files[0];
-    if (!file) return;
+  function handleFileSelect(e: any, type: string) {
+    const target = e.target as HTMLInputElement;
+    const files = Array.from(target.files || []) as File[];
+    if (!files.length) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const fileData = {
-        name: file.name,
-        dataUrl: event.target.result // Base64 Data URL
+    files.forEach((file: File) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const fileData = {
+          name: file.name,
+          dataUrl: event.target?.result as string // Base64 Data URL
+        };
+        if (type === 'instruction') {
+          instructionFiles = [...instructionFiles, fileData];
+        } else {
+          solutionFiles = [...solutionFiles, fileData];
+        }
       };
-      if (type === 'instruction') {
-        instructionFileName = file.name;
-        instructionFile = fileData;
-      } else {
-        solutionFileName = file.name;
-        solutionFile = fileData;
-      }
-    };
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(file);
+    });
+    // Reset value so selection event triggers even for the same files
+    target.value = '';
   }
 </script>
 
@@ -186,6 +193,15 @@
         ></textarea>
       </div>
 
+      <!-- Warning Note about API context size and cost -->
+      <div class="flex gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-amber-800 dark:text-amber-300">
+        <span class="material-symbols-outlined text-[20px] shrink-0 mt-0.5">warning</span>
+        <div class="flex flex-col gap-0.5">
+          <p class="text-xs font-semibold">Hinweis zu Dokumenten &amp; API-Kosten</p>
+          <p class="text-[11px] leading-normal opacity-90">Zu viele Dokumente erhöhen den API-Kontext, wodurch das Ergebnis ungenauer werden kann und die Kosten steigen. Bitte lade nur die notwendigen Referenzmaterialien hoch.</p>
+        </div>
+      </div>
+
       <!-- Instruction Material Upload -->
       <div class="flex flex-col gap-2">
         <span class="text-sm font-semibold text-on-surface">Instruction Reference Material</span>
@@ -194,6 +210,7 @@
           id="instructionFileInput" 
           accept="image/*,application/pdf"
           class="hidden" 
+          multiple
           onchange={(e) => handleFileSelect(e, 'instruction')}
         />
         <button 
@@ -206,11 +223,36 @@
           </div>
           <div class="text-center">
             <p class="text-sm font-semibold text-on-surface">
-              {instructionFileName ? `Selected: ${instructionFileName}` : 'Tap to upload or drag reference image'}
+              {instructionFiles.length > 0 ? `${instructionFiles.length} files selected` : 'Tap to upload or drag reference files'}
             </p>
-            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG (Max 25MB)</p>
+            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG (Max 25MB, multiple files supported)</p>
           </div>
         </button>
+
+        {#if instructionFiles.length > 0}
+          <div class="mt-2 flex flex-col gap-1.5">
+            {#each instructionFiles as file, index}
+              <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
+                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image'}
+                  </span>
+                  <span class="text-xs text-on-surface truncate font-medium">{file.name}</span>
+                </div>
+                <button 
+                  type="button"
+                  onclick={() => {
+                    instructionFiles = instructionFiles.filter((_, i) => i !== index);
+                  }}
+                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                  title="Remove"
+                >
+                  close
+                </button>
+              </div>
+            {/each}
+          </div>
+        {/if}
       </div>
 
       <!-- Expected Solution -->
@@ -233,6 +275,7 @@
           id="solutionFileInput" 
           accept="image/*,application/pdf"
           class="hidden" 
+          multiple
           onchange={(e) => handleFileSelect(e, 'solution')}
         />
         <button 
@@ -245,11 +288,36 @@
           </div>
           <div class="text-center">
             <p class="text-sm font-semibold text-on-surface">
-              {solutionFileName ? `Selected: ${solutionFileName}` : 'Tap to upload or drag reference image'}
+              {solutionFiles.length > 0 ? `${solutionFiles.length} files selected` : 'Tap to upload or drag solution files'}
             </p>
-            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG (Max 25MB)</p>
+            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG (Max 25MB, multiple files supported)</p>
           </div>
         </button>
+
+        {#if solutionFiles.length > 0}
+          <div class="mt-2 flex flex-col gap-1.5">
+            {#each solutionFiles as file, index}
+              <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
+                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image'}
+                  </span>
+                  <span class="text-xs text-on-surface truncate font-medium">{file.name}</span>
+                </div>
+                <button 
+                  type="button"
+                  onclick={() => {
+                    solutionFiles = solutionFiles.filter((_, i) => i !== index);
+                  }}
+                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                  title="Remove"
+                >
+                  close
+                </button>
+              </div>
+            {/each}
+          </div>
+        {/if}
       </div>
 
       <!-- Save / Cancel Buttons -->
