@@ -238,16 +238,16 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   const sendTaskMedia = settings.sendTaskMedia ?? true;
   const sendSolutionMedia = settings.sendSolutionMedia ?? true;
   
-  // Decoders for txt files
+  // Decoders for txt and md files
   let instructionsTextFilesContent = '';
   if (sendTaskMedia) {
     if (task.instructionFiles && Array.isArray(task.instructionFiles)) {
       task.instructionFiles.forEach(file => {
-        if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+        if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
           try {
             const base64Data = file.dataUrl!.split(',')[1];
             const decodedText = decodeURIComponent(escape(atob(base64Data)));
-            instructionsTextFilesContent += `\n\n[Instruction Text Document - ${file.name}]:\n${decodedText}`;
+            instructionsTextFilesContent += `\n\n[Instruction Document - ${file.name}]:\n${decodedText}`;
           } catch (e) {
             console.error('Failed to decode text file', file.name, e);
           }
@@ -255,11 +255,11 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       });
     } else if (task.instructionFile) {
       const file = task.instructionFile;
-      if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+      if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
         try {
           const base64Data = file.dataUrl!.split(',')[1];
           const decodedText = decodeURIComponent(escape(atob(base64Data)));
-          instructionsTextFilesContent += `\n\n[Instruction Text Document - ${file.name}]:\n${decodedText}`;
+          instructionsTextFilesContent += `\n\n[Instruction Document - ${file.name}]:\n${decodedText}`;
         } catch (e) {
           console.error('Failed to decode text file', file.name, e);
         }
@@ -271,11 +271,11 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   if (sendSolutionMedia) {
     if (task.solutionFiles && Array.isArray(task.solutionFiles)) {
       task.solutionFiles.forEach(file => {
-        if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+        if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
           try {
             const base64Data = file.dataUrl!.split(',')[1];
             const decodedText = decodeURIComponent(escape(atob(base64Data)));
-            solutionTextFilesContent += `\n\n[Solution Text Document - ${file.name}]:\n${decodedText}`;
+            solutionTextFilesContent += `\n\n[Solution Document - ${file.name}]:\n${decodedText}`;
           } catch (e) {
             console.error('Failed to decode text file', file.name, e);
           }
@@ -283,11 +283,11 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       });
     } else if (task.solutionFile) {
       const file = task.solutionFile;
-      if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+      if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
         try {
           const base64Data = file.dataUrl!.split(',')[1];
           const decodedText = decodeURIComponent(escape(atob(base64Data)));
-          solutionTextFilesContent += `\n\n[Solution Text Document - ${file.name}]:\n${decodedText}`;
+          solutionTextFilesContent += `\n\n[Solution Document - ${file.name}]:\n${decodedText}`;
         } catch (e) {
           console.error('Failed to decode text file', file.name, e);
         }
@@ -359,7 +359,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   if (sendTaskMedia) {
     if (task.instructionFiles && Array.isArray(task.instructionFiles)) {
       task.instructionFiles.forEach(file => {
-        if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+        if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
           return;
         }
         const geminiPart = getInlineDataFromMedia(file);
@@ -369,7 +369,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       });
     } else if (task.instructionFile) {
       const file = task.instructionFile;
-      if (!(file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain'))) {
+      if (!(file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown'))) {
         const geminiPart = getInlineDataFromMedia(file);
         if (geminiPart) additionalGeminiParts.push(geminiPart);
         const orPart = getOpenRouterMedia(file);
@@ -381,7 +381,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   if (sendSolutionMedia) {
     if (task.solutionFiles && Array.isArray(task.solutionFiles)) {
       task.solutionFiles.forEach(file => {
-        if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+        if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
           return;
         }
         const geminiPart = getInlineDataFromMedia(file);
@@ -391,7 +391,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       });
     } else if (task.solutionFile) {
       const file = task.solutionFile;
-      if (!(file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain'))) {
+      if (!(file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown'))) {
         const geminiPart = getInlineDataFromMedia(file);
         if (geminiPart) additionalGeminiParts.push(geminiPart);
         const orPart = getOpenRouterMedia(file);

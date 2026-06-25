@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../state/store.svelte';
   import { onMount } from 'svelte';
+  import { parseMarkdown } from '../utils/markdown';
 
   // Form states
   let taskName = $state('');
@@ -266,7 +267,7 @@
         <input 
           type="file" 
           id="instructionFileInput" 
-          accept="image/*,application/pdf,text/plain"
+          accept="image/*,application/pdf,text/plain,.md"
           class="hidden" 
           multiple
           onchange={(e) => handleFileSelect(e, 'instruction')}
@@ -283,7 +284,7 @@
             <p class="text-sm font-semibold text-on-surface">
               {instructionFiles.length > 0 ? `${instructionFiles.length} files selected` : 'Tap to upload or drag reference files'}
             </p>
-            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG, TXT (Max 25MB, multiple files supported)</p>
+            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG, TXT, MD (Max 25MB, multiple files supported)</p>
           </div>
         </button>
 
@@ -299,7 +300,7 @@
                   title="Click to preview file"
                 >
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
-                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
+                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : 'image')}
                   </span>
                   <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
                 </div>
@@ -337,7 +338,7 @@
         <input 
           type="file" 
           id="solutionFileInput" 
-          accept="image/*,application/pdf,text/plain"
+          accept="image/*,application/pdf,text/plain,.md"
           class="hidden" 
           multiple
           onchange={(e) => handleFileSelect(e, 'solution')}
@@ -354,7 +355,7 @@
             <p class="text-sm font-semibold text-on-surface">
               {solutionFiles.length > 0 ? `${solutionFiles.length} files selected` : 'Tap to upload or drag solution files'}
             </p>
-            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG, TXT (Max 25MB, multiple files supported)</p>
+            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG, TXT, MD (Max 25MB, multiple files supported)</p>
           </div>
         </button>
 
@@ -370,7 +371,7 @@
                   title="Click to preview file"
                 >
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
-                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
+                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : 'image')}
                   </span>
                   <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
                 </div>
@@ -426,7 +427,7 @@
       <header class="flex items-center justify-between px-6 py-4 border-b border-outline-variant select-none shrink-0 bg-surface">
         <div class="flex items-center gap-2 min-w-0">
           <span class="material-symbols-outlined text-primary text-[20px] shrink-0">
-            {previewFile.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (previewFile.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
+            {previewFile.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') ? 'description' : 'image')}
           </span>
           <h2 class="font-bold text-sm text-on-surface truncate pr-6">{previewFile.name}</h2>
         </div>
@@ -441,13 +442,13 @@
 
       <!-- Modal Body (Max size view with Zoom / Pan support for images) -->
       <div 
-        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalWheel : null}
-        onmousedown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalMouseDown : null}
-        onmousemove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalMouseMove : null}
+        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') ? handleModalWheel : null}
+        onmousedown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') ? handleModalMouseDown : null}
+        onmousemove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') ? handleModalMouseMove : null}
         onmouseup={handleModalMouseUp}
         onmouseleave={handleModalMouseUp}
-        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') ? 'overflow-auto' : 'overflow-hidden relative'}"
-        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}` : ''}
+        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') ? 'overflow-auto' : 'overflow-hidden relative'}"
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}` : ''}
       >
         {#if previewFile.name.toLowerCase().endsWith('.pdf')}
           <iframe 
@@ -455,6 +456,10 @@
             title={previewFile.name} 
             class="w-full h-full border-0 rounded-lg shadow-sm"
           ></iframe>
+        {:else if previewFile.name.toLowerCase().endsWith('.md')}
+          <div class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-sm text-on-surface select-text leading-relaxed border border-outline-variant text-left wrap-break-word font-sans">
+            {@html parseMarkdown(decodeBase64Text(previewFile.dataUrl))}
+          </div>
         {:else if previewFile.name.toLowerCase().endsWith('.txt')}
           <pre class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-sm font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant">{decodeBase64Text(previewFile.dataUrl)}</pre>
         {:else}

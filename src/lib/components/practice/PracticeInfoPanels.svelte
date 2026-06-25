@@ -183,7 +183,7 @@
                       >
                         <div class="flex items-center gap-2 min-w-0">
                           <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
-                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
+                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : 'image')}
                           </span>
                           <span class="truncate pr-4">{file.name}</span>
                         </div>
@@ -213,6 +213,10 @@
                               title={file.name} 
                               class="w-full h-100 border-0 rounded-lg"
                             ></iframe>
+                          {:else if file.name.toLowerCase().endsWith('.md')}
+                            <div class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
+                              {@html parseMarkdown(decodeBase64Text(file.dataUrl))}
+                            </div>
                           {:else if file.name.toLowerCase().endsWith('.txt')}
                             <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(file.dataUrl)}</pre>
                           {:else}
@@ -252,7 +256,7 @@
                       >
                         <div class="flex items-center gap-2 min-w-0">
                           <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
-                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
+                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : 'image')}
                           </span>
                           <span class="truncate pr-4">{file.name}</span>
                         </div>
@@ -282,6 +286,10 @@
                               title={file.name} 
                               class="w-full h-100 border-0 rounded-lg"
                             ></iframe>
+                          {:else if file.name.toLowerCase().endsWith('.md')}
+                            <div class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
+                              {@html parseMarkdown(decodeBase64Text(file.dataUrl))}
+                            </div>
                           {:else if file.name.toLowerCase().endsWith('.txt')}
                             <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(file.dataUrl)}</pre>
                           {:else}
@@ -332,7 +340,7 @@
       <header class="flex items-center justify-between px-6 py-4 border-b border-outline-variant select-none shrink-0 bg-surface">
         <div class="flex items-center gap-2 min-w-0">
           <span class="material-symbols-outlined text-primary text-[20px] shrink-0">
-            {previewFile.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (previewFile.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
+            {previewFile.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') ? 'description' : 'image')}
           </span>
           <h2 class="font-bold text-sm text-on-surface truncate pr-6">{previewFile.name}</h2>
         </div>
@@ -346,14 +354,15 @@
       </header>
 
       <!-- Modal Body (Max size view with Zoom / Pan support for images) -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <div 
-        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalWheel : null}
-        onmousedown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalMouseDown : null}
-        onmousemove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalMouseMove : null}
+        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') ? handleModalWheel : null}
+        onmousedown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') ? handleModalMouseDown : null}
+        onmousemove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') ? handleModalMouseMove : null}
         onmouseup={handleModalMouseUp}
         onmouseleave={handleModalMouseUp}
-        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') ? 'overflow-auto' : 'overflow-hidden relative'}"
-        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}` : ''}
+        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') ? 'overflow-auto' : 'overflow-hidden relative'}"
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}` : ''}
       >
         {#if previewFile.name.toLowerCase().endsWith('.pdf')}
           <iframe 
@@ -361,6 +370,10 @@
             title={previewFile.name} 
             class="w-full h-full border-0 rounded-lg shadow-sm"
           ></iframe>
+        {:else if previewFile.name.toLowerCase().endsWith('.md')}
+          <div class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-sm text-on-surface select-text leading-relaxed border border-outline-variant text-left wrap-break-word font-sans">
+            {@html parseMarkdown(decodeBase64Text(previewFile.dataUrl))}
+          </div>
         {:else if previewFile.name.toLowerCase().endsWith('.txt')}
           <pre class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-sm font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant">{decodeBase64Text(previewFile.dataUrl)}</pre>
         {:else}
