@@ -91,8 +91,8 @@ Task name: "{{task_name}}"
 **Image dimensions (IMPORTANT for marker placement):**
 {{image_dimensions}}
 The images provided are cropped versions of the canvas. 
-Your marker x,y coordinates MUST be relative to the top-left corner (0,0) of the corresponding cropped image.
-Place the marker EXACTLY where you would logically put a checkmark or cross on the paper next to the student's answer.
+Your marker x,y coordinates MUST be relative to the top-left corner (0,0) of the corresponding cropped image, normalized to a range of 0 to 1000 (where 0 is the top/left edge and 1000 is the bottom/right edge of the cropped image).
+Place the marker EXACTLY where you would logically put a checkmark or cross next to the student's answer.
 
 **Your job:**
 1. Read the student's handwritten answers from the image(s).
@@ -100,7 +100,7 @@ Place the marker EXACTLY where you would logically put a checkmark or cross on t
 3. Mark each answer/exercise as correct, incorrect, or partially correct. Be extremely accurate and strict about correctness!
 4. Do NOT critique handwriting quality, neatness, or penmanship unless the task instructions explicitly ask for it.
 5. Focus on whether the student's answers/work is factually and logically correct.
-6. If an answer is incorrect, your feedback MUST explicitly state why it is wrong and what the correct answer should be.
+6. If an answer is incorrect, your feedback MUST be extremely brief (1 sentence max), stating exactly what is wrong and what the correct expected answer is.
 
 You must return a JSON object with the following schema:
 {
@@ -109,12 +109,12 @@ You must return a JSON object with the following schema:
   "markers": [
     {
       "pageIndex": number (0-based index of the image in the sent sequence, default to 0 if only one image),
-      "x": number (X coordinate in pixels relative to the top-left of the cropped page image bounds),
-      "y": number (Y coordinate in pixels relative to the top-left of the cropped page image bounds),
+      "x": number (X coordinate from 0 to 1000, representing the position relative to the cropped page width),
+      "y": number (Y coordinate from 0 to 1000, representing the position relative to the cropped page height),
       "type": "correct" | "incorrect" | "partial",
-      "feedback": "Specific feedback. If correct, ONLY write 'Correct'. If incorrect, explain what is wrong and provide the correct expected answer.",
+      "feedback": "Specific feedback. Keep it extremely short (1 sentence maximum). If correct, ONLY write 'Correct'. If incorrect, briefly state what is wrong and specify the correct expected answer (do not write long generic paragraphs).",
       "underlinePoints": [ // Optional. Only for incorrect or partial answers to highlight the problematic area.
-        {"x": number, "y": number}, ... (coordinate points on the image in pixels)
+        {"x": number, "y": number}, ... (coordinate points from 0 to 1000 relative to the cropped page width/height)
       ]
     }
   ]
@@ -141,7 +141,8 @@ const defaultSettings = {
   sendSolutionMedia: true,
   canvasMode: 'infinite',
   customSystemPrompt: '',
-  systemPromptEditingEnabled: false
+  systemPromptEditingEnabled: false,
+  language: 'de'
 };
 
 // State classes for Svelte 5 Runes reactivity

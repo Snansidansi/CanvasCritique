@@ -1327,21 +1327,20 @@
           };
 
           activePagesWithIndex.forEach((item, imgIdx) => {
-            const box = pageBoxes[imgIdx];
             mockResponse.markers.push(
               {
                 id: `mock-1-p${item.originalIndex}`,
                 pageIndex: imgIdx,
-                x: Math.round(box.width * 0.25),
-                y: Math.round(box.height * 0.35),
+                x: 250,
+                y: 350,
                 type: 'correct',
                 feedback: `Page ${item.originalIndex + 1}: Great start of the stroke! Consistent weight and smooth curve.`
               },
               {
                 id: `mock-2-p${item.originalIndex}`,
                 pageIndex: imgIdx,
-                x: Math.round(box.width * 0.55),
-                y: Math.round(box.height * 0.65),
+                x: 550,
+                y: 650,
                 type: 'partial',
                 feedback: `Page ${item.originalIndex + 1}: The loop crossing is slightly off here. It should cross exactly at the horizontal header line.`
               }
@@ -1363,12 +1362,16 @@
           feedbackScore = mockResponse.grade;
           feedbackMarkers = mockResponse.markers.map(m => {
             const item = activePagesWithIndex[m.pageIndex] || { originalIndex: 0 };
-            const offset = pageBoxes[m.pageIndex] || { x: 0, y: 0 };
+            const offset = pageBoxes[m.pageIndex] || { x: 0, y: 0, width: 800, height: 1130 };
+            const px = (m.x / 1000) * offset.width;
+            const py = (m.y / 1000) * offset.height;
             return {
               ...m,
+              x: px,
+              y: py,
               pageIndex: item.originalIndex,
-              canvasX: m.x + offset.x,
-              canvasY: m.y + offset.y,
+              canvasX: px + offset.x,
+              canvasY: py + offset.y,
               boundingBoxOffset: { ...offset }
             };
           });
@@ -1395,16 +1398,85 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
         : '';
 
       const promptTemplate = store.settings.customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
-      const taskInstructionsText = store.settings.sendTaskMedia ? `Task instructions: "${task.instructions}"` : '';
-      const expectedSolutionText = store.settings.sendSolutionMedia ? `Expected correct solution: "${task.solution}"` : '';
+      const sendTaskMedia = store.settings.sendTaskMedia ?? true;
+      const sendSolutionMedia = store.settings.sendSolutionMedia ?? true;
+      const taskInstructionsText = sendTaskMedia ? `Task instructions: "${task.instructions}"` : '';
+      const expectedSolutionText = sendSolutionMedia ? `Expected correct solution: "${task.solution}"` : '';
 
-      const prompt = promptTemplate
+      let prompt = promptTemplate;
+      
+      // If the template contains task_instructions placeholder, replace it. Otherwise append it if active.
+      if (prompt.includes('{{task_instructions}}')) {
+        prompt = prompt.replace(/\{\{task_instructions\}\}/g, taskInstructionsText);
+      } else if (taskInstructionsText) {
+        prompt += `\n\n${taskInstructionsText}`;
+      }
+      
+      // If the template contains task_solution placeholder, replace it. Otherwise append it if active.
+      if (prompt.includes('{{task_solution}}')) {
+        prompt = prompt.replace(/\{\{task_solution\}\}/g, expectedSolutionText);
+      } else if (expectedSolutionText) {
+        prompt += `\n\n${expectedSolutionText}`;
+      }
+      
+      // Replace other placeholders
+      prompt = prompt
         .replace(/\{\{task_name\}\}/g, task.name)
-        .replace(/\{\{task_instructions\}\}/g, taskInstructionsText)
-        .replace(/\{\{task_solution\}\}/g, expectedSolutionText)
         .replace(/\{\{guidelines\}\}/g, guidelinesPrompt)
         .replace(/\{\{page_info\}\}/g, pageInfoPrompt)
         .replace(/\{\{image_dimensions\}\}/g, imageDimensionsInfo);
+
+      // Construct and append feedback language instruction
+      const languageMap = {
+        de: 'German',
+        en: 'English',
+        fr: 'French',
+        es: 'Spanish',
+        it: 'Italian'
+      };
+      const lang = store.settings.language || 'de';
+      const targetLanguage = languageMap[lang] || 'German';
+      prompt += `\n\n**Language Requirement (CRITICAL):**\nYour entire feedback, critique, descriptions, and JSON string values (except "type" keys) MUST be written in ${targetLanguage}.`;
+
+      // Helper to parse file attachments (base64 Data URL) for Gemini inlineData
+      function getInlineDataFromMedia(mediaFile) {
+        if (!mediaFile || !mediaFile.dataUrl) return null;
+        const match = mediaFile.dataUrl.match(/^data:(.*?);base64,(.*)$/);
+        if (!match) return null;
+        return {
+          inlineData: {
+            mimeType: match[1],
+            data: match[2]
+          }
+        };
+      }
+
+      // Helper to parse file attachments (base64 Data URL) for OpenRouter image_url
+      function getOpenRouterMedia(mediaFile) {
+        if (!mediaFile || !mediaFile.dataUrl) return null;
+        return {
+          type: 'image_url',
+          image_url: { url: mediaFile.dataUrl }
+        };
+      }
+
+      // Gather additional media attachments if enabled and present on the task
+      const additionalGeminiParts = [];
+      const additionalOpenRouterParts = [];
+
+      if (sendTaskMedia && task.instructionFile) {
+        const geminiPart = getInlineDataFromMedia(task.instructionFile);
+        if (geminiPart) additionalGeminiParts.push(geminiPart);
+        const orPart = getOpenRouterMedia(task.instructionFile);
+        if (orPart) additionalOpenRouterParts.push(orPart);
+      }
+
+      if (sendSolutionMedia && task.solutionFile) {
+        const geminiPart = getInlineDataFromMedia(task.solutionFile);
+        if (geminiPart) additionalGeminiParts.push(geminiPart);
+        const orPart = getOpenRouterMedia(task.solutionFile);
+        if (orPart) additionalOpenRouterParts.push(orPart);
+      }
 
       let response;
       if (provider === 'gemini') {
@@ -1419,6 +1491,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
               {
                 parts: [
                   { text: prompt },
+                  ...additionalGeminiParts,
                   ...pageImages.map(imgData => ({
                     inlineData: {
                       mimeType: "image/png",
@@ -1443,6 +1516,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
               role: 'user',
               content: [
                 { type: 'text', text: prompt },
+                ...additionalOpenRouterParts,
                 ...pageImages.map(imgData => ({
                   type: 'image_url',
                   image_url: { url: `data:image/png;base64,${imgData}` }
@@ -1513,17 +1587,30 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       feedbackMarkers = rawMarkers.map((m, index) => {
         const pageIdx = typeof m.pageIndex === 'number' ? m.pageIndex : 0;
         const mappedItem = activePagesWithIndex[pageIdx] || { originalIndex: 0 };
-        const offset = pageBoxes[pageIdx] || { x: 0, y: 0 };
+        const offset = pageBoxes[pageIdx] || { x: 0, y: 0, width: 800, height: 1130 };
+        
+        // Convert normalized coordinates (0-1000) back to pixel coordinates relative to the crop
+        const px = (m.x / 1000) * (offset.width || 800);
+        const py = (m.y / 1000) * (offset.height || 1130);
+        
+        // Map underline points if present
+        const underlinePoints = m.underlinePoints
+          ? m.underlinePoints.map(p => ({
+              x: (p.x / 1000) * (offset.width || 800),
+              y: (p.y / 1000) * (offset.height || 1130)
+            }))
+          : null;
+
         return {
           id: `marker-${Date.now()}-${index}`,
-          x: m.x,
-          y: m.y,
+          x: px,
+          y: py,
           pageIndex: mappedItem.originalIndex,
-          canvasX: m.x + offset.x,
-          canvasY: m.y + offset.y,
+          canvasX: px + offset.x,
+          canvasY: py + offset.y,
           type: m.type || 'partial',
           feedback: m.feedback || '',
-          underlinePoints: m.underlinePoints || null,
+          underlinePoints: underlinePoints,
           boundingBoxOffset: { ...offset }
         };
       });

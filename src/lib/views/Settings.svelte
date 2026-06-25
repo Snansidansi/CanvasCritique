@@ -1135,6 +1135,25 @@
                 <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
               </label>
             </div>
+
+            <!-- AI Feedback Language Selection -->
+            <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
+              <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-primary">translate</span>
+                AI Feedback Language
+              </span>
+              <select
+                bind:value={store.settings.language}
+                onchange={handleInputChange}
+                class="bg-surface-container border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary font-semibold select-none cursor-pointer"
+              >
+                <option value="de">Deutsch (German)</option>
+                <option value="en">English</option>
+                <option value="fr">Français (French)</option>
+                <option value="es">Español (Spanish)</option>
+                <option value="it">Italiano (Italian)</option>
+              </select>
+            </div>
           </div>
         </div>
 
