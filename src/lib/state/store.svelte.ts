@@ -165,6 +165,8 @@ class CanvasCritiqueStore {
   canvasSaves = $state({});
   canvasSettingsOpen = $state(false);
   lastDetectedButton = $state<{ button: number; buttons: number; pointerType: string } | null>(null);
+  profiles = $state<any[]>([]);
+  activeProfileId = $state<string>('');
 
   // Getters for dynamic API/Model selection
   get apiKey() {
@@ -184,15 +186,49 @@ class CanvasCritiqueStore {
   }
 
   loadState() {
+    // Load Profiles
+    try {
+      const savedProfiles = localStorage.getItem('canvascritique_profiles');
+      const savedActiveProfileId = localStorage.getItem('canvascritique_active_profile_id');
+      
+      if (savedProfiles) {
+        this.profiles = JSON.parse(savedProfiles);
+      } else {
+        // Create default profile
+        this.profiles = [
+          {
+            id: 'default-profile',
+            name: 'General',
+            icon: null,
+            color: '#3b82f6'
+          }
+        ];
+        localStorage.setItem('canvascritique_profiles', JSON.stringify(this.profiles));
+      }
+      
+      if (savedActiveProfileId && this.profiles.some(p => p.id === savedActiveProfileId)) {
+        this.activeProfileId = savedActiveProfileId;
+      } else {
+        this.activeProfileId = this.profiles[0]?.id || 'default-profile';
+      }
+    } catch (e) {
+      console.error('Error loading profiles', e);
+      this.profiles = [{ id: 'default-profile', name: 'General', icon: null, color: '#3b82f6' }];
+      this.activeProfileId = 'default-profile';
+    }
+
     // Load Projects
     try {
       const savedProjects = localStorage.getItem(STORAGE_KEY_PROJECTS) || localStorage.getItem('scribeflow_projects');
       if (savedProjects) {
         const parsed = JSON.parse(savedProjects);
-        // Ensure categories exist
+        // Ensure categories exist and profileId exist
         parsed.forEach(p => {
           if (!p.categories) {
             p.categories = [];
+          }
+          if (!p.profileId) {
+            p.profileId = 'default-profile';
           }
           if (p.tasks) {
             p.tasks.forEach(t => {
@@ -214,6 +250,10 @@ class CanvasCritiqueStore {
         this.projects = parsed;
       } else {
         this.projects = defaultProjects;
+        // Assign default projects to default-profile
+        this.projects.forEach(p => {
+          p.profileId = 'default-profile';
+        });
         this.saveProjects();
       }
     } catch (e) {
@@ -287,6 +327,57 @@ class CanvasCritiqueStore {
   saveSettings() {
     localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(this.settings));
     this.applyTheme(this.settings.theme);
+  }
+
+  saveProfiles() {
+    localStorage.setItem('canvascritique_profiles', JSON.stringify(this.profiles));
+    localStorage.setItem('canvascritique_active_profile_id', this.activeProfileId);
+  }
+
+  addProfile(name: string, icon: string | null = null, color: string = '#3b82f6') {
+    const newProfile = {
+      id: 'profile-' + Date.now(),
+      name,
+      icon,
+      color
+    };
+    this.profiles.push(newProfile);
+    this.saveProfiles();
+    return newProfile;
+  }
+
+  updateProfile(id: string, updated: { name?: string; icon?: string | null; color?: string }) {
+    const profile = this.profiles.find(p => p.id === id);
+    if (!profile) return;
+    if (updated.name !== undefined) profile.name = updated.name;
+    if (updated.icon !== undefined) profile.icon = updated.icon;
+    if (updated.color !== undefined) profile.color = updated.color;
+    this.saveProfiles();
+  }
+
+  deleteProfile(id: string) {
+    if (this.profiles.length <= 1) return; // Do not delete the last profile
+    
+    // Remove lessons for this profile
+    this.projects = this.projects.filter(p => p.profileId !== id);
+    this.saveProjects();
+
+    // Remove profile
+    this.profiles = this.profiles.filter(p => p.id !== id);
+    
+    // Fallback activeProfileId if the deleted was active
+    if (this.activeProfileId === id) {
+      this.activeProfileId = this.profiles[0].id;
+    }
+    
+    this.saveProfiles();
+  }
+
+  selectProfile(id: string) {
+    if (this.profiles.some(p => p.id === id)) {
+      this.activeProfileId = id;
+      this.saveProfiles();
+    }
   }
 
   saveCustomBackgrounds() {
@@ -368,7 +459,8 @@ class CanvasCritiqueStore {
       icon,
       guidelines: '',
       categories: [],
-      tasks: []
+      tasks: [],
+      profileId: this.activeProfileId
     };
     this.projects.push(newProj);
     this.saveProjects();
@@ -649,7 +741,8 @@ class CanvasCritiqueStore {
         icon: proj.icon || 'history_edu',
         guidelines: proj.guidelines || '',
         categories,
-        tasks
+        tasks,
+        profileId: this.activeProfileId
       };
 
       this.projects.push(newProj);

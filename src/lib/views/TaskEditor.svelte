@@ -39,10 +39,10 @@
     } else if (store.quickAddTaskData) {
       taskName = store.quickAddTaskData.name;
       category = store.quickAddTaskData.category || 'Basics';
-      targetProjectId = store.activeProject?.id || (store.projects[0]?.id || '');
+      targetProjectId = store.activeProject?.id || (store.projects.find(p => p.profileId === store.activeProfileId)?.id || '');
       store.quickAddTaskData = null; // Clear it out
     } else {
-      targetProjectId = store.activeProject?.id || (store.projects[0]?.id || '');
+      targetProjectId = store.activeProject?.id || (store.projects.find(p => p.profileId === store.activeProfileId)?.id || '');
     }
   });
 

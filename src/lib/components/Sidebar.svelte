@@ -100,7 +100,7 @@
     <div
       class="flex flex-col gap-1 overflow-y-auto overflow-x-hidden max-h-[50vh] custom-scrollbar"
     >
-      {#each store.projects as project}
+      {#each store.projects.filter(p => p.profileId === store.activeProfileId) as project}
         <button
           onclick={() => handleNavigate("project-detail", project)}
           class="w-full flex items-center rounded-lg hover:bg-surface-container-highest text-on-surface-variant text-left relative group
