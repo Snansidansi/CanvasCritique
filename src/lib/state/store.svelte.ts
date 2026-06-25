@@ -123,7 +123,7 @@ You must return a JSON object with the following schema:
 Return ONLY this JSON object. Do not include any other conversational text.`;
 
 const defaultSettings = {
-  theme: 'light',
+  theme: 'system',
   apiProvider: 'gemini',
   geminiApiKey: '',
   openRouterApiKey: '',
