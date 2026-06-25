@@ -242,7 +242,7 @@
             showFeedback = !showFeedback;
           }}
           class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold focus:outline-none cursor-pointer transition-all flex items-center gap-1
-                 {showFeedback ? 'border-primary bg-primary/10 text-primary animate-pulse' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}"
+                 {showFeedback ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}"
           title="Toggle AI Critique"
         >
           <span class="material-symbols-outlined text-base">neurology</span>
