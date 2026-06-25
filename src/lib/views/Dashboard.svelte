@@ -9,20 +9,66 @@
   let isAddProjectOpen = $state(false);
   let fileInput: HTMLInputElement | null = $state(null);
 
+  function importLessonData(jsonData: string) {
+    try {
+      const imported = JSON.parse(jsonData);
+      store.importProject(imported);
+    } catch (err) {
+      store.showNotification("Failed to parse file. Make sure it is valid JSON.", "error");
+    }
+  }
+
   function handleImportFile(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const imported = JSON.parse(reader.result as string);
-        store.importProject(imported);
-      } catch (err) {
-        alert("Failed to parse file. Make sure it is valid JSON.");
-      }
+      importLessonData(reader.result as string);
     };
     reader.readAsText(file);
     (e.target as HTMLInputElement).value = "";
+  }
+
+  let isDragging = $state(false);
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }
+
+  function handleDragEnter(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer?.types.includes("Files")) {
+      isDragging = true;
+    }
+  }
+
+  function handleDragLeave(e: DragEvent) {
+    e.preventDefault();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      isDragging = false;
+    }
+  }
+
+  function handleDrop(e: DragEvent) {
+    e.preventDefault();
+    isDragging = false;
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/json" && !file.name.endsWith(".json")) {
+      store.showNotification("Please drop a valid .json lesson file.", "error");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      importLessonData(reader.result as string);
+    };
+    reader.readAsText(file);
   }
 
   // Quick task add state per project
@@ -114,11 +160,19 @@
   }
 </script>
 
-<!-- Header bar -->
-<header
-  class="h-16 px-8 border-b border-outline-variant bg-surface flex justify-between items-center z-10 shrink-0"
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  class="flex-1 flex flex-col min-h-0 relative h-full w-full"
+  ondragover={handleDragOver}
+  ondragenter={handleDragEnter}
+  ondragleave={handleDragLeave}
+  ondrop={handleDrop}
 >
-  <div class="text-on-surface font-semibold text-lg">Lesson Dashboard</div>
+  <!-- Header bar -->
+  <header
+    class="h-16 px-8 border-b border-outline-variant bg-surface flex justify-between items-center z-10 shrink-0"
+  >
+    <div class="text-on-surface font-semibold text-lg">Lesson Dashboard</div>
 
   <!-- Search & Actions -->
   <div class="flex items-center gap-4 flex-1 justify-end">
@@ -501,3 +555,15 @@
     isProfileModalOpen = false;
   }}
 />
+
+  <!-- Drag-and-drop Overlay -->
+  {#if isDragging}
+    <div class="absolute inset-0 bg-primary/10 border-4 border-dashed border-primary backdrop-blur-xs z-50 flex flex-col items-center justify-center pointer-events-none">
+      <div class="bg-surface border border-outline-variant shadow-2xl rounded-2xl p-8 flex flex-col items-center gap-4 text-center max-w-sm pointer-events-auto">
+        <span class="material-symbols-outlined text-5xl text-primary">file_upload</span>
+        <h3 class="font-bold text-lg text-on-surface">Import Calligraphy Lesson</h3>
+        <p class="text-xs text-on-surface-variant leading-relaxed">Drop your .json lesson file anywhere here to import it into your workspace.</p>
+      </div>
+    </div>
+  {/if}
+</div>
