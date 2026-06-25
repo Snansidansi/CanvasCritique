@@ -1,15 +1,98 @@
 // Svelte 5 Store for CanvasCritique using Runes
+
+export interface Task {
+  id: string;
+  name: string;
+  completed: boolean;
+  instructions: string;
+  solution: string;
+  category: string;
+  instructionFiles?: Array<{ name: string; dataUrl?: string }>;
+  solutionFiles?: Array<{ name: string; dataUrl?: string }>;
+  instructionFile?: { name: string; dataUrl?: string } | null; // legacy
+  solutionFile?: { name: string; dataUrl?: string } | null; // legacy
+  critique?: {
+    feedbackText: string;
+    feedbackScore: number | null;
+    feedbackMarkers: any[];
+  } | null;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  icon: string;
+  guidelines?: string;
+  categories: string[];
+  tasks: Task[];
+  profileId: string;
+}
+
+export interface StylusButton {
+  id: string;
+  name: string;
+  button: number;
+  buttons: number;
+  action: string;
+}
+
+export interface Settings {
+  theme: string;
+  apiProvider: string;
+  geminiApiKey: string;
+  openRouterApiKey: string;
+  geminiModel: string;
+  openRouterModel: string;
+  openRouterProvider: string[];
+  openRouterReasoning: boolean;
+  autoExport: boolean;
+  exportFrequency: { days: number; hours: number; minutes: number };
+  exportPathSettings: string;
+  exportPathData: string;
+  autoExportData: boolean;
+  exportFrequencyData: { days: number; hours: number; minutes: number };
+  sendTaskMedia: boolean;
+  sendSolutionMedia: boolean;
+  canvasMode: string;
+  customSystemPrompt: string;
+  systemPromptEditingEnabled: boolean;
+  language: string;
+  stylusButtons: StylusButton[];
+}
+
+export interface Profile {
+  id: string;
+  name: string;
+  icon: string | null;
+  color: string;
+}
+
+export interface CustomBackground {
+  id: string;
+  name: string;
+  url: string;
+  icon: string | null;
+}
+
+export interface ConfirmDialog {
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
 const STORAGE_KEY_PROJECTS = 'canvascritique_projects';
 const STORAGE_KEY_SETTINGS = 'canvascritique_settings';
 
 // Helper to check for default projects if none exist
-const defaultProjects = [
+const defaultProjects: Project[] = [
   {
     id: 'spencerian',
     name: 'Spencerian Script',
     icon: 'history_edu',
     guidelines: '',
     categories: ['Basics', 'Intermediate', 'Advanced'],
+    profileId: 'default-profile',
     tasks: [
       {
         id: 'sp-1',
@@ -43,6 +126,7 @@ const defaultProjects = [
     icon: 'draw',
     guidelines: '',
     categories: ['Basics', 'Intermediate', 'Advanced'],
+    profileId: 'default-profile',
     tasks: [
       {
         id: 'cp-1',
@@ -67,6 +151,7 @@ const defaultProjects = [
     name: 'Business Penmanship',
     icon: 'ink_pen',
     categories: ['Basics', 'Intermediate', 'Advanced'],
+    profileId: 'default-profile',
     tasks: [
       {
         id: 'bp-1',
@@ -122,7 +207,7 @@ You must return a JSON object with the following schema:
 
 Return ONLY this JSON object. Do not include any other conversational text.`;
 
-const defaultSettings = {
+const defaultSettings: Settings = {
   theme: 'system',
   apiProvider: 'gemini',
   geminiApiKey: '',
@@ -154,28 +239,28 @@ const defaultSettings = {
 class CanvasCritiqueStore {
   // Runes
   currentView = $state('dashboard'); // 'dashboard' | 'practice' | 'settings' | 'task-editor' | 'project-detail'
-  projects = $state([]);
-  activeProject = $state(null);
-  activeTask = $state(null);
-  editingTask = $state(null);
-  quickAddTaskData = $state(null);
-  settings = $state(defaultSettings);
-  customBackgrounds = $state([]);
-  confirmDialog = $state(null);
-  canvasSaves = $state({});
+  projects = $state<Project[]>([]);
+  activeProject = $state<Project | null>(null);
+  activeTask = $state<Task | null>(null);
+  editingTask = $state<Task | null>(null);
+  quickAddTaskData = $state<{ name: string; category: string } | null>(null);
+  settings = $state<Settings>(defaultSettings);
+  customBackgrounds = $state<CustomBackground[]>([]);
+  confirmDialog = $state<ConfirmDialog | null>(null);
+  canvasSaves = $state<Record<string, any>>({});
   canvasSettingsOpen = $state(false);
   lastDetectedButton = $state<{ button: number; buttons: number; pointerType: string } | null>(null);
-  profiles = $state<any[]>([]);
+  profiles = $state<Profile[]>([]);
   activeProfileId = $state<string>('');
 
   // Getters for dynamic API/Model selection
-  get apiKey() {
+  get apiKey(): string {
     return this.settings.apiProvider === 'gemini'
       ? this.settings.geminiApiKey
       : this.settings.openRouterApiKey;
   }
 
-  get model() {
+  get model(): string {
     return this.settings.apiProvider === 'gemini'
       ? this.settings.geminiModel
       : this.settings.openRouterModel;
@@ -384,7 +469,7 @@ class CanvasCritiqueStore {
     localStorage.setItem('canvascritique_custom_backgrounds', JSON.stringify(this.customBackgrounds));
   }
 
-  addCustomBackground(name, url, icon = null) {
+  addCustomBackground(name: string, url: string, icon: string | null = null): CustomBackground {
     const newBg = {
       id: 'custom-bg-' + Date.now(),
       name,
@@ -396,12 +481,12 @@ class CanvasCritiqueStore {
     return newBg;
   }
 
-  deleteCustomBackground(id) {
+  deleteCustomBackground(id: string): void {
     this.customBackgrounds = this.customBackgrounds.filter(bg => bg.id !== id);
     this.saveCustomBackgrounds();
   }
 
-  recordPointerEvent(e: PointerEvent) {
+  recordPointerEvent(e: PointerEvent): void {
     if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
       this.lastDetectedButton = {
         button: e.button,
@@ -411,7 +496,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  applyTheme(theme) {
+  applyTheme(theme: string): void {
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
@@ -433,27 +518,27 @@ class CanvasCritiqueStore {
   }
 
   // Navigation actions
-  setView(view) {
+  setView(view: string): void {
     this.currentView = view;
   }
 
-  selectProject(project) {
+  selectProject(project: Project | null): void {
     this.activeProject = project;
   }
 
-  selectTask(task) {
+  selectTask(task: Task | null): void {
     this.activeTask = task;
     this.setView('practice');
   }
 
-  setEditingTask(task) {
+  setEditingTask(task: Task | null): void {
     this.editingTask = task;
     this.setView('task-editor');
   }
 
   // Mutation actions
-  addProject(name, icon = 'history_edu') {
-    const newProj = {
+  addProject(name: string, icon: string = 'history_edu'): Project {
+    const newProj: Project = {
       id: 'proj-' + Date.now(),
       name,
       icon,
@@ -471,7 +556,7 @@ class CanvasCritiqueStore {
     return newProj;
   }
 
-  addCategory(projectId, categoryName) {
+  addCategory(projectId: string, categoryName: string): void {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -489,7 +574,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  renameCategory(projectId, oldName, newName) {
+  renameCategory(projectId: string, oldName: string, newName: string): void {
     if (!newName || !newName.trim() || oldName === newName) return;
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
@@ -515,11 +600,19 @@ class CanvasCritiqueStore {
     }
   }
 
-  addTask(projectId, name, instructions, solution, category = 'Basics', instructionFiles = [], solutionFiles = []) {
+  addTask(
+    projectId: string,
+    name: string,
+    instructions: string,
+    solution: string,
+    category: string = 'Basics',
+    instructionFiles: any[] = [],
+    solutionFiles: any[] = []
+  ): void {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
-    const newTask = {
+    const newTask: Task = {
       id: 'task-' + Date.now(),
       name,
       completed: false,
@@ -545,7 +638,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  updateTask(projectId, taskId, updatedData) {
+  updateTask(projectId: string, taskId: string, updatedData: Partial<Task>): void {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -578,7 +671,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  reorderTasks(projectId, category, taskIdsOrder) {
+  reorderTasks(projectId: string, category: string, taskIdsOrder: string[]): void {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -601,7 +694,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  moveAndReorderTask(projectId, taskId, targetCategory, targetIndex) {
+  moveAndReorderTask(projectId: string, taskId: string, targetCategory: string, targetIndex: number): void {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -628,7 +721,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  toggleTaskCompleted(projectId, taskId) {
+  toggleTaskCompleted(projectId: string, taskId: string): void {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -646,7 +739,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  updateProjectGuidelines(projectId, guidelines) {
+  updateProjectGuidelines(projectId: string, guidelines: string): void {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
     project.guidelines = guidelines;
@@ -656,7 +749,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  deleteProject(projectId) {
+  deleteProject(projectId: string): void {
     this.projects = this.projects.filter(p => p.id !== projectId);
     this.saveProjects();
     if (this.activeProject && this.activeProject.id === projectId) {
@@ -666,7 +759,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  confirm(title, message, onConfirm, onCancel = null) {
+  confirm(title: string, message: string, onConfirm: () => void, onCancel: (() => void) | null = null): void {
     this.confirmDialog = {
       title,
       message,
@@ -681,39 +774,35 @@ class CanvasCritiqueStore {
     };
   }
 
-  saveCanvasState(taskId, data) {
+  saveCanvasState(taskId: string, data: any): void {
     this.canvasSaves[taskId] = data;
     localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
   }
 
-  getCanvasState(taskId) {
+  getCanvasState(taskId: string): any {
     return this.canvasSaves[taskId] || null;
   }
 
-  importProject(projectData: any) {
+  importProject(projectData: any): void {
     const data = Array.isArray(projectData) ? projectData : [projectData];
-    let lastImported = null;
+    let lastImported: Project | null = null;
 
     for (const proj of data) {
       if (!proj || typeof proj !== 'object' || !proj.name) continue;
 
-      // Check if project.id already exists to avoid conflict, or generate a new unique ID
       let newId = proj.id;
       if (!newId || this.projects.some(p => p.id === newId)) {
         newId = 'proj-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
       }
 
-      // Ensure categories exist
       const categories = proj.categories || [];
 
-      // Ensure tasks exist and are initialized
       const tasks = (proj.tasks || []).map((t: any, idx: number) => {
         let taskId = t.id;
         if (!taskId) {
           taskId = 'task-' + Date.now() + '-' + idx + '-' + Math.random().toString(36).substring(2, 5);
         }
         
-        // Normalize legacy files
         let instructionFiles = t.instructionFiles || [];
         if (t.instructionFile && instructionFiles.length === 0) {
           instructionFiles = [t.instructionFile];
@@ -734,7 +823,7 @@ class CanvasCritiqueStore {
         };
       });
 
-      const newProj = {
+      const newProj: Project = {
         ...proj,
         id: newId,
         name: proj.name,
@@ -758,7 +847,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  exportProject(project: any) {
+  exportProject(project: Project): void {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
