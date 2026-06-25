@@ -55,14 +55,8 @@
   }
 
   // Settings export/import
-  function handleExport() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store.settings));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "canvascritique_settings.json");
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+  async function handleExport() {
+    await store.saveFileWithDialog('canvascritique_settings.json', JSON.stringify(store.settings, null, 2));
   }
 
   function handleImport() {
@@ -89,14 +83,8 @@
   }
 
   // Data export/import
-  function handleExportData() {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store.projects));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "canvascritique_data.json");
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+  async function handleExportData() {
+    await store.saveFileWithDialog('canvascritique_data.json', JSON.stringify(store.projects, null, 2));
   }
 
   function handleImportData() {

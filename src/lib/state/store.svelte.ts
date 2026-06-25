@@ -61,6 +61,7 @@ export interface Settings {
   language: string;
   stylusButtons: StylusButton[];
   stylusMode: boolean;
+  autoCompleteOnSuccess: boolean;
 }
 
 export interface Profile {
@@ -256,7 +257,8 @@ const defaultSettings: Settings = {
   systemPromptEditingEnabled: false,
   language: 'English',
   stylusButtons: [],
-  stylusMode: false
+  stylusMode: false,
+  autoCompleteOnSuccess: false
 };
 
 // State classes for Svelte 5 Runes reactivity
@@ -1166,13 +1168,8 @@ class CanvasCritiqueStore {
           filename = `tasks_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`;
         }
 
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", filename);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
+        const dataStr = JSON.stringify(exportData);
+        await this.saveFileWithDialog(filename, dataStr);
         this.exportDialog = null;
       },
       onCancel: () => {
@@ -1187,6 +1184,43 @@ class CanvasCritiqueStore {
       tasks: tasks
     };
     this.exportProject(tempProject);
+  }
+
+  /**
+   * Save a text/JSON file. Uses Tauri's native save dialog when available,
+   * falls back to a browser anchor-download otherwise.
+   */
+  async saveFileWithDialog(suggestedFilename: string, content: string): Promise<void> {
+    try {
+      if ((window as any).__TAURI__) {
+        const dialogModule = '@tauri-apps/plugin-dialog';
+        const fsModule = '@tauri-apps/plugin-fs';
+        const { save } = await import(/* @vite-ignore */ dialogModule);
+        const { writeTextFile } = await import(/* @vite-ignore */ fsModule);
+
+        const filePath = await save({
+          defaultPath: suggestedFilename,
+          filters: [{ name: 'JSON', extensions: ['json'] }]
+        });
+
+        if (filePath) {
+          await writeTextFile(filePath, content);
+          this.showNotification('File saved successfully.', 'success');
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn('Tauri save dialog failed, falling back to browser download:', e);
+    }
+
+    // Browser fallback
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(content);
+    const anchor = document.createElement('a');
+    anchor.setAttribute('href', dataStr);
+    anchor.setAttribute('download', suggestedFilename);
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
   }
 
   showNotification(message: string, type: 'success' | 'error' | 'info' = 'success', duration = 3000): void {

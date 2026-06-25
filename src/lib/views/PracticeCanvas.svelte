@@ -1345,7 +1345,7 @@
             feedbackMarkers
           }
         };
-        if (feedbackScore === 100) {
+        if (feedbackScore === 100 && store.settings.autoCompleteOnSuccess) {
           updatedData.completed = true;
         }
         store.updateTask(store.activeProject.id, store.activeTask.id, updatedData);
