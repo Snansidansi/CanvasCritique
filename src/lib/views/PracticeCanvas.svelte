@@ -213,6 +213,7 @@
   let isPointerSelect = $state(false);
   let isPointerPan = $state(false);
   let isPointerPen = $state(false);
+  let isSelectToolOneShot = $state(false);
 
   let previousTool = $state('pen');
   $effect(() => {
@@ -443,29 +444,42 @@
 
     activePointers.set(e.pointerId, e);
 
-    // Check if 2 fingers are touching for pinch-to-zoom
+    // Palm rejection: If pen is active, ignore and purge finger touches
+    if (e.pointerType === 'pen') {
+      for (const [id, pointer] of activePointers.entries()) {
+        if (pointer.pointerType === 'touch') {
+          activePointers.delete(id);
+        }
+      }
+    }
+
+    // Check if 2 fingers are touching for pinch-to-zoom (ignore stylus palm touches)
     if (activePointers.size === 2) {
       const pts = Array.from(activePointers.values());
-      const p1 = pts[0];
-      const p2 = pts[1];
+      const isMultiTouch = pts.every(p => p.pointerType === 'touch');
       
-      // Calculate initial pinch values
-      initialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
-      initialPinchZoom = zoomScale;
-      initialPinchMidpoint = {
-        x: (p1.clientX + p2.clientX) / 2,
-        y: (p1.clientY + p2.clientY) / 2
-      };
-      initialPinchPanOffset = { ...panOffset };
-      isPinching = true;
-      
-      // Cancel drawing or simple panning
-      isDrawing = false;
-      currentStroke = [];
-      isPanning = false;
-      
-      e.preventDefault();
-      return;
+      if (isMultiTouch) {
+        const p1 = pts[0];
+        const p2 = pts[1];
+        
+        // Calculate initial pinch values
+        initialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+        initialPinchZoom = zoomScale;
+        initialPinchMidpoint = {
+          x: (p1.clientX + p2.clientX) / 2,
+          y: (p1.clientY + p2.clientY) / 2
+        };
+        initialPinchPanOffset = { ...panOffset };
+        isPinching = true;
+        
+        // Cancel drawing or simple panning
+        isDrawing = false;
+        currentStroke = [];
+        isPanning = false;
+        
+        e.preventDefault();
+        return;
+      }
     }
 
     if (activePointers.size > 2) {
@@ -502,6 +516,10 @@
           break; // Stop at first match
         }
       }
+    }
+
+    if (store.settings.stylusMode && isPen && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen) {
+      activeTool = 'pen';
     }
 
     // Check for right-click: open paste context menu for mouse/non-pen pointers
@@ -574,6 +592,7 @@
 
     if (isPointerSelect) {
       activeTool = 'select';
+      isSelectToolOneShot = true;
       selectedStrokes = [];
       selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
       isMovingSelection = false;
@@ -585,21 +604,29 @@
         selectionDragStart = { x: coords.x, y: coords.y };
         selectionBox = null;
       } else {
-        // Normal touch outside selection -> revert tool and act accordingly
-        activeTool = previousTool || 'pen';
-        selectedStrokes = [];
-        selectionBox = null;
+        if (isSelectToolOneShot) {
+          // Revert tool if it was a temporary stylus shortcut
+          activeTool = previousTool || 'pen';
+          isSelectToolOneShot = false;
+          selectedStrokes = [];
+          selectionBox = null;
 
-        const isPanAction = canvasMode === 'infinite' && 
-          (e.button === 1 || activeTool === 'pan' || isPointerPan || (store.settings.stylusMode && isFingerOrMouse));
+          const isPanAction = canvasMode === 'infinite' && 
+            (e.button === 1 || activeTool === 'pan' || isPointerPan || (store.settings.stylusMode && isFingerOrMouse));
 
-        if (isPanAction) {
-          isPanning = true;
-          panStart = { x: e.clientX, y: e.clientY };
-          panBaseOffset = { ...panOffset };
+          if (isPanAction) {
+            isPanning = true;
+            panStart = { x: e.clientX, y: e.clientY };
+            panBaseOffset = { ...panOffset };
+          } else {
+            isDrawing = true;
+            currentStroke = [coords];
+          }
         } else {
-          isDrawing = true;
-          currentStroke = [coords];
+          // Keep select tool active, just start a new marquee selection
+          selectedStrokes = [];
+          selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
+          isMovingSelection = false;
         }
       }
     } else {
@@ -610,6 +637,15 @@
 
   function handlePointerMove(e) {
     activePointers.set(e.pointerId, e);
+
+    // Palm rejection: If pen is active, ignore and purge finger touches
+    if (e.pointerType === 'pen') {
+      for (const [id, pointer] of activePointers.entries()) {
+        if (pointer.pointerType === 'touch') {
+          activePointers.delete(id);
+        }
+      }
+    }
 
     if (isPinching && activePointers.size === 2) {
       e.preventDefault();
