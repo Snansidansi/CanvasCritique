@@ -99,17 +99,15 @@
   }
 
   function onPointerDown(e: PointerEvent) {
-    // If expanded, we only drag via dragHandle
-    // If collapsed, we can drag by clicking anywhere on it
     const target = e.target as HTMLElement;
     const dragHandle = target.closest('.drag-handle-area');
     const isCollapsedDrag = isCollapsed;
 
     if (!dragHandle && !isCollapsedDrag) return;
 
-    if (dragHandle) {
-      e.preventDefault();
-    }
+    // Prevent text selection and browser default touch handling
+    e.preventDefault();
+
     isDragging = true;
     dragMoved = false;
 
@@ -130,9 +128,9 @@
     dragStartRight = rightX;
     dragStartBottom = bottomY;
 
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-
+    // Use pointer capture on the element itself — the browser will route all
+    // pointermove / pointerup events to this element regardless of where the
+    // pointer physically is, making touch and stylus perfectly smooth.
     try {
       paletteElement?.setPointerCapture(e.pointerId);
     } catch (err) {}
@@ -144,7 +142,6 @@
     const deltaX = e.clientX - dragStartMouseX;
     const deltaY = e.clientY - dragStartMouseY;
 
-    // Mark as moved if threshold exceeded to distinguish click vs drag
     if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
       dragMoved = true;
     }
@@ -155,7 +152,6 @@
     if (paletteElement) {
       const rect = paletteElement.getBoundingClientRect();
       const margin = 12;
-      
       newRight = Math.max(margin, Math.min(newRight, window.innerWidth - rect.width - margin));
       newBottom = Math.max(margin, Math.min(newBottom, window.innerHeight - rect.height - margin));
     }
@@ -165,9 +161,8 @@
   }
 
   function onPointerUp(e: PointerEvent) {
+    if (!isDragging) return;
     isDragging = false;
-    window.removeEventListener('pointermove', onPointerMove);
-    window.removeEventListener('pointerup', onPointerUp);
 
     try {
       paletteElement?.releasePointerCapture(e.pointerId);
@@ -182,14 +177,25 @@
       toggleCollapse();
     }
   }
+
+  function onPointerCancel(e: PointerEvent) {
+    isDragging = false;
+    try {
+      paletteElement?.releasePointerCapture(e.pointerId);
+    } catch (err) {}
+  }
 </script>
 
 <div 
   bind:this={paletteElement}
-  class="fixed bg-surface-container/95 backdrop-blur-md shadow-lg border border-outline-variant/30 select-none z-20 flex items-center palette-transition
-         {isCollapsed ? 'w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : (canvasMode === 'infinite' ? 'w-172' : 'w-162') + ' h-12 px-4 rounded-full'}"
-  style="{positionStyle}"
+  class="fixed bg-surface-container/95 backdrop-blur-md shadow-lg border border-outline-variant/30 select-none z-20 flex items-center
+         {isCollapsed ? 'w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : (canvasMode === 'infinite' ? 'w-172' : 'w-162') + ' h-12 px-4 rounded-full'}
+         {isDragging ? '' : 'palette-transition'}"
+  style="{positionStyle} touch-action: none;"
   onpointerdown={onPointerDown}
+  onpointermove={onPointerMove}
+  onpointerup={onPointerUp}
+  onpointercancel={onPointerCancel}
   role="toolbar"
   aria-label="Drawing tools"
   tabindex="-1"
