@@ -2,6 +2,14 @@
   import { store, DEFAULT_SYSTEM_PROMPT } from '../state/store.svelte';
   import { onMount, tick } from 'svelte';
 
+  // Subcomponents
+  import PracticeHeader from '../components/practice/PracticeHeader.svelte';
+  import PracticeInfoPanels from '../components/practice/PracticeInfoPanels.svelte';
+  import CustomBgModal from '../components/practice/CustomBgModal.svelte';
+  import FloatingToolPalette from '../components/practice/FloatingToolPalette.svelte';
+  import CritiqueOverlay from '../components/practice/CritiqueOverlay.svelte';
+  import MarkerTooltip from '../components/practice/MarkerTooltip.svelte';
+
   // Active task details from store
   let task = $derived(store.activeTask || {
     name: 'Practice Canvas',
@@ -19,17 +27,7 @@
   
   // Resizable left panel splitter state
   let splitWidth = $state(400); // Default instructions panel width
-  let isDraggingSplitter = $state(false);
-  let startX = 0;
-  let startWidth = 0;
-
-  // Background dropdown and Custom Upload Modal states
-  let bgDropdownOpen = $state(false);
   let isCustomBgModalOpen = $state(false);
-  let newBgName = $state('');
-  let newBgFile = $state(null);
-  let newBgIconFile = $state(null);
-  let useBgAsIcon = $state(true);
 
   // Brush configuration
   let strokeColor = $state('#000000');
@@ -979,74 +977,7 @@
     };
   });
 
-  // Draggable splitter panel sizing
-  function startSplitDrag(e) {
-    isDraggingSplitter = true;
-    startX = e.clientX;
-    startWidth = splitWidth;
-    window.addEventListener('mousemove', handleSplitDrag);
-    window.addEventListener('mouseup', stopSplitDrag);
-  }
 
-  function handleSplitDrag(e) {
-    if (!isDraggingSplitter) return;
-    const deltaX = e.clientX - startX;
-    const newWidth = startWidth + deltaX;
-    
-    // Bounds constraints
-    if (newWidth >= 180 && newWidth <= 800) {
-      splitWidth = newWidth;
-    }
-  }
-
-  function stopSplitDrag() {
-    isDraggingSplitter = false;
-    window.removeEventListener('mousemove', handleSplitDrag);
-    window.removeEventListener('mouseup', stopSplitDrag);
-  }
-
-  // Custom Background Management Modal Handlers
-  function handleBgUploadChange(e) {
-    newBgFile = e.target.files[0];
-  }
-  function handleBgIconUploadChange(e) {
-    newBgIconFile = e.target.files[0];
-  }
-
-  function handleAddCustomBg(e) {
-    e.preventDefault();
-    if (!newBgName.trim() || !newBgFile) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const bgUrl = event.target.result;
-
-      if (useBgAsIcon || !newBgIconFile) {
-        const bg = store.addCustomBackground(newBgName.trim(), bgUrl, bgUrl);
-        activeBg = bg.id;
-        isCustomBgModalOpen = false;
-        resetCustomBgModal();
-      } else {
-        const iconReader = new FileReader();
-        iconReader.onload = (iconEvent) => {
-          const iconUrl = iconEvent.target.result;
-          const bg = store.addCustomBackground(newBgName.trim(), bgUrl, iconUrl);
-          activeBg = bg.id;
-          isCustomBgModalOpen = false;
-          resetCustomBgModal();
-        };
-        iconReader.readAsDataURL(newBgIconFile);
-      }
-    };
-    reader.readAsDataURL(newBgFile);
-  }
-
-  function resetCustomBgModal() {
-    newBgName = '';
-    newBgFile = null;
-    newBgIconFile = null;
-    useBgAsIcon = true;
-  }
 
   // Load custom background Image asynchronously helper for canvas pattern
   function loadImage(src) {
@@ -1639,423 +1570,44 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   }
 </script>
 
-<!-- Integrated ScribeFlow Toolbar & Top Header -->
 <div class="grow flex flex-col min-w-0 h-full overflow-hidden">
-  
-  <header class="bg-surface border-b border-outline-variant flex items-center justify-between w-full px-6 py-3 shrink-0 z-20 select-none gap-4">
-    <!-- Left: Back link and Title -->
-    <div class="flex items-center gap-3 min-w-0 shrink-0">
-      <button 
-        onclick={handleBack}
-        class="material-symbols-outlined text-primary hover:bg-surface-container-high p-1.5 rounded-lg cursor-pointer focus:outline-none flex items-center justify-center"
-        title="Back to Project"
-      >
-        arrow_back
-      </button>
-      <h1 class="font-bold text-base text-primary truncate max-w-50">{task.name}</h1>
-      <button 
-        onclick={() => store.updateTask(store.activeProject.id, task.id, { completed: !task.completed })}
-        class="ml-1 flex items-center justify-center p-1 rounded-full border border-outline-variant hover:bg-surface-container-high transition-colors focus:outline-none cursor-pointer {task.completed ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' : 'text-on-surface-variant'}"
-        title={task.completed ? "Mark Incomplete" : "Mark Completed"}
-      >
-        <span class="material-symbols-outlined text-[18px]">
-          {task.completed ? 'check_circle' : 'radio_button_unchecked'}
-        </span>
-      </button>
-    </div>
-
-    <!-- Center: Premium Practice Controls Toolbar -->
-    <div class="flex items-center gap-4 text-xs font-semibold text-on-surface-variant flex-wrap justify-center">
-      
-      <!-- Background Selection Autocomplete -->
-      <div class="relative">
-        <button 
-          onclick={() => bgDropdownOpen = !bgDropdownOpen}
-          class="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-outline-variant rounded-lg bg-surface hover:bg-surface-container cursor-pointer focus:outline-none"
-        >
-          {#if activeBg === 'grid'}
-            <span class="material-symbols-outlined text-base">apps</span>
-          {:else if activeBg === 'lines'}
-            <span class="material-symbols-outlined text-base">reorder</span>
-          {:else if activeBg === 'blank'}
-            <span class="material-symbols-outlined text-base">check_box_outline_blank</span>
-          {:else if currentBgObject && currentBgObject.icon && currentBgObject.icon.startsWith('data:image/')}
-            <img src={currentBgObject.icon} class="w-4 h-4 object-contain rounded" alt="" />
-          {:else}
-            <span class="material-symbols-outlined text-base">image</span>
-          {/if}
-          <span>Bg: {
-            activeBg === 'grid' ? 'Dots' :
-            activeBg === 'lines' ? 'Lines' :
-            activeBg === 'blank' ? 'Blank' :
-            (currentBgObject ? currentBgObject.name : 'Custom')
-          }</span>
-          <span class="material-symbols-outlined text-xs">expand_more</span>
-        </button>
-
-        {#if bgDropdownOpen}
-          <!-- Invisible Click-Away overlay -->
-          <button type="button" class="fixed inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" onclick={() => bgDropdownOpen = false}></button>
-          
-          <!-- Dropdown Options Box -->
-          <div class="absolute top-[calc(100%+4px)] left-0 bg-surface-container-high border border-outline-variant rounded-lg shadow-lg z-50 py-1 min-w-50 max-h-60 overflow-y-auto custom-scrollbar">
-            <button 
-              onclick={() => { activeBg = 'grid'; bgDropdownOpen = false; }}
-              class="w-full text-left px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer {activeBg === 'grid' ? 'bg-primary/5 text-primary font-bold' : 'text-on-surface'}"
-            >
-              <span class="material-symbols-outlined text-base">apps</span>
-              Dots
-            </button>
-            <button 
-              onclick={() => { activeBg = 'lines'; bgDropdownOpen = false; }}
-              class="w-full text-left px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer {activeBg === 'lines' ? 'bg-primary/5 text-primary font-bold' : 'text-on-surface'}"
-            >
-              <span class="material-symbols-outlined text-base">reorder</span>
-              Ruled Lines
-            </button>
-            <button 
-              onclick={() => { activeBg = 'blank'; bgDropdownOpen = false; }}
-              class="w-full text-left px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer {activeBg === 'blank' ? 'bg-primary/5 text-primary font-bold' : 'text-on-surface'}"
-            >
-              <span class="material-symbols-outlined text-base">check_box_outline_blank</span>
-              Blank Paper
-            </button>
-
-            <!-- Render Uploaded Templates List -->
-            {#if store.customBackgrounds.length > 0}
-              <div class="border-t border-outline-variant/30 my-1"></div>
-              {#each store.customBackgrounds as customBg}
-                <div class="flex items-center justify-between hover:bg-primary/10 hover:text-primary group px-1">
-                  <button 
-                    onclick={() => { activeBg = customBg.id; bgDropdownOpen = false; }}
-                    class="grow text-left px-2 py-2 text-xs flex items-center gap-2 cursor-pointer {activeBg === customBg.id ? 'bg-primary/5 text-primary font-bold' : 'text-on-surface'}"
-                  >
-                    {#if customBg.icon && customBg.icon.startsWith('data:image/')}
-                      <img src={customBg.icon} class="w-4 h-4 object-contain rounded" alt="" />
-                    {:else}
-                      <span class="material-symbols-outlined text-base">image</span>
-                    {/if}
-                    <span class="truncate max-w-30">{customBg.name}</span>
-                  </button>
-                  <button 
-                    onclick={() => {
-                      bgDropdownOpen = false;
-                      store.confirm(
-                        'Delete Background Template',
-                        `Are you sure you want to delete the background template "${customBg.name}"?`,
-                        () => {
-                          if (activeBg === customBg.id) activeBg = 'grid';
-                          store.deleteCustomBackground(customBg.id);
-                        }
-                      );
-                    }}
-                    class="p-1.5 text-outline hover:text-error opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none cursor-pointer flex items-center justify-center"
-                    title="Delete Background"
-                  >
-                    <span class="material-symbols-outlined text-sm">delete</span>
-                  </button>
-                </div>
-              {/each}
-            {/if}
-
-            <div class="border-t border-outline-variant/30 my-1"></div>
-            <button 
-              onclick={() => { isCustomBgModalOpen = true; bgDropdownOpen = false; }}
-              class="w-full text-left px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer text-primary font-semibold"
-            >
-              <span class="material-symbols-outlined text-base">add_box</span>
-              Add Custom Background...
-            </button>
-          </div>
-        {/if}
-      </div>
-
-      <!-- Template Background Opacity Slider -->
-      {#if activeBg !== 'blank'}
-        <div class="flex items-center gap-2 border-r border-outline-variant/30 pr-4">
-          <span class="text-[10px] text-outline">Opacity</span>
-          <input 
-            type="range" 
-            min="1" 
-            max="100" 
-            bind:value={bgOpacity}
-            class="w-16 h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary"
-          />
-          <span class="text-[10px] text-on-surface min-w-[24px]">{bgOpacity}%</span>
-        </div>
-      {/if}
-
-      <!-- Zoom Controls -->
-      <div class="flex items-center gap-1 border-r border-outline-variant/30 pr-4">
-        <button 
-          onclick={() => {
-            zoomScale = Math.max(0.2, zoomScale - 0.1);
-            if (canvasMode === 'infinite') {
-              panOffset = {
-                x: Math.min(0, panOffset.x),
-                y: Math.min(0, panOffset.y)
-              };
-            }
-            saveToStore();
-          }}
-          disabled={zoomScale <= 0.2}
-          class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-          title="Zoom Out"
-        >
-          <span class="material-symbols-outlined text-base">zoom_out</span>
-        </button>
-        
-        <button
-          onclick={() => {
-            zoomScale = 1;
-            panOffset = { x: 0, y: 0 };
-            saveToStore();
-          }}
-          class="px-2 py-1 text-[10px] text-on-surface hover:bg-surface-container-high rounded font-semibold select-none cursor-pointer transition-colors"
-          title="Reset Zoom & Pan"
-        >
-          {Math.round(zoomScale * 100)}%
-        </button>
-        
-        <button 
-          onclick={() => {
-            zoomScale = Math.min(4.0, zoomScale + 0.1);
-            saveToStore();
-          }}
-          disabled={zoomScale >= 4.0}
-          class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-          title="Zoom In"
-        >
-          <span class="material-symbols-outlined text-base">zoom_in</span>
-        </button>
-      </div>
- 
-      <!-- A4 Page Switcher (Only in A4 Mode) -->
-      {#if canvasMode === 'a4'}
-        <div class="flex items-center gap-2 border-r border-outline-variant/30 pr-4">
-          <button 
-            onclick={() => {
-              if (activePageIndex > 0) {
-                activePageIndex--;
-                activeTooltipMarker = null;
-                saveToStore();
-              }
-            }}
-            disabled={activePageIndex === 0}
-            class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-            title="Previous Page"
-          >
-            <span class="material-symbols-outlined text-base">navigate_before</span>
-          </button>
-          
-          <span class="text-xs text-on-surface-variant font-semibold select-none">
-            Page {activePageIndex + 1} of {pages.length}
-          </span>
-          
-          <button 
-            onclick={() => {
-              if (activePageIndex < pages.length - 1) {
-                activePageIndex++;
-                activeTooltipMarker = null;
-                saveToStore();
-              }
-            }}
-            disabled={activePageIndex === pages.length - 1}
-            class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-            title="Next Page"
-          >
-            <span class="material-symbols-outlined text-base">navigate_next</span>
-          </button>
-          
-          <button 
-            onclick={() => {
-              pages.push({
-                id: 'page-' + Date.now(),
-                strokeHistory: [],
-                redoStack: []
-              });
-              activePageIndex = pages.length - 1;
-              activeTooltipMarker = null;
-              saveToStore();
-            }}
-            class="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors focus:outline-none cursor-pointer flex items-center justify-center"
-            title="Add Page"
-          >
-            <span class="material-symbols-outlined text-base">note_add</span>
-          </button>
-
-          {#if pages.length > 1}
-            <button 
-              onclick={() => {
-                store.confirm(
-                  'Delete Page',
-                  `Are you sure you want to delete Page ${activePageIndex + 1}? All drawings on this page will be permanently lost.`,
-                  () => {
-                    pages.splice(activePageIndex, 1);
-                    if (activePageIndex >= pages.length) {
-                      activePageIndex = pages.length - 1;
-                    }
-                    activeTooltipMarker = null;
-                    saveToStore();
-                  }
-                );
-              }}
-              class="p-1.5 text-error hover:bg-error/10 rounded-lg transition-colors focus:outline-none cursor-pointer flex items-center justify-center"
-              title="Delete Page"
-            >
-              <span class="material-symbols-outlined text-base">delete</span>
-            </button>
-          {/if}
-        </div>
-      {/if}
-
-      <!-- Split layout visibility toggles -->
-      <div class="flex items-center gap-1">
-        <button 
-          onclick={() => showTask = !showTask}
-          class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold focus:outline-none cursor-pointer transition-all flex items-center gap-1
-                 {showTask ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}"
-          title="Toggle Instructions"
-        >
-          <span class="material-symbols-outlined text-base">menu_book</span>
-          <span>Task</span>
-        </button>
-
-        <button 
-          onclick={() => showSolution = !showSolution}
-          class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold focus:outline-none cursor-pointer transition-all flex items-center gap-1
-                 {showSolution ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}"
-          title="Toggle Solution Goal"
-        >
-          <span class="material-symbols-outlined text-base">visibility</span>
-          <span>Solution</span>
-        </button>
-
-        {#if hasCheckedWork}
-          <button 
-            onclick={() => {
-              showFeedback = !showFeedback;
-              if (!showFeedback) {
-                showCritiqueBanner = false;
-              }
-            }}
-            class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold focus:outline-none cursor-pointer transition-all flex items-center gap-1
-                   {showFeedback ? 'border-primary bg-primary/10 text-primary animate-pulse' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}"
-            title="Toggle AI Critique"
-          >
-            <span class="material-symbols-outlined text-base">neurology</span>
-            <span>Critique</span>
-          </button>
-        {/if}
-      </div>
-
-      <!-- Divider element and Clear button -->
-      <div class="h-5 w-px bg-outline-variant/30 hidden sm:block"></div>
-      <button 
-        onclick={clearCanvas}
-        class="flex items-center gap-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-highest px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none"
-        title="Clear Canvas"
-      >
-        <span class="material-symbols-outlined text-base">delete_sweep</span>
-        <span>Clear</span>
-      </button>
-    </div>
-
-    <!-- Right side: Undo / Redo & Check Work Actions -->
-    <div class="flex items-center gap-3 shrink-0">
-      <div class="flex items-center gap-1 border-r border-outline-variant/30 pr-3">
-        <button 
-          onclick={handleUndo} 
-          disabled={strokeHistory.length === 0}
-          class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-          title="Undo"
-        >
-          <span class="material-symbols-outlined text-base">undo</span>
-        </button>
-        <button 
-          onclick={handleRedo} 
-          disabled={redoStack.length === 0}
-          class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-          title="Redo"
-        >
-          <span class="material-symbols-outlined text-base">redo</span>
-        </button>
-      </div>
-
-      <button 
-        onclick={checkWork}
-        class="bg-primary text-white px-4 py-2 rounded-lg text-xs font-bold hover:shadow-md active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer focus:outline-none"
-      >
-        <span class="material-symbols-outlined text-[16px]">neurology</span>
-        <span>Check Work</span>
-      </button>
-    </div>
-  </header>
+  <PracticeHeader
+    {task}
+    {canvasMode}
+    bind:pages
+    bind:activePageIndex
+    {strokeHistory}
+    {redoStack}
+    bind:activeBg
+    bind:bgOpacity
+    bind:zoomScale
+    bind:panOffset
+    bind:showTask
+    bind:showSolution
+    bind:showFeedback
+    {hasCheckedWork}
+    bind:activeTooltipMarker
+    bind:isCustomBgModalOpen
+    {handleBack}
+    {handleUndo}
+    {handleRedo}
+    {clearCanvas}
+    {checkWork}
+  />
 
   <!-- Interactive practice screen split layout -->
   <div class="grow flex overflow-hidden relative w-full">
     
     <!-- Left side: dynamic split screen task, solution, and critique -->
-    {#if activeLeftPanels.length > 0}
-      <section 
-        class="bg-surface-container-low border-r border-outline-variant flex flex-col overflow-hidden h-full shrink-0"
-        style="width: {splitWidth}px;"
-      >
-        {#each activeLeftPanels as panel, idx}
-          {#if idx > 0}
-            <div class="h-px w-full bg-outline-variant/30"></div>
-          {/if}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div 
-            onclick={panel.isFeedback ? handleCritiqueClick : null}
-            class="flex-1 flex flex-col overflow-y-auto p-6 hide-scrollbar {panel.id === 'solution' ? 'bg-surface-container-low/20' : panel.id === 'feedback' ? 'bg-primary/5' : ''}"
-          >
-            <div class="flex items-center justify-between mb-3 pb-1 border-b border-outline-variant/30">
-              <h2 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5 font-sans select-none">
-                {#if panel.id === 'task'}
-                  <span class="material-symbols-outlined text-base text-primary">menu_book</span>
-                {:else if panel.id === 'solution'}
-                  <span class="material-symbols-outlined text-base text-primary">visibility</span>
-                {:else}
-                  <span class="material-symbols-outlined text-base text-primary">neurology</span>
-                {/if}
-                {panel.title}
-              </h2>
-              {#if panel.id === 'feedback' && feedbackScore !== null}
-                <div class="bg-primary text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-sm select-none">
-                  Score: {feedbackScore}
-                </div>
-              {/if}
-            </div>
-            
-            {#if panel.isFeedback}
-              {#if isChecking}
-                <div class="flex flex-col items-center justify-center py-8 gap-3 my-auto select-none">
-                  <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  <p class="text-xs text-on-surface-variant text-center">{feedbackText}</p>
-                </div>
-              {:else}
-                <div class="text-xs text-on-surface-variant leading-relaxed prose prose-sm dark:prose-invert">
-                  {@html parseMarkdown(feedbackText)}
-                </div>
-              {/if}
-            {:else}
-              <div class="text-xs text-on-surface-variant leading-relaxed whitespace-pre-line">
-                {panel.content}
-              </div>
-            {/if}
-          </div>
-        {/each}
-      </section>
-
-      <!-- Draggable Split Separator -->
-      <div 
-        role="separator"
-        aria-valuenow={splitWidth}
-        class="w-1.5 hover:w-2 bg-outline-variant/60 hover:bg-primary cursor-col-resize select-none h-full z-20 transition-all active:bg-primary shrink-0"
-        onmousedown={startSplitDrag}
-      ></div>
-    {/if}
+    <PracticeInfoPanels
+      bind:splitWidth
+      {activeLeftPanels}
+      {feedbackScore}
+      {isChecking}
+      {feedbackText}
+      {parseMarkdown}
+      {handleCritiqueClick}
+    />
 
     <!-- Right side: Drawing Workspace (Infinite or A4 Centered) -->
     <section 
@@ -2141,42 +1693,11 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
 
             <!-- Tooltip Overlay -->
             {#if activeTooltipMarker}
-              <button 
-                type="button" 
-                class="absolute inset-0 bg-transparent z-40 cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" 
-                onclick={() => activeTooltipMarker = null}
-                aria-label="Dismiss feedback"
-              ></button>
-
-              <div 
-                class="absolute z-50 bg-surface-container-high border border-outline-variant/60 rounded-xl p-4 w-72 shadow-2xl flex flex-col gap-2 -translate-x-1/2 mt-6 animate-fade-in"
-                style="left: {(activeTooltipMarker.canvasX) * zoomScale + panOffset.x}px; top: {(activeTooltipMarker.canvasY) * zoomScale + panOffset.y}px;"
-              >
-                <div class="flex items-center gap-2">
-                  <span class="material-symbols-outlined text-base 
-                    {activeTooltipMarker.type === 'correct' ? 'text-emerald-500' : 
-                     activeTooltipMarker.type === 'incorrect' ? 'text-red-500' : 
-                     'text-amber-500'}">
-                    {activeTooltipMarker.type === 'correct' ? 'check_circle' : 
-                     activeTooltipMarker.type === 'incorrect' ? 'cancel' : 
-                     'warning'}
-                  </span>
-                  <span class="text-xs font-bold uppercase tracking-wider text-on-surface">
-                    {activeTooltipMarker.type === 'correct' ? 'Correct' : 
-                     activeTooltipMarker.type === 'incorrect' ? 'Incorrect' : 
-                     'Partial'}
-                  </span>
-                  <button 
-                    onclick={() => activeTooltipMarker = null} 
-                    class="ml-auto material-symbols-outlined text-[16px] text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer border-0 bg-transparent p-0 flex items-center justify-center"
-                  >
-                    close
-                  </button>
-                </div>
-                <p class="text-xs text-on-surface-variant leading-relaxed">
-                  {activeTooltipMarker.feedback}
-                </p>
-              </div>
+              <MarkerTooltip
+                bind:activeTooltipMarker
+                left={(activeTooltipMarker.canvasX) * zoomScale + panOffset.x}
+                top={(activeTooltipMarker.canvasY) * zoomScale + panOffset.y}
+              />
             {/if}
           {/if}
         </div>
@@ -2262,42 +1783,11 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
 
           <!-- Tooltip Overlay -->
           {#if activeTooltipMarker && activeTooltipMarker.pageIndex === activePageIndex}
-            <button 
-              type="button" 
-              class="absolute inset-0 bg-transparent z-40 cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" 
-              onclick={() => activeTooltipMarker = null}
-              aria-label="Dismiss feedback"
-            ></button>
-
-            <div 
-              class="absolute z-50 bg-surface-container-high border border-outline-variant/60 rounded-xl p-4 w-72 shadow-2xl flex flex-col gap-2 -translate-x-1/2 mt-6 animate-fade-in"
-              style="left: {activeTooltipMarker.canvasX * a4Scale + leftOffset}px; top: {activeTooltipMarker.canvasY * a4Scale + topOffset}px;"
-            >
-              <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-base 
-                  {activeTooltipMarker.type === 'correct' ? 'text-emerald-500' : 
-                   activeTooltipMarker.type === 'incorrect' ? 'text-red-500' : 
-                   'text-amber-500'}">
-                  {activeTooltipMarker.type === 'correct' ? 'check_circle' : 
-                   activeTooltipMarker.type === 'incorrect' ? 'cancel' : 
-                   'warning'}
-                </span>
-                <span class="text-xs font-bold uppercase tracking-wider text-on-surface">
-                  {activeTooltipMarker.type === 'correct' ? 'Correct' : 
-                   activeTooltipMarker.type === 'incorrect' ? 'Incorrect' : 
-                   'Partial'}
-                </span>
-                <button 
-                  onclick={() => activeTooltipMarker = null} 
-                  class="ml-auto material-symbols-outlined text-[16px] text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer border-0 bg-transparent p-0 flex items-center justify-center"
-                >
-                  close
-                </button>
-              </div>
-              <p class="text-xs text-on-surface-variant leading-relaxed">
-                {activeTooltipMarker.feedback}
-              </p>
-            </div>
+            <MarkerTooltip
+              bind:activeTooltipMarker
+              left={activeTooltipMarker.canvasX * a4Scale + leftOffset}
+              top={activeTooltipMarker.canvasY * a4Scale + topOffset}
+            />
           {/if}
         {/if}
       {/if}
@@ -2387,266 +1877,32 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       {/if}
 
       <!-- Floating Tool Palette -->
-      <div class="fixed bottom-6 right-6 bg-surface-container/95 backdrop-blur-md px-5 py-2.5 rounded-full flex items-center gap-5 shadow-lg border border-outline-variant/30 transition-all hover:scale-[1.02] z-20 select-none">
-        
-        <!-- Color Pickers -->
-        <div class="flex items-center gap-1.5 border-r border-outline-variant pr-4">
-          {#each recentColors as color, idx}
-            <div class="relative group">
-              <button 
-                onclick={() => selectColor(color)}
-                class="w-6 h-6 rounded-full cursor-pointer border-2 transition-all hover:scale-110 focus:outline-none" 
-                style="background-color: {color}; border-color: {strokeColor === color && activeTool === 'pen' ? 'var(--md-sys-color-primary, #1d4ed8)' : 'rgba(0, 0, 0, 0.15)'}; transform: {strokeColor === color && activeTool === 'pen' ? 'scale(1.15)' : 'none'}; box-shadow: {strokeColor === color && activeTool === 'pen' ? '0 0 0 2px var(--md-sys-color-primary-container, rgba(29,78,216,0.25))' : '0 1px 2px rgba(0,0,0,0.1)'};"
-                title="Click to select"
-              ></button>
-              {#if recentColors.length > 1}
-                <button
-                  onclick={() => removeColorFromPalette(idx)}
-                  class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-error text-on-error text-[9px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-0 shadow-sm z-10 hover:scale-110"
-                  title="Remove from palette"
-                >×</button>
-              {/if}
-            </div>
-          {/each}
-          
-          <!-- Save to palette button (visible when custom color not in palette) -->
-          {#if !isCustomColorInPalette && activeTool === 'pen'}
-            <button
-              onclick={addColorToPalette}
-              class="w-6 h-6 rounded-full cursor-pointer border-2 border-dashed border-primary/60 hover:border-primary hover:bg-primary/10 transition-all flex items-center justify-center text-primary hover:scale-110 focus:outline-none"
-              title="Save current color to palette"
-            >
-              <span class="material-symbols-outlined text-[14px]">add</span>
-            </button>
-          {/if}
-
-          <!-- Custom Color Picker Button -->
-          <button 
-            onclick={() => colorInput?.click()}
-            class="w-6 h-6 rounded-full cursor-pointer border border-outline-variant/60 hover:scale-110 active:scale-[0.9] transition-all flex items-center justify-center relative overflow-hidden shrink-0"
-            style="background: conic-gradient(from 0deg, red, yellow, lime, aqua, blue, magenta, red);"
-            title="Pick custom color"
-          >
-            <span class="material-symbols-outlined text-[13px] text-white font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">palette</span>
-          </button>
-          <input 
-            type="color" 
-            bind:this={colorInput} 
-            value={strokeColor} 
-            onchange={(e) => selectColor(e.target.value)} 
-            class="hidden" 
-          />
-        </div>
-
-        <!-- Tool selectors (Pen / Eraser / Hand / Select) and Brush slider -->
-        <div class="flex items-center gap-4 text-xs font-semibold">
-          <button 
-            onclick={() => activeTool = 'pen'}
-            class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors
-                   {activeTool === 'pen' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
-          >
-            <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'pen' ? 'fill' : 'normal'}>edit</span>
-            <span class="text-[9px]">Pen</span>
-          </button>
-          
-          <button 
-            onclick={() => activeTool = 'eraser'}
-            class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors
-                   {activeTool === 'eraser' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
-          >
-            <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'eraser' ? 'fill' : 'normal'}>ink_eraser</span>
-            <span class="text-[9px]">Eraser</span>
-          </button>
-
-          <button 
-            onclick={() => activeTool = 'select'}
-            class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors
-                   {activeTool === 'select' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
-            title="Selection Tool"
-          >
-            <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'select' ? 'fill' : 'normal'}>select_all</span>
-            <span class="text-[9px]">Select</span>
-          </button>
-
-          {#if canvasMode === 'infinite'}
-            <button 
-              onclick={() => activeTool = 'pan'}
-              class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors
-                     {activeTool === 'pan' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
-              title="Pan Canvas"
-            >
-              <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'pan' ? 'fill' : 'normal'}>pan_tool</span>
-              <span class="text-[9px]">Hand</span>
-            </button>
-          {/if}
-
-          <!-- Floating Undo / Redo Buttons -->
-          <div class="h-5 w-px bg-outline-variant/30"></div>
-          
-          <button 
-            onclick={handleUndo}
-            disabled={strokeHistory.length === 0}
-            class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer"
-            title="Undo (Ctrl+Z)"
-          >
-            <span class="material-symbols-outlined text-[20px]">undo</span>
-            <span class="text-[9px]">Undo</span>
-          </button>
-          
-          <button 
-            onclick={handleRedo}
-            disabled={redoStack.length === 0}
-            class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer"
-            title="Redo (Ctrl+Y)"
-          >
-            <span class="material-symbols-outlined text-[20px]">redo</span>
-            <span class="text-[9px]">Redo</span>
-          </button>
-          
-          <!-- Pen stroke width controller -->
-          {#if activeTool === 'pen'}
-            <div class="flex items-center gap-1.5 border-l border-outline-variant pl-4">
-              <span class="text-[10px] text-outline">Pen Size</span>
-              <input 
-                type="range" 
-                min="1" 
-                max="12" 
-                bind:value={brushWidth} 
-                class="w-16 h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary" 
-              />
-              <span class="text-[10px] text-on-surface min-w-3">{brushWidth}px</span>
-            </div>
-          {/if}
-          
-          <!-- Eraser stroke width controller -->
-          {#if activeTool === 'eraser'}
-            <div class="flex items-center gap-1.5 border-l border-outline-variant pl-4">
-              <span class="text-[10px] text-outline">Eraser Size</span>
-              <input 
-                type="range" 
-                min="4" 
-                max="80" 
-                bind:value={eraserWidth} 
-                class="w-16 h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary" 
-              />
-              <span class="text-[10px] text-on-surface min-w-3">{eraserWidth}px</span>
-            </div>
-          {/if}
-        </div>
-      </div>
+      <FloatingToolPalette
+        bind:strokeColor
+        bind:activeTool
+        bind:brushWidth
+        bind:eraserWidth
+        {canvasMode}
+        {strokeHistory}
+        {redoStack}
+        {handleUndo}
+        {handleRedo}
+      />
 
       <!-- AI Grading / Critique Overlay -->
-      {#if showCritiqueBanner}
-        <div class="absolute top-4 right-4 bg-surface-container-high/95 backdrop-blur-md border border-outline-variant/40 rounded-xl p-5 w-80 shadow-2xl z-30 flex flex-col gap-3 max-h-[85%] overflow-y-auto custom-scrollbar transition-all">
-          <div class="flex justify-between items-start">
-            <span class="text-xs font-bold uppercase tracking-wider text-outline">AI Penmanship Teacher</span>
-            <button 
-              onclick={() => showCritiqueBanner = false}
-              class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer"
-            >
-              close
-            </button>
-          </div>
-          
-          {#if isChecking}
-            <div class="flex flex-col items-center justify-center py-6 gap-3">
-              <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <p class="text-xs text-on-surface-variant text-center">{feedbackText}</p>
-            </div>
-          {:else}
-            <!-- Display Score Badge -->
-            {#if feedbackScore !== null}
-              <div class="flex items-center gap-3 bg-primary/5 p-3 rounded-lg border border-primary/20 animate-fade-in">
-                <div class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                  {feedbackScore}
-                </div>
-                <div>
-                  <h4 class="text-xs font-bold text-primary">Critique Score</h4>
-                  <p class="text-[10px] text-on-surface-variant">Based on consistency & parameters.</p>
-                </div>
-              </div>
-            {/if}
-
-            <!-- Critique Text -->
-            <div class="text-xs text-on-surface-variant leading-relaxed whitespace-pre-line border-t border-outline-variant/30 pt-3">
-              {feedbackText}
-            </div>
-          {/if}
-        </div>
-      {/if}
+      <CritiqueOverlay
+        bind:showCritiqueBanner
+        {isChecking}
+        {feedbackText}
+        {feedbackScore}
+      />
 
     </section>
   </div>
 </div>
 
 <!-- Custom Background Creator Modal Popup -->
-{#if isCustomBgModalOpen}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm select-none">
-    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-100 shadow-xl flex flex-col gap-4">
-      <h3 class="font-bold text-base text-on-surface">Add Custom Background Template</h3>
-      
-      <form onsubmit={handleAddCustomBg} class="flex flex-col gap-4">
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-on-surface-variant" for="bgName">Template Name</label>
-          <input 
-            type="text" 
-            id="bgName" 
-            bind:value={newBgName} 
-            placeholder="e.g., Slant 55° Ruled Guidelines"
-            class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary"
-            required
-          />
-        </div>
-        
-        <div class="flex flex-col gap-1">
-          <span class="text-xs font-semibold text-on-surface-variant">Upload Pattern Image (repeats automatically)</span>
-          <input 
-            type="file" 
-            accept="image/*"
-            onchange={handleBgUploadChange}
-            class="text-xs text-on-surface bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1.5 focus:outline-none cursor-pointer"
-            required
-          />
-        </div>
-        
-        <div class="flex items-center gap-2 mt-1">
-          <input 
-            type="checkbox" 
-            id="useAsIcon" 
-            bind:checked={useBgAsIcon}
-            class="w-4 h-4 text-primary bg-surface border-outline-variant focus:ring-primary focus:outline-none rounded cursor-pointer"
-          />
-          <label class="text-xs text-on-surface-variant select-none cursor-pointer font-semibold" for="useAsIcon">Use pattern as option icon</label>
-        </div>
-        
-        {#if !useBgAsIcon}
-          <div class="flex flex-col gap-1 animate-fade-in">
-            <span class="text-xs font-semibold text-on-surface-variant">Upload Small Icon (PNG/JPG)</span>
-            <input 
-              type="file" 
-              accept="image/*"
-              onchange={handleBgIconUploadChange}
-              class="text-xs text-on-surface bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1.5 focus:outline-none cursor-pointer"
-            />
-          </div>
-        {/if}
-        
-        <div class="flex justify-end gap-3 mt-2">
-          <button 
-            type="button" 
-            onclick={() => { isCustomBgModalOpen = false; resetCustomBgModal(); }}
-            class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button 
-            type="submit"
-            class="px-4 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer"
-          >
-            Add Template
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-{/if}
+<CustomBgModal
+  bind:isCustomBgModalOpen
+  bind:activeBg
+/>
