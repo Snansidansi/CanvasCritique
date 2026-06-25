@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import GeminiLogo from '../icons/GeminiLogo.svelte';
+  import { t } from '../../services/i18n';
 
   // State variables for statistics settings and visualization
   let timeframe = $state<'7' | '30'>('7'); // '7' | '30' days
@@ -183,20 +184,25 @@
   function toggleStats() {
     store.settings.statsEnabled = !store.settings.statsEnabled;
     store.saveSettings();
+
+    const statusText = store.settings.statsEnabled
+      ? (store.settings.language === 'Deutsch' ? 'aktiviert' : 'enabled')
+      : (store.settings.language === 'Deutsch' ? 'deaktiviert' : 'disabled');
+
     store.showNotification(
-      `Statistics tracking is now ${store.settings.statsEnabled ? 'enabled' : 'disabled'}.`, 
+      t('settings.stats.notifyTrackingStatus', { status: statusText }), 
       'info'
     );
   }
 
   function handleResetStats() {
     store.confirm(
-      'Reset Statistics',
-      'Are you sure you want to reset all usage statistics? This will permanently delete the history. This action cannot be undone.',
+      t('settings.stats.confirmResetTitle'),
+      t('settings.stats.confirmResetMsg'),
       () => {
         store.settings.stats = { daily: {} };
         store.saveSettings();
-        store.showNotification('Statistics have been reset successfully.', 'success');
+        store.showNotification(t('settings.stats.notifyResetSuccess'), 'success');
       }
     );
   }
@@ -219,10 +225,10 @@
     <div>
       <h3 class="text-lg font-bold text-on-surface flex items-center gap-2">
         <span class="material-symbols-outlined text-primary">bar_chart</span>
-        Usage Statistics
+        {t('settings.stats.title')}
       </h3>
       <p class="text-xs text-on-surface-variant mt-1">
-        Track API request quantities, token counts, and estimated cost aggregates.
+        {t('settings.stats.desc')}
       </p>
     </div>
     
@@ -233,7 +239,7 @@
                {store.settings.statsEnabled ? 'bg-primary' : 'bg-outline'}"
         role="switch"
         aria-checked={store.settings.statsEnabled}
-        aria-label="Toggle statistics tracking"
+        aria-label={t('settings.stats.toggleAria')}
       >
         <span 
           class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-surface shadow ring-0 transition duration-200 ease-in-out
@@ -241,7 +247,7 @@
         ></span>
       </button>
       <span class="text-sm font-medium {store.settings.statsEnabled ? 'text-primary' : 'text-on-surface-variant'}">
-        {store.settings.statsEnabled ? 'Tracking Enabled' : 'Tracking Disabled'}
+        {store.settings.statsEnabled ? t('settings.stats.trackingEnabled') : t('settings.stats.trackingDisabled')}
       </span>
     </div>
   </section>
@@ -253,27 +259,27 @@
       <div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-xl translate-x-8 -translate-y-8"></div>
       <div class="flex items-center gap-2.5 mb-4">
         <span class="material-symbols-outlined text-primary text-xl">all_inclusive</span>
-        <h4 class="font-bold text-sm text-on-surface">Combined Total</h4>
+        <h4 class="font-bold text-sm text-on-surface">{t('settings.stats.combinedTotal')}</h4>
       </div>
       <div class="space-y-2.5 text-xs text-on-surface-variant">
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Cost</span>
+          <span>{t('settings.stats.cost')}</span>
           <span class="font-bold text-on-surface text-sm">{formatCost(aggregates.combined.cost)}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Requests</span>
+          <span>{t('settings.stats.requests')}</span>
           <span class="font-semibold text-on-surface">{aggregates.combined.requests}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Input Tokens</span>
+          <span>{t('settings.stats.inputTokens')}</span>
           <span class="font-semibold text-on-surface">{formatTokens(aggregates.combined.inputTokens)}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Output Tokens</span>
+          <span>{t('settings.stats.outputTokens')}</span>
           <span class="font-semibold text-on-surface">{formatTokens(aggregates.combined.outputTokens)}</span>
         </div>
         <div class="flex justify-between">
-          <span>Reasoning Tokens</span>
+          <span>{t('settings.stats.reasoningTokens')}</span>
           <span class="font-semibold text-on-surface">{formatTokens(aggregates.combined.reasoningTokens)}</span>
         </div>
       </div>
@@ -283,27 +289,27 @@
     <div class="bg-surface p-5 rounded-xl border border-outline-variant shadow-sm hover:shadow-md transition-shadow">
       <div class="flex items-center gap-2.5 mb-4">
         <GeminiLogo class="text-secondary w-5 h-5 shrink-0" />
-        <h4 class="font-bold text-sm text-on-surface">Gemini API</h4>
+        <h4 class="font-bold text-sm text-on-surface">{t('settings.stats.geminiApi')}</h4>
       </div>
       <div class="space-y-2.5 text-xs text-on-surface-variant">
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Cost</span>
+          <span>{t('settings.stats.cost')}</span>
           <span class="font-bold text-on-surface text-sm">{formatCost(aggregates.gemini.cost)}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Requests</span>
+          <span>{t('settings.stats.requests')}</span>
           <span class="font-semibold text-on-surface">{aggregates.gemini.requests}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Input Tokens</span>
+          <span>{t('settings.stats.inputTokens')}</span>
           <span class="font-semibold text-on-surface">{formatTokens(aggregates.gemini.inputTokens)}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Output Tokens</span>
+          <span>{t('settings.stats.outputTokens')}</span>
           <span class="font-semibold text-on-surface">{formatTokens(aggregates.gemini.outputTokens)}</span>
         </div>
         <div class="flex justify-between">
-          <span>Reasoning Tokens</span>
+          <span>{t('settings.stats.reasoningTokens')}</span>
           <span class="font-semibold text-on-surface">{formatTokens(aggregates.gemini.reasoningTokens)}</span>
         </div>
       </div>
@@ -313,27 +319,27 @@
     <div class="bg-surface p-5 rounded-xl border border-outline-variant shadow-sm hover:shadow-md transition-shadow">
       <div class="flex items-center gap-2.5 mb-4">
         <span class="material-symbols-outlined text-tertiary text-xl">bolt</span>
-        <h4 class="font-bold text-sm text-on-surface">OpenRouter API</h4>
+        <h4 class="font-bold text-sm text-on-surface">{t('settings.stats.openRouterApi')}</h4>
       </div>
       <div class="space-y-2.5 text-xs text-on-surface-variant">
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Cost</span>
+          <span>{t('settings.stats.cost')}</span>
           <span class="font-bold text-on-surface text-sm">{formatCost(aggregates.openrouter.cost)}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Requests</span>
+          <span>{t('settings.stats.requests')}</span>
           <span class="font-semibold text-on-surface">{aggregates.openrouter.requests}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Input Tokens</span>
+          <span>{t('settings.stats.inputTokens')}</span>
           <span class="font-semibold text-on-surface">{formatTokens(aggregates.openrouter.inputTokens)}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>Output Tokens</span>
+          <span>{t('settings.stats.outputTokens')}</span>
           <span class="font-semibold text-on-surface">{formatTokens(aggregates.openrouter.outputTokens)}</span>
         </div>
         <div class="flex justify-between">
-          <span>Reasoning Tokens</span>
+          <span>{t('settings.stats.reasoningTokens')}</span>
           <span class="font-semibold text-on-surface">{formatTokens(aggregates.openrouter.reasoningTokens)}</span>
         </div>
       </div>
@@ -349,21 +355,21 @@
           class="px-3.5 py-1.5 text-xs rounded-full font-bold transition-all
                  {activeMetric === 'cost' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}"
         >
-          Cost ($)
+          {t('settings.stats.costMetricBtn')}
         </button>
         <button
           onclick={() => activeMetric = 'requests'}
           class="px-3.5 py-1.5 text-xs rounded-full font-bold transition-all
                  {activeMetric === 'requests' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}"
         >
-          Requests
+          {t('settings.stats.requestsMetricBtn')}
         </button>
         <button
           onclick={() => activeMetric = 'tokens'}
           class="px-3.5 py-1.5 text-xs rounded-full font-bold transition-all
                  {activeMetric === 'tokens' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}"
         >
-          Tokens
+          {t('settings.stats.tokensMetricBtn')}
         </button>
       </div>
 
@@ -374,14 +380,14 @@
           class="px-3 py-1 text-xs rounded-md font-semibold transition-all
                  {timeframe === '7' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
         >
-          7 Days
+          {t('settings.stats.days7')}
         </button>
         <button
           onclick={() => timeframe = '30'}
           class="px-3 py-1 text-xs rounded-md font-semibold transition-all
                  {timeframe === '30' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
         >
-          30 Days
+          {t('settings.stats.days30')}
         </button>
       </div>
     </div>
@@ -395,7 +401,7 @@
           onmousemove={handleMouseMove}
           onmouseleave={handleMouseLeave}
           role="application"
-          aria-label="Interactive usage chart"
+          aria-label={t('settings.stats.chartAria')}
         >
           <!-- Definitions for Gradients -->
           <defs>
@@ -493,15 +499,15 @@
             
             <div class="space-y-1 text-on-surface-variant font-medium">
               <div class="flex justify-between gap-6">
-                <span>Cost:</span>
+                <span>{t('settings.stats.cost')}:</span>
                 <span class="font-bold text-on-surface">{formatCost(p.data.totalCost)}</span>
               </div>
               <div class="flex justify-between gap-6">
-                <span>Requests:</span>
+                <span>{t('settings.stats.requests')}:</span>
                 <span class="font-bold text-on-surface">{p.data.totalRequests}</span>
               </div>
               <div class="flex justify-between gap-6">
-                <span>Tokens:</span>
+                <span>{t('settings.stats.tokensMetricBtn')}:</span>
                 <span class="font-bold text-on-surface">{formatTokens(p.data.totalTokens)}</span>
               </div>
               <div class="text-[10px] text-primary/80 pt-1 border-t border-outline-variant/40 flex justify-between">
@@ -518,7 +524,7 @@
       {:else}
         <div class="flex flex-col items-center justify-center h-full border border-dashed border-outline-variant rounded-lg">
           <span class="material-symbols-outlined text-outline text-3xl mb-2">analytics</span>
-          <span class="text-sm font-semibold text-on-surface-variant">No tracking data available yet.</span>
+          <span class="text-sm font-semibold text-on-surface-variant">{t('settings.stats.noData')}</span>
         </div>
       {/if}
     </div>
@@ -526,9 +532,9 @@
 
   <!-- Danger / Management Section -->
   <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm">
-    <h4 class="font-bold text-sm text-on-surface mb-1 text-error">Statistics Controls</h4>
+    <h4 class="font-bold text-sm text-on-surface mb-1 text-error">{t('settings.stats.controlsTitle')}</h4>
     <p class="text-xs text-on-surface-variant mb-4">
-      Resetting will wipe all tracking logs. Statistics are included in your settings export backups.
+      {t('settings.stats.controlsDesc')}
     </p>
 
     <button
@@ -536,7 +542,7 @@
       class="px-4 py-2 border border-error/30 text-error hover:bg-error/5 font-semibold text-xs rounded-lg transition-colors flex items-center gap-2 cursor-pointer focus:outline-none"
     >
       <span class="material-symbols-outlined text-sm">delete_forever</span>
-      Reset Usage Statistics
+      {t('settings.stats.resetBtn')}
     </button>
   </section>
 </div>

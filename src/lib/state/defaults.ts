@@ -125,6 +125,16 @@ You must return a JSON object with the following schema:
 
 Return ONLY this JSON object. Do not include any other conversational text.`;
 
+function getSystemLanguage(): string {
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    const lang = navigator.language.toLowerCase();
+    if (lang.startsWith('de')) {
+      return 'Deutsch';
+    }
+  }
+  return 'English';
+}
+
 export const defaultSettings: Settings = {
   theme: 'system',
   apiProvider: 'gemini',
@@ -148,10 +158,11 @@ export const defaultSettings: Settings = {
   canvasMode: 'infinite',
   customSystemPrompt: '',
   systemPromptEditingEnabled: false,
-  language: 'English',
+  language: getSystemLanguage(),
   stylusButtons: [],
   stylusMode: false,
   autoCompleteOnSuccess: true,
   statsEnabled: true,
   stats: { daily: {} }
 };
+

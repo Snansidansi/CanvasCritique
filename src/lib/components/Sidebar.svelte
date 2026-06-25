@@ -1,5 +1,6 @@
 <script lang="ts">
   import { store } from "../state/store.svelte";
+  import { t } from "../services/i18n";
 
   // Local state for sidebar expansion on desktop
   let isCollapsed = $state(false);
@@ -45,7 +46,7 @@
       class="text-on-surface-variant hover:bg-surface-container-highest rounded-lg transition-colors active:scale-90 p-1.5 flex items-center justify-center {isCollapsed
         ? 'mx-auto'
         : 'ml-auto'}"
-      title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+      title={isCollapsed ? t("sidebar.expand") : t("sidebar.collapse")}
     >
       <span class="material-symbols-outlined"
         >{isCollapsed ? "menu" : "menu_open"}</span
@@ -70,13 +71,13 @@
         >home</span
       >
       {#if !isCollapsed}
-        <span>Home</span>
+        <span>{t("sidebar.home")}</span>
       {/if}
       {#if isCollapsed}
         <div
           class="absolute left-16 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
         >
-          Home
+          {t("sidebar.home")}
         </div>
       {/if}
     </button>
@@ -91,7 +92,7 @@
         <p
           class="text-xs font-bold text-on-surface-variant uppercase tracking-wider w-full"
         >
-          My Lessons
+          {t("sidebar.myLessons")}
         </p>
       {:else}
         <div class="h-px w-8 bg-outline-variant/30"></div>
@@ -152,7 +153,7 @@
                 store.selectTask(nextTask);
               }}
               class="text-outline hover:text-primary transition-all p-1 rounded hover:bg-surface-container-high cursor-pointer flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto shrink-0"
-              title="Resume/Start Lesson"
+              title={t("sidebar.resumeLesson")}
             >
               <span class="material-symbols-outlined text-[18px]">play_arrow</span>
             </button>
@@ -181,7 +182,7 @@
         : (store.canvasSettingsOpen
           ? 'bg-secondary-container text-on-secondary-container border-l-4 border-primary'
           : 'text-on-surface-variant hover:bg-surface-container-highest')}"
-      title={store.currentView !== 'practice' ? "Only available on drawing canvas" : "Canvas Settings"}
+      title={store.currentView !== 'practice' ? t("sidebar.canvasSettingsDisabledTooltip") : t("sidebar.canvasSettings")}
     >
       <span
         class="material-symbols-outlined"
@@ -189,13 +190,13 @@
         >tune</span
       >
       {#if !isCollapsed}
-        <span>Canvas Settings</span>
+        <span>{t("sidebar.canvasSettings")}</span>
       {/if}
       {#if isCollapsed}
         <div
           class="absolute left-16 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
         >
-          Canvas Settings
+          {t("sidebar.canvasSettings")}
         </div>
       {/if}
     </button>
@@ -215,15 +216,16 @@
         >settings</span
       >
       {#if !isCollapsed}
-        <span>Settings</span>
+        <span>{t("sidebar.settings")}</span>
       {/if}
       {#if isCollapsed}
         <div
           class="absolute left-16 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
         >
-          Settings
+          {t("sidebar.settings")}
         </div>
       {/if}
     </button>
   </div>
 </aside>
+

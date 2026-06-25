@@ -2,6 +2,7 @@
   import { store } from "./lib/state/store.svelte";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import { onMount } from "svelte";
+  import { t } from "./lib/services/i18n";
 
   // Local state variables for export popup checkboxes
   let exportIncludeCritique = $state(true);
@@ -110,7 +111,7 @@
       <div class="flex items-center gap-3 text-error">
         <span class="material-symbols-outlined text-2xl">warning</span>
         <h3 class="font-bold text-base text-on-surface">
-          {store.confirmDialog.title}
+          {store.confirmDialog.title || t('dialogs.confirmTitleDefault')}
         </h3>
       </div>
 
@@ -123,13 +124,13 @@
           onclick={store.confirmDialog.onCancel}
           class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           onclick={store.confirmDialog.onConfirm}
           class="px-4 py-2 bg-error text-white text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
         >
-          Confirm
+          {t('common.confirm')}
         </button>
       </div>
     </div>
@@ -148,12 +149,12 @@
       <div class="flex items-center gap-3 text-primary">
         <span class="material-symbols-outlined text-2xl">file_download</span>
         <h3 class="font-bold text-base text-on-surface">
-          Export Options
+          {t('dialogs.exportTitle')}
         </h3>
       </div>
 
       <p class="text-xs text-on-surface-variant leading-relaxed">
-        Choose what additional information you want to save along with the lesson <strong>"{dialog.project.name}"</strong>:
+        {@html t('dialogs.exportPrompt', { name: dialog.project.name })}
       </p>
 
       <div class="flex flex-col gap-3 my-1">
@@ -166,12 +167,12 @@
             class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer disabled:cursor-not-allowed"
           />
           <div class="flex flex-col">
-            <span class="text-xs font-bold text-on-surface">Include AI Feedback</span>
+            <span class="text-xs font-bold text-on-surface">{t('dialogs.exportIncludeCritique')}</span>
             <span class="text-[11px] text-on-surface-variant mt-0.5">
               {#if dialog.hasCritique}
-                Saves the reviews, scores, and highlighted corrections made by the AI helper.
+                {t('dialogs.exportCritiqueDesc')}
               {:else}
-                No AI feedback has been generated yet for this lesson.
+                {t('dialogs.exportNoCritiqueDesc')}
               {/if}
             </span>
           </div>
@@ -186,12 +187,12 @@
             class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer disabled:cursor-not-allowed"
           />
           <div class="flex flex-col">
-            <span class="text-xs font-bold text-on-surface">Include Your Handwriting</span>
+            <span class="text-xs font-bold text-on-surface">{t('dialogs.exportIncludeCanvas')}</span>
             <span class="text-[11px] text-on-surface-variant mt-0.5">
               {#if dialog.hasCanvas}
-                Saves the actual drawings, letters, and practices you wrote on the screen canvas.
+                {t('dialogs.exportCanvasDesc')}
               {:else}
-                No handwriting or drawings have been recorded yet in this lesson.
+                {t('dialogs.exportNoCanvasDesc')}
               {/if}
             </span>
           </div>
@@ -205,9 +206,9 @@
             class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
           />
           <div class="flex flex-col">
-            <span class="text-xs font-bold text-on-surface">Include Task Status</span>
+            <span class="text-xs font-bold text-on-surface">{t('dialogs.exportIncludeCompleted')}</span>
             <span class="text-[11px] text-on-surface-variant mt-0.5">
-              Saves whether tasks are marked as finished or not.
+              {t('dialogs.exportCompletedDesc')}
             </span>
           </div>
         </label>
@@ -218,13 +219,13 @@
           onclick={dialog.onCancel}
           class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           onclick={() => dialog.onConfirm({ includeCritique: exportIncludeCritique, includeCanvas: exportIncludeCanvas, includeCompleted: exportIncludeCompleted })}
           class="px-4 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
         >
-          Export Lesson
+          {t('dialogs.exportBtn')}
         </button>
       </div>
     </div>
@@ -243,12 +244,12 @@
       <div class="flex items-center gap-3 text-primary">
         <span class="material-symbols-outlined text-2xl">file_upload</span>
         <h3 class="font-bold text-base text-on-surface">
-          Import Options
+          {t('dialogs.importTitle')}
         </h3>
       </div>
 
       <p class="text-xs text-on-surface-variant leading-relaxed">
-        This file contains a calligraphy lesson. Select which items you would like to import:
+        {t('dialogs.importPrompt')}
       </p>
 
       <div class="flex flex-col gap-3 my-1">
@@ -261,12 +262,12 @@
             class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer disabled:cursor-not-allowed"
           />
           <div class="flex flex-col">
-            <span class="text-xs font-bold text-on-surface">Import AI Feedback</span>
+            <span class="text-xs font-bold text-on-surface">{t('dialogs.importIncludeCritique')}</span>
             <span class="text-[11px] text-on-surface-variant mt-0.5">
               {#if dialog.hasCritique}
-                Loads the reviews, scores, and highlighted corrections previously saved.
+                {t('dialogs.importCritiqueDesc')}
               {:else}
-                No AI feedback was found in this file.
+                {t('dialogs.importNoCritiqueDesc')}
               {/if}
             </span>
           </div>
@@ -281,12 +282,12 @@
             class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer disabled:cursor-not-allowed"
           />
           <div class="flex flex-col">
-            <span class="text-xs font-bold text-on-surface">Import Your Handwriting</span>
+            <span class="text-xs font-bold text-on-surface">{t('dialogs.importIncludeCanvas')}</span>
             <span class="text-[11px] text-on-surface-variant mt-0.5">
               {#if dialog.hasCanvas}
-                Loads the handwritten practices and strokes previously drawn on the screens.
+                {t('dialogs.importCanvasDesc')}
               {:else}
-                No handwriting or drawings were found in this file.
+                {t('dialogs.importNoCanvasDesc')}
               {/if}
             </span>
           </div>
@@ -300,9 +301,9 @@
             class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
           />
           <div class="flex flex-col">
-            <span class="text-xs font-bold text-on-surface">Import Task Status</span>
+            <span class="text-xs font-bold text-on-surface">{t('dialogs.importIncludeCompleted')}</span>
             <span class="text-[11px] text-on-surface-variant mt-0.5">
-              Loads the checked/unchecked status of tasks from the file.
+              {t('dialogs.importCompletedDesc')}
             </span>
           </div>
         </label>
@@ -310,31 +311,31 @@
 
       <!-- Import Location / Merge Options (Step 2) -->
       <div class="border-t border-outline-variant/30 pt-3 flex flex-col gap-3">
-        <span class="text-xs font-bold text-on-surface">Import Location</span>
+        <span class="text-xs font-bold text-on-surface">{t('dialogs.importLocation')}</span>
         
         {#if dialog.targetProjectId}
           {@const targetProj = store.projects.find(p => p.id === dialog.targetProjectId)}
           <div class="p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs text-on-surface flex items-center gap-2">
             <span class="material-symbols-outlined text-[18px] text-primary">merge</span>
-            <span>Importing tasks directly into <strong>{targetProj?.name || 'current lesson'}</strong></span>
+            <span>{@html t('dialogs.importDirectPrompt', { name: targetProj?.name || 'current lesson' })}</span>
           </div>
         {:else}
           <div class="flex gap-4">
             <label class="flex items-center gap-2 text-xs text-on-surface cursor-pointer select-none">
               <input type="radio" name="importMergeOption" value="new" bind:group={importMergeOption} class="text-primary focus:ring-primary h-4 w-4" />
-              <span>New Lesson</span>
+              <span>{t('dialogs.importLocationNew')}</span>
             </label>
             {#if store.projects.filter(p => p.profileId === store.activeProfileId).length > 0}
               <label class="flex items-center gap-2 text-xs text-on-surface cursor-pointer select-none">
                 <input type="radio" name="importMergeOption" value="merge" bind:group={importMergeOption} class="text-primary focus:ring-primary h-4 w-4" />
-                <span>Merge with Existing</span>
+                <span>{t('dialogs.importLocationMerge')}</span>
               </label>
             {/if}
           </div>
 
           {#if importMergeOption === 'merge'}
             <div class="flex flex-col gap-1.5 animate-fade-in">
-              <label for="mergeSelect" class="text-[11px] font-bold text-on-surface-variant">Select Target Lesson</label>
+              <label for="mergeSelect" class="text-[11px] font-bold text-on-surface-variant">{t('dialogs.importMergeSelectLabel')}</label>
               <select
                 id="mergeSelect"
                 bind:value={importMergeProjectId}
@@ -350,15 +351,15 @@
 
         {#if dialog.targetProjectId || importMergeOption === 'merge'}
           <div class="flex flex-col gap-1.5 animate-fade-in">
-            <span class="text-[11px] font-bold text-on-surface-variant">For Tasks with the Same Name</span>
+            <span class="text-[11px] font-bold text-on-surface-variant">{t('dialogs.importMergeModeTitle')}</span>
             <div class="flex flex-col gap-2">
               <label class="flex items-center gap-2 text-xs text-on-surface cursor-pointer select-none">
                 <input type="radio" name="importMergeMode" value="update" bind:group={importMergeMode} class="text-primary focus:ring-primary h-4 w-4" />
-                <span>Overwrite/Update details</span>
+                <span>{t('dialogs.importMergeModeOverwrite')}</span>
               </label>
               <label class="flex items-center gap-2 text-xs text-on-surface cursor-pointer select-none">
                 <input type="radio" name="importMergeMode" value="skip" bind:group={importMergeMode} class="text-primary focus:ring-primary h-4 w-4" />
-                <span>Keep existing task (do not update)</span>
+                <span>{t('dialogs.importMergeModeSkip')}</span>
               </label>
             </div>
           </div>
@@ -370,7 +371,7 @@
           onclick={dialog.onCancel}
           class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           onclick={() => dialog.onConfirm({
@@ -382,7 +383,7 @@
           })}
           class="px-4 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
         >
-          Import Lesson
+          {t('dialogs.importBtn')}
         </button>
       </div>
     </div>
@@ -390,3 +391,4 @@
 {/if}
 
 <Notification />
+

@@ -3,6 +3,7 @@
   import AiModelConfig from '../settings/AiModelConfig.svelte';
   import EvaluationDetailsSettings from '../settings/EvaluationDetailsSettings.svelte';
   import type { Project } from '../../state/types';
+  import { t } from '../../services/i18n';
 
   let { 
     isOpen = $bindable(false),
@@ -45,7 +46,7 @@
   function handleSave() {
     store.saveProjects();
     isOpen = false;
-    store.showNotification('Lesson API settings saved successfully.', 'success');
+    store.showNotification(t('lessonSettings.saveSuccess'), 'success');
   }
 
   function handleCancel() {
@@ -93,7 +94,7 @@
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-primary">settings</span>
           <h3 class="font-bold text-lg text-on-surface">
-            Settings override for "{project.name}"
+            {t('lessonSettings.settingsOverrideFor', { name: project.name })}
           </h3>
         </div>
         <button 
@@ -109,8 +110,8 @@
         <!-- Main Override Toggle -->
         <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
           <div class="flex flex-col gap-0.5">
-            <span class="text-xs font-bold text-on-surface">Override Global AI & API Settings</span>
-            <span class="text-[10.5px] text-outline leading-tight">Enable to configure specific models and parameters for this lesson.</span>
+            <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideGlobalLabel')}</span>
+            <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideGlobalDesc')}</span>
           </div>
           <label class="relative inline-flex items-center cursor-pointer select-none">
             <input 
@@ -126,7 +127,7 @@
         {#if project.settingsOverride?.overrideSettings}
           <!-- Reusable AI Model selection component -->
           <div class="border-t border-outline-variant/30 pt-4">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-on-surface mb-3">Model Configuration</h4>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-on-surface mb-3">{t('lessonSettings.modelConfigTitle')}</h4>
             <AiModelConfig 
               settings={project.settingsOverride} 
               showKeys={false} 
@@ -136,7 +137,7 @@
 
           <!-- Reusable Evaluation detail toggles -->
           <div class="border-t border-outline-variant/30 pt-4">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-on-surface mb-3">Evaluation Details</h4>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-on-surface mb-3">{t('lessonSettings.evaluationDetailsTitle')}</h4>
             <EvaluationDetailsSettings 
               settings={project.settingsOverride} 
               onchange={() => store.saveProjects()} 
@@ -145,12 +146,12 @@
 
           <!-- Custom system prompt override -->
           <div class="border-t border-outline-variant/30 pt-4 flex flex-col gap-3">
-            <h4 class="text-xs font-bold uppercase tracking-wider text-on-surface">System Prompt</h4>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-on-surface">{t('lessonSettings.systemPromptTitle')}</h4>
             
             <div class="flex items-center justify-between p-3 rounded-lg bg-surface-container-low border border-outline-variant/30">
               <div class="flex flex-col gap-0.5">
-                <span class="text-xs font-bold text-on-surface">Enable Custom System Prompt</span>
-                <span class="text-[10.5px] text-outline leading-tight">Allows you to overwrite the default grading instructions for this lesson.</span>
+                <span class="text-xs font-bold text-on-surface">{t('lessonSettings.enableCustomPrompt')}</span>
+                <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.enableCustomPromptDesc')}</span>
               </div>
               <label class="relative inline-flex items-center cursor-pointer select-none">
                 <input 
@@ -167,14 +168,14 @@
               <div class="flex flex-col gap-1.5 mt-2 animate-fade-in">
                 <div class="flex justify-between items-center">
                   <label for="lessonSystemPromptArea" class="text-xs font-bold text-on-surface">
-                    Lesson System Prompt Template
+                    {t('lessonSettings.lessonPromptTemplate')}
                   </label>
                   <button 
                     type="button" 
                     onclick={resetPromptToDefault}
                     class="text-[10.5px] text-primary hover:underline font-semibold focus:outline-none bg-transparent border-0 cursor-pointer"
                   >
-                    Reset to Default
+                    {t('lessonSettings.resetToDefault')}
                   </button>
                 </div>
                 <textarea
@@ -186,7 +187,7 @@
                   spellcheck="false"
                 ></textarea>
                 <p class="text-[9px] text-on-surface-variant leading-tight">
-                  Placeholders: <code>{"{{"}task_name{"}}"}</code> <code>{"{{"}task_instructions{"}}"}</code> <code>{"{{"}task_solution{"}}"}</code> <code>{"{{"}guidelines{"}}"}</code> <code>{"{{"}page_info{"}}"}</code> <code>{"{{"}image_dimensions{"}}"}</code>
+                  {t('lessonSettings.placeholdersLabel')} <code>{"{{"}task_name{"}}"}</code> <code>{"{{"}task_instructions{"}}"}</code> <code>{"{{"}task_solution{"}}"}</code> <code>{"{{"}guidelines{"}}"}</code> <code>{"{{"}page_info{"}}"}</code> <code>{"{{"}image_dimensions{"}}"}</code>
                 </p>
               </div>
             {/if}
@@ -194,11 +195,11 @@
         {:else}
           <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant">
             <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">smart_toy</span>
-            <p class="text-xs text-on-surface font-semibold">Using Global AI & API Settings</p>
+            <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
             <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
-              This lesson currently uses the global configuration from settings (Provider: <span class="font-bold text-primary">{store.settings.apiProvider === 'gemini' ? 'Gemini' : 'OpenRouter'}</span>, Model: <span class="font-mono text-[10.5px]">{store.settings.apiProvider === 'gemini' ? store.settings.geminiModel : store.settings.openRouterModel}</span>).
+              {t('lessonSettings.usingGlobalDesc', { provider: store.settings.apiProvider === 'gemini' ? 'Gemini' : 'OpenRouter', model: store.settings.apiProvider === 'gemini' ? store.settings.geminiModel : store.settings.openRouterModel })}
             </p>
-            <p class="text-[10px] text-outline mt-3">Toggle "Override Global AI & API Settings" above to customize.</p>
+            <p class="text-[10px] text-outline mt-3">{t('lessonSettings.usingGlobalHint')}</p>
           </div>
         {/if}
       </div>
@@ -210,14 +211,14 @@
           onclick={handleCancel}
           class="px-4 py-2 border border-outline-variant rounded-lg font-semibold text-xs text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer focus:outline-none"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           type="button"
           onclick={handleSave}
           class="px-4 py-2 bg-primary text-on-primary rounded-lg font-semibold text-xs hover:bg-primary-hover transition-colors cursor-pointer focus:outline-none"
         >
-          Save Settings
+          {t('lessonSettings.saveSettings')}
         </button>
       </div>
     </div>

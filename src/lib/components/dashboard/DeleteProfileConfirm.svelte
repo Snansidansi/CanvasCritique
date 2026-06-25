@@ -1,5 +1,6 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
+  import { t } from '../../services/i18n';
 
   let { 
     isOpen = $bindable(false), 
@@ -34,15 +35,15 @@
     <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-96 shadow-2xl flex flex-col gap-4">
       <div class="flex items-center gap-3 text-error">
         <span class="material-symbols-outlined text-2xl">warning</span>
-        <h3 class="font-bold text-base text-on-surface">Delete Theme Profile</h3>
+        <h3 class="font-bold text-base text-on-surface">{t('profile.confirmDeleteTitle')}</h3>
       </div>
 
       <p class="text-xs text-on-surface-variant leading-relaxed">
-        Are you sure you want to delete the profile <strong>"{profileToDelete?.name}"</strong>?
+        {@html t('profile.confirmDeleteMsg', { name: profileToDelete?.name || '' })}
       </p>
       
       <p class="text-xs text-error font-bold leading-normal bg-error/5 border border-error/10 p-3 rounded-lg">
-        WARNING: This will permanently delete this theme profile, all its associated calligraphy lessons (lessons), and all assignments/drawings. This action cannot be undone.
+        {t('profile.confirmDeleteWarning')}
       </p>
 
       <!-- Checkbox of certainty -->
@@ -53,8 +54,8 @@
           class="rounded border-outline-variant text-error focus:ring-error h-4 w-4 cursor-pointer mt-0.5" 
         />
         <div class="flex flex-col gap-0.5">
-          <span class="font-semibold text-on-surface">I am sure</span>
-          <span class="text-[10px] text-on-surface-variant">Yes, I want to permanently delete "{profileToDelete?.name}" and all its lessons.</span>
+          <span class="font-semibold text-on-surface">{t('profile.confirmDeleteSure')}</span>
+          <span class="text-[10px] text-on-surface-variant">{t('profile.confirmDeleteSureDesc', { name: profileToDelete?.name || '' })}</span>
         </div>
       </label>
 
@@ -63,16 +64,17 @@
           onclick={() => isOpen = false}
           class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           onclick={handleConfirmDelete}
           disabled={!deleteProfileCheckboxChecked}
           class="px-4 py-2 bg-error text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer focus:outline-none"
         >
-          Permanently Delete Profile
+          {t('profile.confirmDeleteBtn')}
         </button>
       </div>
     </div>
   </div>
 {/if}
+

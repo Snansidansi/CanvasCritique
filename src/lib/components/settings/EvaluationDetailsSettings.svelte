@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from '../../services/i18n';
+
   // Props
   let { 
     settings, 
@@ -18,7 +20,7 @@
   <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
     <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
       <span class="material-symbols-outlined text-[18px] text-primary">image</span>
-      Send Task Media Attachments
+      {t('settings.api.sendTaskMedia')}
     </span>
     <label class="relative inline-flex items-center cursor-pointer select-none">
       <input 
@@ -35,7 +37,7 @@
   <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
     <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
       <span class="material-symbols-outlined text-[18px] text-primary">description</span>
-      Include Task Description (Text)
+      {t('settings.api.sendTaskText')}
     </span>
     <label class="relative inline-flex items-center cursor-pointer select-none">
       <input 
@@ -52,7 +54,7 @@
   <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
     <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
       <span class="material-symbols-outlined text-[18px] text-primary">image</span>
-      Send Solution Media Attachments
+      {t('settings.api.sendSolutionMedia')}
     </span>
     <label class="relative inline-flex items-center cursor-pointer select-none">
       <input 
@@ -69,7 +71,7 @@
   <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
     <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
       <span class="material-symbols-outlined text-[18px] text-primary">lightbulb</span>
-      Include Expected Solution (Text)
+      {t('settings.api.sendSolutionText')}
     </span>
     <label class="relative inline-flex items-center cursor-pointer select-none">
       <input 
@@ -86,7 +88,7 @@
   <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
     <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
       <span class="material-symbols-outlined text-[18px] text-primary">wallpaper</span>
-      Include Canvas Background in Screenshot
+      {t('settings.api.sendCanvasBg')}
     </span>
     <label class="relative inline-flex items-center cursor-pointer select-none">
       <input 
@@ -103,13 +105,13 @@
   <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
     <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
       <span class="material-symbols-outlined text-[18px] text-primary">translate</span>
-      AI Feedback Language
+      {t('settings.api.aiFeedbackLang')}
     </span>
     <input
       type="text"
       bind:value={settings.language}
       onchange={handleInputChange}
-      placeholder="e.g., English, German, French"
+      placeholder={t('settings.api.aiFeedbackLangPlaceholder')}
       class="bg-surface-container border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary font-semibold w-40 text-right"
     />
   </div>

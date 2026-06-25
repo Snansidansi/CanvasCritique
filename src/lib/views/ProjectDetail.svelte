@@ -2,11 +2,12 @@
   import { store, type Project } from '../state/store.svelte';
   import TaskSelectionBar from '../components/project/TaskSelectionBar.svelte';
   import LessonSettingsModal from '../components/project/LessonSettingsModal.svelte';
+  import { t } from '../services/i18n';
 
   // Derived project state from store
   let project = $derived(store.activeProject || ({
     id: '',
-    name: 'No Lesson Selected',
+    name: t('projectDetail.noLessonSelected'),
     icon: 'history_edu',
     guidelines: '',
     categories: [],
@@ -53,10 +54,11 @@
         const imported = JSON.parse(reader.result as string);
         store.importProject(imported, project.id);
       } catch (err) {
-        alert("Failed to parse file. Make sure it is valid JSON.");
+        alert(t('dashboard.notifications.parseFailed'));
       }
     };
     reader.readAsText(file);
+    (e.target as HTMLInputElement).value = "";
     (e.target as HTMLInputElement).value = "";
   }
 
@@ -65,6 +67,36 @@
 
   function handleBack() {
     store.setView('dashboard');
+  }
+
+  // Guidelines state
+  let guidelinesExpanded = $state(false);
+  let guidelinesDebounce = null;
+
+  function handleGuidelinesChange(e) {
+    const value = e.target.value;
+    if (guidelinesDebounce) clearTimeout(guidelinesDebounce);
+    guidelinesDebounce = setTimeout(() => {
+      store.updateProjectGuidelines(project.id, value);
+    }, 500);
+  }
+
+  function autoResize(node, _val) {
+    const update = () => {
+      node.style.height = 'auto';
+      node.style.height = `${node.scrollHeight}px`;
+    };
+    const timer = setTimeout(update, 0);
+    node.addEventListener('input', update);
+    return {
+      update() {
+        update();
+      },
+      destroy() {
+        clearTimeout(timer);
+        node.removeEventListener('input', update);
+      }
+    };
   }
 
   function handleAddTask() {
@@ -215,41 +247,12 @@
     target.addEventListener('pointerup', onUp);
     target.addEventListener('pointercancel', onUp);
   }
-  // Guidelines state
-  let guidelinesExpanded = $state(false);
-  let guidelinesDebounce = null;
-
-  function handleGuidelinesChange(e) {
-    const value = e.target.value;
-    if (guidelinesDebounce) clearTimeout(guidelinesDebounce);
-    guidelinesDebounce = setTimeout(() => {
-      store.updateProjectGuidelines(project.id, value);
-    }, 500);
-  }
-
-  function autoResize(node, _val) {
-    const update = () => {
-      node.style.height = 'auto';
-      node.style.height = `${node.scrollHeight}px`;
-    };
-    const timer = setTimeout(update, 0);
-    node.addEventListener('input', update);
-    return {
-      update() {
-        update();
-      },
-      destroy() {
-        clearTimeout(timer);
-        node.removeEventListener('input', update);
-      }
-    };
-  }
 
   function handleDeleteSelected() {
     if (selectedTaskIds.size === 0) return;
     store.confirm(
-      "Delete Selected Tasks",
-      `Are you sure you want to delete the ${selectedTaskIds.size} selected tasks? This will permanently delete them and their canvas drawing history.`,
+      t('projectDetail.deleteSelectedTasksTitle'),
+      t('projectDetail.deleteSelectedTasksMsg', { count: selectedTaskIds.size }),
       () => {
         store.deleteTasks(project.id, Array.from(selectedTaskIds));
         selectedTaskIds.clear();
@@ -348,7 +351,7 @@
     <button 
       onclick={handleBack}
       class="material-symbols-outlined text-primary hover:bg-surface-container-high p-2 rounded-full -ml-2 focus:outline-none cursor-pointer"
-      title="Back to Dashboard"
+      title={t('projectDetail.backToDashboard')}
     >
       arrow_back
     </button>
@@ -366,7 +369,7 @@
           type="button"
           onclick={triggerImageUpload}
           class="group relative w-10 h-10 flex items-center justify-center bg-secondary-container text-on-secondary-container rounded-lg shrink-0 overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary focus:outline-none transition-all"
-          title="Click to change lesson image"
+          title={t('projectDetail.changeImageTooltip')}
         >
           {#if project.icon && project.icon.startsWith('data:image/')}
             <img src={project.icon} class="w-8 h-8 object-contain rounded transition-all group-hover:scale-95 group-hover:opacity-50" alt="" />
@@ -398,7 +401,7 @@
             type="button"
             onclick={startNameEdit}
             class="group flex items-center gap-1.5 font-bold text-lg text-on-surface hover:text-primary transition-colors cursor-pointer text-left focus:outline-none focus:underline min-w-0"
-            title="Click to rename lesson"
+            title={t('projectDetail.renameLessonTooltip')}
           >
             <span class="truncate">{project.name}</span>
             <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity text-outline-variant">edit</span>
@@ -413,7 +416,7 @@
   <div class="flex items-center gap-1.5 md:gap-3">
     <!-- Hide Completed Toggle -->
     {#if project.id !== 'No Lesson Selected'}
-      <label class="flex items-center gap-2 text-xs font-semibold text-on-surface cursor-pointer select-none border border-outline-variant/40 bg-surface-container-low px-2.5 md:px-3 py-2.5 rounded-lg hover:bg-surface-container transition-all" title="Hide Completed Tasks">
+      <label class="flex items-center gap-2 text-xs font-semibold text-on-surface cursor-pointer select-none border border-outline-variant/40 bg-surface-container-low px-2.5 md:px-3 py-2.5 rounded-lg hover:bg-surface-container transition-all" title={t('projectDetail.hideCompleted')}>
         <input 
           type="checkbox" 
           checked={project.hideCompleted || false} 
@@ -423,7 +426,7 @@
           }}
           class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
         />
-        <span class="hidden xl:inline">Hide Completed</span>
+        <span class="hidden xl:inline">{t('projectDetail.hideCompleted')}</span>
       </label>
     {/if}
 
@@ -431,10 +434,10 @@
     <button 
       onclick={() => store.exportProject(project)}
       class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-2.5 md:px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
-      title="Export Lesson"
+      title={t('projectDetail.exportLesson')}
     >
       <span class="material-symbols-outlined text-[18px]">file_download</span>
-      <span class="hidden xl:inline">Export Lesson</span>
+      <span class="hidden xl:inline">{t('projectDetail.exportLesson')}</span>
     </button>
 
     <!-- Lesson Settings Override Button -->
@@ -442,10 +445,10 @@
       <button 
         onclick={() => showSettingsOverrideModal = true}
         class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-2.5 md:px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
-        title="Lesson AI & Evaluation Settings"
+        title={t('projectDetail.settingsTooltip')}
       >
         <span class="material-symbols-outlined text-[18px]">settings</span>
-        <span class="hidden xl:inline">Settings</span>
+        <span class="hidden xl:inline">{t('sidebar.settings')}</span>
       </button>
     {/if}
 
@@ -459,10 +462,10 @@
         }}
         class="font-semibold text-xs py-2.5 px-2.5 md:px-4 rounded-lg border transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none
                {isSelectionMode ? 'bg-primary/10 text-primary border-primary hover:bg-primary/20' : 'bg-surface-container-low text-on-surface border-outline-variant hover:bg-surface-container'}"
-        title="Toggle Selection Mode"
+        title={t('projectDetail.toggleSelectionModeTooltip')}
       >
         <span class="material-symbols-outlined text-[18px]">checklist</span>
-        <span class="hidden xl:inline">{isSelectionMode ? 'Cancel Selection' : 'Select Tasks'}</span>
+        <span class="hidden xl:inline">{isSelectionMode ? t('projectDetail.cancelSelection') : t('projectDetail.selectTasks')}</span>
       </button>
     {/if}
 
@@ -470,10 +473,10 @@
     <button 
       onclick={handleAddTask}
       class="bg-primary text-on-primary font-semibold text-xs py-2.5 px-2.5 md:px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
-      title="Create New Task"
+      title={t('projectDetail.createTask')}
     >
       <span class="material-symbols-outlined text-[18px]">add_circle</span>
-      <span class="hidden lg:inline">Create New Task</span>
+      <span class="hidden lg:inline">{t('projectDetail.createTask')}</span>
     </button>
   </div>
 </header>
@@ -483,14 +486,14 @@
   <!-- Stats & Progress banner -->
   <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shrink-0">
     <div class="space-y-1">
-      <h2 class="text-xl font-bold text-on-surface">Lesson Overview</h2>
-      <p class="text-xs text-on-surface-variant">Reorder tasks by dragging, customize topics, or click a task to open the practice canvas.</p>
+      <h2 class="text-xl font-bold text-on-surface">{t('projectDetail.overviewTitle')}</h2>
+      <p class="text-xs text-on-surface-variant">{t('projectDetail.overviewDesc')}</p>
     </div>
 
     <!-- Progress bar widget -->
     <div class="w-full md:w-64 bg-surface-container-low border border-outline-variant rounded-xl p-4 flex flex-col gap-2">
       <div class="flex justify-between items-center text-xs font-bold">
-        <span class="text-primary uppercase tracking-wide">Progress</span>
+        <span class="text-primary uppercase tracking-wide">{t('projectDetail.progressLabel')}</span>
         <span>{progress}%</span>
       </div>
       <div class="w-full bg-surface-variant rounded-full h-2">
@@ -508,9 +511,9 @@
       <div class="flex items-center gap-3">
         <span class="material-symbols-outlined text-[20px] text-primary">description</span>
         <div>
-          <h3 class="font-bold text-sm text-on-surface">General Guidelines</h3>
+          <h3 class="font-bold text-sm text-on-surface">{t('projectDetail.guidelinesTitle')}</h3>
           <p class="text-[11px] text-on-surface-variant mt-0.5">
-            These guidelines are sent to the AI for every task in this lesson
+            {t('projectDetail.guidelinesSubtitle')}
           </p>
         </div>
       </div>
@@ -526,13 +529,13 @@
           use:autoResize={project.guidelines}
           value={project.guidelines || ''}
           oninput={handleGuidelinesChange}
-          placeholder="e.g., Always show your working, write neatly, answers must include units..."
+          placeholder={t('projectDetail.guidelinesPlaceholder')}
           rows="4"
           class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-y min-h-20"
         ></textarea>
         <p class="text-[10px] text-on-surface-variant mt-2 flex items-center gap-1">
           <span class="material-symbols-outlined text-[12px]">info</span>
-          These instructions will be included when the AI checks the student's work on any task in this lesson.
+          {t('projectDetail.guidelinesFooter')}
         </p>
       </div>
     {/if}
@@ -542,7 +545,7 @@
   <section class="flex flex-col gap-6 shrink-0">
     <!-- Category header toolbar (Step 5) -->
     <div class="flex justify-between items-center border-b border-outline-variant pb-2">
-      <h3 class="font-bold text-sm text-on-surface uppercase tracking-wider">Lesson Roadmap</h3>
+      <h3 class="font-bold text-sm text-on-surface uppercase tracking-wider">{t('projectDetail.roadmapTitle')}</h3>
       <div class="flex items-center gap-4">
         <!-- Hidden file input for importing tasks directly -->
         <input
@@ -555,10 +558,10 @@
         <button 
           onclick={() => taskFileInput?.click()}
           class="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer focus:outline-none"
-          title="Import tasks into this lesson"
+          title={t('projectDetail.importTasksTooltip')}
         >
           <span class="material-symbols-outlined text-[16px]">file_upload</span>
-          Import Tasks
+          {t('projectDetail.importTasks')}
         </button>
 
         <button 
@@ -566,7 +569,7 @@
           class="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer focus:outline-none"
         >
           <span class="material-symbols-outlined text-[16px]">create_new_folder</span>
-          Add Custom Topic
+          {t('projectDetail.addTopicBtn')}
         </button>
       </div>
     </div>
@@ -581,13 +584,13 @@
               <button
                 type="button"
                 onclick={() => {
-                  const newName = prompt(`Rename topic "${category}" to:`, category);
+                  const newName = prompt(t('projectDetail.renameTopicPrompt', { category }), category);
                   if (newName && newName.trim() && newName.trim() !== category) {
                     store.renameCategory(project.id, category, newName.trim());
                   }
                 }}
                 class="text-xs font-bold text-primary uppercase tracking-widest hover:underline cursor-pointer border-0 bg-transparent p-0 text-left focus:outline-none"
-                title="Click to rename topic"
+                title={t('projectDetail.renameTopicTooltip')}
               >
                 {category}
               </button>
@@ -596,29 +599,33 @@
                 type="button"
                 onclick={() => {
                   store.confirm(
-                    "Delete Topic",
-                    `Are you sure you want to delete the topic "${category}"? Any tasks inside will be moved to your default topic.`,
+                    t('projectDetail.deleteTopicConfirmTitle'),
+                    t('projectDetail.deleteTopicConfirmMsg', { category }),
                     () => store.deleteCategory(project.id, category)
                   );
                 }}
                 class="text-outline hover:text-error transition-colors cursor-pointer border-0 bg-transparent p-0 flex items-center justify-center focus:outline-none"
-                title="Delete topic"
+                title={t('projectDetail.deleteTopicTooltip')}
               >
                 <span class="material-symbols-outlined text-[16px]">delete</span>
               </button>
             </div>
             <div class="flex items-center gap-3">
               <span class="text-xs text-on-surface-variant font-semibold bg-surface px-2.5 py-1 rounded-full border border-outline-variant/30 animate-fade-in">
-                {catTasks.length} {catTasks.length === 1 ? 'task' : 'tasks'}
+                {#if catTasks.length === 1}
+                  {t('projectDetail.taskCountSingle')}
+                {:else}
+                  {t('projectDetail.taskCount', { count: catTasks.length })}
+                {/if}
               </span>
               <button
                 type="button"
                 onclick={() => handleAddTaskInCategory(category)}
                 class="flex items-center gap-1 px-3 py-1 bg-primary text-on-primary font-bold text-[11px] rounded-lg hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer focus:outline-none"
-                title="Create a new task in this topic"
+                title={t('projectDetail.addTaskInTopicTooltip')}
               >
                 <span class="material-symbols-outlined text-[14px]">add</span>
-                Add Task
+                {t('projectDetail.addTask')}
               </button>
             </div>
           </div>
@@ -680,7 +687,7 @@
                           store.toggleTaskCompleted(project.id, task.id);
                         }}
                         class="text-primary hover:opacity-85 focus:outline-none flex items-center cursor-pointer"
-                        title={task.completed ? "Mark incomplete" : "Mark complete"}
+                        title={task.completed ? t('projectDetail.markIncompleteTooltip') : t('projectDetail.markCompleteTooltip')}
                       >
                         <span class="material-symbols-outlined text-[22px]">
                           {task.completed ? 'check_box' : 'check_box_outline_blank'}
@@ -706,10 +713,10 @@
                           handleEditTask(task);
                         }}
                         class="text-outline hover:text-primary transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm" 
-                        title="Edit Task Details"
+                        title={t('projectDetail.editTaskTooltip')}
                       >
                         <span class="material-symbols-outlined text-[16px]">edit</span>
-                        Edit
+                        {t('common.edit')}
                       </button>
                       <!-- Task Export Icon -->
                       <button 
@@ -718,26 +725,26 @@
                           store.exportTasks(project, [task]);
                         }}
                         class="text-outline hover:text-primary transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm" 
-                        title="Export Task"
+                        title={t('projectDetail.exportTaskTooltip')}
                       >
                         <span class="material-symbols-outlined text-[16px]">file_download</span>
-                        Export
+                        {t('projectDetail.exportBtn')}
                       </button>
                       <!-- Task Delete Icon -->
                       <button 
                         onclick={(e) => {
                           e.stopPropagation();
                           store.confirm(
-                            "Delete Task",
-                            `Are you sure you want to delete "${task.name}"? This will permanently delete the task and its canvas drawing history.`,
+                            t('projectDetail.deleteTaskConfirmTitle'),
+                            t('projectDetail.deleteTaskConfirmMsg', { name: task.name }),
                             () => store.deleteTask(project.id, task.id)
                           );
                         }}
                         class="text-outline hover:text-error hover:border-error/40 transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm"
-                        title="Delete Task"
+                        title={t('projectDetail.deleteTaskTooltip')}
                       >
                         <span class="material-symbols-outlined text-[16px] text-error">delete</span>
-                        Delete
+                        {t('common.delete')}
                       </button>
                     </div>
                   {/if}
@@ -749,7 +756,7 @@
               {/each}
             {:else}
               <div class="border border-dashed border-outline-variant/60 rounded-lg p-5 flex items-center justify-center bg-surface-container-lowest/50 text-xs italic text-on-surface-variant">
-                No tasks in this section. Drag tasks here or create one.
+                {t('projectDetail.noTasksInSection')}
               </div>
             {/if}
           </div>
@@ -763,16 +770,16 @@
 {#if isAddCategoryOpen}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm select-none">
     <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-90 shadow-xl flex flex-col gap-4">
-      <h3 class="font-bold text-lg text-on-surface">Add Custom Topic Section</h3>
+      <h3 class="font-bold text-lg text-on-surface">{t('projectDetail.addTopicModalTitle')}</h3>
       
       <form onsubmit={handleAddCategorySubmit} class="flex flex-col gap-4">
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-semibold text-on-surface-variant" for="catName">Topic Name</label>
+          <label class="text-xs font-semibold text-on-surface-variant" for="catName">{t('projectDetail.topicNameLabel')}</label>
           <input 
             type="text" 
             id="catName" 
             bind:value={newCategoryName} 
-            placeholder="e.g., Capitals, Flourishing"
+            placeholder={t('projectDetail.topicNamePlaceholder')}
             class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary"
             required
             autofocus
@@ -785,13 +792,13 @@
             onclick={() => isAddCategoryOpen = false}
             class="px-4 py-2 border border-outline-variant text-on-surface-variant text-sm font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button 
             type="submit"
             class="px-4 py-2 bg-primary text-on-primary text-sm font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
           >
-            Create Section
+            {t('projectDetail.createSectionBtn')}
           </button>
         </div>
       </form>

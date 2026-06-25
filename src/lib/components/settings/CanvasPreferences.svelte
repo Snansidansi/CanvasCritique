@@ -1,15 +1,16 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
+  import { t } from '../../services/i18n';
 </script>
 
 <!-- Canvas Preferences Section -->
 <section class="mb-8 bg-surface p-6 md:p-8 rounded-xl border border-outline-variant shadow-sm">
   <div class="flex items-center gap-3 mb-6 border-b border-outline-variant pb-4">
     <span class="material-symbols-outlined text-primary">edit_road</span>
-    <h3 class="text-lg font-bold text-on-surface">Canvas Preferences</h3>
+    <h3 class="text-lg font-bold text-on-surface">{t('settings.canvas.title')}</h3>
   </div>
   <p class="text-xs text-on-surface-variant mb-4 leading-relaxed">
-    Choose between a truly infinite freeform canvas or structured A4 format page sheets.
+    {t('settings.canvas.desc')}
   </p>
   
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -29,9 +30,9 @@
         {/if}
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-2xl text-primary font-bold">all_out</span>
-          <span class="font-bold text-sm text-on-surface">Infinite Canvas</span>
+          <span class="font-bold text-sm text-on-surface">{t('settings.canvas.infinite')}</span>
         </div>
-        <p class="text-xs text-on-surface-variant">Truly infinite workspace like OneNote. Scroll and pan freely in any direction.</p>
+        <p class="text-xs text-on-surface-variant">{t('settings.canvas.infiniteDesc')}</p>
       </div>
     </button>
 
@@ -51,9 +52,9 @@
         {/if}
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-2xl text-primary font-bold">description</span>
-          <span class="font-bold text-sm text-on-surface">A4 Format Sheets</span>
+          <span class="font-bold text-sm text-on-surface">{t('settings.canvas.a4')}</span>
         </div>
-        <p class="text-xs text-on-surface-variant">Structured page-by-page sheets. Add, select, and delete individual A4 pages.</p>
+        <p class="text-xs text-on-surface-variant">{t('settings.canvas.a4Desc')}</p>
       </div>
     </button>
   </div>
@@ -61,8 +62,8 @@
   <!-- Auto-complete on AI success -->
   <div class="mt-6 border-t border-outline-variant/40 pt-5 flex items-center justify-between gap-4">
     <div>
-      <h4 class="font-bold text-sm text-on-surface mb-0.5">Auto-complete task on AI success</h4>
-      <p class="text-xs text-on-surface-variant">Automatically mark a task as completed when the AI returns a score of 100.</p>
+      <h4 class="font-bold text-sm text-on-surface mb-0.5">{t('settings.canvas.autoCompleteOnSuccess')}</h4>
+      <p class="text-xs text-on-surface-variant">{t('settings.canvas.autoCompleteOnSuccessDesc')}</p>
     </div>
     <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
       <input 
@@ -75,3 +76,4 @@
     </label>
   </div>
 </section>
+

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
+  import { t } from '../../services/i18n';
 
   function setTheme(theme) {
     store.settings.theme = theme;
@@ -11,7 +12,7 @@
 <section class="mb-8 bg-surface p-6 md:p-8 rounded-xl border border-outline-variant shadow-sm">
   <div class="flex items-center gap-3 mb-6 border-b border-outline-variant pb-4">
     <span class="material-symbols-outlined text-primary">palette</span>
-    <h3 class="text-lg font-bold text-on-surface">Appearance</h3>
+    <h3 class="text-lg font-bold text-on-surface">{t('settings.appearance.title')}</h3>
   </div>
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
     <!-- Light Mode Card -->
@@ -29,7 +30,7 @@
         {/if}
         <span class="material-symbols-outlined text-4xl text-slate-800">light_mode</span>
       </div>
-      <p class="text-center text-sm font-semibold {store.settings.theme === 'light' ? 'text-primary' : 'text-on-surface-variant'}" >Light</p>
+      <p class="text-center text-sm font-semibold {store.settings.theme === 'light' ? 'text-primary' : 'text-on-surface-variant'}" >{t('settings.appearance.light')}</p>
     </button>
 
     <!-- Dark Mode Card -->
@@ -47,7 +48,7 @@
         {/if}
         <span class="material-symbols-outlined text-4xl text-slate-100">dark_mode</span>
       </div>
-      <p class="text-center text-sm font-semibold {store.settings.theme === 'dark' ? 'text-primary' : 'text-on-surface-variant'}">Dark</p>
+      <p class="text-center text-sm font-semibold {store.settings.theme === 'dark' ? 'text-primary' : 'text-on-surface-variant'}">{t('settings.appearance.dark')}</p>
     </button>
 
     <!-- System Mode Card (Redesigned Split View) -->
@@ -73,7 +74,8 @@
           </div>
         </div>
       </div>
-      <p class="text-center text-sm font-semibold {store.settings.theme === 'system' ? 'text-primary' : 'text-on-surface-variant'}">System</p>
+      <p class="text-center text-sm font-semibold {store.settings.theme === 'system' ? 'text-primary' : 'text-on-surface-variant'}">{t('settings.appearance.system')}</p>
     </button>
   </div>
 </section>
+

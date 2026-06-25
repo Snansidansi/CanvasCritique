@@ -1,5 +1,6 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
+  import { t } from '../../services/i18n';
 
   let { 
     isOpen = $bindable(false), 
@@ -84,7 +85,7 @@
     <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-96 shadow-2xl flex flex-col gap-5">
       <header class="flex justify-between items-center">
         <h3 class="font-bold text-lg text-on-surface">
-          {mode === 'create' ? 'Create Theme Profile' : 'Edit Theme Profile'}
+          {mode === 'create' ? t('profile.createTitle') : t('profile.editTitle')}
         </h3>
         <button 
           onclick={() => isOpen = false}
@@ -97,12 +98,12 @@
       <form onsubmit={handleSaveProfile} class="flex flex-col gap-4">
         <!-- Profile Name -->
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold text-on-surface-variant" for="profileName">Profile Name</label>
+          <label class="text-xs font-bold text-on-surface-variant" for="profileName">{t('profile.nameLabel')}</label>
           <input 
             type="text" 
             id="profileName" 
             bind:value={profileFormName} 
-            placeholder="e.g., School, University, Work"
+            placeholder={t('profile.namePlaceholder')}
             class="bg-surface-container border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full"
             required
             autofocus
@@ -111,7 +112,7 @@
 
         <!-- Profile Icon/Avatar -->
         <div class="flex flex-col gap-2">
-          <span class="text-xs font-bold text-on-surface-variant">Profile Icon / Avatar</span>
+          <span class="text-xs font-bold text-on-surface-variant">{t('profile.iconLabel')}</span>
           
           <input 
             type="file" 
@@ -130,7 +131,7 @@
                   type="button"
                   onclick={() => profileFormIcon = null}
                   class="absolute -top-1 -right-1 bg-error text-white rounded-full p-0.5 shadow-sm hover:scale-105 transition-transform flex items-center justify-center"
-                  title="Remove Image"
+                  title={t('profile.removeImage')}
                 >
                   <span class="material-symbols-outlined text-[14px]">close</span>
                 </button>
@@ -151,9 +152,9 @@
                 class="px-3.5 py-1.5 bg-surface border border-outline-variant hover:bg-surface-container text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1 focus:outline-none"
               >
                 <span class="material-symbols-outlined text-[16px]">upload</span>
-                Upload Custom Image
+                {t('profile.uploadImage')}
               </button>
-              <p class="text-[10px] text-on-surface-variant">JPG, PNG supported. Square image recommended.</p>
+              <p class="text-[10px] text-on-surface-variant">{t('profile.uploadTip')}</p>
             </div>
           </div>
         </div>
@@ -161,7 +162,7 @@
         <!-- Color Selection (only shown when custom icon is not set) -->
         {#if !profileFormIcon}
           <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-3">
-            <span class="text-xs font-bold text-on-surface-variant">Initials Background Color</span>
+            <span class="text-xs font-bold text-on-surface-variant">{t('profile.colorLabel')}</span>
             <div class="flex flex-wrap gap-2.5">
               {#each presetColors as color}
                 <button
@@ -204,7 +205,7 @@
               class="px-4 py-2 text-error hover:bg-error/10 text-xs font-bold rounded-lg cursor-pointer focus:outline-none flex items-center gap-1 transition-colors"
             >
               <span class="material-symbols-outlined text-[16px]">delete</span>
-              Delete Profile
+              {t('profile.deleteProfile')}
             </button>
           {:else}
             <div></div> <!-- Spacer -->
@@ -216,13 +217,13 @@
               onclick={() => isOpen = false}
               class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-bold rounded-lg hover:bg-surface-container cursor-pointer focus:outline-none"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button 
               type="submit"
               class="px-4 py-2 bg-primary text-on-primary text-xs font-bold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
             >
-              {mode === 'create' ? 'Create Profile' : 'Save Changes'}
+              {mode === 'create' ? t('profile.createProfile') : t('profile.saveChanges')}
             </button>
           </div>
         </div>
@@ -230,3 +231,4 @@
     </div>
   </div>
 {/if}
+

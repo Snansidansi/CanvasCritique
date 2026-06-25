@@ -2,6 +2,7 @@
   import { store } from '../../state/store.svelte';
   import AiModelConfig from './AiModelConfig.svelte';
   import EvaluationDetailsSettings from './EvaluationDetailsSettings.svelte';
+  import { t } from '../../services/i18n';
 
   // Connection test state
   let connectionTestStatus = $state(''); // 'idle' | 'testing' | 'success' | 'error'
@@ -14,7 +15,7 @@
   // API Connection Verification
   async function testApiConnection() {
     connectionTestStatus = 'testing';
-    connectionTestMessage = 'Testing connection to active model...';
+    connectionTestMessage = t('settings.api.testConnectionActive');
 
     const provider = store.settings.apiProvider;
     const apiKey = store.apiKey;
@@ -22,7 +23,7 @@
 
     if (!apiKey) {
       connectionTestStatus = 'error';
-      connectionTestMessage = 'Error: Please enter an API key first.';
+      connectionTestMessage = t('settings.api.testConnectionNoKey');
       return;
     }
 
@@ -39,10 +40,10 @@
         const data = await response.json();
         if (response.ok && data.candidates && data.candidates[0]) {
           connectionTestStatus = 'success';
-          connectionTestMessage = 'Success! Connection verified successfully.';
+          connectionTestMessage = t('settings.api.testConnectionSuccess');
         } else {
           connectionTestStatus = 'error';
-          connectionTestMessage = `Error: ${data.error?.message || 'Invalid API key or model.'}`;
+          connectionTestMessage = t('settings.api.testConnectionError', { error: data.error?.message || 'Invalid API key or model.' });
         }
       } else {
         const url = 'https://openrouter.ai/api/v1/chat/completions';
@@ -72,15 +73,15 @@
         const data = await response.json();
         if (response.ok && data.choices && data.choices[0]) {
           connectionTestStatus = 'success';
-          connectionTestMessage = 'Success! Connection verified successfully.';
+          connectionTestMessage = t('settings.api.testConnectionSuccess');
         } else {
           connectionTestStatus = 'error';
-          connectionTestMessage = `Error: ${data.error?.message || 'Invalid API key or model.'}`;
+          connectionTestMessage = t('settings.api.testConnectionError', { error: data.error?.message || 'Invalid API key or model.' });
         }
       }
     } catch (err) {
       connectionTestStatus = 'error';
-      connectionTestMessage = `Network Error: ${err.message || err}`;
+      connectionTestMessage = t('settings.api.testConnectionNetworkError', { error: err.message || err });
     }
   }
 </script>
@@ -91,7 +92,7 @@
   
   <div class="flex items-center gap-3 mb-6 border-b border-outline-variant pb-4 relative z-10">
     <span class="material-symbols-outlined text-primary">api</span>
-    <h3 class="text-lg font-bold text-on-surface">API Settings</h3>
+    <h3 class="text-lg font-bold text-on-surface">{t('settings.api.title')}</h3>
   </div>
   
   <div class="relative z-10 flex flex-col gap-6">
@@ -100,9 +101,9 @@
 
     <!-- Evaluation Payload Settings -->
     <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
-      <h4 class="text-sm font-bold text-on-surface">Evaluation Details</h4>
+      <h4 class="text-sm font-bold text-on-surface">{t('settings.api.evaluationDetailsTitle')}</h4>
       <p class="text-xs text-on-surface-variant leading-relaxed">
-        Configure what task details are sent to the AI model during "Check Work" evaluations.
+        {t('settings.api.evaluationDetailsDesc')}
       </p>
       <EvaluationDetailsSettings settings={store.settings} onchange={handleInputChange} />
     </div>
@@ -117,24 +118,24 @@
           class="bg-secondary-container text-on-secondary-container hover:bg-secondary-container-high disabled:opacity-50 transition-all px-4 py-2 rounded-lg font-semibold text-sm cursor-pointer flex items-center gap-2"
         >
           <span class="material-symbols-outlined text-[18px]">cell_tower</span>
-          Test Connection
+          {t('settings.api.testConnectionBtn')}
         </button>
         
         {#if connectionTestStatus === 'testing'}
           <span class="text-xs text-on-surface-variant flex items-center gap-1.5 animate-pulse">
             <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-            Testing...
+            {t('settings.api.testing')}
           </span>
         {:else}
           {#if connectionTestStatus === 'success'}
             <span class="text-xs text-emerald-500 font-semibold flex items-center gap-1.5">
               <span class="material-symbols-outlined text-[16px]">check_circle</span>
-              Verified
+              {t('settings.api.verified')}
             </span>
           {:else if connectionTestStatus === 'error'}
             <span class="text-xs text-error font-semibold flex items-center gap-1.5">
               <span class="material-symbols-outlined text-[16px]">error</span>
-              Failed
+              {t('settings.api.failed')}
             </span>
           {/if}
         {/if}
@@ -147,3 +148,4 @@
     </div>
   </div>
 </section>
+

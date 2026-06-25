@@ -1,5 +1,6 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
+  import { t } from '../../services/i18n';
 
   let {
     task,
@@ -32,7 +33,7 @@
     <button 
       onclick={handleBack}
       class="material-symbols-outlined text-primary hover:bg-surface-container-high p-1.5 rounded-lg cursor-pointer focus:outline-none flex items-center justify-center"
-      title="Back to Project"
+      title={t('practice.backToProject')}
     >
       arrow_back
     </button>
@@ -40,7 +41,7 @@
     <button 
       onclick={() => store.updateTask(store.activeProject.id, task.id, { completed: !task.completed })}
       class="ml-1 flex items-center justify-center p-1 rounded-full border border-outline-variant hover:bg-surface-container-high transition-colors focus:outline-none cursor-pointer {task.completed ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' : 'text-on-surface-variant'}"
-      title={task.completed ? "Mark Incomplete" : "Mark Completed"}
+      title={task.completed ? t('practice.markIncomplete') : t('practice.markCompleted')}
     >
       <span class="material-symbols-outlined text-[18px]">
         {task.completed ? 'check_circle' : 'radio_button_unchecked'}
@@ -58,7 +59,7 @@
           }}
           disabled={currentTaskIndex <= 0}
           class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none flex items-center justify-center"
-          title="Previous Lesson"
+          title={t('practice.prevTask')}
         >
           <span class="material-symbols-outlined text-base">chevron_left</span>
         </button>
@@ -70,7 +71,7 @@
           }}
           disabled={currentTaskIndex >= store.activeProject.tasks.length - 1}
           class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none flex items-center justify-center"
-          title="Next Lesson"
+          title={t('practice.nextTask')}
         >
           <span class="material-symbols-outlined text-base">chevron_right</span>
         </button>
@@ -95,7 +96,7 @@
         }}
         disabled={zoomScale <= 0.2}
         class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-        title="Zoom Out"
+        title={t('practice.zoomOut')}
       >
         <span class="material-symbols-outlined text-base">zoom_out</span>
       </button>
@@ -106,7 +107,7 @@
           panOffset = { x: 0, y: 0 };
         }}
         class="px-2 py-1 text-[10px] text-on-surface hover:bg-surface-container-high rounded font-semibold select-none cursor-pointer transition-colors"
-        title="Reset Zoom & Pan"
+        title={t('practice.resetZoom')}
       >
         {Math.round(zoomScale * 100)}%
       </button>
@@ -117,7 +118,7 @@
         }}
         disabled={zoomScale >= 4.0}
         class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-        title="Zoom In"
+        title={t('practice.zoomIn')}
       >
         <span class="material-symbols-outlined text-base">zoom_in</span>
       </button>
@@ -135,13 +136,13 @@
           }}
           disabled={activePageIndex === 0}
           class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-          title="Previous Page"
+          title={t('practice.prevPage')}
         >
           <span class="material-symbols-outlined text-base">navigate_before</span>
         </button>
         
         <span class="text-xs text-on-surface-variant font-semibold select-none">
-          Page {activePageIndex + 1} of {pages.length}
+          {t('practice.pageOf', { current: activePageIndex + 1, total: pages.length })}
         </span>
         
         <button 
@@ -153,7 +154,7 @@
           }}
           disabled={activePageIndex === pages.length - 1}
           class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-          title="Next Page"
+          title={t('practice.nextPage')}
         >
           <span class="material-symbols-outlined text-base">navigate_next</span>
         </button>
@@ -169,7 +170,7 @@
             activeTooltipMarker = null;
           }}
           class="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors focus:outline-none cursor-pointer flex items-center justify-center"
-          title="Add Page"
+          title={t('practice.addPage')}
         >
           <span class="material-symbols-outlined text-base">note_add</span>
         </button>
@@ -178,8 +179,8 @@
           <button 
             onclick={() => {
               store.confirm(
-                'Delete Page',
-                `Are you sure you want to delete Page ${activePageIndex + 1}? All drawings on this page will be permanently lost.`,
+                t('practice.deletePage'),
+                t('practice.deletePageConfirm', { page: activePageIndex + 1 }),
                 () => {
                   pages.splice(activePageIndex, 1);
                   if (activePageIndex >= pages.length) {
@@ -190,7 +191,7 @@
               );
             }}
             class="p-1.5 text-error hover:bg-error/10 rounded-lg transition-colors focus:outline-none cursor-pointer flex items-center justify-center"
-            title="Delete Page"
+            title={t('practice.deletePage')}
           >
             <span class="material-symbols-outlined text-base">delete</span>
           </button>
@@ -207,10 +208,10 @@
         }}
         class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold focus:outline-none cursor-pointer transition-all flex items-center gap-1
                {store.settings.stylusMode ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}"
-        title="Toggle Stylus Mode (Finger/mouse pans, only stylus draws)"
+        title={t('practice.toggleStylusMode')}
       >
         <span class="material-symbols-outlined text-base">draw</span>
-        <span>Stylus Mode</span>
+        <span>{t('practice.stylusMode')}</span>
       </button>
     </div>
 
@@ -220,20 +221,20 @@
         onclick={() => showTask = !showTask}
         class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold focus:outline-none cursor-pointer transition-all flex items-center gap-1
                {showTask ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}"
-        title="Toggle Instructions"
+        title={t('practice.toggleInstructions')}
       >
         <span class="material-symbols-outlined text-base">menu_book</span>
-        <span>Task</span>
+        <span>{t('practice.taskLabel')}</span>
       </button>
 
       <button 
         onclick={() => showSolution = !showSolution}
         class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold focus:outline-none cursor-pointer transition-all flex items-center gap-1
                {showSolution ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}"
-        title="Toggle Solution Goal"
+        title={t('practice.toggleSolution')}
       >
         <span class="material-symbols-outlined text-base">visibility</span>
-        <span>Solution</span>
+        <span>{t('practice.solutionLabel')}</span>
       </button>
 
       {#if hasCheckedWork}
@@ -243,10 +244,10 @@
           }}
           class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold focus:outline-none cursor-pointer transition-all flex items-center gap-1
                  {showFeedback ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}"
-          title="Toggle AI Critique"
+          title={t('practice.toggleCritique')}
         >
           <span class="material-symbols-outlined text-base">neurology</span>
-          <span>Critique</span>
+          <span>{t('practice.critiqueLabel')}</span>
         </button>
       {/if}
     </div>
@@ -260,7 +261,7 @@
         onclick={handleUndo} 
         disabled={strokeHistory.length === 0}
         class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-        title="Undo"
+        title={t('practice.undo')}
       >
         <span class="material-symbols-outlined text-base">undo</span>
       </button>
@@ -268,7 +269,7 @@
         onclick={handleRedo} 
         disabled={redoStack.length === 0}
         class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-        title="Redo"
+        title={t('practice.redo')}
       >
         <span class="material-symbols-outlined text-base">redo</span>
       </button>
@@ -279,7 +280,7 @@
       class="bg-primary text-white px-4 py-2 rounded-lg text-xs font-bold hover:shadow-md active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer focus:outline-none"
     >
       <span class="material-symbols-outlined text-[16px]">neurology</span>
-      <span>Check Work</span>
+      <span>{t('practice.checkWork')}</span>
     </button>
   </div>
 </header>

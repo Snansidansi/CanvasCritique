@@ -2,6 +2,7 @@
   import { store } from '../state/store.svelte';
   import { onMount } from 'svelte';
   import { parseMarkdown } from '../utils/markdown';
+  import { t } from '../services/i18n';
 
   // Form states
   let taskName = $state('');
@@ -398,14 +399,14 @@
       <button 
         onclick={handleCancel}
         class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors p-2 rounded-full focus:outline-none cursor-pointer"
-        title="Cancel"
+        title={t('common.cancel')}
       >
         arrow_back
       </button>
       <div class="flex flex-col gap-0.5">
-        <h1 class="text-xl font-bold text-on-surface leading-tight">{isEditMode ? 'Edit Task' : 'Create Task'}</h1>
+        <h1 class="text-xl font-bold text-on-surface leading-tight">{isEditMode ? t('taskEditor.editTitle') : t('taskEditor.createTitle')}</h1>
         <p class="text-xs text-on-surface-variant">
-          {isEditMode ? 'Modify details or requirements for this script assignment.' : 'Define the parameters and provide reference materials for this assignment.'}
+          {isEditMode ? t('taskEditor.editSubtitle') : t('taskEditor.createSubtitle')}
         </p>
       </div>
     </div>
@@ -416,12 +417,12 @@
 
       <!-- Task Name -->
       <div class="flex flex-col gap-2 group">
-        <label class="text-sm font-semibold text-on-surface group-focus-within:text-primary transition-colors" for="taskName">Task Name</label>
+        <label class="text-sm font-semibold text-on-surface group-focus-within:text-primary transition-colors" for="taskName">{t('taskEditor.nameLabel')}</label>
         <input 
           id="taskName" 
           type="text" 
           bind:value={taskName}
-          placeholder="e.g., Spencerian Loops, Ascenders"
+          placeholder={t('taskEditor.namePlaceholder')}
           class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-2.5 text-base text-on-surface placeholder:text-outline focus:ring-0 focus:border-primary focus:border-b-2 transition-all focus:outline-none"
           required
         />
@@ -429,7 +430,7 @@
 
       <!-- Category Level -->
       <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-on-surface" for="category">Difficulty Category / Topic</label>
+        <label class="text-sm font-semibold text-on-surface" for="category">{t('taskEditor.categoryLabel')}</label>
         <select 
           id="category"
           bind:value={category}
@@ -443,11 +444,11 @@
 
       <!-- Instructions -->
       <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-on-surface" for="instructions">Instructions</label>
+        <label class="text-sm font-semibold text-on-surface" for="instructions">{t('taskEditor.instructionsLabel')}</label>
         <textarea 
           id="instructions" 
           bind:value={instructions}
-          placeholder="Write detailed step-by-step instructions. Markdown is supported." 
+          placeholder={t('taskEditor.instructionsPlaceholder')} 
           rows="5"
           class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y shadow-sm focus:outline-none"
         ></textarea>
@@ -457,14 +458,14 @@
       <div class="flex gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-amber-800 dark:text-amber-300">
         <span class="material-symbols-outlined text-[20px] shrink-0 mt-0.5">warning</span>
         <div class="flex flex-col gap-0.5">
-          <p class="text-xs font-semibold">Note on Documents &amp; API Costs</p>
-          <p class="text-[11px] leading-normal opacity-90">Too many documents increase the API context size, which can make the results less accurate and increase costs. Please only upload the necessary reference materials.</p>
+          <p class="text-xs font-semibold">{t('taskEditor.apiCostWarningTitle')}</p>
+          <p class="text-[11px] leading-normal opacity-90">{t('taskEditor.apiCostWarningDesc')}</p>
         </div>
       </div>
 
       <!-- Instruction Material Upload -->
       <div class="flex flex-col gap-2">
-        <span class="text-sm font-semibold text-on-surface">Instruction Reference Material</span>
+        <span class="text-sm font-semibold text-on-surface">{t('taskEditor.instructionMaterial')}</span>
         <input 
           type="file" 
           id="instructionFileInput" 
@@ -483,9 +484,9 @@
           </div>
           <div class="text-center">
             <p class="text-sm font-semibold text-on-surface">
-              {instructionFiles.length > 0 ? `${instructionFiles.length} files selected` : 'Tap to upload or drag reference files'}
+              {instructionFiles.length > 0 ? t('taskEditor.filesSelected', { count: instructionFiles.length }) : t('taskEditor.uploadPrompt')}
             </p>
-            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG, TXT, MD (Max 25MB, multiple files supported)</p>
+            <p class="text-xs text-on-surface-variant mt-1">{t('taskEditor.uploadSupportInfo')}</p>
           </div>
         </button>
 
@@ -496,7 +497,7 @@
           class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
         >
           <span class="material-symbols-outlined text-[16px]">content_paste</span>
-          Paste Image/Text from Clipboard
+          {t('taskEditor.pasteClipboard')}
         </button>
 
         {#if instructionFiles.length > 0}
@@ -517,7 +518,7 @@
                 <div 
                   onclick={() => openPreview(file)}
                   class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
-                  title="Click to preview file"
+                  title={t('taskEditor.clickToPreview')}
                 >
                   <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
                     drag_indicator
@@ -533,7 +534,7 @@
                     instructionFiles = instructionFiles.filter((_, i) => i !== index);
                   }}
                   class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
-                  title="Remove"
+                  title={t('taskEditor.remove')}
                 >
                   close
                 </button>
@@ -545,11 +546,11 @@
 
       <!-- Expected Solution -->
       <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-on-surface" for="solution">Expected Solution / Evaluation Criteria</label>
+        <label class="text-sm font-semibold text-on-surface" for="solution">{t('taskEditor.solutionLabel')}</label>
         <textarea 
           id="solution" 
           bind:value={solution}
-          placeholder="Provide the expected outcome. This prompt is passed to the AI to grade the handwriting." 
+          placeholder={t('taskEditor.solutionPlaceholder')} 
           rows="4"
           class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y shadow-sm focus:outline-none"
         ></textarea>
@@ -557,7 +558,7 @@
 
       <!-- Expected Solution Material Upload -->
       <div class="flex flex-col gap-2">
-        <span class="text-sm font-semibold text-on-surface">Expected Solution Material</span>
+        <span class="text-sm font-semibold text-on-surface">{t('taskEditor.solutionMaterial')}</span>
         <input 
           type="file" 
           id="solutionFileInput" 
@@ -576,9 +577,9 @@
           </div>
           <div class="text-center">
             <p class="text-sm font-semibold text-on-surface">
-              {solutionFiles.length > 0 ? `${solutionFiles.length} files selected` : 'Tap to upload or drag solution files'}
+              {solutionFiles.length > 0 ? t('taskEditor.filesSelected', { count: solutionFiles.length }) : t('taskEditor.uploadPromptSolution')}
             </p>
-            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG, TXT, MD (Max 25MB, multiple files supported)</p>
+            <p class="text-xs text-on-surface-variant mt-1">{t('taskEditor.uploadSupportInfo')}</p>
           </div>
         </button>
 
@@ -589,7 +590,7 @@
           class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
         >
           <span class="material-symbols-outlined text-[16px]">content_paste</span>
-          Paste Image/Text from Clipboard
+          {t('taskEditor.pasteClipboard')}
         </button>
 
         {#if solutionFiles.length > 0}
@@ -610,7 +611,7 @@
                 <div 
                   onclick={() => openPreview(file)}
                   class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
-                  title="Click to preview file"
+                  title={t('taskEditor.clickToPreview')}
                 >
                   <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
                     drag_indicator
@@ -626,7 +627,7 @@
                     solutionFiles = solutionFiles.filter((_, i) => i !== index);
                   }}
                   class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
-                  title="Remove"
+                  title={t('taskEditor.remove')}
                 >
                   close
                 </button>
@@ -643,14 +644,14 @@
           onclick={handleCancel}
           class="px-5 py-2.5 border border-outline-variant text-on-surface-variant font-semibold text-sm rounded-lg hover:bg-surface-container cursor-pointer"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
         <button 
           type="submit" 
           class="px-6 py-2.5 bg-primary text-on-primary font-semibold text-sm rounded-lg hover:opacity-90 active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,64,224,0.15)] flex items-center gap-2 cursor-pointer"
         >
           <span class="material-symbols-outlined text-[18px]">save</span>
-          {isEditMode ? 'Save Changes' : 'Save Task'}
+          {isEditMode ? t('taskEditor.saveChanges') : t('taskEditor.saveTask')}
         </button>
       </div>
     </form>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { onMount } from 'svelte';
+  import { t } from '../../services/i18n';
 
   // Props
   let { 
@@ -206,7 +207,7 @@
              {settings.apiProvider === 'gemini' ? 'border-primary bg-primary/5 font-semibold text-primary' : 'border-outline-variant hover:border-primary text-on-surface bg-surface-container-low'}"
     >
       <span class="material-symbols-outlined">{settings.apiProvider === 'gemini' ? 'radio_button_checked' : 'radio_button_unchecked'}</span>
-      <span class="text-sm">Gemini API</span>
+      <span class="text-sm">{t('settings.api.providerGemini')}</span>
     </button>
     
     <button 
@@ -216,7 +217,7 @@
              {settings.apiProvider === 'openrouter' ? 'border-primary bg-primary/5 font-semibold text-primary' : 'border-outline-variant hover:border-primary text-on-surface bg-surface-container-low'}"
     >
       <span class="material-symbols-outlined">{settings.apiProvider === 'openrouter' ? 'radio_button_checked' : 'radio_button_unchecked'}</span>
-      <span class="text-sm">OpenRouter API</span>
+      <span class="text-sm">{t('settings.api.providerOpenRouter')}</span>
     </button>
   </div>
 
@@ -226,13 +227,13 @@
       {#if showKeys}
         <!-- Gemini API Key -->
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-semibold text-on-surface" for="geminiKey">Gemini API Key</label>
+          <label class="text-xs font-semibold text-on-surface" for="geminiKey">{t('settings.api.geminiKeyLabel')}</label>
           <input 
             type="password" 
             id="geminiKey"
             bind:value={settings.geminiApiKey}
             onchange={handleInputChange}
-            placeholder="Enter your Gemini API key..." 
+            placeholder={t('settings.api.geminiKeyPlaceholder')} 
             class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
           />
         </div>
@@ -242,7 +243,7 @@
       <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
         <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[18px] text-primary">visibility</span>
-          Show Only Vision Models
+          {t('settings.api.showOnlyVision')}
         </span>
         <label class="relative inline-flex items-center cursor-pointer select-none">
           <input 
@@ -256,7 +257,7 @@
       
       <!-- Gemini Model (Searchable Autocomplete) -->
       <div class="flex flex-col gap-1.5 relative">
-        <label class="text-xs font-semibold text-on-surface" for="geminiModel">Model Selection</label>
+        <label class="text-xs font-semibold text-on-surface" for="geminiModel">{t('settings.api.modelSelection')}</label>
         <div class="relative">
           <input 
             type="text" 
@@ -264,7 +265,7 @@
             bind:value={settings.geminiModel}
             onfocus={() => geminiModelOpen = true}
             oninput={handleInputChange}
-            placeholder="Select or type model..."
+            placeholder={t('settings.api.modelPlaceholder')}
             class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
           />
           <button 
@@ -296,7 +297,7 @@
                 </button>
               {/each}
             {:else}
-              <div class="px-3 py-2 text-xs text-on-surface-variant italic">Press enter or type custom model...</div>
+              <div class="px-3 py-2 text-xs text-on-surface-variant italic">{t('settings.api.customModelPressEnter')}</div>
             {/if}
           </div>
         {/if}
@@ -307,13 +308,13 @@
       {#if showKeys}
         <!-- OpenRouter API Key -->
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-semibold text-on-surface" for="routerKey">OpenRouter API Key</label>
+          <label class="text-xs font-semibold text-on-surface" for="routerKey">{t('settings.api.openRouterKeyLabel')}</label>
           <input 
             type="password" 
             id="routerKey"
             bind:value={settings.openRouterApiKey}
             onchange={handleInputChange}
-            placeholder="Enter your OpenRouter API key..." 
+            placeholder={t('settings.api.openRouterKeyPlaceholder')} 
             class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
           />
         </div>
@@ -323,7 +324,7 @@
       <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
         <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[18px] text-primary">visibility</span>
-          Show Only Vision Models
+          {t('settings.api.showOnlyVision')}
         </span>
         <label class="relative inline-flex items-center cursor-pointer select-none">
           <input 
@@ -337,7 +338,7 @@
 
       <!-- OpenRouter Model (Searchable Autocomplete) - PLACED FIRST -->
       <div class="flex flex-col gap-1.5 relative">
-        <label class="text-xs font-semibold text-on-surface" for="openRouterModel">Model Selection</label>
+        <label class="text-xs font-semibold text-on-surface" for="openRouterModel">{t('settings.api.modelSelection')}</label>
         <div class="relative">
           <input 
             type="text" 
@@ -345,7 +346,7 @@
             bind:value={settings.openRouterModel}
             onfocus={() => openRouterModelOpen = true}
             oninput={handleInputChange}
-            placeholder="Select or type model..."
+            placeholder={t('settings.api.modelPlaceholder')}
             class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
           />
           <button 
@@ -377,7 +378,7 @@
                 </button>
               {/each}
             {:else}
-              <div class="px-3 py-2 text-xs text-on-surface-variant italic">Press enter or type custom model...</div>
+              <div class="px-3 py-2 text-xs text-on-surface-variant italic">{t('settings.api.customModelPressEnter')}</div>
             {/if}
           </div>
         {/if}
@@ -385,7 +386,7 @@
 
       <!-- OpenRouter Provider (Searchable Multiple Tag Autocomplete) - PLACED SECOND -->
       <div class="flex flex-col gap-1.5 relative">
-        <span class="text-xs font-semibold text-on-surface">Selected Providers</span>
+        <span class="text-xs font-semibold text-on-surface">{t('settings.api.selectedProviders')}</span>
         
         <!-- Selected Tags list -->
         <div class="flex flex-wrap gap-2 mb-1">
@@ -410,7 +411,7 @@
         {#if (settings.openRouterProvider || []).length === 0}
           <p class="text-xs text-on-surface-variant font-semibold flex items-center gap-1 mt-1">
             <span class="material-symbols-outlined text-[16px] text-primary">info</span>
-            OpenRouter will automatically choose the best available provider.
+            {t('settings.api.autoProviderInfo')}
           </p>
         {/if}
 
@@ -420,7 +421,7 @@
             id="openRouterProvider"
             bind:value={providerSearchTerm}
             onfocus={() => openRouterProviderOpen = true}
-            placeholder="Type to search and add providers..."
+            placeholder={t('settings.api.providerSearchPlaceholder')}
             class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
           />
           <button 
@@ -456,7 +457,7 @@
                 </button>
               {/each}
             {:else}
-              <div class="px-3 py-2 text-xs text-on-surface-variant italic">No matching providers found.</div>
+              <div class="px-3 py-2 text-xs text-on-surface-variant italic">{t('settings.api.noProvidersFound')}</div>
             {/if}
           </div>
         {/if}
@@ -465,8 +466,8 @@
       <!-- OpenRouter Reasoning Toggle -->
       <div class="flex items-center justify-between p-3 rounded-lg bg-surface-container-low border border-outline-variant/30 mt-2">
         <div class="flex flex-col gap-0.5">
-          <span class="text-xs font-bold text-on-surface">Enable Model Reasoning / Thinking</span>
-          <span class="text-[10.5px] text-outline leading-tight">Sends reasoning configurations to OpenRouter models (like DeepSeek R1). Disable to save tokens.</span>
+          <span class="text-xs font-bold text-on-surface">{t('settings.api.enableReasoning')}</span>
+          <span class="text-[10.5px] text-outline leading-tight">{t('settings.api.reasoningDesc')}</span>
         </div>
         <label class="relative inline-flex items-center cursor-pointer select-none">
           <input 
@@ -481,3 +482,4 @@
     </div>
   {/if}
 </div>
+

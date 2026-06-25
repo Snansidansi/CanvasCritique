@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { store } from '../../state/store.svelte';
+  import { t } from '../../services/i18n';
 
   let isDetecting = $state(false);
 
@@ -22,13 +23,13 @@
     const newId = 'stylus-btn-' + Date.now();
     
     // Generate a user-friendly default name based on values
-    let btnName = `Stylus Button (btn: ${button})`;
+    let btnName = t('settings.stylus.defaultStylusBtn', { button });
     if (cleanButtons === 32 || button === 5) {
-      btnName = 'Eraser Tip';
+      btnName = t('settings.stylus.defaultEraserTip');
     } else if (cleanButtons === 2 || button === 2) {
-      btnName = 'Barrel Button 1';
+      btnName = t('settings.stylus.defaultBarrel1');
     } else if (cleanButtons === 4 || button === 1) {
-      btnName = 'Barrel Button 2';
+      btnName = t('settings.stylus.defaultBarrel2');
     }
 
     const newBtn = {
@@ -107,24 +108,24 @@
 <section class="mb-8 bg-surface p-6 md:p-8 rounded-xl border border-outline-variant shadow-sm select-none">
   <div class="flex items-center gap-3 mb-6 border-b border-outline-variant pb-4">
     <span class="material-symbols-outlined text-primary font-bold">draw</span>
-    <h3 class="text-lg font-bold text-on-surface">Stylus Button Actions</h3>
+    <h3 class="text-lg font-bold text-on-surface">{t('settings.stylus.title')}</h3>
   </div>
 
   <p class="text-xs text-on-surface-variant mb-6 leading-relaxed">
-    Customize how your stylus buttons and eraser tips behave on the canvas.
+    {t('settings.stylus.desc')}
   </p>
 
   <!-- Instruction Block and Detect Trigger -->
   <div class="mb-6 p-5 bg-surface-container-low border border-outline-variant/60 rounded-xl space-y-4 shadow-sm">
     <h4 class="text-xs font-bold text-on-surface flex items-center gap-1.5">
       <span class="material-symbols-outlined text-[16px] text-primary">info</span>
-      How to configure stylus buttons
+      {t('settings.stylus.howToTitle')}
     </h4>
     <ol class="text-[11px] text-on-surface-variant space-y-2 list-decimal pl-4 leading-relaxed">
-      <li>Click the <strong>"Detect Stylus Button"</strong> button below to start detection mode.</li>
-      <li>Touch your stylus to the display screen.</li>
-      <li>Press the physical button on your stylus that you want to map. (Nothing will register until you press the button).</li>
-      <li>The button will be recorded, added to the list below, and detection mode will end.</li>
+      <li>Click the <strong>"{t('settings.stylus.detectBtn')}"</strong> button below to start detection mode.</li>
+      <li>{t('settings.stylus.howToStep2')}</li>
+      <li>{t('settings.stylus.howToStep3')}</li>
+      <li>{t('settings.stylus.howToStep4')}</li>
     </ol>
     
     <div class="pt-2 flex justify-start">
@@ -134,7 +135,7 @@
         class="px-4 py-2.5 bg-primary hover:opacity-90 text-on-primary text-xs font-bold rounded-lg cursor-pointer transition-opacity shadow-sm flex items-center gap-2 border-0"
       >
         <span class="material-symbols-outlined text-[16px]">radar</span>
-        <span>Detect Stylus Button</span>
+        <span>{t('settings.stylus.detectBtn')}</span>
       </button>
     </div>
   </div>
@@ -142,10 +143,10 @@
   <!-- Mappings List -->
   <div class="flex flex-col gap-4">
     <div class="hidden md:grid grid-cols-12 gap-3 px-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-      <div class="col-span-5">Button Name / Label</div>
-      <div class="col-span-3">Trigger Values</div>
-      <div class="col-span-3">Action Operation</div>
-      <div class="col-span-1 text-right">Delete</div>
+      <div class="col-span-5">{t('settings.stylus.colLabel')}</div>
+      <div class="col-span-3">{t('settings.stylus.colTrigger')}</div>
+      <div class="col-span-3">{t('settings.stylus.colAction')}</div>
+      <div class="col-span-1 text-right">{t('settings.stylus.colDelete')}</div>
     </div>
 
     {#each store.settings.stylusButtons as btn (btn.id)}
@@ -153,12 +154,12 @@
         <!-- Label input -->
         <div class="col-span-1 md:col-span-5 flex flex-col gap-1">
           <label class="w-full flex flex-col gap-1">
-            <span class="md:hidden text-[10px] font-bold text-on-surface-variant uppercase">Label Name</span>
+            <span class="md:hidden text-[10px] font-bold text-on-surface-variant uppercase">{t('settings.stylus.labelNameMobile')}</span>
             <input
               type="text"
               bind:value={btn.name}
               oninput={handleInputChange}
-              placeholder="e.g. Barrel Button 1"
+              placeholder={t('settings.stylus.placeholderName')}
               class="w-full px-3 py-1.5 bg-surface text-xs text-on-surface border border-outline-variant rounded-md focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
             />
           </label>
@@ -166,7 +167,7 @@
 
         <!-- Trigger values (read-only text) -->
         <div class="col-span-1 md:col-span-3 flex flex-col gap-1">
-          <span class="md:hidden text-[10px] font-bold text-on-surface-variant uppercase">Trigger Values</span>
+          <span class="md:hidden text-[10px] font-bold text-on-surface-variant uppercase">{t('settings.stylus.triggerValuesMobile')}</span>
           <span class="text-xs text-on-surface-variant bg-surface-container px-2.5 py-1.5 rounded border border-outline-variant/30 font-mono inline-block w-fit">
             btn: {btn.button} / mask: {btn.buttons}
           </span>
@@ -175,16 +176,16 @@
         <!-- Action select -->
         <div class="col-span-1 md:col-span-3 flex flex-col gap-1">
           <label class="w-full flex flex-col gap-1">
-            <span class="md:hidden text-[10px] font-bold text-on-surface-variant uppercase">Action Operation</span>
+            <span class="md:hidden text-[10px] font-bold text-on-surface-variant uppercase">{t('settings.stylus.actionOpMobile')}</span>
             <select
               bind:value={btn.action}
               onchange={handleInputChange}
               class="w-full px-3 py-1.5 bg-surface text-xs text-on-surface border border-outline-variant rounded-md focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
             >
-              <option value="pen">Pen (Draw)</option>
-              <option value="eraser">Eraser (Erase)</option>
-              <option value="pan">Hand (Pan Canvas)</option>
-              <option value="select">Select (Select Strokes)</option>
+              <option value="pen">{t('settings.stylus.actionPen')}</option>
+              <option value="eraser">{t('settings.stylus.actionEraser')}</option>
+              <option value="pan">{t('settings.stylus.actionPan')}</option>
+              <option value="select">{t('settings.stylus.actionSelect')}</option>
             </select>
           </label>
         </div>
@@ -195,7 +196,7 @@
             type="button"
             onclick={() => deleteButton(btn.id)}
             class="p-2 text-error hover:bg-error/10 rounded-md cursor-pointer transition-colors border-0 bg-transparent flex items-center justify-center"
-            title="Delete this button action mapping"
+            title={t('settings.stylus.deleteTooltip')}
           >
             <span class="material-symbols-outlined text-[18px]">delete</span>
           </button>
@@ -203,7 +204,7 @@
       </div>
     {:else}
       <div class="py-6 text-center text-xs text-on-surface-variant border border-dashed border-outline-variant rounded-lg">
-        No custom button actions configured. Click "Detect Stylus Button" above to detect and map one.
+        {t('settings.stylus.noButtons')}
       </div>
     {/each}
   </div>
@@ -216,11 +217,11 @@
       <div class="w-16 h-16 rounded-full bg-primary-container text-primary flex items-center justify-center mx-auto mb-2">
         <span class="material-symbols-outlined text-[32px] animate-pulse">radar</span>
       </div>
-      <h3 class="font-bold text-lg text-on-surface">Detecting Stylus Button</h3>
+      <h3 class="font-bold text-lg text-on-surface">{t('settings.stylus.modalTitle')}</h3>
       <p class="text-xs text-on-surface-variant leading-relaxed">
-        1. Place your stylus tip on the display.<br>
-        2. Press the stylus button you wish to map.<br>
-        <span class="text-primary font-semibold mt-2 block">Nothing will happen until you press a button on the pen.</span>
+        {t('settings.stylus.modalStep1')}<br>
+        {t('settings.stylus.modalStep2')}<br>
+        <span class="text-primary font-semibold mt-2 block">{t('settings.stylus.modalWarning')}</span>
       </p>
       <div class="flex justify-center mt-4">
         <button 
@@ -228,7 +229,7 @@
           onclick={() => isDetecting = false}
           class="px-4 py-2 border border-outline-variant text-on-surface-variant text-sm font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
         >
-          Cancel Detection
+          {t('settings.stylus.cancelBtn')}
         </button>
       </div>
     </div>

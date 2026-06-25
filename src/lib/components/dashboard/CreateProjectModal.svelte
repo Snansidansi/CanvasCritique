@@ -1,5 +1,6 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
+  import { t } from '../../services/i18n';
 
   let { 
     isOpen = $bindable(false) 
@@ -47,20 +48,20 @@
       class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-100 shadow-xl flex flex-col gap-4"
     >
       <h3 class="font-bold text-lg text-on-surface">
-        Create Calligraphy Lesson
+        {t('dashboard.createLessonTitle')}
       </h3>
 
       <form onsubmit={handleCreateProject} class="flex flex-col gap-4">
         <div class="flex flex-col gap-1.5">
           <label
             class="text-xs font-semibold text-on-surface-variant"
-            for="projName">Lesson Name</label
+            for="projName">{t('dashboard.lessonNameLabel')}</label
           >
           <input
             type="text"
             id="projName"
             bind:value={newProjectName}
-            placeholder="e.g., Spencerian Script, Gothic"
+            placeholder={t('dashboard.lessonNamePlaceholder')}
             class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary"
             required
             autofocus
@@ -70,7 +71,7 @@
         <div class="flex flex-col gap-1.5">
           <label
             class="text-xs font-semibold text-on-surface-variant"
-            for="projIcon">Icon Style</label
+            for="projIcon">{t('dashboard.iconStyleLabel')}</label
           >
           <div class="grid grid-cols-4 gap-2">
             {#each ["history_edu", "draw", "ink_pen", "edit_square", "palette", "brush", "format_paint", "signature", "gesture", "border_color", "content_cut", "text_fields"] as icon}
@@ -89,7 +90,7 @@
 
           <div class="flex flex-col gap-1 mt-2">
             <span class="text-xs font-semibold text-on-surface-variant"
-              >Or Upload Custom Icon</span>
+              >{t('dashboard.uploadCustomIconLabel')}</span>
             <input
               type="file"
               accept="image/*"
@@ -99,7 +100,7 @@
             {#if newProjectIcon && newProjectIcon.startsWith("data:image/")}
               <div class="flex items-center gap-2 mt-1">
                 <span class="text-[10px] text-primary font-semibold"
-                  >Custom Preview:</span>
+                  >{t('dashboard.customPreviewLabel')}</span>
                 <img
                   src={newProjectIcon}
                   class="w-8 h-8 object-contain rounded border border-primary/20 bg-white"
@@ -116,16 +117,17 @@
             onclick={() => (isOpen = false)}
             class="px-4 py-2 border border-outline-variant text-on-surface-variant text-sm font-semibold rounded-lg hover:bg-surface-container-high"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             class="px-4 py-2 bg-primary text-on-primary text-sm font-semibold rounded-lg hover:opacity-90"
           >
-            Create
+            {t('common.create')}
           </button>
         </div>
       </form>
     </div>
   </div>
 {/if}
+

@@ -1,20 +1,22 @@
 <script lang="ts">
   import StylusSettings from '../components/settings/StylusSettings.svelte';
   import AppearanceSettings from '../components/settings/AppearanceSettings.svelte';
+  import LanguageSettings from '../components/settings/LanguageSettings.svelte';
   import CanvasPreferences from '../components/settings/CanvasPreferences.svelte';
   import DataManagement from '../components/settings/DataManagement.svelte';
   import ApiSettings from '../components/settings/ApiSettings.svelte';
   import SystemPromptSettings from '../components/settings/SystemPromptSettings.svelte';
   import StatisticsSettings from '../components/settings/StatisticsSettings.svelte';
+  import { t } from '../services/i18n';
 
   type TabId = 'general' | 'stylus' | 'ai' | 'data' | 'stats';
 
-  const tabs: { id: TabId; label: string; icon: string }[] = [
-    { id: 'general',  label: 'General',   icon: 'tune'           },
-    { id: 'stylus',   label: 'Stylus',    icon: 'stylus_pen'     },
-    { id: 'ai',       label: 'AI & API',  icon: 'smart_toy'      },
-    { id: 'data',     label: 'Data',      icon: 'database'       },
-    { id: 'stats',    label: 'Statistics',icon: 'bar_chart'      },
+  const tabs: { id: TabId; labelKey: string; icon: string }[] = [
+    { id: 'general',  labelKey: 'settings.tabs.general',   icon: 'tune'           },
+    { id: 'stylus',   labelKey: 'settings.tabs.stylus',    icon: 'stylus_pen'     },
+    { id: 'ai',       labelKey: 'settings.tabs.ai',        icon: 'smart_toy'      },
+    { id: 'data',     labelKey: 'settings.tabs.data',      icon: 'database'       },
+    { id: 'stats',    labelKey: 'settings.tabs.stats',     icon: 'bar_chart'      },
   ];
 
   let activeTab = $state<TabId>('general');
@@ -25,8 +27,8 @@
   <div class="px-8 pt-8 pb-0 shrink-0 bg-surface-container-lowest border-b border-outline-variant">
     <div class="max-w-200 w-full mx-auto">
       <div class="mb-5">
-        <h2 class="text-2xl font-bold text-on-surface mb-1">Settings</h2>
-        <p class="text-sm text-on-surface-variant">Manage your preferences, data, and API connections.</p>
+        <h2 class="text-2xl font-bold text-on-surface mb-1">{t('settings.title')}</h2>
+        <p class="text-sm text-on-surface-variant">{t('settings.subtitle')}</p>
       </div>
 
       <!-- Tab Bar -->
@@ -40,7 +42,7 @@
                      : 'text-on-surface-variant border-transparent hover:bg-surface-variant/30 hover:text-on-surface'}"
           >
             <span class="material-symbols-outlined text-[18px]">{tab.icon}</span>
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         {/each}
       </div>
@@ -53,6 +55,7 @@
 
       {#if activeTab === 'general'}
         <AppearanceSettings />
+        <LanguageSettings />
         <CanvasPreferences />
 
       {:else if activeTab === 'stylus'}
@@ -72,3 +75,4 @@
     </div>
   </div>
 </main>
+

@@ -3,6 +3,7 @@
   import CreateProjectModal from "../components/dashboard/CreateProjectModal.svelte";
   import ProfileModal from "../components/dashboard/ProfileModal.svelte";
   import DeleteProfileConfirm from "../components/dashboard/DeleteProfileConfirm.svelte";
+  import { t } from "../services/i18n";
 
   // Local state
   let searchQuery = $state("");
@@ -14,7 +15,7 @@
       const imported = JSON.parse(jsonData);
       store.importProject(imported);
     } catch (err) {
-      store.showNotification("Failed to parse file. Make sure it is valid JSON.", "error");
+      store.showNotification(t("dashboard.notifications.parseFailed"), "error");
     }
   }
 
@@ -61,7 +62,7 @@
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
     if (file.type !== "application/json" && !file.name.endsWith(".json")) {
-      store.showNotification("Please drop a valid .json lesson file.", "error");
+      store.showNotification(t("dashboard.notifications.dropValidJson"), "error");
       return;
     }
     const reader = new FileReader();
@@ -172,7 +173,7 @@
   <header
     class="h-16 pl-8 pr-4 border-b border-outline-variant bg-surface flex justify-between items-center z-10 shrink-0"
   >
-    <div class="text-on-surface font-semibold text-lg">Lesson Dashboard</div>
+    <div class="text-on-surface font-semibold text-lg">{t('dashboard.title')}</div>
 
   <!-- Search & Actions -->
   <div class="flex items-center gap-4 flex-1 justify-end">
@@ -185,7 +186,7 @@
       <input
         bind:value={searchQuery}
         class="w-full bg-surface-container-low border border-outline-variant rounded-full py-1.5 pl-10 pr-4 text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-        placeholder="Search lessons..."
+        placeholder={t('dashboard.searchPlaceholder')}
         type="text"
       />
     </div>
@@ -201,7 +202,7 @@
     <button
       onclick={() => fileInput?.click()}
       class="bg-surface-container-low text-on-surface p-2 rounded-lg border border-outline-variant hover:bg-surface-container-high transition-colors flex items-center justify-center shrink-0 cursor-pointer"
-      title="Import Lesson"
+      title={t('dashboard.importLesson')}
     >
       <span class="material-symbols-outlined text-[20px]">file_upload</span>
     </button>
@@ -212,7 +213,7 @@
       class="bg-primary text-on-primary font-semibold text-xs py-2.5 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer animate-fade-in"
     >
       <span class="material-symbols-outlined text-[18px]">add_circle</span>
-      Create Lesson
+      {t('dashboard.createLesson')}
     </button>
 
     <!-- Profile Circle Switcher -->
@@ -220,7 +221,7 @@
       <button
         onclick={() => isProfileMenuOpen = !isProfileMenuOpen}
         class="focus:outline-none flex items-center justify-center p-0.5 rounded-full hover:ring-2 hover:ring-primary/30 transition-all shrink-0 cursor-pointer"
-        title="Switch profile"
+        title={t('profile.menuTooltip')}
       >
         {#if activeProfile?.icon}
           <img src={activeProfile.icon} class="w-9 h-9 rounded-full object-cover border border-outline-variant" alt="" />
@@ -244,7 +245,7 @@
         ></div>
         <div class="absolute right-0 top-11 mt-2 w-64 bg-surface border border-outline-variant rounded-xl shadow-xl flex flex-col p-2 z-50 select-none animate-fade-in">
           <div class="px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">
-            Theme Profiles
+            {t('profile.profilesTitle')}
           </div>
           <div class="flex flex-col gap-0.5 max-h-60 overflow-y-auto custom-scrollbar my-1">
             {#each store.profiles as p}
@@ -279,7 +280,7 @@
                     handleOpenEditProfile(p);
                   }}
                   class="material-symbols-outlined text-[16px] text-outline-variant hover:text-primary p-1 rounded hover:bg-surface-container-high cursor-pointer focus:outline-none flex items-center justify-center ml-1 shrink-0 transition-colors"
-                  title="Edit Profile"
+                  title={t('profile.editTitle')}
                 >
                   edit
                 </button>
@@ -295,7 +296,7 @@
             class="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/5 rounded-lg transition-colors cursor-pointer focus:outline-none"
           >
             <span class="material-symbols-outlined text-[16px]">add_circle</span>
-            Create New Profile
+            {t('profile.createNewProfile')}
           </button>
         </div>
       {/if}
@@ -311,9 +312,9 @@
   >
     <div>
       <h2 class="text-2xl font-bold text-on-background">
-        Welcome back
+        {t('dashboard.welcomeBack')}
         <p class="text-sm text-on-surface-variant mt-1">
-          You have {activeProjectsCount} active lessons in progress.
+          {t('dashboard.activeLessons', { count: activeProjectsCount })}
         </p>
       </h2>
     </div>
@@ -358,7 +359,7 @@
                 <button
                   onclick={() => openPractice(nextTask, project)}
                   class="text-outline hover:text-primary transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer flex items-center justify-center"
-                  title="Resume/Start Lesson"
+                  title={t('sidebar.resumeLesson')}
                 >
                   <span class="material-symbols-outlined text-[20px]">play_arrow</span>
                 </button>
@@ -366,7 +367,7 @@
               <button
                 onclick={() => store.exportProject(project)}
                 class="text-outline hover:text-primary transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer flex items-center justify-center"
-                title="Export Lesson"
+                title={t('dashboard.exportLesson')}
               >
                 <span class="material-symbols-outlined text-[20px]"
                   >file_download</span
@@ -375,12 +376,12 @@
               <button
                 onclick={() =>
                   store.confirm(
-                    "Delete Lesson",
-                    `Are you sure you want to delete "${project.name}"? This will permanently discard this calligraphy lesson, its task lists, reference files, and historical practice logs.`,
+                    t("dashboard.deleteLessonTitle"),
+                    t("dashboard.deleteLessonConfirm", { name: project.name }),
                     () => store.deleteProject(project.id),
                   )}
                 class="text-outline hover:text-error transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer"
-                title="Delete Lesson"
+                title={t("dashboard.deleteLessonTitle")}
               >
                 <span class="material-symbols-outlined text-[20px]">delete</span
                 >
@@ -401,8 +402,7 @@
               <span class="material-symbols-outlined text-[16px] text-primary"
                 >task_alt</span
               >
-              {remaining}
-              {remaining === 1 ? "Task" : "Tasks"} Remaining
+              {remaining === 1 ? t('dashboard.taskRemaining') : t('dashboard.tasksRemaining', { remaining })}
             </p>
           </button>
         </div>
@@ -431,7 +431,7 @@
             >
               <span class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-[18px]">list</span>
-                Tasks Checklist
+                {t('dashboard.tasksChecklist')}
               </span>
               <span
                 class="material-symbols-outlined transition-transform group-open/tasks:rotate-180"
@@ -486,7 +486,7 @@
                             store.setEditingTask(task);
                           }}
                           class="opacity-0 group-hover/task-item:opacity-100 text-outline hover:text-primary transition-opacity p-0.5 focus:opacity-100 focus:outline-none cursor-pointer"
-                          title="Edit Task"
+                          title={t('dashboard.editTask')}
                         >
                           <span class="material-symbols-outlined text-[18px]"
                             >edit</span
@@ -498,7 +498,7 @@
                 {/each}
               {:else}
                 <p class="text-xs text-on-surface-variant italic">
-                  No tasks created yet.
+                  {t('dashboard.noTasks')}
                 </p>
               {/if}
 
@@ -507,7 +507,7 @@
                 <input
                   type="text"
                   bind:value={quickTaskName[project.id]}
-                  placeholder="Quick task name..."
+                  placeholder={t('dashboard.quickTaskPlaceholder')}
                   class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary"
                   onkeydown={(e) => {
                     if (e.key === "Enter") handleQuickAddTask(project.id);
@@ -527,7 +527,7 @@
                     onclick={() => handleQuickAddTask(project.id)}
                     class="bg-secondary-container text-on-secondary-container font-bold text-[10px] px-3 py-1 rounded-lg hover:opacity-90"
                   >
-                    Add Task
+                    {t('dashboard.addTask')}
                   </button>
                 </div>
               </div>
@@ -561,8 +561,8 @@
     <div class="absolute inset-0 bg-primary/10 border-4 border-dashed border-primary backdrop-blur-xs z-50 flex flex-col items-center justify-center pointer-events-none">
       <div class="bg-surface border border-outline-variant shadow-2xl rounded-2xl p-8 flex flex-col items-center gap-4 text-center max-w-sm pointer-events-auto">
         <span class="material-symbols-outlined text-5xl text-primary">file_upload</span>
-        <h3 class="font-bold text-lg text-on-surface">Import Calligraphy Lesson</h3>
-        <p class="text-xs text-on-surface-variant leading-relaxed">Drop your .json lesson file anywhere here to import it into your workspace.</p>
+        <h3 class="font-bold text-lg text-on-surface">{t('dashboard.dragDropTitle')}</h3>
+        <p class="text-xs text-on-surface-variant leading-relaxed">{t('dashboard.dragDropDesc')}</p>
       </div>
     </div>
   {/if}

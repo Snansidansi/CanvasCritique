@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from '../../services/i18n';
+
   let { selectedCount, onExport, onDelete, onCancel } = $props<{
     selectedCount: number;
     onExport: () => void;
@@ -11,7 +13,7 @@
   <div class="flex items-center gap-2">
     <span class="material-symbols-outlined text-primary text-[20px]">checklist</span>
     <span class="text-xs font-bold text-on-surface">
-      {selectedCount} {selectedCount === 1 ? 'task' : 'tasks'} selected
+      {selectedCount === 1 ? t('taskSelection.taskSelected') : t('taskSelection.tasksSelectedPlural', { count: selectedCount })}
     </span>
   </div>
 
@@ -22,27 +24,27 @@
       onclick={onExport}
       disabled={selectedCount === 0}
       class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2 px-3.5 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface-container-low shadow-sm focus:outline-none"
-      title="Export selected tasks"
+      title={t('taskSelection.exportSelected')}
     >
       <span class="material-symbols-outlined text-[16px]">file_download</span>
-      Export
+      {t('taskSelection.export')}
     </button>
 
     <button
       onclick={onDelete}
       disabled={selectedCount === 0}
       class="bg-error text-white font-semibold text-xs py-2 px-3.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm focus:outline-none"
-      title="Delete selected tasks"
+      title={t('taskSelection.deleteSelected')}
     >
       <span class="material-symbols-outlined text-[16px]">delete</span>
-      Delete
+      {t('taskSelection.delete')}
     </button>
 
     <button
       onclick={onCancel}
       class="border border-outline-variant text-on-surface-variant font-semibold text-xs py-2 px-3.5 rounded-lg hover:bg-surface-container transition-colors cursor-pointer focus:outline-none"
     >
-      Cancel
+      {t('common.cancel')}
     </button>
   </div>
 </div>

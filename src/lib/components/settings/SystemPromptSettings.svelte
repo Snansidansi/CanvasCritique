@@ -1,13 +1,14 @@
 <script lang="ts">
   import { store, DEFAULT_SYSTEM_PROMPT } from '../../state/store.svelte';
+  import { t } from '../../services/i18n';
 
   function togglePromptEditing(e: Event & { currentTarget: HTMLInputElement }) {
     const checked = e.currentTarget.checked;
     if (checked) {
       // Show confirmation dialog before enabling
       store.confirm(
-        'System-Prompt bearbeiten?',
-        'Warnung: Das Bearbeiten des System-Prompts erfolgt auf eigene Gefahr! Fehlerhafte Änderungen können das Programm beschädigen oder dazu führen, dass der KI-Parser fehlschlägt. Möchtest du das Bearbeiten wirklich aktivieren?',
+        t('settings.systemPrompt.confirmEditTitle'),
+        t('settings.systemPrompt.confirmEditMsg'),
         () => {
           store.settings.systemPromptEditingEnabled = true;
           // Pre-populate with default if currently empty
@@ -46,20 +47,20 @@
   
   <div class="flex items-center gap-3 mb-6 border-b border-outline-variant pb-4 relative z-10">
     <span class="material-symbols-outlined text-primary">neurology</span>
-    <h3 class="text-lg font-bold text-on-surface">System Prompt</h3>
+    <h3 class="text-lg font-bold text-on-surface">{t('settings.systemPrompt.title')}</h3>
   </div>
   
   <div class="relative z-10 flex flex-col gap-4">
     <p class="text-xs text-on-surface-variant leading-relaxed">
-      Here you can view and edit the global instructions sent to the AI model during evaluations.
+      {t('settings.systemPrompt.desc')}
     </p>
 
     <!-- Editing Toggle with Warning banner -->
     <div class="flex flex-col gap-2 p-3 rounded-lg bg-surface-container-low border border-outline-variant/30">
       <div class="flex items-center justify-between">
         <div class="flex flex-col gap-0.5">
-          <span class="text-xs font-bold text-on-surface">Enable Custom System Prompt</span>
-          <span class="text-[10.5px] text-outline leading-tight">Allows you to overwrite the default grading instructions.</span>
+          <span class="text-xs font-bold text-on-surface">{t('settings.systemPrompt.enableCustom')}</span>
+          <span class="text-[10.5px] text-outline leading-tight">{t('settings.systemPrompt.enableCustomDesc')}</span>
         </div>
         <label class="relative inline-flex items-center cursor-pointer select-none">
           <input 
@@ -76,7 +77,7 @@
         <div class="mt-2 flex items-start gap-2 p-2.5 bg-error/10 border border-error/20 rounded-lg text-[11px] text-error leading-normal animate-fade-in">
           <span class="material-symbols-outlined text-[16px] shrink-0 mt-0.5">warning</span>
           <div>
-            <strong>Achtung / Warning:</strong> Das Bearbeiten des System-Prompts erfolgt auf eigene Gefahr! Falsche Anweisungen oder fehlende Platzhalter können das Programm funktionsunfähig machen (z. B. wenn das JSON-Format nicht eingehalten wird).
+            <strong>{t('settings.systemPrompt.warningTitle')}</strong> {t('settings.systemPrompt.warningDesc')}
           </div>
         </div>
       {/if}
@@ -87,14 +88,14 @@
       <div class="flex flex-col gap-1.5 mt-4">
         <div class="flex justify-between items-center">
           <label for="systemPromptArea" class="text-xs font-bold text-on-surface">
-            Edit System Prompt Template
+            {t('settings.systemPrompt.editTitle')}
           </label>
           <button 
             type="button" 
             onclick={resetPromptToDefault}
             class="text-[10.5px] text-primary hover:underline font-semibold focus:outline-none bg-transparent border-0 cursor-pointer"
           >
-            Reset to Default
+            {t('settings.systemPrompt.resetBtn')}
           </button>
         </div>
         <textarea
@@ -106,7 +107,7 @@
           spellcheck="false"
         ></textarea>
         <p class="text-[10px] text-on-surface-variant mt-1">
-          Placeholders: <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}task_name{"}}"}</code> <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}task_instructions{"}}"}</code> <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}task_solution{"}}"}</code> <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}guidelines{"}}"}</code> <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}page_info{"}}"}</code> <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}image_dimensions{"}}"}</code>
+          {t('settings.systemPrompt.placeholders')} <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}task_name{"}}"}</code> <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}task_instructions{"}}"}</code> <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}task_solution{"}}"}</code> <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}guidelines{"}}"}</code> <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}page_info{"}}"}</code> <code class="bg-surface-container px-1 py-0.5 rounded text-on-surface">{"{{"}image_dimensions{"}}"}</code>
         </p>
       </div>
     {/if}
