@@ -66,7 +66,7 @@
       return isPanning ? 'cursor-grabbing' : 'cursor-grab';
     }
     if (activeTool === 'eraser' || isPointerEraser) {
-      return 'cursor-cell';
+      return 'cursor-none';
     }
     if (activeTool === 'select' || isPointerSelect) {
       return 'cursor-default';
@@ -238,6 +238,12 @@
   let initialPinchMidpoint = { x: 0, y: 0 };
   let initialPinchPanOffset = { x: 0, y: 0 };
   let isPinching = false;
+
+  let eraserScreenDiameter = $derived(
+    (activeTool === 'eraser' || isPointerEraser)
+      ? eraserWidth * (canvasMode === 'infinite' ? zoomScale : a4Scale)
+      : 0
+  );
 
 
 
@@ -1782,6 +1788,14 @@
         {feedbackText}
         {feedbackScore}
       />
+
+      <!-- Eraser Circle Cursor Overlay -->
+      {#if (activeTool === 'eraser' || isPointerEraser) && hoverPos}
+        <div 
+          class="absolute pointer-events-none border border-black/50 rounded-full bg-white/20 -translate-x-1/2 -translate-y-1/2 shadow-[0_0_0_1.5px_rgba(255,255,255,0.7)] z-40"
+          style="left: {hoverPos.x}px; top: {hoverPos.y}px; width: {eraserScreenDiameter}px; height: {eraserScreenDiameter}px;"
+        ></div>
+      {/if}
 
     </section>
   </div>
