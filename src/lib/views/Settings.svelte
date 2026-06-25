@@ -5,31 +5,65 @@
   import DataManagement from '../components/settings/DataManagement.svelte';
   import ApiSettings from '../components/settings/ApiSettings.svelte';
   import SystemPromptSettings from '../components/settings/SystemPromptSettings.svelte';
+
+  type TabId = 'general' | 'stylus' | 'ai' | 'data';
+
+  const tabs: { id: TabId; label: string; icon: string }[] = [
+    { id: 'general',  label: 'General',   icon: 'tune'           },
+    { id: 'stylus',   label: 'Stylus',    icon: 'stylus_pen'     },
+    { id: 'ai',       label: 'AI & API',  icon: 'smart_toy'      },
+    { id: 'data',     label: 'Data',      icon: 'database'       },
+  ];
+
+  let activeTab = $state<TabId>('general');
 </script>
 
-<main class="grow overflow-y-auto bg-surface-container-lowest flex flex-col relative h-full custom-scrollbar">
-  <div class="max-w-200 w-full mx-auto p-8 pb-16">
-    <div class="mb-10">
-      <h2 class="text-2xl font-bold text-on-surface mb-2">Settings</h2>
-      <p class="text-sm text-on-surface-variant">Manage your preferences, data, and API connections.</p>
+<main class="grow overflow-hidden bg-surface-container-lowest flex flex-col h-full">
+  <!-- Page Header -->
+  <div class="px-8 pt-8 pb-0 shrink-0 bg-surface-container-lowest border-b border-outline-variant">
+    <div class="max-w-200 w-full mx-auto">
+      <div class="mb-5">
+        <h2 class="text-2xl font-bold text-on-surface mb-1">Settings</h2>
+        <p class="text-sm text-on-surface-variant">Manage your preferences, data, and API connections.</p>
+      </div>
+
+      <!-- Tab Bar -->
+      <div class="flex gap-1 overflow-x-auto no-scrollbar">
+        {#each tabs as tab}
+          <button
+            onclick={() => activeTab = tab.id}
+            class="flex items-center gap-2 px-5 py-3 font-semibold text-sm border-b-2 transition-colors shrink-0 focus:outline-none rounded-t-lg
+                   {activeTab === tab.id
+                     ? 'text-primary border-primary bg-primary/5'
+                     : 'text-on-surface-variant border-transparent hover:bg-surface-variant/30 hover:text-on-surface'}"
+          >
+            <span class="material-symbols-outlined text-[18px]">{tab.icon}</span>
+            {tab.label}
+          </button>
+        {/each}
+      </div>
     </div>
+  </div>
 
-    <!-- Stylus Settings Section -->
-    <StylusSettings />
+  <!-- Tab Content -->
+  <div class="grow overflow-y-auto custom-scrollbar">
+    <div class="max-w-200 w-full mx-auto p-8 pb-16">
 
-    <!-- Appearance Section -->
-    <AppearanceSettings />
+      {#if activeTab === 'general'}
+        <AppearanceSettings />
+        <CanvasPreferences />
 
-    <!-- Canvas Preferences Section -->
-    <CanvasPreferences />
+      {:else if activeTab === 'stylus'}
+        <StylusSettings />
 
-    <!-- Data Management Section -->
-    <DataManagement />
+      {:else if activeTab === 'ai'}
+        <ApiSettings />
+        <SystemPromptSettings />
 
-    <!-- API Settings Section -->
-    <ApiSettings />
+      {:else if activeTab === 'data'}
+        <DataManagement />
+      {/if}
 
-    <!-- System Prompt Section -->
-    <SystemPromptSettings />
+    </div>
   </div>
 </main>
