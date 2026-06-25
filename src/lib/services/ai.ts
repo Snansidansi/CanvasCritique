@@ -211,73 +211,7 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
 
   // Check if API key is provided
   if (!apiKey) {
-    // Simulate grading
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockResponse = {
-          generalCritique: "📝 **AI Feedback Mockup (API key missing)**\n\nTo test real AI evaluations, please enter your Gemini API key in **Settings**.\n\n*General Critique*:\n- Excellent slant consistency! Most letters follow the 55-degree layout slant lines nicely.\n- The loop size is consistent, but watch the crossing intersection of the ascender loops.\n- Stroke thickness contrasts nicely. Nice transition to heavier pressure on downward strokes.",
-          grade: 88,
-          markers: [] as any[]
-        };
-
-        activePagesWithIndex.forEach((item, imgIdx) => {
-          mockResponse.markers.push(
-            {
-              id: `mock-1-p${item.originalIndex}`,
-              pageIndex: imgIdx,
-              x: 250,
-              y: 350,
-              type: 'correct',
-              feedback: `Page ${item.originalIndex + 1}: Great start of the stroke! Consistent weight and smooth curve.`
-            },
-            {
-              id: `mock-2-p${item.originalIndex}`,
-              pageIndex: imgIdx,
-              x: 550,
-              y: 650,
-              type: 'partial',
-              feedback: `Page ${item.originalIndex + 1}: The loop crossing is slightly off here. It should cross exactly at the horizontal header line.`
-            }
-          );
-        });
-
-        if (mockResponse.markers.length === 0) {
-          mockResponse.markers.push({
-            id: 'mock-1',
-            pageIndex: 0,
-            x: 100,
-            y: 100,
-            type: 'correct',
-            feedback: 'Write some strokes to see real markings.'
-          });
-        }
-
-        const mappedMarkers = mockResponse.markers.map(m => {
-          const item = activePagesWithIndex[m.pageIndex] || { originalIndex: 0 };
-          const offset = pageBoxes[m.pageIndex] || { x: 0, y: 0, width: 800, height: 1130 };
-          const px = (m.x / 1000) * offset.width;
-          const py = (m.y / 1000) * offset.height;
-          return {
-            id: m.id,
-            x: px,
-            y: py,
-            pageIndex: item.originalIndex,
-            canvasX: px + offset.x,
-            canvasY: py + offset.y,
-            type: m.type,
-            feedback: m.feedback,
-            underlinePoints: null,
-            boundingBoxOffset: { ...offset }
-          };
-        });
-
-        resolve({
-          feedbackText: mockResponse.generalCritique,
-          feedbackScore: mockResponse.grade,
-          feedbackMarkers: mappedMarkers
-        });
-      }, 2000);
-    });
+    throw new Error("No API key configured. Please add your API key in settings.");
   }
 
   // Build AI prompt

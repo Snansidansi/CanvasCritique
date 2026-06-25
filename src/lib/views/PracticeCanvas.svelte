@@ -1262,8 +1262,8 @@
       }
 
     } catch (err: any) {
-      feedbackText = `❌ **Error evaluating work:**\n\n${err.message}\n\nPlease double check your settings, model selections, and connection details.`;
-      feedbackScore = 0;
+      feedbackText = `❌ **Error:**\n\n${err.message}`;
+      feedbackScore = null;
       feedbackMarkers = [];
     } finally {
       isChecking = false;
