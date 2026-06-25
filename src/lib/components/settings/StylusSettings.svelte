@@ -6,9 +6,12 @@
 
   // Handle adding/registering a detected button
   function handleDetectedButton(button: number, buttons: number) {
+    // Strip primary tip bit (1) from buttons mask
+    const cleanButtons = (buttons & ~1);
+
     // Check if this combination already exists
     const exists = store.settings.stylusButtons.some(
-      b => b.button === button && b.buttons === buttons
+      b => b.button === button && b.buttons === cleanButtons
     );
     if (exists) {
       // Just end detection if it already exists
@@ -20,11 +23,11 @@
     
     // Generate a user-friendly default name based on values
     let btnName = `Stylus Button (btn: ${button})`;
-    if (buttons === 32 || button === 5) {
+    if (cleanButtons === 32 || button === 5) {
       btnName = 'Eraser Tip';
-    } else if (buttons === 2 || button === 2) {
+    } else if (cleanButtons === 2 || button === 2) {
       btnName = 'Barrel Button 1';
-    } else if (buttons === 4 || button === 1) {
+    } else if (cleanButtons === 4 || button === 1) {
       btnName = 'Barrel Button 2';
     }
 
@@ -32,8 +35,8 @@
       id: newId,
       name: btnName,
       button: button,
-      buttons: buttons,
-      action: (buttons === 32 || button === 5) ? 'eraser' as const : 'eraser' as const
+      buttons: cleanButtons,
+      action: (cleanButtons === 32 || button === 5) ? 'eraser' as const : 'eraser' as const
     };
     store.settings.stylusButtons = [...store.settings.stylusButtons, newBtn];
     store.saveSettings();
@@ -50,17 +53,41 @@
         // e.button !== 0 and !== -1 means a secondary button triggered the event.
         const hasButtonPressed = (e.buttons & ~1) !== 0 || (e.button !== 0 && e.button !== -1);
         if (hasButtonPressed) {
-          handleDetectedButton(e.button, e.buttons);
+          e.preventDefault();
+          
+          let button = e.button;
+          let buttons = e.buttons;
+          
+          // Map buttons mask to standard button index if button is -1 (e.g. on pointermove hover)
+          if (button === -1) {
+            if ((buttons & 2) !== 0) button = 2; // Right click / Barrel 1
+            else if ((buttons & 4) !== 0) button = 1; // Middle click / Barrel 2
+            else if ((buttons & 32) !== 0) button = 5; // Eraser tip
+          }
+          
+          handleDetectedButton(button, buttons);
         }
       }
     };
 
-    window.addEventListener('pointerdown', handleGlobalPointer);
-    window.addEventListener('pointermove', handleGlobalPointer);
+    const handleGlobalContextMenu = (e: MouseEvent) => {
+      if (!isDetecting) return;
+      e.preventDefault();
+      // Right-click button is always button 2, buttons mask is 2
+      handleDetectedButton(2, 2);
+    };
+
+    // Use capture phase to intercept events before other handlers can stop propagation
+    window.addEventListener('pointerdown', handleGlobalPointer, true);
+    window.addEventListener('pointermove', handleGlobalPointer, true);
+    window.addEventListener('pointerup', handleGlobalPointer, true);
+    window.addEventListener('contextmenu', handleGlobalContextMenu, true);
 
     return () => {
-      window.removeEventListener('pointerdown', handleGlobalPointer);
-      window.removeEventListener('pointermove', handleGlobalPointer);
+      window.removeEventListener('pointerdown', handleGlobalPointer, true);
+      window.removeEventListener('pointermove', handleGlobalPointer, true);
+      window.removeEventListener('pointerup', handleGlobalPointer, true);
+      window.removeEventListener('contextmenu', handleGlobalContextMenu, true);
     };
   });
 
