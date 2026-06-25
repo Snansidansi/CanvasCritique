@@ -11,6 +11,19 @@
   import CritiqueOverlay from '../components/practice/CritiqueOverlay.svelte';
   import MarkerTooltip from '../components/practice/MarkerTooltip.svelte';
 
+  // External Helpers
+  import { parseMarkdown } from '../utils/markdown';
+  import { 
+    loadImage, 
+    getStrokesBoundingBox, 
+    drawStroke, 
+    drawGuidelinesInWorld,
+    type Stroke,
+    type Point
+  } from '../utils/canvas';
+  import { runCheckWork } from '../services/ai';
+
+
   // Active task details from store
   let task = $derived(store.activeTask || {
     name: 'Practice Canvas',
@@ -726,69 +739,6 @@
     }
   }
 
-  function drawStroke(ctxTarget, stroke) {
-    if (stroke.points.length === 0) return;
-    
-    ctxTarget.save();
-    ctxTarget.beginPath();
-    
-    if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') {
-      ctxTarget.globalCompositeOperation = 'destination-out';
-      ctxTarget.strokeStyle = 'rgba(0,0,0,1)';
-    } else {
-      ctxTarget.globalCompositeOperation = 'source-over';
-      ctxTarget.strokeStyle = stroke.color;
-    }
-    
-    ctxTarget.lineWidth = stroke.width;
-    ctxTarget.lineCap = 'round';
-    ctxTarget.lineJoin = 'round';
-    
-    ctxTarget.moveTo(stroke.points[0].x, stroke.points[0].y);
-    for (let i = 1; i < stroke.points.length; i++) {
-      ctxTarget.lineTo(stroke.points[i].x, stroke.points[i].y);
-    }
-    ctxTarget.stroke();
-    ctxTarget.restore();
-  }
-
-  function drawGuidelinesInWorld(ctxTarget, xStart, yStart, wVisible, hVisible) {
-    ctxTarget.save();
-    ctxTarget.globalAlpha = bgOpacity / 100;
-    
-    const lineSpacing = 32;
-    const colSpacing = 32;
-    const startY = Math.ceil(yStart / lineSpacing) * lineSpacing;
-    const endY = yStart + hVisible;
-    
-    if (activeBg === 'lines') {
-      ctxTarget.strokeStyle = '#000000';
-      ctxTarget.lineWidth = 1;
-      for (let y = startY; y <= endY; y += lineSpacing) {
-        ctxTarget.beginPath();
-        ctxTarget.moveTo(xStart, y);
-        ctxTarget.lineTo(xStart + wVisible, y);
-        ctxTarget.stroke();
-      }
-    } else if (activeBg === 'grid') {
-      // Draw regular non-staggered dot grid
-      const startI = Math.floor(xStart / colSpacing);
-      const endI = Math.ceil((xStart + wVisible) / colSpacing);
-      
-      ctxTarget.fillStyle = '#000000';
-      for (let k = Math.floor(startY / lineSpacing); k <= Math.ceil(endY / lineSpacing); k++) {
-        const yWorld = k * lineSpacing;
-        for (let i = startI; i <= endI; i++) {
-          const xWorld = i * colSpacing;
-          ctxTarget.beginPath();
-          ctxTarget.arc(xWorld, yWorld, 1.5, 0, 2 * Math.PI);
-          ctxTarget.fill();
-        }
-      }
-    }
-    ctxTarget.restore();
-  }
-
   function redraw() {
     if (!ctx || !canvasElement) return;
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -820,7 +770,7 @@
         ctx.restore();
       }
       
-      drawGuidelinesInWorld(ctx, xStart, yStart, wVisible, hVisible);
+      drawGuidelinesInWorld(ctx, xStart, yStart, wVisible, hVisible, activeBg, bgOpacity);
     } else {
       // A4 mode
       if (currentBgImage) {
@@ -833,7 +783,7 @@
         }
         ctx.restore();
       }
-      drawGuidelinesInWorld(ctx, 0, 0, 800, 1130);
+      drawGuidelinesInWorld(ctx, 0, 0, 800, 1130, activeBg, bgOpacity);
     }
     ctx.restore();
     
@@ -1078,135 +1028,7 @@
 
 
 
-  // Load custom background Image asynchronously helper for canvas pattern
-  function loadImage(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = (e) => reject(e);
-      img.src = src;
-    });
-  }
 
-  // Handwriting Strokes Crop bounding box calculation
-  function getStrokesBoundingBox(history) {
-    if (!history || history.length === 0) return null;
-    
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    
-    for (const stroke of history) {
-      const halfWidth = stroke.width / 2;
-      for (const p of stroke.points) {
-        if (p.x - halfWidth < minX) minX = p.x - halfWidth;
-        if (p.y - halfWidth < minY) minY = p.y - halfWidth;
-        if (p.x + halfWidth > maxX) maxX = p.x + halfWidth;
-        if (p.y + halfWidth > maxY) maxY = p.y + halfWidth;
-      }
-    }
-    
-    const padding = 20;
-    if (canvasMode === 'a4') {
-      minX = Math.max(0, minX - padding);
-      minY = Math.max(0, minY - padding);
-      maxX = Math.min(800, maxX + padding);
-      maxY = Math.min(1130, maxY + padding);
-    } else {
-      minX = minX - padding;
-      minY = minY - padding;
-      maxX = maxX + padding;
-      maxY = maxY + padding;
-    }
-    
-    const width = maxX - minX;
-    const height = maxY - minY;
-    
-    if (width <= 0 || height <= 0) return null;
-    return { x: Math.round(minX), y: Math.round(minY), width: Math.round(width), height: Math.round(height) };
-  }
-
-  function parseMarkdown(md) {
-    if (!md) return '';
-    let html = md;
-    
-    const displayMath: string[] = [];
-    const inlineMath: string[] = [];
-    
-    // 1. Extract Display Math $$ ... $$
-    html = html.replace(/\$\$(.*?)\$\$/gs, (match, formula) => {
-      const placeholder = `__LATEX_DISPLAY_${displayMath.length}__`;
-      displayMath.push(formula);
-      return placeholder;
-    });
-    
-    // 2. Extract Inline Math $ ... $
-    html = html.replace(/\$([^\s$](?:[^$]*?[^\s$])?)\$/g, (match, formula) => {
-      const placeholder = `__LATEX_INLINE_${inlineMath.length}__`;
-      inlineMath.push(formula);
-      return placeholder;
-    });
-
-    // 3. Escape HTML entities to prevent XSS
-    html = html
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    // 4. Parse bold, italic, lists, anchors, headings
-    html = html.replace(/\*\*(.*?)\*\"/g, '<strong>$1</strong>');
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    html = html.replace(/^\s*-\s+(.*?)$/gm, '<li class="ml-4 list-disc my-1 text-[11px]">$1</li>');
-    html = html.replace(/\[(.*?)\]\(#(.*?)\)/g, '<a href="#$2" class="text-primary hover:underline font-bold cursor-pointer inline-flex items-center gap-0.5"><span class="material-symbols-outlined text-[12px] inline">ads_click</span>$1</a>');
-    html = html.replace(/^### (.*?)$/gm, '<h5 class="font-bold text-xs mt-3 mb-1 text-on-surface">$1</h5>');
-    html = html.replace(/^## (.*?)$/gm, '<h4 class="font-bold text-xs mt-4 mb-1.5 text-primary border-b border-outline-variant/20 pb-0.5">$1</h4>');
-    html = html.replace(/^# (.*?)$/gm, '<h3 class="font-bold text-sm mt-5 mb-2 text-primary">$1</h3>');
-
-    // 5. Replace newlines with <br>
-    html = html.replace(/\n/g, '<br>');
-    html = html.replace(/<\/li><br>/g, '</li>');
-    html = html.replace(/<\/h[1-6]><br>/g, (m) => m.substring(0, 5));
-
-    // 6. Restore & Render Display Math
-    if (displayMath.length > 0 && typeof window !== 'undefined' && (window as any).katex) {
-      const katex = (window as any).katex;
-      displayMath.forEach((formula, idx) => {
-        const placeholder = `__LATEX_DISPLAY_${idx}__`;
-        try {
-          const rendered = `<div class="my-3 flex justify-center overflow-x-auto select-text">${katex.renderToString(formula, { displayMode: true, throwOnError: false })}</div>`;
-          html = html.replace(placeholder, rendered);
-        } catch (e) {
-          html = html.replace(placeholder, formula);
-        }
-      });
-    } else {
-      displayMath.forEach((formula, idx) => {
-        html = html.replace(`__LATEX_DISPLAY_${idx}__`, `$$${formula}$$`);
-      });
-    }
-
-    // 7. Restore & Render Inline Math
-    if (inlineMath.length > 0 && typeof window !== 'undefined' && (window as any).katex) {
-      const katex = (window as any).katex;
-      inlineMath.forEach((formula, idx) => {
-        const placeholder = `__LATEX_INLINE_${idx}__`;
-        try {
-          const rendered = `<span class="select-text">${katex.renderToString(formula, { displayMode: false, throwOnError: false })}</span>`;
-          html = html.replace(placeholder, rendered);
-        } catch (e) {
-          html = html.replace(placeholder, formula);
-        }
-      });
-    } else {
-      inlineMath.forEach((formula, idx) => {
-        html = html.replace(`__LATEX_INLINE_${idx}__`, `$${formula}$`);
-      });
-    }
-
-    return html;
-  }
 
   function handleCritiqueClick(e) {
     const link = e.target.closest('a');
@@ -1272,518 +1094,34 @@
     feedbackScore = null;
 
     try {
-      // 1. Gather all non-empty pages to evaluate
-      let activePagesWithIndex = [];
-      if (canvasMode === 'a4') {
-        activePagesWithIndex = pages
-          .map((p, idx) => ({ p, originalIndex: idx }))
-          .filter(item => item.p.strokeHistory.length > 0);
-      } else {
-        if (infiniteStrokes.length > 0) {
-          activePagesWithIndex = [{ p: { strokeHistory: infiniteStrokes }, originalIndex: 0 }];
-        }
-      }
-
-      if (activePagesWithIndex.length === 0) {
-        throw new Error("Canvas is empty. Please draw some calligraphy before checking your work.");
-      }
-
-      // 2. Generate cropped bounding-box images for each page
-      const pageImages = [];
-      const pageBoxes = [];
-      
-      for (const item of activePagesWithIndex) {
-        const box = getStrokesBoundingBox(item.p.strokeHistory);
-        let base64Data;
-        let widthVal = 800;
-        let heightVal = 1130;
-        let boxOffset = { x: 0, y: 0 };
-        
-        if (!box) {
-          const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = 800;
-          tempCanvas.height = 1130;
-          widthVal = tempCanvas.width;
-          heightVal = tempCanvas.height;
-          const tempCtx = tempCanvas.getContext('2d');
-          tempCtx.fillStyle = '#FFFFFF';
-          tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-          base64Data = tempCanvas.toDataURL('image/png').split(',')[1];
-          boxOffset = { x: 0, y: 0 };
-        } else {
-          widthVal = box.width;
-          heightVal = box.height;
-          boxOffset = { x: box.x, y: box.y };
-          
-          const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = box.width;
-          tempCanvas.height = box.height;
-          const tempCtx = tempCanvas.getContext('2d');
-          
-          // Draw solid white background
-          tempCtx.fillStyle = '#FFFFFF';
-          tempCtx.fillRect(0, 0, box.width, box.height);
-          
-          tempCtx.save();
-          tempCtx.translate(-box.x, -box.y);
-          
-          // Draw custom background pattern image if present
-          if (currentBgUrl) {
-            try {
-              const img = await loadImage(currentBgUrl);
-              tempCtx.save();
-              tempCtx.globalAlpha = bgOpacity / 100;
-              const pattern = tempCtx.createPattern(img, 'repeat');
-              if (pattern) {
-                tempCtx.fillStyle = pattern;
-                tempCtx.fillRect(box.x, box.y, box.width, box.height);
-              }
-              tempCtx.restore();
-            } catch (err) {
-              console.error('Error drawing custom background pattern on crop:', err);
-            }
-          }
-
-          // Draw active guidelines background template offset relative to bounding box
-          drawGuidelinesInWorld(tempCtx, box.x, box.y, box.width, box.height);
-          
-          tempCtx.restore();
-          
-          // Draw drawing stroke lines offset by bounding box coordinates on a separate transparent canvas
-          const strokesCanvas = document.createElement('canvas');
-          strokesCanvas.width = box.width;
-          strokesCanvas.height = box.height;
-          const strokesCtx = strokesCanvas.getContext('2d');
-          
-          strokesCtx.save();
-          strokesCtx.translate(-box.x, -box.y);
-          for (const stroke of item.p.strokeHistory) {
-            strokesCtx.save();
-            strokesCtx.beginPath();
-            if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') {
-              strokesCtx.globalCompositeOperation = 'destination-out';
-              strokesCtx.strokeStyle = 'rgba(0,0,0,1)';
-            } else {
-              strokesCtx.globalCompositeOperation = 'source-over';
-              strokesCtx.strokeStyle = stroke.color;
-            }
-            strokesCtx.lineWidth = stroke.width;
-            strokesCtx.lineCap = 'round';
-            strokesCtx.lineJoin = 'round';
-            
-            if (stroke.points.length > 0) {
-              strokesCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-              for (let i = 1; i < stroke.points.length; i++) {
-                strokesCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-              }
-              strokesCtx.stroke();
-            }
-            strokesCtx.restore();
-          }
-          strokesCtx.restore();
-          
-          // Draw the composited strokes layer on top of guidelines
-          tempCtx.drawImage(strokesCanvas, 0, 0);
-          
-          base64Data = tempCanvas.toDataURL('image/png').split(',')[1];
-        }
-        
-        pageImages.push(base64Data);
-        pageBoxes.push({ ...boxOffset, width: widthVal, height: heightVal });
-      }
-
-      const apiKey = store.apiKey;
-      const provider = store.settings.apiProvider;
-      const model = store.model;
-
-      // Check if API key is provided
-      if (!apiKey) {
-        // Simulate grading
-        setTimeout(() => {
-          const mockResponse = {
-            generalCritique: "📝 **AI Feedback Mockup (API key missing)**\n\nTo test real AI evaluations, please enter your Gemini API key in **Settings**.\n\n*General Critique*:\n- Excellent slant consistency! Most letters follow the 55-degree layout slant lines nicely.\n- The loop size is consistent, but watch the crossing intersection of the ascender loops.\n- Stroke thickness contrasts nicely. Nice transition to heavier pressure on downward strokes.",
-            grade: 88,
-            markers: []
-          };
-
-          activePagesWithIndex.forEach((item, imgIdx) => {
-            mockResponse.markers.push(
-              {
-                id: `mock-1-p${item.originalIndex}`,
-                pageIndex: imgIdx,
-                x: 250,
-                y: 350,
-                type: 'correct',
-                feedback: `Page ${item.originalIndex + 1}: Great start of the stroke! Consistent weight and smooth curve.`
-              },
-              {
-                id: `mock-2-p${item.originalIndex}`,
-                pageIndex: imgIdx,
-                x: 550,
-                y: 650,
-                type: 'partial',
-                feedback: `Page ${item.originalIndex + 1}: The loop crossing is slightly off here. It should cross exactly at the horizontal header line.`
-              }
-            );
-          });
-
-          if (mockResponse.markers.length === 0) {
-            mockResponse.markers.push({
-              id: 'mock-1',
-              pageIndex: 0,
-              x: 100,
-              y: 100,
-              type: 'correct',
-              feedback: 'Write some strokes to see real markings.'
-            });
-          }
-
-          feedbackText = mockResponse.generalCritique;
-          feedbackScore = mockResponse.grade;
-          feedbackMarkers = mockResponse.markers.map(m => {
-            const item = activePagesWithIndex[m.pageIndex] || { originalIndex: 0 };
-            const offset = pageBoxes[m.pageIndex] || { x: 0, y: 0, width: 800, height: 1130 };
-            const px = (m.x / 1000) * offset.width;
-            const py = (m.y / 1000) * offset.height;
-            return {
-              ...m,
-              x: px,
-              y: py,
-              pageIndex: item.originalIndex,
-              canvasX: px + offset.x,
-              canvasY: py + offset.y,
-              boundingBoxOffset: { ...offset }
-            };
-          });
-          isChecking = false;
-        }, 2000);
-        return;
-      }
-
-      // Build AI prompt
-      const pageInfoPrompt = canvasMode === 'a4'
-        ? `You are checking a multi-page A4 handwriting document. You have been sent a sequence of page images. The first image represents Page Index 0, the second represents Page Index 1, etc.
-Your JSON response MUST specify the 'pageIndex' for each marker to identify which page image it is located on (0-based index corresponding to the image sequence).`
-        : `Examine the single infinite canvas screenshot. The image represents Page Index 0.`;
-
-      // Build image dimensions info for accurate marker placement
-      const imageDimensionsInfo = pageBoxes.map((box, i) => 
-        `Image ${i}: ${box.width}px wide × ${box.height}px tall.`
-      ).join('\n');
-
-      // Get project-level guidelines if available
-      const projectGuidelines = store.activeProject?.guidelines?.trim();
-      const guidelinesPrompt = projectGuidelines 
-        ? `\nAdditional grading guidelines from the teacher:\n"${projectGuidelines}"\nPlease take these guidelines into account when evaluating the student's work.\n`
-        : '';
-
-      const promptTemplate = store.settings.customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
-      const sendTaskMedia = store.settings.sendTaskMedia ?? true;
-      const sendSolutionMedia = store.settings.sendSolutionMedia ?? true;
-      // Decoders for txt files
-      let instructionsTextFilesContent = '';
-      if (sendTaskMedia) {
-        if (task.instructionFiles && Array.isArray(task.instructionFiles)) {
-          task.instructionFiles.forEach(file => {
-            if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
-              try {
-                const base64Data = file.dataUrl.split(',')[1];
-                const decodedText = decodeURIComponent(escape(atob(base64Data)));
-                instructionsTextFilesContent += `\n\n[Instruction Text Document - ${file.name}]:\n${decodedText}`;
-              } catch (e) {
-                console.error('Failed to decode text file', file.name, e);
-              }
-            }
-          });
-        } else if (task.instructionFile) {
-          const file = task.instructionFile;
-          if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
-            try {
-              const base64Data = file.dataUrl.split(',')[1];
-              const decodedText = decodeURIComponent(escape(atob(base64Data)));
-              instructionsTextFilesContent += `\n\n[Instruction Text Document - ${file.name}]:\n${decodedText}`;
-            } catch (e) {
-              console.error('Failed to decode text file', file.name, e);
-            }
-          }
-        }
-      }
-
-      let solutionTextFilesContent = '';
-      if (sendSolutionMedia) {
-        if (task.solutionFiles && Array.isArray(task.solutionFiles)) {
-          task.solutionFiles.forEach(file => {
-            if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
-              try {
-                const base64Data = file.dataUrl.split(',')[1];
-                const decodedText = decodeURIComponent(escape(atob(base64Data)));
-                solutionTextFilesContent += `\n\n[Solution Text Document - ${file.name}]:\n${decodedText}`;
-              } catch (e) {
-                console.error('Failed to decode text file', file.name, e);
-              }
-            }
-          });
-        } else if (task.solutionFile) {
-          const file = task.solutionFile;
-          if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
-            try {
-              const base64Data = file.dataUrl.split(',')[1];
-              const decodedText = decodeURIComponent(escape(atob(base64Data)));
-              solutionTextFilesContent += `\n\n[Solution Text Document - ${file.name}]:\n${decodedText}`;
-            } catch (e) {
-              console.error('Failed to decode text file', file.name, e);
-            }
-          }
-        }
-      }
-
-      const rawInstructionsText = (task.instructions || '') + instructionsTextFilesContent;
-      const rawSolutionText = (task.solution || '') + solutionTextFilesContent;
-
-      const taskInstructionsText = rawInstructionsText.trim() ? `Task instructions: "${rawInstructionsText.trim()}"` : '';
-      const expectedSolutionText = rawSolutionText.trim() ? `Expected correct solution: "${rawSolutionText.trim()}"` : '';
-
-      let prompt = promptTemplate;
-      
-      // If the template contains task_instructions placeholder, replace it. Otherwise append it if active.
-      if (prompt.includes('{{task_instructions}}')) {
-        prompt = prompt.replace(/\{\{task_instructions\}\}/g, taskInstructionsText);
-      } else if (taskInstructionsText) {
-        prompt += `\n\n${taskInstructionsText}`;
-      }
-      
-      // If the template contains task_solution placeholder, replace it. Otherwise append it if active.
-      if (prompt.includes('{{task_solution}}')) {
-        prompt = prompt.replace(/\{\{task_solution\}\}/g, expectedSolutionText);
-      } else if (expectedSolutionText) {
-        prompt += `\n\n${expectedSolutionText}`;
-      }
-      
-      // Replace other placeholders
-      prompt = prompt
-        .replace(/\{\{task_name\}\}/g, task.name)
-        .replace(/\{\{guidelines\}\}/g, guidelinesPrompt)
-        .replace(/\{\{page_info\}\}/g, pageInfoPrompt)
-        .replace(/\{\{image_dimensions\}\}/g, imageDimensionsInfo);
-
-      // Construct and append feedback language instruction
-      const languageMap = {
-        de: 'German',
-        en: 'English',
-        fr: 'French',
-        es: 'Spanish',
-        it: 'Italian'
-      };
-      const lang = store.settings.language || 'English';
-      const targetLanguage = languageMap[lang] || lang;
-      prompt += `\n\n**Language Requirement (CRITICAL):**\nYour entire feedback, critique, descriptions, and JSON string values (except "type" keys) MUST be written in ${targetLanguage}.`;
-
-      // Helper to parse file attachments (base64 Data URL) for Gemini inlineData
-      function getInlineDataFromMedia(mediaFile) {
-        if (!mediaFile || !mediaFile.dataUrl) return null;
-        const match = mediaFile.dataUrl.match(/^data:(.*?);base64,(.*)$/);
-        if (!match) return null;
-        return {
-          inlineData: {
-            mimeType: match[1],
-            data: match[2]
-          }
-        };
-      }
-
-      // Helper to parse file attachments (base64 Data URL) for OpenRouter image_url
-      function getOpenRouterMedia(mediaFile) {
-        if (!mediaFile || !mediaFile.dataUrl) return null;
-        return {
-          type: 'image_url',
-          image_url: { url: mediaFile.dataUrl }
-        };
-      }
-
-      // Gather additional media attachments if enabled and present on the task
-      const additionalGeminiParts = [];
-      const additionalOpenRouterParts = [];
-
-      if (sendTaskMedia) {
-        if (task.instructionFiles && Array.isArray(task.instructionFiles)) {
-          task.instructionFiles.forEach(file => {
-            if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
-              return;
-            }
-            const geminiPart = getInlineDataFromMedia(file);
-            if (geminiPart) additionalGeminiParts.push(geminiPart);
-            const orPart = getOpenRouterMedia(file);
-            if (orPart) additionalOpenRouterParts.push(orPart);
-          });
-        } else if (task.instructionFile) {
-          const file = task.instructionFile;
-          if (!(file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain'))) {
-            const geminiPart = getInlineDataFromMedia(file);
-            if (geminiPart) additionalGeminiParts.push(geminiPart);
-            const orPart = getOpenRouterMedia(file);
-            if (orPart) additionalOpenRouterParts.push(orPart);
-          }
-        }
-      }
-
-      if (sendSolutionMedia) {
-        if (task.solutionFiles && Array.isArray(task.solutionFiles)) {
-          task.solutionFiles.forEach(file => {
-            if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
-              return;
-            }
-            const geminiPart = getInlineDataFromMedia(file);
-            if (geminiPart) additionalGeminiParts.push(geminiPart);
-            const orPart = getOpenRouterMedia(file);
-            if (orPart) additionalOpenRouterParts.push(orPart);
-          });
-        } else if (task.solutionFile) {
-          const file = task.solutionFile;
-          if (!(file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain'))) {
-            const geminiPart = getInlineDataFromMedia(file);
-            if (geminiPart) additionalGeminiParts.push(geminiPart);
-            const orPart = getOpenRouterMedia(file);
-            if (orPart) additionalOpenRouterParts.push(orPart);
-          }
-        }
-      }
-
-      let response;
-      if (provider === 'gemini') {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: prompt },
-                  ...additionalGeminiParts,
-                  ...pageImages.map(imgData => ({
-                    inlineData: {
-                      mimeType: "image/png",
-                      data: imgData
-                    }
-                  }))
-                ]
-              }
-            ],
-            generationConfig: {
-              responseMimeType: "application/json"
-            }
-          })
-        });
-      } else {
-        // OpenRouter Vision request
-        const url = 'https://openrouter.ai/api/v1/chat/completions';
-        const requestBody: any = {
-          model: model,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: prompt },
-                ...additionalOpenRouterParts,
-                ...pageImages.map(imgData => ({
-                  type: 'image_url',
-                  image_url: { url: `data:image/png;base64,${imgData}` }
-                }))
-              ]
-            }
-          ],
-          reasoning: {
-            exclude: !store.settings.openRouterReasoning
-          }
-        };
-        const selectedProviders = store.settings.openRouterProvider || [];
-        if (selectedProviders.length > 0) {
-          requestBody.provider = {
-            order: selectedProviders
-          };
-        }
-        response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify(requestBody)
-        });
-      }
-
-      if (!response.ok) {
-        throw new Error(`API returned error status: ${response.status}`);
-      }
-
-      const resData = await response.json();
-      
-      let textResult = '';
-      if (provider === 'gemini') {
-        textResult = resData.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from AI.';
-      } else {
-        textResult = resData.choices?.[0]?.message?.content || 'No response from AI.';
-      }
-
-      // Parse JSON from textResult
-      let parsed;
-      try {
-        let cleanText = textResult.trim();
-        if (cleanText.startsWith('```json')) {
-          cleanText = cleanText.substring(7);
-        } else if (cleanText.startsWith('```')) {
-          cleanText = cleanText.substring(3);
-        }
-        if (cleanText.endsWith('```')) {
-          cleanText = cleanText.substring(0, cleanText.length - 3);
-        }
-        cleanText = cleanText.trim();
-        parsed = JSON.parse(cleanText);
-      } catch (jsonErr) {
-        console.error('Failed to parse JSON response, falling back to markdown wrap:', jsonErr);
-        parsed = {
-          generalCritique: textResult,
-          grade: 75,
-          markers: []
-        };
-      }
-
-      feedbackText = parsed.generalCritique || 'No written critique provided.';
-      feedbackScore = typeof parsed.grade === 'number' ? parsed.grade : 75;
-      
-      const rawMarkers = parsed.markers || [];
-      feedbackMarkers = rawMarkers.map((m, index) => {
-        const pageIdx = typeof m.pageIndex === 'number' ? m.pageIndex : 0;
-        const mappedItem = activePagesWithIndex[pageIdx] || { originalIndex: 0 };
-        const offset = pageBoxes[pageIdx] || { x: 0, y: 0, width: 800, height: 1130 };
-        
-        // Convert normalized coordinates (0-1000) back to pixel coordinates relative to the crop
-        const px = (m.x / 1000) * (offset.width || 800);
-        const py = (m.y / 1000) * (offset.height || 1130);
-        
-        // Map underline points if present
-        const underlinePoints = m.underlinePoints
-          ? m.underlinePoints.map(p => ({
-              x: (p.x / 1000) * (offset.width || 800),
-              y: (p.y / 1000) * (offset.height || 1130)
-            }))
-          : null;
-
-        return {
-          id: `marker-${Date.now()}-${index}`,
-          x: px,
-          y: py,
-          pageIndex: mappedItem.originalIndex,
-          canvasX: px + offset.x,
-          canvasY: py + offset.y,
-          type: m.type || 'partial',
-          feedback: m.feedback || '',
-          underlinePoints: underlinePoints,
-          boundingBoxOffset: { ...offset }
-        };
+      const result = await runCheckWork({
+        canvasMode: canvasMode as 'infinite' | 'a4',
+        pages,
+        infiniteStrokes,
+        currentBgUrl,
+        bgOpacity,
+        activeBg,
+        task,
+        projectGuidelines: store.activeProject?.guidelines?.trim(),
+        settings: {
+          apiProvider: store.settings.apiProvider,
+          geminiApiKey: store.settings.geminiApiKey,
+          openRouterApiKey: store.settings.openRouterApiKey,
+          geminiModel: store.settings.geminiModel,
+          openRouterModel: store.settings.openRouterModel,
+          openRouterReasoning: store.settings.openRouterReasoning,
+          openRouterProvider: store.settings.openRouterProvider,
+          sendTaskMedia: store.settings.sendTaskMedia,
+          sendSolutionMedia: store.settings.sendSolutionMedia,
+          language: store.settings.language,
+          customSystemPrompt: store.settings.customSystemPrompt
+        },
+        defaultSystemPrompt: DEFAULT_SYSTEM_PROMPT
       });
+
+      feedbackText = result.feedbackText;
+      feedbackScore = result.feedbackScore;
+      feedbackMarkers = result.feedbackMarkers;
 
       if (store.activeProject && store.activeTask) {
         const updatedData: any = {
@@ -1806,7 +1144,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
         }, 3500);
       }
 
-    } catch (err) {
+    } catch (err: any) {
       feedbackText = `❌ **Error evaluating work:**\n\n${err.message}\n\nPlease double check your settings, model selections, and connection details.`;
       feedbackScore = 0;
       feedbackMarkers = [];
