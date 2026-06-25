@@ -1574,8 +1574,8 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
         es: 'Spanish',
         it: 'Italian'
       };
-      const lang = store.settings.language || 'de';
-      const targetLanguage = languageMap[lang] || 'German';
+      const lang = store.settings.language || 'English';
+      const targetLanguage = languageMap[lang] || lang;
       prompt += `\n\n**Language Requirement (CRITICAL):**\nYour entire feedback, critique, descriptions, and JSON string values (except "type" keys) MUST be written in ${targetLanguage}.`;
 
       // Helper to parse file attachments (base64 Data URL) for Gemini inlineData

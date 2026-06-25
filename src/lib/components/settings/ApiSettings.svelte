@@ -602,17 +602,13 @@
             <span class="material-symbols-outlined text-[18px] text-primary">translate</span>
             AI Feedback Language
           </span>
-          <select
+          <input
+            type="text"
             bind:value={store.settings.language}
             onchange={handleInputChange}
-            class="bg-surface-container border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary font-semibold select-none cursor-pointer"
-          >
-            <option value="de">Deutsch (German)</option>
-            <option value="en">English</option>
-            <option value="fr">Français (French)</option>
-            <option value="es">Español (Spanish)</option>
-            <option value="it">Italiano (Italian)</option>
-          </select>
+            placeholder="e.g., English, German, French"
+            class="bg-surface-container border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary font-semibold w-40 text-right"
+          />
         </div>
       </div>
     </div>

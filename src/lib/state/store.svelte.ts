@@ -142,7 +142,7 @@ const defaultSettings = {
   canvasMode: 'infinite',
   customSystemPrompt: '',
   systemPromptEditingEnabled: false,
-  language: 'de',
+  language: 'English',
   stylusButtons: [
     { id: 'default-eraser-tip', name: 'Eraser Tip', button: 5, buttons: 32, action: 'eraser' },
     { id: 'default-barrel-1', name: 'Barrel Button 1', button: 2, buttons: 2, action: 'eraser' },
