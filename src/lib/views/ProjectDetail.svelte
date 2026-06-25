@@ -423,7 +423,7 @@
           }}
           class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
         />
-        <span class="hidden lg:inline">Hide Completed</span>
+        <span class="hidden xl:inline">Hide Completed</span>
       </label>
     {/if}
 
@@ -434,7 +434,7 @@
       title="Export Lesson"
     >
       <span class="material-symbols-outlined text-[18px]">file_download</span>
-      <span class="hidden lg:inline">Export Lesson</span>
+      <span class="hidden xl:inline">Export Lesson</span>
     </button>
 
     <!-- Lesson Settings Override Button -->
@@ -445,7 +445,7 @@
         title="Lesson AI & Evaluation Settings"
       >
         <span class="material-symbols-outlined text-[18px]">settings</span>
-        <span class="hidden lg:inline">Settings</span>
+        <span class="hidden xl:inline">Settings</span>
       </button>
     {/if}
 
@@ -462,7 +462,7 @@
         title="Toggle Selection Mode"
       >
         <span class="material-symbols-outlined text-[18px]">checklist</span>
-        <span class="hidden lg:inline">{isSelectionMode ? 'Cancel Selection' : 'Select Tasks'}</span>
+        <span class="hidden xl:inline">{isSelectionMode ? 'Cancel Selection' : 'Select Tasks'}</span>
       </button>
     {/if}
 
@@ -473,7 +473,7 @@
       title="Create New Task"
     >
       <span class="material-symbols-outlined text-[18px]">add_circle</span>
-      <span class="hidden md:inline">Create New Task</span>
+      <span class="hidden lg:inline">Create New Task</span>
     </button>
   </div>
 </header>
