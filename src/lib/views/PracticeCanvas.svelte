@@ -205,6 +205,13 @@
   let isPointerPan = $state(false);
   let isPointerPen = $state(false);
 
+  let previousTool = $state('pen');
+  $effect(() => {
+    if (activeTool !== 'select') {
+      previousTool = activeTool;
+    }
+  });
+
 
 
   // Dynamic background mapping
@@ -517,7 +524,12 @@
       }, 600);
     }
 
-    if (activeTool === 'select' || isPointerSelect) {
+    if (isPointerSelect) {
+      activeTool = 'select';
+      selectedStrokes = [];
+      selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
+      isMovingSelection = false;
+    } else if (activeTool === 'select') {
       // Check if clicking inside current selection bounding box
       const bounds = selectionBoundingBox;
       if (isPointInBounds(coords.x, coords.y, bounds)) {
@@ -525,10 +537,22 @@
         selectionDragStart = { x: coords.x, y: coords.y };
         selectionBox = null;
       } else {
-        // Start marquee select drawing
+        // Normal touch outside selection -> revert tool and act accordingly
+        activeTool = previousTool || 'pen';
         selectedStrokes = [];
-        selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
-        isMovingSelection = false;
+        selectionBox = null;
+
+        const isPanAction = canvasMode === 'infinite' && 
+          (e.button === 1 || activeTool === 'pan' || isPointerPan || (store.settings.stylusMode && isFingerOrMouse));
+
+        if (isPanAction) {
+          isPanning = true;
+          panStart = { x: e.clientX, y: e.clientY };
+          panBaseOffset = { ...panOffset };
+        } else {
+          isDrawing = true;
+          currentStroke = [coords];
+        }
       }
     } else {
       isDrawing = true;
