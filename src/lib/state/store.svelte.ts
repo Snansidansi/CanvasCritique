@@ -623,6 +623,37 @@ class CanvasCritiqueStore {
     }
   }
 
+  deleteCategory(projectId: string, categoryName: string): void {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    if (project.categories) {
+      project.categories = project.categories.filter(c => c !== categoryName);
+    }
+
+    const fallbackCategory = (project.categories && project.categories.includes('Basics'))
+      ? 'Basics'
+      : ((project.categories && project.categories[0]) || 'Basics');
+
+    if (project.tasks) {
+      project.tasks.forEach(t => {
+        if ((t.category || 'Basics') === categoryName) {
+          t.category = fallbackCategory;
+        }
+      });
+    }
+
+    if (project.categories && !project.categories.includes(fallbackCategory)) {
+      project.categories.push(fallbackCategory);
+    }
+
+    this.saveProjects();
+
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
+  }
+
   addTask(
     projectId: string,
     name: string,

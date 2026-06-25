@@ -384,19 +384,36 @@
         {@const catTasks = getCategoryTasks(category)}
         <div class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-6 flex flex-col gap-4">
           <div class="flex items-center justify-between border-b border-outline-variant/20 pb-3">
-            <button
-              type="button"
-              onclick={() => {
-                const newName = prompt(`Rename topic "${category}" to:`, category);
-                if (newName && newName.trim() && newName.trim() !== category) {
-                  store.renameCategory(project.id, category, newName.trim());
-                }
-              }}
-              class="text-xs font-bold text-primary uppercase tracking-widest hover:underline cursor-pointer border-0 bg-transparent p-0 text-left focus:outline-none"
-              title="Click to rename topic"
-            >
-              {category}
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                onclick={() => {
+                  const newName = prompt(`Rename topic "${category}" to:`, category);
+                  if (newName && newName.trim() && newName.trim() !== category) {
+                    store.renameCategory(project.id, category, newName.trim());
+                  }
+                }}
+                class="text-xs font-bold text-primary uppercase tracking-widest hover:underline cursor-pointer border-0 bg-transparent p-0 text-left focus:outline-none"
+                title="Click to rename topic"
+              >
+                {category}
+              </button>
+
+              <button
+                type="button"
+                onclick={() => {
+                  store.confirm(
+                    "Delete Topic",
+                    `Are you sure you want to delete the topic "${category}"? Any tasks inside will be moved to your default topic.`,
+                    () => store.deleteCategory(project.id, category)
+                  );
+                }}
+                class="text-outline hover:text-error transition-colors cursor-pointer border-0 bg-transparent p-0 flex items-center justify-center focus:outline-none"
+                title="Delete topic"
+              >
+                <span class="material-symbols-outlined text-[16px]">delete</span>
+              </button>
+            </div>
             <span class="text-xs text-on-surface-variant font-semibold bg-surface px-2.5 py-1 rounded-full border border-outline-variant/30 animate-fade-in">
               {catTasks.length} {catTasks.length === 1 ? 'task' : 'tasks'}
             </span>
