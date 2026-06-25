@@ -1509,6 +1509,8 @@
                 bind:activeTooltipMarker
                 left={(activeTooltipMarker.canvasX) * zoomScale + panOffset.x}
                 top={(activeTooltipMarker.canvasY) * zoomScale + panOffset.y}
+                {containerWidth}
+                {containerHeight}
               />
             {/if}
           {/if}
@@ -1601,6 +1603,8 @@
               bind:activeTooltipMarker
               left={activeTooltipMarker.canvasX * a4Scale + leftOffset}
               top={activeTooltipMarker.canvasY * a4Scale + topOffset}
+              {containerWidth}
+              {containerHeight}
             />
           {/if}
         {/if}
@@ -1615,10 +1619,22 @@
         {@const boxLeft = bounds.minX * scale + leftOffset}
         {@const boxTop = bounds.minY * scale + topOffset}
         {@const boxWidth = (bounds.maxX - bounds.minX) * scale}
+        {@const boxHeight = (bounds.maxY - bounds.minY) * scale}
+        
+        {@const toolbarWidth = 220}
+        {@const toolbarHeight = 40}
+        {@const margin = 8}
+        
+        {@const targetX = boxLeft + boxWidth / 2}
+        {@const constrainedX = Math.max(margin + toolbarWidth / 2, Math.min(targetX, containerWidth - margin - toolbarWidth / 2))}
+        
+        {@const placeBelow = boxTop - toolbarHeight - margin < margin}
+        {@const constrainedY = placeBelow ? (boxTop + boxHeight + margin + toolbarHeight) : boxTop}
+        {@const transformStyle = placeBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)'}
         
         <div 
-          class="absolute z-30 bg-surface-container-high border border-outline-variant shadow-lg rounded-lg px-2 py-1 flex items-center gap-1 -translate-y-full -mt-2.5 font-sans"
-          style="left: {boxLeft + boxWidth / 2}px; top: {boxTop}px; transform: translate(-50%, -100%);"
+          class="absolute z-30 bg-surface-container-high border border-outline-variant shadow-lg rounded-lg px-2 py-1 flex items-center gap-1 -mt-2.5 font-sans"
+          style="left: {constrainedX}px; top: {constrainedY}px; transform: {transformStyle};"
         >
           <button 
             onclick={copySelected}
@@ -1658,9 +1674,13 @@
           aria-label="Dismiss context menu"
         ></button>
         
+        {@const menuWidth = 160}
+        {@const menuHeight = 120}
+        {@const menuLeft = Math.max(8, Math.min(contextMenu.x, containerWidth - menuWidth - 8))}
+        {@const menuTop = Math.max(8, Math.min(contextMenu.y, containerHeight - menuHeight - 8))}
         <div 
           class="absolute z-50 bg-surface-container-high border border-outline-variant shadow-xl rounded-xl py-1.5 w-40 flex flex-col font-sans text-xs select-none"
-          style="left: {contextMenu.x}px; top: {contextMenu.y}px;"
+          style="left: {menuLeft}px; top: {menuTop}px;"
         >
           <button 
             onclick={() => pasteStrokes(contextMenu.canvasX, contextMenu.canvasY)}

@@ -2,8 +2,32 @@
   let {
     activeTooltipMarker = $bindable(),
     left,
-    top
+    top,
+    containerWidth = 800,
+    containerHeight = 600
   } = $props();
+
+  let tooltipWidth = 288;
+  let tooltipHeight = $state(120);
+  let margin = 16;
+
+  // Position above if the tooltip height would push it off the bottom edge
+  let placeAbove = $derived(top + 24 + tooltipHeight > containerHeight - margin);
+
+  let adjustedLeft = $derived.by(() => {
+    const halfWidth = tooltipWidth / 2;
+    const minLeft = margin + halfWidth;
+    const maxLeft = Math.max(minLeft, containerWidth - margin - halfWidth);
+    return Math.max(minLeft, Math.min(left, maxLeft));
+  });
+
+  let adjustedTop = $derived.by(() => {
+    if (placeAbove) {
+      return Math.max(margin, top - tooltipHeight - 12);
+    } else {
+      return Math.min(containerHeight - tooltipHeight - margin, top + 16);
+    }
+  });
 </script>
 
 {#if activeTooltipMarker}
@@ -16,8 +40,9 @@
   ></button>
 
   <div 
-    class="absolute z-50 bg-surface-container-high border border-outline-variant/60 rounded-xl p-4 w-72 shadow-2xl flex flex-col gap-2 -translate-x-1/2 mt-6 animate-fade-in pointer-events-auto"
-    style="left: {left}px; top: {top}px;"
+    bind:clientHeight={tooltipHeight}
+    class="absolute z-50 bg-surface-container-high border border-outline-variant/60 rounded-xl p-4 w-72 shadow-2xl flex flex-col gap-2 -translate-x-1/2 animate-fade-in pointer-events-auto"
+    style="left: {adjustedLeft}px; top: {adjustedTop}px;"
   >
     <div class="flex items-center gap-2">
       <span class="material-symbols-outlined text-base 
