@@ -739,6 +739,12 @@ class CanvasCritiqueStore {
     project.tasks = project.tasks.filter(t => t.id !== taskId);
     this.saveProjects();
 
+    // Clean up canvas saves for this task too
+    if (this.canvasSaves[taskId]) {
+      delete this.canvasSaves[taskId];
+      localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
+    }
+
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }
@@ -761,6 +767,16 @@ class CanvasCritiqueStore {
   }
 
   deleteProject(projectId: string): void {
+    const project = this.projects.find(p => p.id === projectId);
+    if (project && project.tasks) {
+      for (const t of project.tasks) {
+        if (this.canvasSaves[t.id]) {
+          delete this.canvasSaves[t.id];
+        }
+      }
+      localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
+    }
+
     this.projects = this.projects.filter(p => p.id !== projectId);
     this.saveProjects();
     if (this.activeProject && this.activeProject.id === projectId) {
@@ -807,13 +823,22 @@ class CanvasCritiqueStore {
       }
 
       const categories = proj.categories || [];
+      const importedCanvasSaves = proj.canvasSaves || {};
 
       const tasks = (proj.tasks || []).map((t: any, idx: number) => {
+        const oldTaskId = t.id;
         let taskId = t.id;
-        if (!taskId) {
+        // Check if taskId is already in use by any task in any project
+        const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(existingTask => existingTask.id === taskId));
+        if (!taskId || isDuplicateId) {
           taskId = 'task-' + Date.now() + '-' + idx + '-' + Math.random().toString(36).substring(2, 5);
         }
-        
+
+        // Migrate canvas save under the new task ID
+        if (oldTaskId && importedCanvasSaves[oldTaskId]) {
+          this.canvasSaves[taskId] = importedCanvasSaves[oldTaskId];
+        }
+
         let instructionFiles = t.instructionFiles || [];
         if (t.instructionFile && instructionFiles.length === 0) {
           instructionFiles = [t.instructionFile];
@@ -845,11 +870,19 @@ class CanvasCritiqueStore {
         profileId: this.activeProfileId
       };
 
+      // Remove canvasSaves from the stored project object since it's now imported to store.canvasSaves
+      if ('canvasSaves' in newProj) {
+        delete (newProj as any).canvasSaves;
+      }
+
       this.projects.push(newProj);
       lastImported = newProj;
     }
 
     if (lastImported) {
+      // Save canvas state after importing
+      localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
+      
       this.saveProjects();
       this.selectProject(lastImported);
       this.setView('project-detail');
@@ -859,7 +892,20 @@ class CanvasCritiqueStore {
   }
 
   exportProject(project: Project): void {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project));
+    // Clone the project to avoid mutating active runtime state
+    const exportData = JSON.parse(JSON.stringify(project));
+    
+    // Attach canvas saves for all tasks in this project
+    exportData.canvasSaves = {};
+    if (project.tasks) {
+      for (const task of project.tasks) {
+        if (this.canvasSaves[task.id]) {
+          exportData.canvasSaves[task.id] = this.canvasSaves[task.id];
+        }
+      }
+    }
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
     downloadAnchor.setAttribute("download", `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`);
