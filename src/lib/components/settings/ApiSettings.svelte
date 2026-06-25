@@ -266,7 +266,7 @@
 </script>
 
 <!-- API Settings Section -->
-<section class="bg-surface p-6 md:p-8 rounded-xl border border-outline-variant shadow-sm relative overflow-visible">
+<section class="mb-8 bg-surface p-6 md:p-8 rounded-xl border border-outline-variant shadow-sm relative overflow-visible">
   <div class="absolute top-0 right-0 w-64 h-64 bg-primary-fixed/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none z-0"></div>
   
   <div class="flex items-center gap-3 mb-6 border-b border-outline-variant pb-4 relative z-10">

@@ -109,6 +109,24 @@
       store.updateProjectGuidelines(project.id, value);
     }, 500);
   }
+
+  function autoResize(node, _val) {
+    const update = () => {
+      node.style.height = 'auto';
+      node.style.height = `${node.scrollHeight}px`;
+    };
+    const timer = setTimeout(update, 0);
+    node.addEventListener('input', update);
+    return {
+      update() {
+        update();
+      },
+      destroy() {
+        clearTimeout(timer);
+        node.removeEventListener('input', update);
+      }
+    };
+  }
 </script>
 
 <!-- TopAppBar -->
@@ -159,7 +177,7 @@
 <!-- Main details area -->
 <main class="grow overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar h-full">
   <!-- Stats & Progress banner -->
-  <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+  <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shrink-0">
     <div class="space-y-1">
       <h2 class="text-xl font-bold text-on-surface">Lesson Overview</h2>
       <p class="text-xs text-on-surface-variant">Reorder tasks by dragging, customize topics, or click a task to open the practice canvas.</p>
@@ -178,7 +196,7 @@
   </section>
 
   <!-- General Guidelines Section -->
-  <section class="bg-surface-container-low border border-outline-variant/60 rounded-xl overflow-hidden">
+  <section class="bg-surface-container-low border border-outline-variant/60 rounded-xl overflow-hidden shrink-0">
     <button 
       onclick={() => guidelinesExpanded = !guidelinesExpanded}
       class="w-full flex items-center justify-between px-6 py-4 cursor-pointer bg-transparent border-0 text-left focus:outline-none hover:bg-surface-container-lowest/50 transition-colors"
@@ -201,6 +219,7 @@
     {#if guidelinesExpanded}
       <div class="px-6 pb-5 border-t border-outline-variant/30 pt-4">
         <textarea
+          use:autoResize={project.guidelines}
           value={project.guidelines || ''}
           oninput={handleGuidelinesChange}
           placeholder="e.g., Always show your working, write neatly, answers must include units..."
@@ -216,7 +235,7 @@
   </section>
 
   <!-- Categories section lists -->
-  <section class="flex flex-col gap-6">
+  <section class="flex flex-col gap-6 shrink-0">
     <!-- Category header toolbar -->
     <div class="flex justify-between items-center border-b border-outline-variant pb-2">
       <h3 class="font-bold text-sm text-on-surface uppercase tracking-wider">Lesson Roadmap</h3>
