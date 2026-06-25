@@ -407,6 +407,11 @@
       "notifyResetSuccess": "Statistics reset successfully",
       "notifyTrackingStatus": "Usage tracking {{status}}",
       "usage": "Usage"
+    },
+    "language": {
+      "title": "Language Selection",
+      "english": "English",
+      "german": "German"
     }
   },
   "dialogs": {

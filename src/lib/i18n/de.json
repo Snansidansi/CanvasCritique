@@ -407,6 +407,11 @@
       "notifyResetSuccess": "Statistiken erfolgreich zurückgesetzt",
       "notifyTrackingStatus": "Nutzungsverfolgung {{status}}",
       "usage": "Nutzung"
+    },
+    "language": {
+      "title": "Sprachauswahl",
+      "english": "Englisch",
+      "german": "Deutsch"
     }
   },
   "dialogs": {
