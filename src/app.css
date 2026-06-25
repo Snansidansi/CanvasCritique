@@ -165,3 +165,8 @@ body {
   --color-outline-variant: #3e4045;
 }
 
+/* Custom cursor for drawing/writing */
+.cursor-dot {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><circle cx='8' cy='8' r='3.5' fill='black' stroke='white' stroke-width='1'/></svg>") 8 8, crosshair;
+}
+

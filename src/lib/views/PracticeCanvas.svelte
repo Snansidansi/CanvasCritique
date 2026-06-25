@@ -54,7 +54,15 @@
   let activeTool = $state('pen'); // 'pen' | 'eraser' | 'pan' | 'select'
 
   let cursorClass = $derived.by(() => {
-    if (activeTool === 'pan' || (store.settings.stylusMode && canvasMode === 'infinite')) {
+    // If the user is writing with a stylus (or the pen tool is active and no buttons are held), show the dot cursor
+    if (activeTool === 'pen' && !isPointerEraser && !isPointerSelect && !isPointerPan) {
+      return 'cursor-dot';
+    }
+    // If in stylus mode and using a finger or mouse, show hand cursor for panning
+    if (store.settings.stylusMode && lastPointerType !== 'pen' && canvasMode === 'infinite') {
+      return isPanning ? 'cursor-grabbing' : 'cursor-grab';
+    }
+    if (activeTool === 'pan') {
       return isPanning ? 'cursor-grabbing' : 'cursor-grab';
     }
     if (activeTool === 'eraser' || isPointerEraser) {
@@ -214,6 +222,7 @@
   let isPointerPan = $state(false);
   let isPointerPen = $state(false);
   let isSelectToolOneShot = $state(false);
+  let lastPointerType = $state('mouse');
 
   let previousTool = $state('pen');
   $effect(() => {
@@ -442,6 +451,7 @@
   function handlePointerDown(e) {
     if (!ctx || !canvasElement) return;
 
+    lastPointerType = e.pointerType;
     activePointers.set(e.pointerId, e);
 
     // Palm rejection: If pen is active, ignore and purge finger touches
@@ -636,6 +646,7 @@
   }
 
   function handlePointerMove(e) {
+    lastPointerType = e.pointerType;
     activePointers.set(e.pointerId, e);
 
     // Palm rejection: If pen is active, ignore and purge finger touches
