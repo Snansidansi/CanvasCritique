@@ -198,6 +198,22 @@
       </div>
     {/if}
 
+    <!-- Stylus Mode Toggle -->
+    <div class="flex items-center gap-1 border-r border-outline-variant/30 pr-4">
+      <button 
+        onclick={() => {
+          store.settings.stylusMode = !store.settings.stylusMode;
+          store.saveSettings();
+        }}
+        class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold focus:outline-none cursor-pointer transition-all flex items-center gap-1
+               {store.settings.stylusMode ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-high'}"
+        title="Toggle Stylus Mode (Finger/mouse pans, only stylus draws)"
+      >
+        <span class="material-symbols-outlined text-base">draw</span>
+        <span>Stylus Mode</span>
+      </button>
+    </div>
+
     <!-- Split layout visibility toggles -->
     <div class="flex items-center gap-1">
       <button 

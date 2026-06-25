@@ -54,7 +54,7 @@
   let activeTool = $state('pen'); // 'pen' | 'eraser' | 'pan' | 'select'
 
   let cursorClass = $derived.by(() => {
-    if (activeTool === 'pan') {
+    if (activeTool === 'pan' || (store.settings.stylusMode && canvasMode === 'infinite')) {
       return isPanning ? 'cursor-grabbing' : 'cursor-grab';
     }
     if (activeTool === 'eraser' || isPointerEraser) {
@@ -468,7 +468,9 @@
     if (longPressTimer) clearTimeout(longPressTimer);
     
     // Check if middle click or Hand tool or custom pan action
-    const isPanAction = canvasMode === 'infinite' && (e.button === 1 || activeTool === 'pan' || isPointerPan);
+    const isFingerOrMouse = !isPen;
+    const isPanAction = canvasMode === 'infinite' && 
+      (e.button === 1 || activeTool === 'pan' || isPointerPan || (store.settings.stylusMode && isFingerOrMouse));
     
     if (isPanAction) {
       isPanning = true;
@@ -480,6 +482,14 @@
     
     // Only allow drawing/selecting/panning on left-click (or barrel button actions)
     if (e.button !== 0 && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen) return;
+
+    // In stylus mode, finger/touch/mouse cannot draw/select on A4 canvas either
+    if (store.settings.stylusMode && isFingerOrMouse) {
+      if (canvasMode !== 'infinite') {
+        e.preventDefault();
+        return;
+      }
+    }
 
     // Capture pointer to receive move/up even outside canvas borders
     try {

@@ -59,6 +59,7 @@ export interface Settings {
   systemPromptEditingEnabled: boolean;
   language: string;
   stylusButtons: StylusButton[];
+  stylusMode: boolean;
 }
 
 export interface Profile {
@@ -245,7 +246,8 @@ const defaultSettings: Settings = {
   customSystemPrompt: '',
   systemPromptEditingEnabled: false,
   language: 'English',
-  stylusButtons: []
+  stylusButtons: [],
+  stylusMode: false
 };
 
 // State classes for Svelte 5 Runes reactivity
