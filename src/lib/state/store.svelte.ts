@@ -89,7 +89,7 @@ export interface ExportDialog {
   project: Project;
   hasCritique: boolean;
   hasCanvas: boolean;
-  onConfirm: (options: { includeCritique: boolean; includeCanvas: boolean; includeCompleted: boolean }) => void;
+  onConfirm: (options: { includeCritique: boolean; includeCanvas: boolean; includeCompleted: boolean }) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -1133,7 +1133,7 @@ class CanvasCritiqueStore {
       project,
       hasCritique,
       hasCanvas,
-      onConfirm: (options) => {
+      onConfirm: async (options) => {
         // Clone the project to avoid mutating active runtime state
         const exportData = JSON.parse(JSON.stringify(project));
         
