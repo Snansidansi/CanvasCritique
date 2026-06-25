@@ -73,6 +73,9 @@
 }
 
 /* Custom global rules */
+html, body {
+  overscroll-behavior: none;
+}
 body {
   background-color: var(--color-background);
   color: var(--color-on-background);

@@ -40,10 +40,10 @@
     if (activeTool === 'pan') {
       return isPanning ? 'cursor-grabbing' : 'cursor-grab';
     }
-    if (activeTool === 'eraser') {
+    if (activeTool === 'eraser' || isPointerEraser) {
       return 'cursor-cell';
     }
-    if (activeTool === 'select') {
+    if (activeTool === 'select' || isPointerSelect) {
       return 'cursor-default';
     }
     return 'cursor-crosshair';
@@ -183,6 +183,8 @@
   // Stroke history state
   let isDrawing = false;
   let currentStroke = $state([]);
+  let isPointerEraser = $state(false);
+  let isPointerSelect = $state(false);
 
   // Dynamic background mapping
   let currentBgObject = $derived(
@@ -392,11 +394,39 @@
   // Variables to track long-press start positions
   let longPressStartPos = { x: 0, y: 0 };
 
-  function handleMouseDown(e) {
+  function handlePointerDown(e) {
     if (!ctx || !canvasElement) return;
 
-    // Check for right-click: open paste context menu
-    if (e.button === 2) {
+    // Check stylus characteristics
+    const isPen = e.pointerType === 'pen';
+    const hasPenButton3 = isPen && (((e.buttons & 8) !== 0) || ((e.buttons & 16) !== 0) || e.button === 3 || e.button === 4);
+
+    isPointerEraser = false;
+    isPointerSelect = false;
+
+    if (isPen) {
+      if (hasPenButton3) {
+        // With 3 or more buttons, do nothing (ignore overrides)
+      } else {
+        // Physical eraser tip
+        if (((e.buttons & 32) !== 0) || e.button === 5) {
+          isPointerEraser = true;
+        }
+        // Button 1 (barrel button 1) -> acts as Eraser (button === 2 or buttons contains 2)
+        else if (((e.buttons & 2) !== 0) || e.button === 2) {
+          isPointerEraser = true;
+          e.preventDefault();
+        }
+        // Button 2 (barrel button 2) -> acts as Selection Tool (button === 1 or buttons contains 4)
+        else if (((e.buttons & 4) !== 0) || e.button === 1) {
+          isPointerSelect = true;
+          e.preventDefault();
+        }
+      }
+    }
+
+    // Check for right-click: open paste context menu for mouse/non-pen pointers
+    if (!isPen && e.button === 2) {
       const coords = getCoords(e);
       const rect = canvasContainer.getBoundingClientRect();
       contextMenu = {
@@ -424,28 +454,35 @@
       return;
     }
     
-    // Only allow drawing/selecting on left-click
-    if (e.button !== 0) return;
+    // Only allow drawing/selecting on left-click (or barrel button actions)
+    if (e.button !== 0 && !isPointerEraser && !isPointerSelect) return;
+
+    // Capture pointer to receive move/up even outside canvas borders
+    try {
+      canvasElement.setPointerCapture(e.pointerId);
+    } catch (err) {}
 
     const coords = getCoords(e);
 
     // Setup long-press (600ms) timer for context menu (stylus paste shortcut)
-    longPressStartPos = { x: e.clientX, y: e.clientY };
-    longPressTimer = setTimeout(() => {
-      const rect = canvasContainer.getBoundingClientRect();
-      contextMenu = {
-        x: longPressStartPos.x - rect.left,
-        y: longPressStartPos.y - rect.top,
-        canvasX: coords.x,
-        canvasY: coords.y
-      };
-      // Cancel active draw or selection marquee drag
-      isDrawing = false;
-      selectionBox = null;
-      isMovingSelection = false;
-    }, 600);
+    if (!isPointerEraser && !isPointerSelect) {
+      longPressStartPos = { x: e.clientX, y: e.clientY };
+      longPressTimer = setTimeout(() => {
+        const rect = canvasContainer.getBoundingClientRect();
+        contextMenu = {
+          x: longPressStartPos.x - rect.left,
+          y: longPressStartPos.y - rect.top,
+          canvasX: coords.x,
+          canvasY: coords.y
+        };
+        // Cancel active draw or selection marquee drag
+        isDrawing = false;
+        selectionBox = null;
+        isMovingSelection = false;
+      }, 600);
+    }
 
-    if (activeTool === 'select') {
+    if (activeTool === 'select' || isPointerSelect) {
       // Check if clicking inside current selection bounding box
       const bounds = selectionBoundingBox;
       if (isPointInBounds(coords.x, coords.y, bounds)) {
@@ -464,7 +501,7 @@
     }
   }
 
-  function handleMouseMove(e) {
+  function handlePointerMove(e) {
     // If long-press is active, cancel it if cursor moves > 5px
     if (longPressTimer) {
       const dist = Math.hypot(e.clientX - longPressStartPos.x, e.clientY - longPressStartPos.y);
@@ -496,7 +533,7 @@
 
     const coords = getCoords(e);
     
-    if (activeTool === 'select') {
+    if (activeTool === 'select' || isPointerSelect) {
       if (isMovingSelection && selectedStrokes.length > 0) {
         const dx = coords.x - selectionDragStart.x;
         const dy = coords.y - selectionDragStart.y;
@@ -526,7 +563,13 @@
     }
   }
 
-  function handleMouseUp() {
+  function handlePointerUp(e) {
+    if (e && canvasElement && canvasElement.hasPointerCapture(e.pointerId)) {
+      try {
+        canvasElement.releasePointerCapture(e.pointerId);
+      } catch (err) {}
+    }
+
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       longPressTimer = null;
@@ -538,7 +581,7 @@
       return;
     }
     
-    if (activeTool === 'select') {
+    if (activeTool === 'select' || isPointerSelect) {
       if (selectionBox) {
         selectedStrokes = getStrokesInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2);
         selectionBox = null;
@@ -552,8 +595,8 @@
       
       if (currentStroke.length > 0) {
         const newStroke = {
-          color: activeTool === 'eraser' ? 'eraser' : strokeColor,
-          width: activeTool === 'eraser' ? eraserWidth : brushWidth,
+          color: (activeTool === 'eraser' || isPointerEraser) ? 'eraser' : strokeColor,
+          width: (activeTool === 'eraser' || isPointerEraser) ? eraserWidth : brushWidth,
           points: [...currentStroke]
         };
         
@@ -568,15 +611,17 @@
       }
       currentStroke = [];
     }
+    isPointerEraser = false;
+    isPointerSelect = false;
   }
 
-  function handleMouseLeave() {
+  function handlePointerLeave(e) {
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       longPressTimer = null;
     }
     if (isDrawing) {
-      handleMouseUp();
+      handlePointerUp(e);
     }
     if (isPanning) {
       isPanning = false;
@@ -760,8 +805,8 @@
     // Draw active drawing stroke
     if (currentStroke.length > 0) {
       drawStroke(oCtx, {
-        color: activeTool === 'eraser' ? 'eraser' : strokeColor,
-        width: activeTool === 'eraser' ? eraserWidth : brushWidth,
+        color: (activeTool === 'eraser' || isPointerEraser) ? 'eraser' : strokeColor,
+        width: (activeTool === 'eraser' || isPointerEraser) ? eraserWidth : brushWidth,
         points: currentStroke
       });
     }
@@ -772,7 +817,7 @@
     ctx.drawImage(offscreen, 0, 0);
     
     // Draw selection tools marquee box (if actively selecting)
-    if (activeTool === 'select' && selectionBox) {
+    if ((activeTool === 'select' || isPointerSelect) && selectionBox) {
       ctx.save();
       if (canvasMode === 'infinite') {
         ctx.translate(panOffset.x, panOffset.y);
@@ -792,7 +837,7 @@
     }
     
     // Draw selection bounding box (if strokes are selected)
-    if (activeTool === 'select' && selectionBoundingBox) {
+    if ((activeTool === 'select' || isPointerSelect) && selectionBoundingBox) {
       const bounds = selectionBoundingBox;
       ctx.save();
       if (canvasMode === 'infinite') {
@@ -1784,13 +1829,14 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
             bind:this={canvasElement}
             width={canvasWidth}
             height={canvasHeight}
-            onmousedown={handleMouseDown}
-            onmousemove={handleMouseMove}
-            onmouseup={handleMouseUp}
-            onmouseleave={handleMouseLeave}
+            onpointerdown={handlePointerDown}
+            onpointermove={handlePointerMove}
+            onpointerup={handlePointerUp}
+            onpointerleave={handlePointerLeave}
             onwheel={handleWheel}
             oncontextmenu={e => e.preventDefault()}
             class="absolute inset-0 w-full h-full z-10 bg-white {cursorClass}"
+            style="touch-action: none;"
           ></canvas>
 
           <!-- SVG Overlays for Markers (Infinite Mode) -->
@@ -1871,12 +1917,13 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
             bind:this={canvasElement}
             width="800"
             height="1130"
-            onmousedown={handleMouseDown}
-            onmousemove={handleMouseMove}
-            onmouseup={handleMouseUp}
-            onmouseleave={handleMouseLeave}
+            onpointerdown={handlePointerDown}
+            onpointermove={handlePointerMove}
+            onpointerup={handlePointerUp}
+            onpointerleave={handlePointerLeave}
             oncontextmenu={e => e.preventDefault()}
             class="absolute inset-0 w-full h-full z-10 bg-transparent {cursorClass}"
+            style="touch-action: none;"
           ></canvas>
 
           <!-- SVG Overlays for Markers (A4 Page Mode, filtered by current page index) -->
@@ -1953,7 +2000,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       {/if}
 
       <!-- Selection Bounding Box Floating Options -->
-      {#if activeTool === 'select' && selectionBoundingBox}
+      {#if (activeTool === 'select' || isPointerSelect) && selectionBoundingBox}
         {@const bounds = selectionBoundingBox}
         {@const leftOffset = canvasMode === 'a4' ? (containerWidth - 800 * a4Scale) / 2 : panOffset.x}
         {@const topOffset = canvasMode === 'a4' ? (containerHeight - 1130 * a4Scale) / 2 : panOffset.y}
@@ -2001,6 +2048,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
           type="button"
           class="absolute inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none"
           onclick={() => contextMenu = null}
+          aria-label="Dismiss context menu"
         ></button>
         
         <div 

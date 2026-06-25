@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from "./lib/state/store.svelte";
   import Sidebar from "./lib/components/Sidebar.svelte";
+  import { onMount } from "svelte";
 
   // Views
   import Dashboard from "./lib/views/Dashboard.svelte";
@@ -8,6 +9,16 @@
   import PracticeCanvas from "./lib/views/PracticeCanvas.svelte";
   import Settings from "./lib/views/Settings.svelte";
   import TaskEditor from "./lib/views/TaskEditor.svelte";
+
+  onMount(() => {
+    const handleGlobalContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("contextmenu", handleGlobalContextMenu);
+    return () => {
+      window.removeEventListener("contextmenu", handleGlobalContextMenu);
+    };
+  });
 </script>
 
 <div
