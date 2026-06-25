@@ -6,6 +6,43 @@ import {
   drawGuidelinesInWorld, 
   getStrokesBoundingBox 
 } from '../utils/canvas';
+import { store } from '../state/store.svelte';
+
+export function estimateCost(provider: 'gemini' | 'openrouter', model: string, inputTokens: number, outputTokens: number): number {
+  const modelLower = model.toLowerCase();
+  
+  if (provider === 'gemini') {
+    if (modelLower.includes('gemini-1.5-flash-8b')) {
+      return (inputTokens * 0.0375 + outputTokens * 0.15) / 1000000;
+    } else if (modelLower.includes('gemini-1.5-flash') || modelLower.includes('gemini-2.0-flash')) {
+      return (inputTokens * 0.075 + outputTokens * 0.30) / 1000000;
+    } else if (modelLower.includes('gemini-1.5-pro')) {
+      return (inputTokens * 1.25 + outputTokens * 5.00) / 1000000;
+    }
+    return (inputTokens * 0.075 + outputTokens * 0.30) / 1000000;
+  } else {
+    if (modelLower.includes('gemini-flash-1.5') || modelLower.includes('gemini-2.0-flash')) {
+      return (inputTokens * 0.075 + outputTokens * 0.30) / 1000000;
+    } else if (modelLower.includes('gemini-pro-1.5')) {
+      return (inputTokens * 1.25 + outputTokens * 5.00) / 1000000;
+    } else if (modelLower.includes('claude-3.5-sonnet') || modelLower.includes('claude-3-5-sonnet')) {
+      return (inputTokens * 3.00 + outputTokens * 15.00) / 1000000;
+    } else if (modelLower.includes('claude-3-opus')) {
+      return (inputTokens * 15.00 + outputTokens * 75.00) / 1000000;
+    } else if (modelLower.includes('gpt-4o-mini')) {
+      return (inputTokens * 0.15 + outputTokens * 0.60) / 1000000;
+    } else if (modelLower.includes('gpt-4o')) {
+      return (inputTokens * 2.50 + outputTokens * 10.00) / 1000000;
+    } else if (modelLower.includes('llama-3-8b') || modelLower.includes('llama3-8b')) {
+      return (inputTokens * 0.05 + outputTokens * 0.05) / 1000000;
+    } else if (modelLower.includes('llama-3-70b') || modelLower.includes('llama3-70b')) {
+      return (inputTokens * 0.35 + outputTokens * 0.40) / 1000000;
+    } else if (modelLower.includes('deepseek-chat') || modelLower.includes('deepseek-coder') || modelLower.includes('deepseek-v3') || modelLower.includes('deepseek-r1')) {
+      return (inputTokens * 0.14 + outputTokens * 0.28) / 1000000;
+    }
+    return (inputTokens * 0.20 + outputTokens * 0.80) / 1000000;
+  }
+}
 
 export interface CheckWorkTask {
   name: string;
@@ -470,6 +507,25 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   }
 
   const resData = await response.json();
+  
+  // Extract and record LLM usage statistics
+  try {
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let reasoningTokens = 0;
+    if (provider === 'gemini') {
+      inputTokens = resData.usageMetadata?.promptTokenCount || 0;
+      outputTokens = resData.usageMetadata?.candidatesTokenCount || 0;
+    } else {
+      inputTokens = resData.usage?.prompt_tokens || 0;
+      outputTokens = resData.usage?.completion_tokens || 0;
+      reasoningTokens = resData.usage?.reasoning_tokens || 0;
+    }
+    const cost = estimateCost(provider as 'gemini' | 'openrouter', model, inputTokens, outputTokens);
+    store.recordRequest(provider as 'gemini' | 'openrouter', model, inputTokens, outputTokens, reasoningTokens, cost);
+  } catch (err) {
+    console.error('Failed to log LLM statistics:', err);
+  }
   
   let textResult = '';
   if (provider === 'gemini') {

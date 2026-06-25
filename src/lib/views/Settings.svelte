@@ -5,14 +5,16 @@
   import DataManagement from '../components/settings/DataManagement.svelte';
   import ApiSettings from '../components/settings/ApiSettings.svelte';
   import SystemPromptSettings from '../components/settings/SystemPromptSettings.svelte';
+  import StatisticsSettings from '../components/settings/StatisticsSettings.svelte';
 
-  type TabId = 'general' | 'stylus' | 'ai' | 'data';
+  type TabId = 'general' | 'stylus' | 'ai' | 'data' | 'stats';
 
   const tabs: { id: TabId; label: string; icon: string }[] = [
     { id: 'general',  label: 'General',   icon: 'tune'           },
     { id: 'stylus',   label: 'Stylus',    icon: 'stylus_pen'     },
     { id: 'ai',       label: 'AI & API',  icon: 'smart_toy'      },
     { id: 'data',     label: 'Data',      icon: 'database'       },
+    { id: 'stats',    label: 'Statistics',icon: 'bar_chart'      },
   ];
 
   let activeTab = $state<TabId>('general');
@@ -62,6 +64,9 @@
 
       {:else if activeTab === 'data'}
         <DataManagement />
+
+      {:else if activeTab === 'stats'}
+        <StatisticsSettings />
       {/if}
 
     </div>

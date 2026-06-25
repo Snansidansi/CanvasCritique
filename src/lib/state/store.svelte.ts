@@ -37,6 +37,19 @@ export interface StylusButton {
   action: string;
 }
 
+export interface ApiStats {
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cost: number;
+}
+
+export interface DailyStats {
+  gemini: ApiStats;
+  openrouter: ApiStats;
+}
+
 export interface Settings {
   theme: string;
   apiProvider: string;
@@ -62,6 +75,10 @@ export interface Settings {
   stylusButtons: StylusButton[];
   stylusMode: boolean;
   autoCompleteOnSuccess: boolean;
+  statsEnabled: boolean;
+  stats: {
+    daily: Record<string, DailyStats>;
+  };
 }
 
 export interface Profile {
@@ -258,7 +275,9 @@ const defaultSettings: Settings = {
   language: 'English',
   stylusButtons: [],
   stylusMode: false,
-  autoCompleteOnSuccess: true
+  autoCompleteOnSuccess: true,
+  statsEnabled: true,
+  stats: { daily: {} }
 };
 
 // State classes for Svelte 5 Runes reactivity
@@ -382,6 +401,17 @@ class CanvasCritiqueStore {
         this.settings = { ...defaultSettings, ...JSON.parse(savedSettings) };
       } else {
         this.settings = defaultSettings;
+      }
+
+      // Ensure statistics fields exist for backward compatibility
+      if (!this.settings.hasOwnProperty('statsEnabled')) {
+        this.settings.statsEnabled = true;
+      }
+      if (!this.settings.stats) {
+        this.settings.stats = { daily: {} };
+      }
+      if (!this.settings.stats.daily) {
+        this.settings.stats.daily = {};
       }
 
       if (!this.settings.stylusButtons || !Array.isArray(this.settings.stylusButtons)) {
@@ -1221,6 +1251,49 @@ class CanvasCritiqueStore {
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
+  }
+
+  recordRequest(
+    provider: 'gemini' | 'openrouter',
+    model: string,
+    inputTokens: number,
+    outputTokens: number,
+    reasoningTokens: number,
+    cost: number
+  ): void {
+    if (!this.settings.statsEnabled) return;
+    if (!this.settings.stats) {
+      this.settings.stats = { daily: {} };
+    }
+    if (!this.settings.stats.daily) {
+      this.settings.stats.daily = {};
+    }
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    if (!this.settings.stats.daily[today]) {
+      this.settings.stats.daily[today] = {
+        gemini: { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 },
+        openrouter: { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 }
+      };
+    }
+
+    if (!this.settings.stats.daily[today][provider]) {
+      this.settings.stats.daily[today][provider] = {
+        requests: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        reasoningTokens: 0,
+        cost: 0
+      };
+    }
+
+    const dayStats = this.settings.stats.daily[today][provider];
+    dayStats.requests += 1;
+    dayStats.inputTokens += inputTokens;
+    dayStats.outputTokens += outputTokens;
+    dayStats.reasoningTokens += reasoningTokens;
+    dayStats.cost += cost;
+
+    this.saveSettings();
   }
 
   showNotification(message: string, type: 'success' | 'error' | 'info' = 'success', duration = 3000): void {
