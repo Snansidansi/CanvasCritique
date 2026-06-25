@@ -1,5 +1,6 @@
 <script lang="ts">
   import { store, type Project } from '../state/store.svelte';
+  import TaskSelectionBar from '../components/project/TaskSelectionBar.svelte';
 
   // Derived project state from store
   let project = $derived(store.activeProject || ({
@@ -22,6 +23,10 @@
   // Drag and drop states
   let draggedTaskId = $state(null);
   let draggedCategory = $state(null);
+
+  // Selection mode states
+  let isSelectionMode = $state(false);
+  let selectedTaskIds = $state(new Set<string>());
 
   // Derived progress rune
   let progress = $derived(getProjectProgress());
@@ -63,6 +68,10 @@
 
   // HTML5 Drag and drop handlers
   function handleDragStart(e, taskId, category) {
+    if (isSelectionMode) {
+      e.preventDefault();
+      return;
+    }
     draggedTaskId = taskId;
     draggedCategory = category;
     e.dataTransfer.effectAllowed = 'move';
@@ -131,6 +140,23 @@
       }
     };
   }
+
+  function handleDeleteSelected() {
+    if (selectedTaskIds.size === 0) return;
+    store.confirm(
+      "Delete Selected Tasks",
+      `Are you sure you want to delete the ${selectedTaskIds.size} selected tasks? This will permanently delete them and their canvas drawing history.`,
+      () => {
+        store.deleteTasks(project.id, Array.from(selectedTaskIds));
+        selectedTaskIds.clear();
+        isSelectionMode = false;
+      }
+    );
+  }
+
+  function handleExportSelected() {
+    // to be implemented in step 4
+  }
 </script>
 
 <!-- TopAppBar -->
@@ -182,6 +208,22 @@
       <span class="material-symbols-outlined text-[18px]">file_download</span>
       Export Lesson
     </button>
+
+    <!-- Selection Mode Toggle (Step 3) -->
+    {#if project.id !== 'No Lesson Selected' && project.tasks.length > 0}
+      <button 
+        onclick={() => {
+          isSelectionMode = !isSelectionMode;
+          selectedTaskIds.clear();
+        }}
+        class="font-semibold text-xs py-2.5 px-4 rounded-lg border transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none
+               {isSelectionMode ? 'bg-primary/10 text-primary border-primary hover:bg-primary/20' : 'bg-surface-container-low text-on-surface border-outline-variant hover:bg-surface-container'}"
+        title="Toggle Selection Mode"
+      >
+        <span class="material-symbols-outlined text-[18px]">checklist</span>
+        {isSelectionMode ? 'Cancel Selection' : 'Select Tasks'}
+      </button>
+    {/if}
 
     <!-- Inline Create New Task -->
     <button 
@@ -301,60 +343,88 @@
             {#if catTasks.length > 0}
               {#each catTasks as task, index (task.id)}
                 <div 
-                  draggable="true"
+                  draggable={!isSelectionMode}
                   ondragstart={(e) => handleDragStart(e, task.id, category)}
                   ondrop={(e) => handleDrop(e, category, index)}
-                  class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-4 flex items-center justify-between group hover:border-primary transition-all duration-150 shadow-sm cursor-grab active:cursor-grabbing relative overflow-hidden"
+                  class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-4 flex items-center justify-between group hover:border-primary transition-all duration-150 shadow-sm relative overflow-hidden
+                         {isSelectionMode ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}"
                 >
-                  <!-- Visual drag indicator -->
+                  <!-- Visual drag indicator or selection checkbox -->
                   <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-outline-variant text-[18px] select-none cursor-grab opacity-40 group-hover:opacity-100 transition-opacity">
-                      drag_indicator
-                    </span>
-
-                    <button 
-                      onclick={() => store.toggleTaskCompleted(project.id, task.id)}
-                      class="text-primary hover:opacity-85 focus:outline-none flex items-center cursor-pointer"
-                      title={task.completed ? "Mark incomplete" : "Mark complete"}
-                    >
-                      <span class="material-symbols-outlined text-[22px]">
-                        {task.completed ? 'check_box' : 'check_box_outline_blank'}
+                    {#if isSelectionMode}
+                      <input 
+                        type="checkbox" 
+                        checked={selectedTaskIds.has(task.id)}
+                        onchange={() => {
+                          if (selectedTaskIds.has(task.id)) {
+                            selectedTaskIds.delete(task.id);
+                          } else {
+                            selectedTaskIds.add(task.id);
+                          }
+                        }}
+                        class="rounded border-outline-variant text-primary focus:ring-primary h-4.5 w-4.5 cursor-pointer mr-1.5"
+                      />
+                    {:else}
+                      <span class="material-symbols-outlined text-outline-variant text-[18px] select-none cursor-grab opacity-40 group-hover:opacity-100 transition-opacity">
+                        drag_indicator
                       </span>
-                    </button>
+
+                      <button 
+                        onclick={() => store.toggleTaskCompleted(project.id, task.id)}
+                        class="text-primary hover:opacity-85 focus:outline-none flex items-center cursor-pointer"
+                        title={task.completed ? "Mark incomplete" : "Mark complete"}
+                      >
+                        <span class="material-symbols-outlined text-[22px]">
+                          {task.completed ? 'check_box' : 'check_box_outline_blank'}
+                        </span>
+                      </button>
+                    {/if}
 
                     <button 
-                      onclick={() => openPractice(task)}
+                      onclick={() => {
+                        if (isSelectionMode) {
+                          if (selectedTaskIds.has(task.id)) {
+                            selectedTaskIds.delete(task.id);
+                          } else {
+                            selectedTaskIds.add(task.id);
+                          }
+                        } else {
+                          openPractice(task);
+                        }
+                      }}
                       class="text-left font-semibold text-sm text-on-surface hover:text-primary hover:underline transition-colors focus:outline-none
-                             {task.completed ? 'line-through text-outline' : ''}"
+                             {task.completed && !isSelectionMode ? 'line-through text-outline' : ''}"
                     >
                       {task.name}
                     </button>
                   </div>
 
                   <!-- Hover actions (Edit & Delete) -->
-                  <div class="flex items-center gap-2">
-                    <!-- Task Edit Pen Icon: Always visible -->
-                    <button 
-                      onclick={() => handleEditTask(task)}
-                      class="text-outline hover:text-primary transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm" 
-                      title="Edit Task Details"
-                    >
-                      <span class="material-symbols-outlined text-[16px]">edit</span>
-                      Edit
-                    </button>
-                    <button 
-                      onclick={() => store.confirm(
-                        "Delete Task",
-                        `Are you sure you want to delete "${task.name}"? This will permanently delete the task and its canvas drawing history.`,
-                        () => store.deleteTask(project.id, task.id)
-                      )}
-                      class="text-outline hover:text-error hover:border-error/40 transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm"
-                      title="Delete Task"
-                    >
-                      <span class="material-symbols-outlined text-[16px] text-error">delete</span>
-                      Delete
-                    </button>
-                  </div>
+                  {#if !isSelectionMode}
+                    <div class="flex items-center gap-2">
+                      <!-- Task Edit Pen Icon: Always visible -->
+                      <button 
+                        onclick={() => handleEditTask(task)}
+                        class="text-outline hover:text-primary transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm" 
+                        title="Edit Task Details"
+                      >
+                        <span class="material-symbols-outlined text-[16px]">edit</span>
+                        Edit
+                      </button>
+                      <button 
+                        onclick={() => store.confirm(
+                          "Delete Task",
+                          `Are you sure you want to delete "${task.name}"? This will permanently delete the task and its canvas drawing history.`,
+                          () => store.deleteTask(project.id, task.id)
+                        )}
+                        class="text-outline hover:text-error hover:border-error/40 transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm"
+                        title="Delete Task"
+                      >
+                        <span class="material-symbols-outlined text-[16px] text-error">delete</span>
+                        Delete
+                      </button>
+                    </div>
+                  {/if}
                 </div>
               {/each}
             {:else}
@@ -407,4 +477,15 @@
       </form>
     </div>
   </div>
+{/if}
+{#if isSelectionMode}
+  <TaskSelectionBar
+    selectedCount={selectedTaskIds.size}
+    onExport={handleExportSelected}
+    onDelete={handleDeleteSelected}
+    onCancel={() => {
+      isSelectionMode = false;
+      selectedTaskIds.clear();
+    }}
+  />
 {/if}

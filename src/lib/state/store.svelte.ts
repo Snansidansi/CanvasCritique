@@ -783,6 +783,35 @@ class CanvasCritiqueStore {
     }
   }
 
+  deleteTasks(projectId: string, taskIds: string[]): void {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    project.tasks = project.tasks.filter(t => !taskIds.includes(t.id));
+    this.saveProjects();
+
+    let canvasSavesChanged = false;
+    for (const taskId of taskIds) {
+      if (this.canvasSaves[taskId]) {
+        delete this.canvasSaves[taskId];
+        canvasSavesChanged = true;
+      }
+    }
+    if (canvasSavesChanged) {
+      localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
+    }
+
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
+    if (this.activeTask && taskIds.includes(this.activeTask.id)) {
+      this.activeTask = null;
+    }
+    if (this.editingTask && taskIds.includes(this.editingTask.id)) {
+      this.editingTask = null;
+    }
+  }
+
   updateProjectGuidelines(projectId: string, guidelines: string): void {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
