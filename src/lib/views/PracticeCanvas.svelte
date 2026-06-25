@@ -1136,11 +1136,11 @@
   }
 
   function clearCanvas() {
-    if (strokeHistory.length === 0) return;
+    if (strokeHistory.length === 0 && !hasCheckedWork) return;
     
     store.confirm(
       'Clear Drawing Canvas',
-      'Are you sure you want to clear your drawing canvas? This will discard your current calligraphy sketch.',
+      'Are you sure you want to clear your drawing canvas? This will discard your current calligraphy sketch and AI feedback.',
       () => {
         if (canvasMode === 'a4') {
           if (pages[activePageIndex]) {
@@ -1151,7 +1151,22 @@
           infiniteStrokes = [];
           infiniteRedo = [];
         }
+        
+        feedbackText = '';
+        feedbackScore = null;
+        feedbackMarkers = [];
+        hasCheckedWork = false;
+        showFeedback = false;
+        showCritiqueBanner = false;
+        activeTooltipMarker = null;
+
         saveToStore();
+
+        if (store.activeProject && store.activeTask) {
+          store.updateTask(store.activeProject.id, store.activeTask.id, {
+            critique: null
+          });
+        }
       }
     );
   }
