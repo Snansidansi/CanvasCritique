@@ -192,7 +192,7 @@
 
 <main class="grow overflow-y-auto bg-surface p-8 custom-scrollbar h-full">
   <div class="max-w-3xl mx-auto flex flex-col gap-6">
-    <div class="flex items-center -ml-2">
+    <div class="flex items-center gap-4 -ml-2 border-b border-outline-variant pb-4 mb-2">
       <button 
         onclick={handleCancel}
         class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors p-2 rounded-full focus:outline-none cursor-pointer"
@@ -200,14 +200,13 @@
       >
         arrow_back
       </button>
+      <div class="flex flex-col gap-0.5">
+        <h1 class="text-xl font-bold text-on-surface leading-tight">{isEditMode ? 'Edit Task' : 'Create Task'}</h1>
+        <p class="text-xs text-on-surface-variant">
+          {isEditMode ? 'Modify details or requirements for this script assignment.' : 'Define the parameters and provide reference materials for this assignment.'}
+        </p>
+      </div>
     </div>
-
-    <header class="flex flex-col gap-2">
-      <h1 class="text-2xl font-bold text-on-surface">{isEditMode ? 'Edit Task' : 'Create Task'}</h1>
-      <p class="text-sm text-on-surface-variant">
-        {isEditMode ? 'Modify details or requirements for this script assignment.' : 'Define the parameters and provide reference materials for this assignment.'}
-      </p>
-    </header>
 
     <form onsubmit={handleSave} class="flex flex-col gap-8 bg-surface-container-lowest p-6 rounded-xl border border-outline-variant shadow-sm">
       
