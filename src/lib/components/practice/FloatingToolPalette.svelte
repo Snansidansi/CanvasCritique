@@ -98,7 +98,7 @@
     localStorage.setItem('canvascritique_palette_collapsed', String(isCollapsed));
   }
 
-  function onMouseDown(e: MouseEvent) {
+  function onPointerDown(e: PointerEvent) {
     // If expanded, we only drag via dragHandle
     // If collapsed, we can drag by clicking anywhere on it
     const target = e.target as HTMLElement;
@@ -107,7 +107,9 @@
 
     if (!dragHandle && !isCollapsedDrag) return;
 
-    e.preventDefault();
+    if (dragHandle) {
+      e.preventDefault();
+    }
     isDragging = true;
     dragMoved = false;
 
@@ -128,11 +130,15 @@
     dragStartRight = rightX;
     dragStartBottom = bottomY;
 
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+
+    try {
+      paletteElement?.setPointerCapture(e.pointerId);
+    } catch (err) {}
   }
 
-  function onMouseMove(e: MouseEvent) {
+  function onPointerMove(e: PointerEvent) {
     if (!isDragging) return;
 
     const deltaX = e.clientX - dragStartMouseX;
@@ -158,10 +164,14 @@
     bottomY = newBottom;
   }
 
-  function onMouseUp() {
+  function onPointerUp(e: PointerEvent) {
     isDragging = false;
-    window.removeEventListener('mousemove', onMouseMove);
-    window.removeEventListener('mouseup', onMouseUp);
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+
+    try {
+      paletteElement?.releasePointerCapture(e.pointerId);
+    } catch (err) {}
 
     if (rightX !== null && bottomY !== null) {
       localStorage.setItem('canvascritique_palette_pos', JSON.stringify({ right: rightX, bottom: bottomY }));
@@ -179,7 +189,10 @@
   class="fixed bg-surface-container/95 backdrop-blur-md shadow-lg border border-outline-variant/30 select-none z-20 flex items-center palette-transition
          {isCollapsed ? 'w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : (canvasMode === 'infinite' ? 'w-172' : 'w-162') + ' h-12 px-4 rounded-full'}"
   style="{positionStyle}"
-  onmousedown={onMouseDown}
+  onpointerdown={onPointerDown}
+  role="toolbar"
+  aria-label="Drawing tools"
+  tabindex="-1"
 >
   {#if !isCollapsed}
     <!-- Collapse trigger (arrow on the far left) -->

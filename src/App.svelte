@@ -50,8 +50,10 @@
   import Settings from "./lib/views/Settings.svelte";
   import TaskEditor from "./lib/views/TaskEditor.svelte";
   import Notification from "./lib/components/Notification.svelte";
+  import { initTouchDragPolyfill } from "./lib/utils/touchDragPolyfill";
 
   onMount(() => {
+    initTouchDragPolyfill();
     const handleGlobalContextMenu = (e: MouseEvent) => {
       e.preventDefault();
     };
