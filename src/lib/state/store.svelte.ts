@@ -278,6 +278,7 @@ class CanvasCritiqueStore {
   lastDetectedButton = $state<{ button: number; buttons: number; pointerType: string } | null>(null);
   profiles = $state<Profile[]>([]);
   activeProfileId = $state<string>('');
+  notification = $state<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // Getters for dynamic API/Model selection
   get apiKey(): string {
@@ -1155,6 +1156,15 @@ class CanvasCritiqueStore {
       tasks: tasks
     };
     this.exportProject(tempProject);
+  }
+
+  showNotification(message: string, type: 'success' | 'error' | 'info' = 'success', duration = 3000): void {
+    this.notification = { message, type };
+    setTimeout(() => {
+      if (this.notification && this.notification.message === message) {
+        this.notification = null;
+      }
+    }, duration);
   }
 }
 

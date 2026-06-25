@@ -49,6 +49,7 @@
   import PracticeCanvas from "./lib/views/PracticeCanvas.svelte";
   import Settings from "./lib/views/Settings.svelte";
   import TaskEditor from "./lib/views/TaskEditor.svelte";
+  import Notification from "./lib/components/Notification.svelte";
 
   onMount(() => {
     const handleGlobalContextMenu = (e: MouseEvent) => {
@@ -372,3 +373,5 @@
     </div>
   </div>
 {/if}
+
+<Notification />

@@ -78,9 +78,9 @@
           const imported = JSON.parse(reader.result as string);
           store.settings = { ...store.settings, ...imported };
           store.saveSettings();
-          alert('Settings imported successfully!');
+          store.showNotification('Settings imported successfully!', 'success');
         } catch (err) {
-          alert('Failed to parse file. Make sure it is valid JSON.');
+          store.showNotification('Failed to parse settings file.', 'error');
         }
       };
       reader.readAsText(file);
@@ -113,12 +113,12 @@
           if (Array.isArray(imported)) {
             store.projects = imported;
             store.saveProjects();
-            alert('Data imported successfully!');
+            store.showNotification('Data imported successfully!', 'success');
           } else {
-            alert('Invalid format. Data must be a JSON array of lessons.');
+            store.showNotification('Invalid data format. Expected an array of lessons.', 'error');
           }
         } catch (err) {
-          alert('Failed to parse file. Make sure it is valid JSON.');
+          store.showNotification('Failed to parse data file.', 'error');
         }
       };
       reader.readAsText(file);
