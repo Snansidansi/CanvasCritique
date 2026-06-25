@@ -2,11 +2,57 @@
   import { onMount } from 'svelte';
   import { store } from '../../state/store.svelte';
 
-  // Listen globally to pointer events while the settings page is mounted to record stylus presses
+  let isDetecting = $state(false);
+
+  // Handle adding/registering a detected button
+  function handleDetectedButton(button: number, buttons: number) {
+    // Check if this combination already exists
+    const exists = store.settings.stylusButtons.some(
+      b => b.button === button && b.buttons === buttons
+    );
+    if (exists) {
+      // Just end detection if it already exists
+      isDetecting = false;
+      return;
+    }
+
+    const newId = 'stylus-btn-' + Date.now();
+    
+    // Generate a user-friendly default name based on values
+    let btnName = `Stylus Button (btn: ${button})`;
+    if (buttons === 32 || button === 5) {
+      btnName = 'Eraser Tip';
+    } else if (buttons === 2 || button === 2) {
+      btnName = 'Barrel Button 1';
+    } else if (buttons === 4 || button === 1) {
+      btnName = 'Barrel Button 2';
+    }
+
+    const newBtn = {
+      id: newId,
+      name: btnName,
+      button: button,
+      buttons: buttons,
+      action: (buttons === 32 || button === 5) ? 'eraser' as const : 'eraser' as const
+    };
+    store.settings.stylusButtons = [...store.settings.stylusButtons, newBtn];
+    store.saveSettings();
+    isDetecting = false;
+  }
+
   onMount(() => {
     const handleGlobalPointer = (e: PointerEvent) => {
-      // Capture any stylus or mouse buttons pressed
-      store.recordPointerEvent(e);
+      if (!isDetecting) return;
+
+      // Detect pen or mouse interaction
+      if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
+        // e.buttons bitmask has ~1 (bits other than primary/tip down). 
+        // e.button !== 0 and !== -1 means a secondary button triggered the event.
+        const hasButtonPressed = (e.buttons & ~1) !== 0 || (e.button !== 0 && e.button !== -1);
+        if (hasButtonPressed) {
+          handleDetectedButton(e.button, e.buttons);
+        }
+      }
     };
 
     window.addEventListener('pointerdown', handleGlobalPointer);
@@ -17,46 +63,6 @@
       window.removeEventListener('pointermove', handleGlobalPointer);
     };
   });
-
-  // Handle adding a new mapping manually
-  function addManualButton() {
-    const newId = 'stylus-btn-' + Date.now();
-    const newBtn = {
-      id: newId,
-      name: `Stylus Button ${store.settings.stylusButtons.length + 1}`,
-      button: 0,
-      buttons: 0,
-      action: 'pen' as const
-    };
-    store.settings.stylusButtons = [...store.settings.stylusButtons, newBtn];
-    store.saveSettings();
-  }
-
-  // Handle adding the last detected button as a mapping
-  function addDetectedButton() {
-    if (!store.lastDetectedButton) return;
-    const { button, buttons } = store.lastDetectedButton;
-    
-    // Check if this combination already exists
-    const exists = store.settings.stylusButtons.some(
-      b => b.button === button && b.buttons === buttons
-    );
-    if (exists) {
-      alert('A mapping with this button/buttons configuration already exists.');
-      return;
-    }
-
-    const newId = 'stylus-btn-' + Date.now();
-    const newBtn = {
-      id: newId,
-      name: `Detected Stylus Button (${button}/${buttons})`,
-      button: button,
-      buttons: buttons,
-      action: 'eraser' as const
-    };
-    store.settings.stylusButtons = [...store.settings.stylusButtons, newBtn];
-    store.saveSettings();
-  }
 
   // Handle deleting a mapping
   function deleteButton(id: string) {
@@ -78,53 +84,39 @@
   </div>
 
   <p class="text-xs text-on-surface-variant mb-6 leading-relaxed">
-    Customize how your stylus buttons and eraser tips behave on the canvas. Add new configurations for your stylus barrel buttons by matching browser pointer events.
+    Customize how your stylus buttons and eraser tips behave on the canvas.
   </p>
 
-  <!-- Live Detector area -->
-  <div class="mb-6 p-4 rounded-lg bg-surface-container-low border border-outline-variant/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
-    <div class="flex flex-col gap-1">
-      <span class="text-xs font-bold text-on-surface">Stylus Button Live Detector</span>
-      <p class="text-[11px] text-on-surface-variant">Press any button on your stylus anywhere on this settings page to identify its event values.</p>
-      
-      <div class="mt-2.5 flex flex-wrap items-center gap-2">
-        {#if store.lastDetectedButton}
-          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
-            <span class="material-symbols-outlined text-[14px]">sensors</span>
-            Detected Stylus:
-          </span>
-          <span class="text-xs font-semibold text-on-surface">
-            button = <code class="bg-surface-container-high px-1.5 py-0.5 rounded text-primary font-mono">{store.lastDetectedButton.button}</code>, 
-            buttons = <code class="bg-surface-container-high px-1.5 py-0.5 rounded text-primary font-mono">{store.lastDetectedButton.buttons}</code> 
-            <span class="text-[10px] text-on-surface-variant font-normal">({store.lastDetectedButton.pointerType})</span>
-          </span>
-        {:else}
-          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-outline-variant/30 text-on-surface-variant border border-outline-variant/20">
-            <span class="material-symbols-outlined text-[14px] animate-pulse">radar</span>
-            Awaiting Stylus Input...
-          </span>
-        {/if}
-      </div>
-    </div>
-
-    {#if store.lastDetectedButton}
+  <!-- Instruction Block and Detect Trigger -->
+  <div class="mb-6 p-5 bg-surface-container-low border border-outline-variant/60 rounded-xl space-y-4 shadow-sm">
+    <h4 class="text-xs font-bold text-on-surface flex items-center gap-1.5">
+      <span class="material-symbols-outlined text-[16px] text-primary">info</span>
+      How to configure stylus buttons
+    </h4>
+    <ol class="text-[11px] text-on-surface-variant space-y-2 list-decimal pl-4 leading-relaxed">
+      <li>Click the <strong>"Detect Stylus Button"</strong> button below to start detection mode.</li>
+      <li>Touch your stylus to the display screen.</li>
+      <li>Press the physical button on your stylus that you want to map. (Nothing will register until you press the button).</li>
+      <li>The button will be recorded, added to the list below, and detection mode will end.</li>
+    </ol>
+    
+    <div class="pt-2 flex justify-start">
       <button
         type="button"
-        onclick={addDetectedButton}
-        class="self-start md:self-center px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-lg cursor-pointer transition-colors shadow-sm flex items-center gap-2 border-0"
+        onclick={() => isDetecting = true}
+        class="px-4 py-2.5 bg-primary hover:opacity-90 text-on-primary text-xs font-bold rounded-lg cursor-pointer transition-opacity shadow-sm flex items-center gap-2 border-0"
       >
-        <span class="material-symbols-outlined text-[16px]">add_circle</span>
-        <span>Add Detected Button</span>
+        <span class="material-symbols-outlined text-[16px]">radar</span>
+        <span>Detect Stylus Button</span>
       </button>
-    {/if}
+    </div>
   </div>
 
   <!-- Mappings List -->
   <div class="flex flex-col gap-4">
     <div class="hidden md:grid grid-cols-12 gap-3 px-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
-      <div class="col-span-4">Button Label Name</div>
-      <div class="col-span-2">Match e.button</div>
-      <div class="col-span-2">Match e.buttons bit</div>
+      <div class="col-span-5">Button Name / Label</div>
+      <div class="col-span-3">Trigger Values</div>
       <div class="col-span-3">Action Operation</div>
       <div class="col-span-1 text-right">Delete</div>
     </div>
@@ -132,7 +124,7 @@
     {#each store.settings.stylusButtons as btn (btn.id)}
       <div class="grid grid-cols-1 md:grid-cols-12 gap-3 p-3 bg-surface-container-lowest border border-outline-variant/40 rounded-lg items-center transition-all hover:border-outline-variant/80">
         <!-- Label input -->
-        <div class="col-span-1 md:col-span-4 flex flex-col gap-1">
+        <div class="col-span-1 md:col-span-5 flex flex-col gap-1">
           <label class="w-full flex flex-col gap-1">
             <span class="md:hidden text-[10px] font-bold text-on-surface-variant uppercase">Label Name</span>
             <input
@@ -145,34 +137,12 @@
           </label>
         </div>
 
-        <!-- Button index input -->
-        <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
-          <label class="w-full flex flex-col gap-1">
-            <span class="md:hidden text-[10px] font-bold text-on-surface-variant uppercase">e.button</span>
-            <input
-              type="number"
-              bind:value={btn.button}
-              oninput={handleInputChange}
-              min="-1"
-              max="10"
-              class="w-full px-3 py-1.5 bg-surface text-xs text-on-surface border border-outline-variant rounded-md focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-            />
-          </label>
-        </div>
-
-        <!-- Buttons mask input -->
-        <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
-          <label class="w-full flex flex-col gap-1">
-            <span class="md:hidden text-[10px] font-bold text-on-surface-variant uppercase">e.buttons bit</span>
-            <input
-              type="number"
-              bind:value={btn.buttons}
-              oninput={handleInputChange}
-              min="0"
-              max="1024"
-              class="w-full px-3 py-1.5 bg-surface text-xs text-on-surface border border-outline-variant rounded-md focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-            />
-          </label>
+        <!-- Trigger values (read-only text) -->
+        <div class="col-span-1 md:col-span-3 flex flex-col gap-1">
+          <span class="md:hidden text-[10px] font-bold text-on-surface-variant uppercase">Trigger Values</span>
+          <span class="text-xs text-on-surface-variant bg-surface-container px-2.5 py-1.5 rounded border border-outline-variant/30 font-mono inline-block w-fit">
+            btn: {btn.button} / mask: {btn.buttons}
+          </span>
         </div>
 
         <!-- Action select -->
@@ -206,18 +176,34 @@
       </div>
     {:else}
       <div class="py-6 text-center text-xs text-on-surface-variant border border-dashed border-outline-variant rounded-lg">
-        No custom button actions defined. Press your stylus buttons above to detect and map them.
+        No custom button actions configured. Click "Detect Stylus Button" above to detect and map one.
       </div>
     {/each}
-
-    <!-- Add manual button -->
-    <button
-      type="button"
-      onclick={addManualButton}
-      class="mt-2 self-start px-4 py-2 border border-primary text-primary hover:bg-primary/5 text-xs font-bold rounded-lg cursor-pointer transition-colors flex items-center gap-2 bg-transparent"
-    >
-      <span class="material-symbols-outlined text-[16px]">add</span>
-      <span>Add Manual Button Config</span>
-    </button>
   </div>
 </section>
+
+<!-- Detection Modal Overlay -->
+{#if isDetecting}
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-96 shadow-xl flex flex-col gap-4 text-center">
+      <div class="w-16 h-16 rounded-full bg-primary-container text-primary flex items-center justify-center mx-auto mb-2">
+        <span class="material-symbols-outlined text-[32px] animate-pulse">radar</span>
+      </div>
+      <h3 class="font-bold text-lg text-on-surface">Detecting Stylus Button</h3>
+      <p class="text-xs text-on-surface-variant leading-relaxed">
+        1. Place your stylus tip on the display.<br>
+        2. Press the stylus button you wish to map.<br>
+        <span class="text-primary font-semibold mt-2 block">Nothing will happen until you press a button on the pen.</span>
+      </p>
+      <div class="flex justify-center mt-4">
+        <button 
+          type="button" 
+          onclick={() => isDetecting = false}
+          class="px-4 py-2 border border-outline-variant text-on-surface-variant text-sm font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
+        >
+          Cancel Detection
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

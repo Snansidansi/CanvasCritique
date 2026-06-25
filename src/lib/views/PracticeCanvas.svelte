@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { store, DEFAULT_SYSTEM_PROMPT } from '../state/store.svelte';
+  import { store, DEFAULT_SYSTEM_PROMPT, type Task } from '../state/store.svelte';
   import { onMount, tick } from 'svelte';
   import { fly } from 'svelte/transition';
 
@@ -25,12 +25,16 @@
 
 
   // Active task details from store
-  let task = $derived(store.activeTask || {
+  let task = $derived(store.activeTask || ({
+    id: '',
     name: 'Practice Canvas',
+    completed: false,
     instructions: 'Use the drawing tools to practice your calligraphy strokes.',
     solution: 'Match the stroke templates and slant guides.',
-    category: 'Practice'
-  });
+    category: 'Practice',
+    instructionFiles: [],
+    solutionFiles: []
+  } as Task));
 
   // Toggles and options
   let showTask = $state(true);
@@ -201,9 +205,7 @@
   let isPointerPan = $state(false);
   let isPointerPen = $state(false);
 
-  // Stylus button live detection toast state on canvas
-  let detectedStylusInfo = $state<{ button: number; buttons: number } | null>(null);
-  let detectedStylusTimer: any = null;
+
 
   // Dynamic background mapping
   let currentBgObject = $derived(
@@ -426,21 +428,7 @@
     isPointerPen = false;
 
     if (isPen) {
-      // Update global store last detected button and local timer
-      store.recordPointerEvent(e);
-      if (e.button !== 0 || e.buttons > 1) {
-        detectedStylusInfo = {
-          button: e.button,
-          buttons: e.buttons
-        };
-        if (detectedStylusTimer) clearTimeout(detectedStylusTimer);
-        detectedStylusTimer = setTimeout(() => {
-          detectedStylusInfo = null;
-        }, 3000);
-      }
-
       const stylusButtons = store.settings.stylusButtons || [];
-      let matched = false;
       for (const btn of stylusButtons) {
         const matchButton = btn.button !== undefined && btn.button !== null && e.button === btn.button;
         const matchButtons = btn.buttons !== undefined && btn.buttons !== null && btn.buttons !== 0 && (e.buttons & btn.buttons) !== 0;
@@ -455,31 +443,8 @@
           } else if (btn.action === 'pen') {
             isPointerPen = true;
           }
-          matched = true;
           e.preventDefault();
           break; // Stop at first match
-        }
-      }
-
-      // Fallback to default pen button mappings if none matched
-      if (!matched) {
-        if (hasPenButton3) {
-          // With 3 or more buttons, do nothing (ignore overrides)
-        } else {
-          // Physical eraser tip
-          if (((e.buttons & 32) !== 0) || e.button === 5) {
-            isPointerEraser = true;
-          }
-          // Button 1 (barrel button 1) -> acts as Eraser (button === 2 or buttons contains 2)
-          else if (((e.buttons & 2) !== 0) || e.button === 2) {
-            isPointerEraser = true;
-            e.preventDefault();
-          }
-          // Button 2 (barrel button 2) -> acts as Selection Tool (button === 1 or buttons contains 4)
-          else if (((e.buttons & 4) !== 0) || e.button === 1) {
-            isPointerSelect = true;
-            e.preventDefault();
-          }
         }
       }
     }
@@ -1212,12 +1177,7 @@
       class="grow relative h-full w-full select-none
              {canvasMode === 'infinite' ? 'overflow-hidden bg-surface-container-lowest cursor-crosshair' : 'overflow-hidden bg-surface-container-lowest flex justify-center items-center'}"
     >
-      {#if detectedStylusInfo}
-        <div class="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-surface-container-high border border-outline-variant shadow-md px-4 py-2 rounded-full text-xs font-semibold text-on-surface flex items-center gap-2 pointer-events-none transition-all">
-          <span class="material-symbols-outlined text-[16px] text-primary animate-pulse">sensors</span>
-          <span>Stylus Button: button = <code class="bg-surface-container px-1 py-0.5 rounded font-mono font-bold text-primary">{detectedStylusInfo.button}</code>, buttons = <code class="bg-surface-container px-1 py-0.5 rounded font-mono font-bold text-primary">{detectedStylusInfo.buttons}</code></span>
-        </div>
-      {/if}
+
 
       {#if canvasMode === 'infinite'}
         <!-- Infinite Canvas Wrapper -->

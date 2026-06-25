@@ -229,11 +229,7 @@ const defaultSettings: Settings = {
   customSystemPrompt: '',
   systemPromptEditingEnabled: false,
   language: 'English',
-  stylusButtons: [
-    { id: 'default-eraser-tip', name: 'Eraser Tip', button: 5, buttons: 32, action: 'eraser' },
-    { id: 'default-barrel-1', name: 'Barrel Button 1', button: 2, buttons: 2, action: 'eraser' },
-    { id: 'default-barrel-2', name: 'Barrel Button 2', button: 1, buttons: 4, action: 'select' }
-  ]
+  stylusButtons: []
 };
 
 // State classes for Svelte 5 Runes reactivity
@@ -357,11 +353,7 @@ class CanvasCritiqueStore {
       }
 
       if (!this.settings.stylusButtons || !Array.isArray(this.settings.stylusButtons)) {
-        this.settings.stylusButtons = [
-          { id: 'default-eraser-tip', name: 'Eraser Tip', button: 5, buttons: 32, action: 'eraser' },
-          { id: 'default-barrel-1', name: 'Barrel Button 1', button: 2, buttons: 2, action: 'eraser' },
-          { id: 'default-barrel-2', name: 'Barrel Button 2', button: 1, buttons: 4, action: 'select' }
-        ];
+        this.settings.stylusButtons = [];
       }
 
       // Normalize openRouterProvider to an array
