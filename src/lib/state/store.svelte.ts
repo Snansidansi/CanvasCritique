@@ -888,6 +888,17 @@ class CanvasCritiqueStore {
     }
   }
 
+  updateProjectDetails(projectId: string, updates: { name?: string; icon?: string }): void {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+    if (updates.name !== undefined) project.name = updates.name;
+    if (updates.icon !== undefined) project.icon = updates.icon;
+    this.saveProjects();
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
+  }
+
   deleteProject(projectId: string): void {
     const project = this.projects.find(p => p.id === projectId);
     if (project && project.tasks) {

@@ -281,6 +281,56 @@
       openPractice(task);
     }
   }
+
+  // Name and Image Editing logic
+  let isEditingName = $state(false);
+  let editNameValue = $state('');
+
+  function startNameEdit() {
+    if (project.id === 'No Lesson Selected') return;
+    editNameValue = project.name;
+    isEditingName = true;
+  }
+
+  function saveNameEdit() {
+    if (!isEditingName) return;
+    const trimmed = editNameValue.trim();
+    if (trimmed && trimmed !== project.name) {
+      store.updateProjectDetails(project.id, { name: trimmed });
+    }
+    isEditingName = false;
+  }
+
+  function handleNameKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      saveNameEdit();
+    } else if (e.key === 'Escape') {
+      isEditingName = false;
+    }
+  }
+
+  function triggerImageUpload() {
+    if (project.id === 'No Lesson Selected') return;
+    const fileInput = document.getElementById('project-image-upload') as HTMLInputElement;
+    if (fileInput) fileInput.click();
+  }
+
+  function handleImageUpload(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      store.updateProjectDetails(project.id, { icon: dataUrl });
+    };
+    reader.readAsDataURL(file);
+    (e.target as HTMLInputElement).value = '';
+  }
+
+  function selectAndFocus(node: HTMLInputElement) {
+    node.focus();
+    node.select();
+  }
 </script>
 
 <!-- TopAppBar -->
@@ -295,14 +345,59 @@
     </button>
     
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 flex items-center justify-center bg-secondary-container text-on-secondary-container rounded-lg shrink-0">
-        {#if project.icon && project.icon.startsWith('data:image/')}
-          <img src={project.icon} class="w-8 h-8 object-contain rounded" alt="" />
-        {:else}
+      <input
+        type="file"
+        accept="image/*"
+        class="hidden"
+        id="project-image-upload"
+        onchange={handleImageUpload}
+      />
+      {#if project.id !== 'No Lesson Selected'}
+        <button
+          type="button"
+          onclick={triggerImageUpload}
+          class="group relative w-10 h-10 flex items-center justify-center bg-secondary-container text-on-secondary-container rounded-lg shrink-0 overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary focus:outline-none transition-all"
+          title="Click to change lesson image"
+        >
+          {#if project.icon && project.icon.startsWith('data:image/')}
+            <img src={project.icon} class="w-8 h-8 object-contain rounded transition-all group-hover:scale-95 group-hover:opacity-50" alt="" />
+          {:else}
+            <span class="material-symbols-outlined text-[20px] transition-all group-hover:opacity-50">{project.icon || 'history_edu'}</span>
+          {/if}
+          <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <span class="material-symbols-outlined text-white text-[18px]">photo_camera</span>
+          </div>
+        </button>
+      {:else}
+        <div class="w-10 h-10 flex items-center justify-center bg-secondary-container text-on-secondary-container rounded-lg shrink-0">
           <span class="material-symbols-outlined text-[20px]">{project.icon || 'history_edu'}</span>
+        </div>
+      {/if}
+
+      {#if isEditingName}
+        <input
+          type="text"
+          bind:value={editNameValue}
+          onblur={saveNameEdit}
+          onkeydown={handleNameKeydown}
+          class="font-bold text-lg text-on-surface bg-surface-container border-b border-primary px-1 py-0.5 rounded focus:outline-none w-64 max-w-full"
+          use:selectAndFocus
+        />
+      {:else}
+        {#if project.id !== 'No Lesson Selected'}
+          <button
+            type="button"
+            onclick={startNameEdit}
+            class="group flex items-center gap-1.5 font-bold text-lg text-on-surface hover:text-primary transition-colors cursor-pointer text-left focus:outline-none focus:underline"
+            title="Click to rename lesson"
+          >
+            <span class="truncate">{project.name}</span>
+            <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity text-outline-variant">edit</span>
+          </button>
+        {:else}
+          <h1 class="font-bold text-lg text-on-surface truncate">{project.name}</h1>
         {/if}
-      </div>
-      <h1 class="font-bold text-lg text-on-surface truncate">{project.name}</h1>
+      {/if}
     </div>
   </div>
 
