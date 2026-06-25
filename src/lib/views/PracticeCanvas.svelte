@@ -1383,8 +1383,68 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       const promptTemplate = store.settings.customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
       const sendTaskMedia = store.settings.sendTaskMedia ?? true;
       const sendSolutionMedia = store.settings.sendSolutionMedia ?? true;
-      const taskInstructionsText = task.instructions ? `Task instructions: "${task.instructions}"` : '';
-      const expectedSolutionText = task.solution ? `Expected correct solution: "${task.solution}"` : '';
+      // Decoders for txt files
+      let instructionsTextFilesContent = '';
+      if (sendTaskMedia) {
+        if (task.instructionFiles && Array.isArray(task.instructionFiles)) {
+          task.instructionFiles.forEach(file => {
+            if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+              try {
+                const base64Data = file.dataUrl.split(',')[1];
+                const decodedText = decodeURIComponent(escape(atob(base64Data)));
+                instructionsTextFilesContent += `\n\n[Instruction Text Document - ${file.name}]:\n${decodedText}`;
+              } catch (e) {
+                console.error('Failed to decode text file', file.name, e);
+              }
+            }
+          });
+        } else if (task.instructionFile) {
+          const file = task.instructionFile;
+          if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+            try {
+              const base64Data = file.dataUrl.split(',')[1];
+              const decodedText = decodeURIComponent(escape(atob(base64Data)));
+              instructionsTextFilesContent += `\n\n[Instruction Text Document - ${file.name}]:\n${decodedText}`;
+            } catch (e) {
+              console.error('Failed to decode text file', file.name, e);
+            }
+          }
+        }
+      }
+
+      let solutionTextFilesContent = '';
+      if (sendSolutionMedia) {
+        if (task.solutionFiles && Array.isArray(task.solutionFiles)) {
+          task.solutionFiles.forEach(file => {
+            if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+              try {
+                const base64Data = file.dataUrl.split(',')[1];
+                const decodedText = decodeURIComponent(escape(atob(base64Data)));
+                solutionTextFilesContent += `\n\n[Solution Text Document - ${file.name}]:\n${decodedText}`;
+              } catch (e) {
+                console.error('Failed to decode text file', file.name, e);
+              }
+            }
+          });
+        } else if (task.solutionFile) {
+          const file = task.solutionFile;
+          if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+            try {
+              const base64Data = file.dataUrl.split(',')[1];
+              const decodedText = decodeURIComponent(escape(atob(base64Data)));
+              solutionTextFilesContent += `\n\n[Solution Text Document - ${file.name}]:\n${decodedText}`;
+            } catch (e) {
+              console.error('Failed to decode text file', file.name, e);
+            }
+          }
+        }
+      }
+
+      const rawInstructionsText = (task.instructions || '') + instructionsTextFilesContent;
+      const rawSolutionText = (task.solution || '') + solutionTextFilesContent;
+
+      const taskInstructionsText = rawInstructionsText.trim() ? `Task instructions: "${rawInstructionsText.trim()}"` : '';
+      const expectedSolutionText = rawSolutionText.trim() ? `Expected correct solution: "${rawSolutionText.trim()}"` : '';
 
       let prompt = promptTemplate;
       
@@ -1450,32 +1510,44 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       if (sendTaskMedia) {
         if (task.instructionFiles && Array.isArray(task.instructionFiles)) {
           task.instructionFiles.forEach(file => {
+            if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+              return;
+            }
             const geminiPart = getInlineDataFromMedia(file);
             if (geminiPart) additionalGeminiParts.push(geminiPart);
             const orPart = getOpenRouterMedia(file);
             if (orPart) additionalOpenRouterParts.push(orPart);
           });
         } else if (task.instructionFile) {
-          const geminiPart = getInlineDataFromMedia(task.instructionFile);
-          if (geminiPart) additionalGeminiParts.push(geminiPart);
-          const orPart = getOpenRouterMedia(task.instructionFile);
-          if (orPart) additionalOpenRouterParts.push(orPart);
+          const file = task.instructionFile;
+          if (!(file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain'))) {
+            const geminiPart = getInlineDataFromMedia(file);
+            if (geminiPart) additionalGeminiParts.push(geminiPart);
+            const orPart = getOpenRouterMedia(file);
+            if (orPart) additionalOpenRouterParts.push(orPart);
+          }
         }
       }
 
       if (sendSolutionMedia) {
         if (task.solutionFiles && Array.isArray(task.solutionFiles)) {
           task.solutionFiles.forEach(file => {
+            if (file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain')) {
+              return;
+            }
             const geminiPart = getInlineDataFromMedia(file);
             if (geminiPart) additionalGeminiParts.push(geminiPart);
             const orPart = getOpenRouterMedia(file);
             if (orPart) additionalOpenRouterParts.push(orPart);
           });
         } else if (task.solutionFile) {
-          const geminiPart = getInlineDataFromMedia(task.solutionFile);
-          if (geminiPart) additionalGeminiParts.push(geminiPart);
-          const orPart = getOpenRouterMedia(task.solutionFile);
-          if (orPart) additionalOpenRouterParts.push(orPart);
+          const file = task.solutionFile;
+          if (!(file.name.toLowerCase().endsWith('.txt') || file.dataUrl?.startsWith('data:text/plain'))) {
+            const geminiPart = getInlineDataFromMedia(file);
+            if (geminiPart) additionalGeminiParts.push(geminiPart);
+            const orPart = getOpenRouterMedia(file);
+            if (orPart) additionalOpenRouterParts.push(orPart);
+          }
         }
       }
 
@@ -1658,7 +1730,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-emerald-600 text-white px-5 py-3 rounded-full shadow-lg font-semibold text-sm select-none border border-emerald-500/30"
     >
       <span class="material-symbols-outlined text-[20px] text-white">check_circle</span>
-      <span>Aufgabe erfolgreich abgeschlossen!</span>
+      <span>Task successfully completed!</span>
     </div>
   {/if}
 

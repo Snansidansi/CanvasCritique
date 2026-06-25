@@ -28,13 +28,63 @@
   }
 
   let previewFile = $state<{ name: string; dataUrl: string } | null>(null);
+  let modalZoom = $state(1);
+  let modalPan = $state({ x: 0, y: 0 });
+  let isModalDragging = $state(false);
+  let modalDragStart = { x: 0, y: 0 };
+  let modalBasePan = { x: 0, y: 0 };
+
+  function decodeBase64Text(dataUrl: string): string {
+    if (!dataUrl) return '';
+    try {
+      const base64Data = dataUrl.split(',')[1];
+      return decodeURIComponent(escape(atob(base64Data)));
+    } catch (e) {
+      console.error('Failed to decode text document', e);
+      return 'Error: Failed to decode text document.';
+    }
+  }
 
   function openPreview(file: { name: string; dataUrl: string }) {
     previewFile = file;
+    modalZoom = 1;
+    modalPan = { x: 0, y: 0 };
   }
 
   function closePreview() {
     previewFile = null;
+  }
+
+  function handleModalWheel(e: WheelEvent) {
+    e.preventDefault();
+    const zoomFactor = 0.1;
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const newZoom = modalZoom + direction * zoomFactor;
+    modalZoom = Math.max(0.5, Math.min(newZoom, 8)); // clamp between 0.5x and 8x
+    if (modalZoom === 1) {
+      modalPan = { x: 0, y: 0 };
+    }
+  }
+
+  function handleModalMouseDown(e: MouseEvent) {
+    if (modalZoom <= 1) return; // Only pan when zoomed in
+    isModalDragging = true;
+    modalDragStart = { x: e.clientX, y: e.clientY };
+    modalBasePan = { ...modalPan };
+  }
+
+  function handleModalMouseMove(e: MouseEvent) {
+    if (!isModalDragging) return;
+    const dx = e.clientX - modalDragStart.x;
+    const dy = e.clientY - modalDragStart.y;
+    modalPan = {
+      x: modalBasePan.x + dx,
+      y: modalBasePan.y + dy
+    };
+  }
+
+  function handleModalMouseUp() {
+    isModalDragging = false;
   }
 
   let isTaskTextEmpty = $derived(!task.instructions || !task.instructions.trim() || task.instructions === 'No instructions provided.');
@@ -119,7 +169,7 @@
             <!-- Instruction Media Files -->
             {#if task.instructionFiles && task.instructionFiles.length > 0}
               <div class="mt-5 border-t border-outline-variant/30 pt-4">
-                <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2 select-none font-sans">Aufgabenmedien</h3>
+                <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2 select-none font-sans">Task Media</h3>
                 <div class="flex flex-col gap-3">
                   {#each task.instructionFiles as file, idx}
                     {@const mediaId = `task-inst-${idx}`}
@@ -133,7 +183,7 @@
                       >
                         <div class="flex items-center gap-2 min-w-0">
                           <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
-                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image'}
+                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
                           </span>
                           <span class="truncate pr-4">{file.name}</span>
                         </div>
@@ -145,7 +195,7 @@
                               openPreview(file);
                             }}
                             class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
-                            title="In maximaler Größe öffnen"
+                            title="Open in full screen"
                           >
                             zoom_in
                           </button>
@@ -163,71 +213,8 @@
                               title={file.name} 
                               class="w-full h-100 border-0 rounded-lg"
                             ></iframe>
-                          {:else}
-                            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                            <img 
-                              src={file.dataUrl} 
-                              alt={file.name} 
-                              onclick={() => openPreview(file)}
-                              class="max-w-full max-h-125 object-contain rounded-lg shadow-sm cursor-zoom-in hover:opacity-95 transition-opacity"
-                            />
-                          {/if}
-                        </div>
-                      {/if}
-                    </div>
-                  {/each}
-                </div>
-              </div>
-            {/if}
-
-            <!-- Solution Media Files under Instructions -->
-            {#if task.solutionFiles && task.solutionFiles.length > 0}
-              <div class="mt-5 border-t border-outline-variant/30 pt-4">
-                <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2 select-none font-sans">Lösungsmedien</h3>
-                <div class="flex flex-col gap-3">
-                  {#each task.solutionFiles as file, idx}
-                    {@const mediaId = `task-sol-${idx}`}
-                    {@const open = isMediaExpanded(mediaId, isTaskTextEmpty)}
-                    <div class="bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-sm flex flex-col transition-all">
-                      <!-- svelte-ignore a11y_click_events_have_key_events -->
-                      <!-- svelte-ignore a11y_no_static_element_interactions -->
-                      <div 
-                        onclick={() => toggleMedia(mediaId)}
-                        class="w-full px-4 py-3 flex items-center justify-between hover:bg-surface-container-high transition-colors font-sans text-xs font-semibold text-on-surface cursor-pointer select-none text-left"
-                      >
-                        <div class="flex items-center gap-2 min-w-0">
-                          <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
-                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image'}
-                          </span>
-                          <span class="truncate pr-4">{file.name}</span>
-                        </div>
-                        <div class="flex items-center shrink-0">
-                          <button
-                            type="button"
-                            onclick={(e) => {
-                              e.stopPropagation();
-                              openPreview(file);
-                            }}
-                            class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
-                            title="In maximaler Größe öffnen"
-                          >
-                            zoom_in
-                          </button>
-                          <span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform shrink-0" style="transform: rotate({open ? '180deg' : '0deg'});">
-                            keyboard_arrow_down
-                          </span>
-                        </div>
-                      </div>
-
-                      {#if open}
-                        <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
-                          {#if file.name.toLowerCase().endsWith('.pdf')}
-                            <iframe 
-                              src={file.dataUrl} 
-                              title={file.name} 
-                              class="w-full h-100 border-0 rounded-lg"
-                            ></iframe>
+                          {:else if file.name.toLowerCase().endsWith('.txt')}
+                            <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(file.dataUrl)}</pre>
                           {:else}
                             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -251,7 +238,7 @@
             <!-- Solution Media Files inside Solution Panel -->
             {#if task.solutionFiles && task.solutionFiles.length > 0}
               <div class="mt-5 border-t border-outline-variant/30 pt-4">
-                <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2 select-none font-sans">Lösungsmedien</h3>
+                <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2 select-none font-sans">Solution Media</h3>
                 <div class="flex flex-col gap-3">
                   {#each task.solutionFiles as file, idx}
                     {@const mediaId = `sol-sol-${idx}`}
@@ -265,7 +252,7 @@
                       >
                         <div class="flex items-center gap-2 min-w-0">
                           <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
-                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image'}
+                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
                           </span>
                           <span class="truncate pr-4">{file.name}</span>
                         </div>
@@ -277,7 +264,7 @@
                               openPreview(file);
                             }}
                             class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
-                            title="In maximaler Größe öffnen"
+                            title="Open in full screen"
                           >
                             zoom_in
                           </button>
@@ -295,6 +282,8 @@
                               title={file.name} 
                               class="w-full h-100 border-0 rounded-lg"
                             ></iframe>
+                          {:else if file.name.toLowerCase().endsWith('.txt')}
+                            <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(file.dataUrl)}</pre>
                           {:else}
                             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -343,7 +332,7 @@
       <header class="flex items-center justify-between px-6 py-4 border-b border-outline-variant select-none shrink-0 bg-surface">
         <div class="flex items-center gap-2 min-w-0">
           <span class="material-symbols-outlined text-primary text-[20px] shrink-0">
-            {previewFile.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image'}
+            {previewFile.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (previewFile.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
           </span>
           <h2 class="font-bold text-sm text-on-surface truncate pr-6">{previewFile.name}</h2>
         </div>
@@ -356,19 +345,31 @@
         </button>
       </header>
 
-      <!-- Modal Body (Max size view) -->
-      <div class="grow bg-surface-container-lowest p-6 flex justify-center items-center overflow-auto min-h-0 select-text">
+      <!-- Modal Body (Max size view with Zoom / Pan support for images) -->
+      <div 
+        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalWheel : null}
+        onmousedown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalMouseDown : null}
+        onmousemove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? handleModalMouseMove : null}
+        onmouseup={handleModalMouseUp}
+        onmouseleave={handleModalMouseUp}
+        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') ? 'overflow-auto' : 'overflow-hidden relative'}"
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}` : ''}
+      >
         {#if previewFile.name.toLowerCase().endsWith('.pdf')}
           <iframe 
             src={previewFile.dataUrl} 
             title={previewFile.name} 
             class="w-full h-full border-0 rounded-lg shadow-sm"
           ></iframe>
+        {:else if previewFile.name.toLowerCase().endsWith('.txt')}
+          <pre class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-sm font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant">{decodeBase64Text(previewFile.dataUrl)}</pre>
         {:else}
           <img 
             src={previewFile.dataUrl} 
             alt={previewFile.name} 
-            class="max-w-full max-h-full object-contain rounded-lg shadow-md"
+            class="max-w-full max-h-full object-contain rounded-lg shadow-md select-none pointer-events-none transition-transform duration-75 ease-out"
+            style="transform: translate({modalPan.x}px, {modalPan.y}px) scale({modalZoom}); transform-origin: center center;"
+            draggable="false"
           />
         {/if}
       </div>

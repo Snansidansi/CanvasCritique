@@ -208,7 +208,7 @@
         <input 
           type="file" 
           id="instructionFileInput" 
-          accept="image/*,application/pdf"
+          accept="image/*,application/pdf,text/plain"
           class="hidden" 
           multiple
           onchange={(e) => handleFileSelect(e, 'instruction')}
@@ -225,7 +225,7 @@
             <p class="text-sm font-semibold text-on-surface">
               {instructionFiles.length > 0 ? `${instructionFiles.length} files selected` : 'Tap to upload or drag reference files'}
             </p>
-            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG (Max 25MB, multiple files supported)</p>
+            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG, TXT (Max 25MB, multiple files supported)</p>
           </div>
         </button>
 
@@ -235,7 +235,7 @@
               <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm">
                 <div class="flex items-center gap-2 min-w-0">
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
-                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image'}
+                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
                   </span>
                   <span class="text-xs text-on-surface truncate font-medium">{file.name}</span>
                 </div>
@@ -273,7 +273,7 @@
         <input 
           type="file" 
           id="solutionFileInput" 
-          accept="image/*,application/pdf"
+          accept="image/*,application/pdf,text/plain"
           class="hidden" 
           multiple
           onchange={(e) => handleFileSelect(e, 'solution')}
@@ -290,7 +290,7 @@
             <p class="text-sm font-semibold text-on-surface">
               {solutionFiles.length > 0 ? `${solutionFiles.length} files selected` : 'Tap to upload or drag solution files'}
             </p>
-            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG (Max 25MB, multiple files supported)</p>
+            <p class="text-xs text-on-surface-variant mt-1">Supports PDF, PNG, JPG, TXT (Max 25MB, multiple files supported)</p>
           </div>
         </button>
 
@@ -300,7 +300,7 @@
               <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm">
                 <div class="flex items-center gap-2 min-w-0">
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
-                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : 'image'}
+                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') ? 'description' : 'image')}
                   </span>
                   <span class="text-xs text-on-surface truncate font-medium">{file.name}</span>
                 </div>
