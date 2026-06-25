@@ -142,7 +142,12 @@ const defaultSettings = {
   canvasMode: 'infinite',
   customSystemPrompt: '',
   systemPromptEditingEnabled: false,
-  language: 'de'
+  language: 'de',
+  stylusButtons: [
+    { id: 'default-eraser-tip', name: 'Eraser Tip', button: 5, buttons: 32, action: 'eraser' },
+    { id: 'default-barrel-1', name: 'Barrel Button 1', button: 2, buttons: 2, action: 'eraser' },
+    { id: 'default-barrel-2', name: 'Barrel Button 2', button: 1, buttons: 4, action: 'select' }
+  ]
 };
 
 // State classes for Svelte 5 Runes reactivity
@@ -159,6 +164,7 @@ class CanvasCritiqueStore {
   confirmDialog = $state(null);
   canvasSaves = $state({});
   canvasSettingsOpen = $state(false);
+  lastDetectedButton = $state<{ button: number; buttons: number; pointerType: string } | null>(null);
 
   // Getters for dynamic API/Model selection
   get apiKey() {
@@ -222,6 +228,14 @@ class CanvasCritiqueStore {
         this.settings = { ...defaultSettings, ...JSON.parse(savedSettings) };
       } else {
         this.settings = defaultSettings;
+      }
+
+      if (!this.settings.stylusButtons || !Array.isArray(this.settings.stylusButtons)) {
+        this.settings.stylusButtons = [
+          { id: 'default-eraser-tip', name: 'Eraser Tip', button: 5, buttons: 32, action: 'eraser' },
+          { id: 'default-barrel-1', name: 'Barrel Button 1', button: 2, buttons: 2, action: 'eraser' },
+          { id: 'default-barrel-2', name: 'Barrel Button 2', button: 1, buttons: 4, action: 'select' }
+        ];
       }
 
       // Normalize openRouterProvider to an array
@@ -294,6 +308,16 @@ class CanvasCritiqueStore {
   deleteCustomBackground(id) {
     this.customBackgrounds = this.customBackgrounds.filter(bg => bg.id !== id);
     this.saveCustomBackgrounds();
+  }
+
+  recordPointerEvent(e: PointerEvent) {
+    if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
+      this.lastDetectedButton = {
+        button: e.button,
+        buttons: e.buttons,
+        pointerType: e.pointerType
+      };
+    }
   }
 
   applyTheme(theme) {

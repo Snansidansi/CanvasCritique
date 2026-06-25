@@ -185,6 +185,12 @@
   let currentStroke = $state([]);
   let isPointerEraser = $state(false);
   let isPointerSelect = $state(false);
+  let isPointerPan = $state(false);
+  let isPointerPen = $state(false);
+
+  // Stylus button live detection toast state on canvas
+  let detectedStylusInfo = $state<{ button: number; buttons: number } | null>(null);
+  let detectedStylusTimer: any = null;
 
   // Dynamic background mapping
   let currentBgObject = $derived(
@@ -403,24 +409,64 @@
 
     isPointerEraser = false;
     isPointerSelect = false;
+    isPointerPan = false;
+    isPointerPen = false;
 
     if (isPen) {
-      if (hasPenButton3) {
-        // With 3 or more buttons, do nothing (ignore overrides)
-      } else {
-        // Physical eraser tip
-        if (((e.buttons & 32) !== 0) || e.button === 5) {
-          isPointerEraser = true;
-        }
-        // Button 1 (barrel button 1) -> acts as Eraser (button === 2 or buttons contains 2)
-        else if (((e.buttons & 2) !== 0) || e.button === 2) {
-          isPointerEraser = true;
+      // Update global store last detected button and local timer
+      store.recordPointerEvent(e);
+      if (e.button !== 0 || e.buttons > 1) {
+        detectedStylusInfo = {
+          button: e.button,
+          buttons: e.buttons
+        };
+        if (detectedStylusTimer) clearTimeout(detectedStylusTimer);
+        detectedStylusTimer = setTimeout(() => {
+          detectedStylusInfo = null;
+        }, 3000);
+      }
+
+      const stylusButtons = store.settings.stylusButtons || [];
+      let matched = false;
+      for (const btn of stylusButtons) {
+        const matchButton = btn.button !== undefined && btn.button !== null && e.button === btn.button;
+        const matchButtons = btn.buttons !== undefined && btn.buttons !== null && btn.buttons !== 0 && (e.buttons & btn.buttons) !== 0;
+        
+        if (matchButton || matchButtons) {
+          if (btn.action === 'eraser') {
+            isPointerEraser = true;
+          } else if (btn.action === 'select') {
+            isPointerSelect = true;
+          } else if (btn.action === 'pan') {
+            isPointerPan = true;
+          } else if (btn.action === 'pen') {
+            isPointerPen = true;
+          }
+          matched = true;
           e.preventDefault();
+          break; // Stop at first match
         }
-        // Button 2 (barrel button 2) -> acts as Selection Tool (button === 1 or buttons contains 4)
-        else if (((e.buttons & 4) !== 0) || e.button === 1) {
-          isPointerSelect = true;
-          e.preventDefault();
+      }
+
+      // Fallback to default pen button mappings if none matched
+      if (!matched) {
+        if (hasPenButton3) {
+          // With 3 or more buttons, do nothing (ignore overrides)
+        } else {
+          // Physical eraser tip
+          if (((e.buttons & 32) !== 0) || e.button === 5) {
+            isPointerEraser = true;
+          }
+          // Button 1 (barrel button 1) -> acts as Eraser (button === 2 or buttons contains 2)
+          else if (((e.buttons & 2) !== 0) || e.button === 2) {
+            isPointerEraser = true;
+            e.preventDefault();
+          }
+          // Button 2 (barrel button 2) -> acts as Selection Tool (button === 1 or buttons contains 4)
+          else if (((e.buttons & 4) !== 0) || e.button === 1) {
+            isPointerSelect = true;
+            e.preventDefault();
+          }
         }
       }
     }
@@ -443,8 +489,8 @@
     contextMenu = null;
     if (longPressTimer) clearTimeout(longPressTimer);
     
-    // Check if middle click or Hand tool
-    const isPanAction = canvasMode === 'infinite' && (e.button === 1 || activeTool === 'pan');
+    // Check if middle click or Hand tool or custom pan action
+    const isPanAction = canvasMode === 'infinite' && (e.button === 1 || activeTool === 'pan' || isPointerPan);
     
     if (isPanAction) {
       isPanning = true;
@@ -454,8 +500,8 @@
       return;
     }
     
-    // Only allow drawing/selecting on left-click (or barrel button actions)
-    if (e.button !== 0 && !isPointerEraser && !isPointerSelect) return;
+    // Only allow drawing/selecting/panning on left-click (or barrel button actions)
+    if (e.button !== 0 && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen) return;
 
     // Capture pointer to receive move/up even outside canvas borders
     try {
@@ -465,7 +511,7 @@
     const coords = getCoords(e);
 
     // Setup long-press (600ms) timer for context menu (stylus paste shortcut)
-    if (!isPointerEraser && !isPointerSelect) {
+    if (!isPointerEraser && !isPointerSelect && !isPointerPan) {
       longPressStartPos = { x: e.clientX, y: e.clientY };
       longPressTimer = setTimeout(() => {
         const rect = canvasContainer.getBoundingClientRect();
@@ -613,6 +659,8 @@
     }
     isPointerEraser = false;
     isPointerSelect = false;
+    isPointerPan = false;
+    isPointerPen = false;
   }
 
   function handlePointerLeave(e) {
@@ -627,6 +675,10 @@
       isPanning = false;
       saveToStore();
     }
+    isPointerEraser = false;
+    isPointerSelect = false;
+    isPointerPan = false;
+    isPointerPen = false;
   }
 
   function handleWheel(e) {
@@ -1822,6 +1874,13 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       class="grow relative h-full w-full select-none
              {canvasMode === 'infinite' ? 'overflow-hidden bg-surface-container-lowest cursor-crosshair' : 'overflow-hidden bg-surface-container-lowest flex justify-center items-center'}"
     >
+      {#if detectedStylusInfo}
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-surface-container-high border border-outline-variant shadow-md px-4 py-2 rounded-full text-xs font-semibold text-on-surface flex items-center gap-2 pointer-events-none transition-all">
+          <span class="material-symbols-outlined text-[16px] text-primary animate-pulse">sensors</span>
+          <span>Stylus Button: button = <code class="bg-surface-container px-1 py-0.5 rounded font-mono font-bold text-primary">{detectedStylusInfo.button}</code>, buttons = <code class="bg-surface-container px-1 py-0.5 rounded font-mono font-bold text-primary">{detectedStylusInfo.buttons}</code></span>
+        </div>
+      {/if}
+
       {#if canvasMode === 'infinite'}
         <!-- Infinite Canvas Wrapper -->
         <div class="relative w-full h-full">
