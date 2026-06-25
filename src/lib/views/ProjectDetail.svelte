@@ -20,9 +20,18 @@
   let newCategoryName = $state('');
   let isAddCategoryOpen = $state(false);
 
-  // Drag and drop states
-  let draggedTaskId = $state(null);
-  let draggedCategory = $state(null);
+  // Pointer-based drag state
+  let draggedTaskId = $state<string | null>(null);
+  let draggedCategory = $state<string | null>(null);
+  let dragGhostEl = $state<HTMLElement | null>(null);
+  let dragPointerStartX = 0;
+  let dragPointerStartY = 0;
+  let dragGhostOffsetX = 0;
+  let dragGhostOffsetY = 0;
+  let dragSourceEl: HTMLElement | null = null;
+  let isDragActive = $state(false);
+  let dropIndicatorCategory = $state<string | null>(null);
+  let dropIndicatorIndex = $state<number | null>(null);
 
   // Selection mode states
   let isSelectionMode = $state(false);
@@ -85,50 +94,117 @@
     return Math.round((completed / project.tasks.length) * 100);
   }
 
-  // HTML5 Drag and drop handlers
-  function handleDragStart(e, taskId, category) {
-    if (isSelectionMode) {
-      e.preventDefault();
-      return;
+  // Pointer-based drag & drop (works with touch, stylus, and mouse)
+  function handleTaskPointerDown(e: PointerEvent, taskId: string, category: string) {
+    if (isSelectionMode) return;
+    // Only react to primary pointer (left mouse / single touch / stylus)
+    if (e.button !== 0 && e.button !== -1) return;
+
+    const target = e.currentTarget as HTMLElement;
+    // Ignore drags starting on interactive children (buttons, checkboxes)
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input')) return;
+
+    e.preventDefault();
+
+    dragPointerStartX = e.clientX;
+    dragPointerStartY = e.clientY;
+    dragSourceEl = target;
+
+    // Use pointer capture so move/up events always reach this element
+    try { target.setPointerCapture(e.pointerId); } catch (_) {}
+
+    function onMove(me: PointerEvent) {
+      const dx = me.clientX - dragPointerStartX;
+      const dy = me.clientY - dragPointerStartY;
+
+      // Only start drag after a small movement threshold
+      if (!isDragActive && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+        isDragActive = true;
+        draggedTaskId = taskId;
+        draggedCategory = category;
+
+        // Create ghost element
+        const ghost = target.cloneNode(true) as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        ghost.style.cssText = `
+          position: fixed;
+          pointer-events: none;
+          z-index: 9999;
+          width: ${rect.width}px;
+          opacity: 0.85;
+          left: ${rect.left}px;
+          top: ${rect.top}px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+          border-radius: 0.5rem;
+          transform: scale(1.02);
+          transition: none;
+        `;
+        dragGhostOffsetX = me.clientX - rect.left;
+        dragGhostOffsetY = me.clientY - rect.top;
+        document.body.appendChild(ghost);
+        dragGhostEl = ghost;
+      }
+
+      if (!isDragActive) return;
+
+      // Move ghost
+      if (dragGhostEl) {
+        dragGhostEl.style.left = `${me.clientX - dragGhostOffsetX}px`;
+        dragGhostEl.style.top  = `${me.clientY - dragGhostOffsetY}px`;
+      }
+
+      // Hit-test to find the drop target
+      if (dragGhostEl) dragGhostEl.style.display = 'none';
+      const el = document.elementFromPoint(me.clientX, me.clientY);
+      if (dragGhostEl) dragGhostEl.style.display = '';
+
+      const taskRow = el?.closest('[data-task-id]') as HTMLElement | null;
+      const catContainer = el?.closest('[data-category-container]') as HTMLElement | null;
+
+      if (taskRow && taskRow.dataset.taskId !== draggedTaskId) {
+        dropIndicatorCategory = taskRow.dataset.taskCategory || null;
+        dropIndicatorIndex = parseInt(taskRow.dataset.taskIndex || '0', 10);
+      } else if (catContainer && !taskRow) {
+        dropIndicatorCategory = catContainer.dataset.categoryContainer || null;
+        const tasks = getCategoryTasks(dropIndicatorCategory || '');
+        dropIndicatorIndex = tasks.length;
+      } else {
+        dropIndicatorCategory = null;
+        dropIndicatorIndex = null;
+      }
     }
-    draggedTaskId = taskId;
-    draggedCategory = category;
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', taskId);
-  }
 
-  function handleDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  }
+    function onUp(ue: PointerEvent) {
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
+      try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
 
-  function handleDrop(e, category, targetIndex) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!draggedTaskId) return;
+      // Clean up ghost
+      if (dragGhostEl) {
+        dragGhostEl.remove();
+        dragGhostEl = null;
+      }
 
-    store.moveAndReorderTask(project.id, draggedTaskId, category, targetIndex);
+      if (isDragActive && draggedTaskId && dropIndicatorCategory !== null && dropIndicatorIndex !== null) {
+        store.moveAndReorderTask(project.id, draggedTaskId, dropIndicatorCategory, dropIndicatorIndex);
+      } else if (!isDragActive) {
+        // Was a click, not a drag — open practice
+        const task = project.tasks.find(t => t.id === taskId);
+        if (task) openPractice(task);
+      }
 
-    // Reset drag state
-    draggedTaskId = null;
-    draggedCategory = null;
-  }
-
-  function handleDropOnContainer(e, category) {
-    e.preventDefault();
-    if (!draggedTaskId) return;
-    
-    // Ignore if dropped directly on a task item inside the container
-    if (e.target !== e.currentTarget && e.target.closest('[draggable="true"]')) {
-      return;
+      isDragActive = false;
+      draggedTaskId = null;
+      draggedCategory = null;
+      dropIndicatorCategory = null;
+      dropIndicatorIndex = null;
+      dragSourceEl = null;
     }
 
-    const catTasks = getCategoryTasks(category);
-    store.moveAndReorderTask(project.id, draggedTaskId, category, catTasks.length);
-
-    // Reset drag state
-    draggedTaskId = null;
-    draggedCategory = null;
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
   }
   // Guidelines state
   let guidelinesExpanded = $state(false);
@@ -419,28 +495,40 @@
             </span>
           </div>
 
-          <!-- Draggable task list -->
+          <!-- Pointer-based draggable task list -->
           <div 
             class="flex flex-col gap-2 min-h-12.5"
-            ondragover={handleDragOver}
-            ondrop={(e) => handleDropOnContainer(e, category)}
+            data-category-container={category}
           >
             {#if catTasks.length > 0}
               {#each catTasks as task, index (task.id)}
+                <!-- Drop indicator above this row -->
+                {#if isDragActive && dropIndicatorCategory === category && dropIndicatorIndex === index}
+                  <div class="h-1 rounded-full bg-primary/70 mx-2 transition-all"></div>
+                {/if}
                 <div 
-                  draggable={!isSelectionMode}
-                  ondragstart={(e) => handleDragStart(e, task.id, category)}
-                  ondrop={(e) => handleDrop(e, category, index)}
-                  onclick={(e) => handleRowClick(e, task)}
+                  data-task-id={task.id}
+                  data-task-category={category}
+                  data-task-index={index}
+                  onpointerdown={!isSelectionMode ? (e) => handleTaskPointerDown(e, task.id, category) : undefined}
+                  onclick={(e) => {
+                    if (isSelectionMode) {
+                      if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input')) return;
+                      toggleSelectTask(task.id);
+                    }
+                  }}
                   onkeydown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
-                      handleRowClick(e as any, task);
+                      if (!isSelectionMode) openPractice(task);
+                      else toggleSelectTask(task.id);
                     }
                   }}
                   role="button"
                   tabindex="0"
+                  style="touch-action: none;"
                   class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-4 flex items-center justify-between group hover:border-primary transition-all duration-150 shadow-sm relative overflow-hidden focus:outline-none focus:border-primary
-                         {isSelectionMode ? 'cursor-default' : 'cursor-pointer'}"
+                         {isSelectionMode ? 'cursor-default' : 'cursor-pointer'}
+                         {isDragActive && draggedTaskId === task.id ? 'opacity-40 scale-95' : ''}"
                 >
                   <!-- Visual drag indicator or selection checkbox -->
                   <div class="flex items-center gap-3">
@@ -526,6 +614,10 @@
                     </div>
                   {/if}
                 </div>
+                <!-- Drop indicator after last item -->
+                {#if isDragActive && dropIndicatorCategory === category && dropIndicatorIndex === catTasks.length && index === catTasks.length - 1}
+                  <div class="h-1 rounded-full bg-primary/70 mx-2 transition-all"></div>
+                {/if}
               {/each}
             {:else}
               <div class="border border-dashed border-outline-variant/60 rounded-lg p-5 flex items-center justify-center bg-surface-container-lowest/50 text-xs italic text-on-surface-variant">
