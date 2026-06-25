@@ -113,7 +113,7 @@
       ? Math.max(0.1, Math.min(
           containerWidth > 32 ? (containerWidth - 32) / 800 : 0.1,
           containerHeight > 32 ? (containerHeight - 32) / 1130 : 0.1
-        )) 
+        )) * zoomScale
       : 1
   );
   let ctx = null;
@@ -173,6 +173,15 @@
   }
 
   let isCustomColorInPalette = $derived(recentColors.includes(strokeColor));
+
+  $effect(() => {
+    if (canvasContainer) {
+      canvasContainer.addEventListener('wheel', handleWheel, { passive: false });
+      return () => {
+        canvasContainer?.removeEventListener('wheel', handleWheel);
+      };
+    }
+  });
 
   onMount(() => {
     const savedRecents = localStorage.getItem('canvascritique_recent_colors') || localStorage.getItem('scribeflow_recent_colors');
@@ -812,36 +821,68 @@
   }
 
   function handleWheel(e) {
-    if (!canvasElement) return;
+    if (!canvasElement || !canvasContainer) return;
     
     if (e.ctrlKey) {
       // Zoom action towards cursor
       e.preventDefault();
-      const rect = canvasElement.getBoundingClientRect();
-      const cursorX = e.clientX - rect.left;
-      const cursorY = e.clientY - rect.top;
-      
-      const worldX = (cursorX - panOffset.x) / zoomScale;
-      const worldY = (cursorY - panOffset.y) / zoomScale;
       
       const zoomIntensity = 0.05;
       const delta = -e.deltaY;
       const factor = delta > 0 ? (1 + zoomIntensity) : (1 - zoomIntensity);
-      const newScale = Math.max(0.2, Math.min(4.0, zoomScale * factor));
-      
-      let newPanX = cursorX - worldX * newScale;
-      let newPanY = cursorY - worldY * newScale;
       
       if (canvasMode === 'infinite') {
+        const rect = canvasElement.getBoundingClientRect();
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+        
+        const worldX = (cursorX - panOffset.x) / zoomScale;
+        const worldY = (cursorY - panOffset.y) / zoomScale;
+        const newScale = Math.max(0.2, Math.min(4.0, zoomScale * factor));
+        
+        let newPanX = cursorX - worldX * newScale;
+        let newPanY = cursorY - worldY * newScale;
+        
         newPanX = Math.min(0, newPanX);
         newPanY = Math.min(0, newPanY);
+        
+        zoomScale = newScale;
+        panOffset = { x: newPanX, y: newPanY };
+      } else {
+        // A4 mode zoom
+        const oldScale = a4Scale;
+        const newZoomScale = Math.max(0.2, Math.min(4.0, zoomScale * factor));
+        
+        // Temporarily calculate new a4Scale
+        const baseA4Scale = Math.max(0.1, Math.min(
+          containerWidth > 32 ? (containerWidth - 32) / 800 : 0.1,
+          containerHeight > 32 ? (containerHeight - 32) / 1130 : 0.1
+        ));
+        const newA4Scale = baseA4Scale * newZoomScale;
+        
+        // Panned offset relative to container center
+        const containerRect = canvasContainer.getBoundingClientRect();
+        const mX = e.clientX - containerRect.left;
+        const mY = e.clientY - containerRect.top;
+        
+        const cardX = (containerWidth - 800 * oldScale) / 2 + panOffset.x;
+        const cardY = (containerHeight - 1130 * oldScale) / 2 + panOffset.y;
+        
+        const relX = (mX - cardX) / oldScale;
+        const relY = (mY - cardY) / oldScale;
+        
+        const newCardX = mX - relX * newA4Scale;
+        const newCardY = mY - relY * newA4Scale;
+        
+        const newPanX = newCardX - (containerWidth - 800 * newA4Scale) / 2;
+        const newPanY = newCardY - (containerHeight - 1130 * newA4Scale) / 2;
+        
+        zoomScale = newZoomScale;
+        panOffset = { x: newPanX, y: newPanY };
       }
-      
-      zoomScale = newScale;
-      panOffset = { x: newPanX, y: newPanY };
       saveToStoreDebounced();
     } else {
-      // Normal scroll wheel panning on infinite canvas
+      // Normal scroll wheel panning
       if (canvasMode === 'infinite') {
         e.preventDefault();
         let newPanX = panOffset.x - e.deltaX;
@@ -851,6 +892,14 @@
         newPanY = Math.min(0, newPanY);
         
         panOffset = { x: newPanX, y: newPanY };
+        saveToStoreDebounced();
+      } else {
+        // Trackpad panning in A4 mode
+        e.preventDefault();
+        panOffset = {
+          x: panOffset.x - e.deltaX,
+          y: panOffset.y - e.deltaY
+        };
         saveToStoreDebounced();
       }
     }
@@ -1344,7 +1393,6 @@
             onpointerup={handlePointerUp}
             onpointerleave={handlePointerLeave}
             onpointercancel={handlePointerCancel}
-            onwheel={handleWheel}
             oncontextmenu={e => e.preventDefault()}
             class="absolute inset-0 w-full h-full z-10 bg-white {cursorClass}"
             style="touch-action: none;"
@@ -1422,7 +1470,7 @@
         <!-- A4 Page Card Layout -->
         <div 
           class="relative bg-white shadow-xl border border-outline-variant rounded-sm shrink-0 origin-center" 
-          style="width: 800px; height: 1130px; transform: scale({a4Scale});"
+          style="width: 800px; height: 1130px; transform: translate({panOffset.x}px, {panOffset.y}px) scale({a4Scale});"
         >
           <canvas 
             bind:this={canvasElement}
@@ -1478,8 +1526,8 @@
 
         <!-- Clickable Marker Buttons (A4 Page Mode) - Placed outside the scaled div to remain crisp and full size -->
         {#if showFeedback && hasCheckedWork && !isChecking}
-          {@const leftOffset = (containerWidth - 800 * a4Scale) / 2}
-          {@const topOffset = (containerHeight - 1130 * a4Scale) / 2}
+          {@const leftOffset = (containerWidth - 800 * a4Scale) / 2 + panOffset.x}
+          {@const topOffset = (containerHeight - 1130 * a4Scale) / 2 + panOffset.y}
           
           {#each feedbackMarkers.filter(m => m.pageIndex === activePageIndex) as marker (marker.id)}
             <button
@@ -1514,8 +1562,8 @@
       <!-- Selection Bounding Box Floating Options -->
       {#if (activeTool === 'select' || isPointerSelect) && selectionBoundingBox}
         {@const bounds = selectionBoundingBox}
-        {@const leftOffset = canvasMode === 'a4' ? (containerWidth - 800 * a4Scale) / 2 : panOffset.x}
-        {@const topOffset = canvasMode === 'a4' ? (containerHeight - 1130 * a4Scale) / 2 : panOffset.y}
+        {@const leftOffset = canvasMode === 'a4' ? (containerWidth - 800 * a4Scale) / 2 + panOffset.x : panOffset.x}
+        {@const topOffset = canvasMode === 'a4' ? (containerHeight - 1130 * a4Scale) / 2 + panOffset.y : panOffset.y}
         {@const scale = canvasMode === 'a4' ? a4Scale : zoomScale}
         {@const boxLeft = bounds.minX * scale + leftOffset}
         {@const boxTop = bounds.minY * scale + topOffset}
