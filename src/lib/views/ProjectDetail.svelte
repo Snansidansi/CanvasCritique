@@ -67,6 +67,11 @@
     store.setView('task-editor');
   }
 
+  function handleAddTaskInCategory(category: string) {
+    store.quickAddTaskData = { name: '', category };
+    store.setView('task-editor');
+  }
+
   function handleEditTask(task) {
     store.setEditingTask(task);
   }
@@ -585,9 +590,20 @@
                 <span class="material-symbols-outlined text-[16px]">delete</span>
               </button>
             </div>
-            <span class="text-xs text-on-surface-variant font-semibold bg-surface px-2.5 py-1 rounded-full border border-outline-variant/30 animate-fade-in">
-              {catTasks.length} {catTasks.length === 1 ? 'task' : 'tasks'}
-            </span>
+            <div class="flex items-center gap-3">
+              <span class="text-xs text-on-surface-variant font-semibold bg-surface px-2.5 py-1 rounded-full border border-outline-variant/30 animate-fade-in">
+                {catTasks.length} {catTasks.length === 1 ? 'task' : 'tasks'}
+              </span>
+              <button
+                type="button"
+                onclick={() => handleAddTaskInCategory(category)}
+                class="flex items-center gap-1 px-3 py-1 bg-primary text-on-primary font-bold text-[11px] rounded-lg hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer focus:outline-none"
+                title="Create a new task in this topic"
+              >
+                <span class="material-symbols-outlined text-[14px]">add</span>
+                Add Task
+              </button>
+            </div>
           </div>
 
           <!-- Pointer-based draggable task list -->
