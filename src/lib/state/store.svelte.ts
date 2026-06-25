@@ -988,7 +988,7 @@ class CanvasCritiqueStore {
 
         if (filePath) {
           await writeTextFile(filePath, content);
-          this.showNotification('File saved successfully.', 'success');
+          this.showNotification('Exported to Downloads folder.', 'success');
         }
         return;
       }
@@ -1004,6 +1004,7 @@ class CanvasCritiqueStore {
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
+    this.showNotification('Exported to Downloads folder.', 'success');
   }
 
   recordRequest(
