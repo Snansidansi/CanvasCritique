@@ -68,6 +68,8 @@ export interface Settings {
   sendTaskMedia: boolean;
   sendSolutionMedia: boolean;
   sendCanvasBackground: boolean;
+  sendTaskText: boolean;
+  sendSolutionText: boolean;
   canvasMode: string;
   customSystemPrompt: string;
   systemPromptEditingEnabled: boolean;

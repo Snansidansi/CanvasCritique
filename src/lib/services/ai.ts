@@ -65,6 +65,8 @@ export interface CheckWorkSettings {
   sendTaskMedia?: boolean;
   sendSolutionMedia?: boolean;
   sendCanvasBackground?: boolean;
+  sendTaskText?: boolean;
+  sendSolutionText?: boolean;
   language?: string;
   customSystemPrompt?: string;
 }
@@ -274,10 +276,12 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   const promptTemplate = settings.customSystemPrompt || defaultSystemPrompt;
   const sendTaskMedia = settings.sendTaskMedia ?? true;
   const sendSolutionMedia = settings.sendSolutionMedia ?? true;
+  const sendTaskText = settings.sendTaskText ?? true;
+  const sendSolutionText = settings.sendSolutionText ?? true;
   
   // Decoders for txt and md files
   let instructionsTextFilesContent = '';
-  if (sendTaskMedia) {
+  if (sendTaskMedia && sendTaskText) {
     if (task.instructionFiles && Array.isArray(task.instructionFiles)) {
       task.instructionFiles.forEach(file => {
         if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
@@ -305,7 +309,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   }
 
   let solutionTextFilesContent = '';
-  if (sendSolutionMedia) {
+  if (sendSolutionMedia && sendSolutionText) {
     if (task.solutionFiles && Array.isArray(task.solutionFiles)) {
       task.solutionFiles.forEach(file => {
         if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
@@ -332,8 +336,8 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     }
   }
 
-  const rawInstructionsText = (task.instructions || '') + instructionsTextFilesContent;
-  const rawSolutionText = (task.solution || '') + solutionTextFilesContent;
+  const rawInstructionsText = sendTaskText ? ((task.instructions || '') + instructionsTextFilesContent) : '';
+  const rawSolutionText = sendSolutionText ? ((task.solution || '') + solutionTextFilesContent) : '';
 
   const taskInstructionsText = rawInstructionsText.trim() ? `Task instructions: "${rawInstructionsText.trim()}"` : '';
   const expectedSolutionText = rawSolutionText.trim() ? `Expected correct solution: "${rawSolutionText.trim()}"` : '';

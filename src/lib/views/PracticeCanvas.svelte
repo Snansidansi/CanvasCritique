@@ -1384,6 +1384,8 @@
           sendTaskMedia: store.settings.sendTaskMedia,
           sendSolutionMedia: store.settings.sendSolutionMedia,
           sendCanvasBackground: store.settings.sendCanvasBackground,
+          sendTaskText: store.settings.sendTaskText,
+          sendSolutionText: store.settings.sendSolutionText,
           language: store.settings.language,
           customSystemPrompt: store.settings.customSystemPrompt
         },

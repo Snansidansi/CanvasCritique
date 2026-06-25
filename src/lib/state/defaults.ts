@@ -143,6 +143,8 @@ export const defaultSettings: Settings = {
   sendTaskMedia: true,
   sendSolutionMedia: true,
   sendCanvasBackground: true,
+  sendTaskText: true,
+  sendSolutionText: true,
   canvasMode: 'infinite',
   customSystemPrompt: '',
   systemPromptEditingEnabled: false,
