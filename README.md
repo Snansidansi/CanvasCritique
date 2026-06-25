@@ -78,7 +78,7 @@ After running `make build`, the outputs are located at:
 
 * **Raw Standalone Executable (`canvascritique.exe`):**
   `src-tauri/target/x86_64-pc-windows-msvc/release/canvascritique.exe`
-  *(You can run this `.exe` directly on your Windows host by navigating to `\\wsl.localhost\Ubuntu\home\franz\dev\handwritig-corrector\src-tauri\target\x86_64-pc-windows-msvc\release\`)*
+  *(You can run this `.exe` directly on your Windows host by navigating to `<project-folder>\src-tauri\target\x86_64-pc-windows-msvc\release\` inside your WSL file share)*
 
 * **Setup Installer (`CanvasCritique_<version>_x64-setup.exe`):**
   `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`
