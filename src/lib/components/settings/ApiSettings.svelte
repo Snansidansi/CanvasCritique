@@ -244,8 +244,8 @@
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': 'https://scribeflow.app',
-            'X-Title': 'ScribeFlow'
+            'HTTP-Referer': 'https://canvascritique.app',
+            'X-Title': 'CanvasCritique'
           },
           body: JSON.stringify(requestBody)
         });

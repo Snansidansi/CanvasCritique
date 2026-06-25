@@ -1,7 +1,7 @@
 [package]
-name = "scribeflow"
+name = "canvascritique"
 version = "0.1.0"
-description = "ScribeFlow Handwriting Practice App"
+description = "CanvasCritique Handwriting Practice App"
 authors = ["Franz"]
 edition = "2021"
 

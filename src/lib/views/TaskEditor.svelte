@@ -130,7 +130,7 @@
   >
     arrow_back
   </button>
-  <span class="font-bold text-primary tracking-tight text-lg">ScribeFlow</span>
+  <span class="font-bold text-primary tracking-tight text-lg">CanvasCritique</span>
   <div class="w-8"></div> <!-- Spacer -->
 </header>
 

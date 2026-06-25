@@ -1,6 +1,6 @@
-// Svelte 5 Store for ScribeFlow using Runes
-const STORAGE_KEY_PROJECTS = 'scribeflow_projects';
-const STORAGE_KEY_SETTINGS = 'scribeflow_settings';
+// Svelte 5 Store for CanvasCritique using Runes
+const STORAGE_KEY_PROJECTS = 'canvascritique_projects';
+const STORAGE_KEY_SETTINGS = 'canvascritique_settings';
 
 // Helper to check for default projects if none exist
 const defaultProjects = [
@@ -146,7 +146,7 @@ const defaultSettings = {
 };
 
 // State classes for Svelte 5 Runes reactivity
-class ScribeFlowStore {
+class CanvasCritiqueStore {
   // Runes
   currentView = $state('dashboard'); // 'dashboard' | 'practice' | 'settings' | 'task-editor' | 'project-detail'
   projects = $state([]);
@@ -179,7 +179,7 @@ class ScribeFlowStore {
   loadState() {
     // Load Projects
     try {
-      const savedProjects = localStorage.getItem(STORAGE_KEY_PROJECTS);
+      const savedProjects = localStorage.getItem(STORAGE_KEY_PROJECTS) || localStorage.getItem('scribeflow_projects');
       if (savedProjects) {
         const parsed = JSON.parse(savedProjects);
         // Ensure categories exist
@@ -200,7 +200,7 @@ class ScribeFlowStore {
 
     // Load Settings
     try {
-      const savedSettings = localStorage.getItem(STORAGE_KEY_SETTINGS);
+      const savedSettings = localStorage.getItem(STORAGE_KEY_SETTINGS) || localStorage.getItem('scribeflow_settings');
       if (savedSettings) {
         this.settings = { ...defaultSettings, ...JSON.parse(savedSettings) };
       } else {
@@ -220,7 +220,7 @@ class ScribeFlowStore {
 
     // Load Custom Backgrounds
     try {
-      const savedCustomBgs = localStorage.getItem('scribeflow_custom_backgrounds');
+      const savedCustomBgs = localStorage.getItem('canvascritique_custom_backgrounds') || localStorage.getItem('scribeflow_custom_backgrounds');
       if (savedCustomBgs) {
         this.customBackgrounds = JSON.parse(savedCustomBgs);
       } else {
@@ -233,7 +233,7 @@ class ScribeFlowStore {
 
     // Load Canvas Saves
     try {
-      const savedSaves = localStorage.getItem('scribeflow_canvas_saves');
+      const savedSaves = localStorage.getItem('canvascritique_canvas_saves') || localStorage.getItem('scribeflow_canvas_saves');
       if (savedSaves) {
         this.canvasSaves = JSON.parse(savedSaves);
       } else {
@@ -259,7 +259,7 @@ class ScribeFlowStore {
   }
 
   saveCustomBackgrounds() {
-    localStorage.setItem('scribeflow_custom_backgrounds', JSON.stringify(this.customBackgrounds));
+    localStorage.setItem('canvascritique_custom_backgrounds', JSON.stringify(this.customBackgrounds));
   }
 
   addCustomBackground(name, url, icon = null) {
@@ -548,7 +548,7 @@ class ScribeFlowStore {
 
   saveCanvasState(taskId, data) {
     this.canvasSaves[taskId] = data;
-    localStorage.setItem('scribeflow_canvas_saves', JSON.stringify(this.canvasSaves));
+    localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
   }
 
   getCanvasState(taskId) {
@@ -567,4 +567,4 @@ class ScribeFlowStore {
 }
 
 // Singleton store instance
-export const store = new ScribeFlowStore();
+export const store = new CanvasCritiqueStore();

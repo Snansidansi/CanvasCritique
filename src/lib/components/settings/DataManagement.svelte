@@ -59,7 +59,7 @@
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store.settings));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "scribeflow_settings.json");
+    downloadAnchor.setAttribute("download", "canvascritique_settings.json");
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -93,7 +93,7 @@
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store.projects));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "scribeflow_data.json");
+    downloadAnchor.setAttribute("download", "canvascritique_data.json");
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -201,7 +201,7 @@
                 id="exportPathSettings"
                 bind:value={store.settings.exportPathSettings}
                 onchange={handleInputChange}
-                placeholder="e.g. /home/user/backups/scribeflow_settings.json" 
+                placeholder="e.g. /home/user/backups/canvascritique_settings.json" 
                 class="grow bg-surface-container-highest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
               />
               <button 
@@ -310,7 +310,7 @@
                 id="exportPathData"
                 bind:value={store.settings.exportPathData}
                 onchange={handleInputChange}
-                placeholder="e.g. /home/user/backups/scribeflow_data.json" 
+                placeholder="e.g. /home/user/backups/canvascritique_data.json" 
                 class="grow bg-surface-container-highest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
               />
               <button 

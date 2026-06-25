@@ -144,19 +144,19 @@
     } else {
       recentColors = [...recentColors, strokeColor];
     }
-    localStorage.setItem('scribeflow_recent_colors', JSON.stringify(recentColors));
+    localStorage.setItem('canvascritique_recent_colors', JSON.stringify(recentColors));
   }
 
   function removeColorFromPalette(idx) {
     if (recentColors.length <= 1) return;
     recentColors = recentColors.filter((_, i) => i !== idx);
-    localStorage.setItem('scribeflow_recent_colors', JSON.stringify(recentColors));
+    localStorage.setItem('canvascritique_recent_colors', JSON.stringify(recentColors));
   }
 
   let isCustomColorInPalette = $derived(recentColors.includes(strokeColor));
 
   onMount(() => {
-    const savedRecents = localStorage.getItem('scribeflow_recent_colors');
+    const savedRecents = localStorage.getItem('canvascritique_recent_colors') || localStorage.getItem('scribeflow_recent_colors');
     if (savedRecents) {
       try {
         recentColors = JSON.parse(savedRecents);

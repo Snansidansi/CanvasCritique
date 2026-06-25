@@ -37,7 +37,7 @@
       </div>
       <span
         class="font-bold text-xl text-primary tracking-tight transition-opacity duration-200"
-        >ScribeFlow</span
+        >CanvasCritique</span
       >
     {/if}
     <button

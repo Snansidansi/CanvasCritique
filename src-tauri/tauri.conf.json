@@ -1,7 +1,7 @@
 {
-  "productName": "scribeflow",
+  "productName": "CanvasCritique",
   "version": "0.1.0",
-  "identifier": "com.scribeflow.app",
+  "identifier": "com.canvascritique.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "ScribeFlow",
+        "title": "CanvasCritique",
         "width": 1200,
         "height": 800,
         "resizable": true
