@@ -1125,10 +1125,17 @@ class CanvasCritiqueStore {
           }
         }
 
+        let filename = `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`;
+        if (project.tasks && project.tasks.length === 1) {
+          filename = `task_${project.tasks[0].name.toLowerCase().replace(/\s+/g, '_')}.json`;
+        } else if (project.tasks && project.tasks.length < (this.projects.find(p => p.id === project.id)?.tasks.length || 0)) {
+          filename = `tasks_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`;
+        }
+
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
         const downloadAnchor = document.createElement('a');
         downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`);
+        downloadAnchor.setAttribute("download", filename);
         document.body.appendChild(downloadAnchor);
         downloadAnchor.click();
         downloadAnchor.remove();
@@ -1138,6 +1145,14 @@ class CanvasCritiqueStore {
         this.exportDialog = null;
       }
     };
+  }
+
+  exportTasks(project: Project, tasks: Task[]): void {
+    const tempProject: Project = {
+      ...project,
+      tasks: tasks
+    };
+    this.exportProject(tempProject);
   }
 }
 

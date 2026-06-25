@@ -155,7 +155,11 @@
   }
 
   function handleExportSelected() {
-    // to be implemented in step 4
+    if (selectedTaskIds.size === 0) return;
+    const selectedTasks = project.tasks.filter(t => selectedTaskIds.has(t.id));
+    store.exportTasks(project, selectedTasks);
+    selectedTaskIds.clear();
+    isSelectionMode = false;
   }
 </script>
 
@@ -399,10 +403,10 @@
                     </button>
                   </div>
 
-                  <!-- Hover actions (Edit & Delete) -->
+                  <!-- Hover actions (Edit, Export & Delete) -->
                   {#if !isSelectionMode}
                     <div class="flex items-center gap-2">
-                      <!-- Task Edit Pen Icon: Always visible -->
+                      <!-- Task Edit Icon -->
                       <button 
                         onclick={() => handleEditTask(task)}
                         class="text-outline hover:text-primary transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm" 
@@ -411,6 +415,16 @@
                         <span class="material-symbols-outlined text-[16px]">edit</span>
                         Edit
                       </button>
+                      <!-- Task Export Icon -->
+                      <button 
+                        onclick={() => store.exportTasks(project, [task])}
+                        class="text-outline hover:text-primary transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm" 
+                        title="Export Task"
+                      >
+                        <span class="material-symbols-outlined text-[16px]">file_download</span>
+                        Export
+                      </button>
+                      <!-- Task Delete Icon -->
                       <button 
                         onclick={() => store.confirm(
                           "Delete Task",
