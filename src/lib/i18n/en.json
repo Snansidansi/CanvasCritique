@@ -66,7 +66,6 @@
     "changeImageTooltip": "Change Image",
     "renameLessonTooltip": "Rename Lesson",
     "hideCompleted": "Hide Completed",
-    "exportLesson": "Export Lesson",
     "settingsTooltip": "Lesson Settings",
     "toggleSelectionModeTooltip": "Toggle Selection Mode",
     "selectTasks": "Select Tasks",
@@ -443,7 +442,6 @@
     "importLocationNew": "New Lesson",
     "importLocationMerge": "Merge into Existing Lesson",
     "importMergeSelectLabel": "Select Lesson to Merge Into",
-    "importMergeModeTitle": "Merge Mode",
     "importMergeModeOverwrite": "Overwrite Existing",
     "importMergeModeSkip": "Skip Existing",
     "importMergeModeTitle": "Merge Mode"

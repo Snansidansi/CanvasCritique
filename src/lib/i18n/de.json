@@ -21,7 +21,6 @@
     "iconStyleLabel": "Symbol-Stil",
     "uploadCustomIconLabel": "Eigenes Symbol hochladen",
     "customPreviewLabel": "Vorschau:",
-    "exportLesson": "Lektion exportieren",
     "deleteLessonTitle": "Lektion löschen",
     "deleteLessonConfirm": "Möchtest du die Lektion '{{name}}' wirklich löschen?",
     "taskRemaining": "1 Aufgabe verbleibend",
@@ -106,8 +105,7 @@
     "createSectionBtn": "Bereich erstellen",
     "addTopicModalTitle": "Neues Thema hinzufügen",
     "topicNameLabel": "Themenname",
-    "topicNamePlaceholder": "z.B. Basics",
-    "exportLesson": "Lektion exportieren"
+    "topicNamePlaceholder": "z.B. Basics"
   },
   "sidebar": {
     "expand": "Sidebar ausklappen",
@@ -443,7 +441,6 @@
     "importLocationNew": "Neue Lektion",
     "importLocationMerge": "In bestehende Lektion zusammenführen",
     "importMergeSelectLabel": "Lektion zum Zusammenführen auswählen",
-    "importMergeModeTitle": "Zusammenführungsmodus",
     "importMergeModeOverwrite": "Vorhandene überschreiben",
     "importMergeModeSkip": "Vorhandene überspringen",
     "importMergeModeTitle": "Zusammenführungsmodus"
