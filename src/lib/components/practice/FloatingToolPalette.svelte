@@ -142,7 +142,8 @@
     const deltaX = e.clientX - dragStartMouseX;
     const deltaY = e.clientY - dragStartMouseY;
 
-    if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+    const dragThreshold = isCollapsed ? 15 : 5;
+    if (Math.abs(deltaX) > dragThreshold || Math.abs(deltaY) > dragThreshold) {
       dragMoved = true;
     }
 
