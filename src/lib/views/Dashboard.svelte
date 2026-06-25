@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { store } from '../state/store.svelte';
 
   // Local state
@@ -44,11 +44,11 @@
   }
 
   function handleCustomIconUpload(e) {
-    const file = e.target.files[0];
+    const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
-      newProjectIcon = event.target.result;
+      newProjectIcon = reader.result as string;
     };
     reader.readAsDataURL(file);
   }

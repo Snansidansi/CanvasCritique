@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte';
 
   let {
@@ -97,7 +97,7 @@
       type="color" 
       bind:this={colorInput} 
       value={strokeColor} 
-      onchange={(e) => selectColor(e.target.value)} 
+      onchange={(e) => selectColor(e.currentTarget.value)} 
       class="hidden" 
     />
   </div>

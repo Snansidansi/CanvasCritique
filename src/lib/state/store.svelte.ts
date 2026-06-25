@@ -554,6 +554,16 @@ class ScribeFlowStore {
   getCanvasState(taskId) {
     return this.canvasSaves[taskId] || null;
   }
+
+  exportProject(project: any) {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `project_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  }
 }
 
 // Singleton store instance

@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { store } from '../../state/store.svelte';
   import { onMount } from 'svelte';
 
@@ -226,7 +226,7 @@
         }
       } else {
         const url = 'https://openrouter.ai/api/v1/chat/completions';
-        const requestBody = {
+        const requestBody: any = {
           model: model,
           messages: [{ role: "user", content: "Hello! Reply in one short word." }],
           reasoning: {

@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   let {
     splitWidth = $bindable(400),
     activeLeftPanels,

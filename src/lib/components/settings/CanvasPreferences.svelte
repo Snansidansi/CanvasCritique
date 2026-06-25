@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { store } from '../../state/store.svelte';
 </script>
 

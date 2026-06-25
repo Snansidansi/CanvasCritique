@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { store } from '../../state/store.svelte';
 
   // Local state for settings view tabs
@@ -11,7 +11,7 @@
   // Native folder pick wrapper or mock directory selector
   async function selectFolder(type) {
     try {
-      if (window.__TAURI__) {
+      if ((window as any).__TAURI__) {
         const moduleName = '@tauri-apps/plugin-dialog';
         const { open } = await import(/* @vite-ignore */ moduleName);
         const selected = await open({
@@ -38,7 +38,7 @@
     input.type = 'file';
     input.webkitdirectory = true;
     input.onchange = (e) => {
-      const files = e.target.files;
+      const files = (e.target as HTMLInputElement).files;
       if (files && files.length > 0) {
         const firstFile = files[0];
         const folderName = firstFile.webkitRelativePath.split('/')[0] || 'backups';
@@ -70,11 +70,12 @@
     input.type = 'file';
     input.accept = 'application/json';
     input.onchange = (e) => {
-      const file = e.target.files[0];
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
-          const imported = JSON.parse(event.target.result);
+          const imported = JSON.parse(reader.result as string);
           store.settings = { ...store.settings, ...imported };
           store.saveSettings();
           alert('Settings imported successfully!');
@@ -103,11 +104,12 @@
     input.type = 'file';
     input.accept = 'application/json';
     input.onchange = (e) => {
-      const file = e.target.files[0];
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
-          const imported = JSON.parse(event.target.result);
+          const imported = JSON.parse(reader.result as string);
           if (Array.isArray(imported)) {
             store.projects = imported;
             store.saveProjects();

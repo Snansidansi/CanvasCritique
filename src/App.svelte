@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { store } from "./lib/state/store.svelte";
   import Sidebar from "./lib/components/Sidebar.svelte";
 

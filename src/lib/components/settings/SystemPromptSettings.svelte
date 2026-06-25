@@ -1,8 +1,8 @@
-<script>
+<script lang="ts">
   import { store, DEFAULT_SYSTEM_PROMPT } from '../../state/store.svelte';
 
-  function togglePromptEditing(e) {
-    const checked = e.target.checked;
+  function togglePromptEditing(e: Event & { currentTarget: HTMLInputElement }) {
+    const checked = e.currentTarget.checked;
     if (checked) {
       // Show confirmation dialog before enabling
       store.confirm(
@@ -18,7 +18,7 @@
         },
         () => {
           // Revert toggle
-          e.target.checked = false;
+          e.currentTarget.checked = false;
         }
       );
     } else {

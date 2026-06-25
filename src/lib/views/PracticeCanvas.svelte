@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { store, DEFAULT_SYSTEM_PROMPT } from '../state/store.svelte';
   import { onMount, tick } from 'svelte';
 
@@ -980,7 +980,7 @@
 
 
   // Load custom background Image asynchronously helper for canvas pattern
-  function loadImage(src) {
+  function loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
@@ -1440,7 +1440,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       } else {
         // OpenRouter Vision request
         const url = 'https://openrouter.ai/api/v1/chat/completions';
-        const requestBody = {
+        const requestBody: any = {
           model: model,
           messages: [
             {

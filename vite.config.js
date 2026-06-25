@@ -3,7 +3,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 import tailwindcss from '@tailwindcss/vite'
 
 // https://vitejs.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig({
   plugins: [
     tailwindcss(),
     svelte()
@@ -28,4 +28,4 @@ export default defineConfig(async () => ({
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
   },
-}))
+})

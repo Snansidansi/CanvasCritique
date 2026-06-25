@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import AppearanceSettings from '../components/settings/AppearanceSettings.svelte';
   import CanvasPreferences from '../components/settings/CanvasPreferences.svelte';
   import DataManagement from '../components/settings/DataManagement.svelte';
