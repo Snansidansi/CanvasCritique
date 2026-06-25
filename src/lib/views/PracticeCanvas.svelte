@@ -1145,7 +1145,7 @@
     if (strokeHistory.length === 0 && !hasCheckedWork) return;
     
     store.confirm(
-      'Clear Drawing Canvas',
+      t('practice.canvas.clear'),
       'Are you sure you want to clear your drawing canvas? This will discard your current calligraphy sketch and AI feedback.',
       () => {
         if (canvasMode === 'a4') {
@@ -1834,7 +1834,7 @@
 
       <!-- Background Selection -->
       <div class="flex flex-col gap-2">
-        <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Background Pattern</span>
+        <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('practice.canvas.background')}</span>
         <!-- Grid of standard options -->
         <div class="grid grid-cols-3 gap-2">
           <button 
@@ -1843,7 +1843,7 @@
                    {activeBg === 'grid' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
           >
             <span class="material-symbols-outlined text-xl">apps</span>
-            <span class="text-[11px] font-semibold">Dots</span>
+            <span class="text-[11px] font-semibold">{t('practice.canvas.dots')}</span>
           </button>
           <button 
             onclick={() => activeBg = 'lines'}
@@ -1851,7 +1851,7 @@
                    {activeBg === 'lines' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
           >
             <span class="material-symbols-outlined text-xl">reorder</span>
-            <span class="text-[11px] font-semibold">Lines</span>
+            <span class="text-[11px] font-semibold">{t('practice.canvas.lines')}</span>
           </button>
           <button 
             onclick={() => activeBg = 'blank'}
@@ -1859,14 +1859,14 @@
                    {activeBg === 'blank' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
           >
             <span class="material-symbols-outlined text-xl">check_box_outline_blank</span>
-            <span class="text-[11px] font-semibold">Blank</span>
+            <span class="text-[11px] font-semibold">{t('practice.canvas.blank')}</span>
           </button>
         </div>
 
         <!-- Custom Backgrounds list if any -->
         {#if store.customBackgrounds.length > 0}
           <div class="mt-2 flex flex-col gap-1.5">
-            <span class="text-[11px] font-semibold text-on-surface-variant">Custom Templates</span>
+            <span class="text-[11px] font-semibold text-on-surface-variant">{t('practice.canvas.customTemplates')}</span>
             <div class="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar border border-outline-variant/30 rounded-lg p-1">
               {#each store.customBackgrounds as customBg}
                 <div class="flex items-center justify-between hover:bg-surface-container-high rounded-md group px-2 py-1">
@@ -1884,7 +1884,7 @@
                   <button 
                     onclick={() => {
                       store.confirm(
-                        'Delete Background Template',
+                        t('practice.canvas.deleteBg'),
                         `Are you sure you want to delete the background template "${customBg.name}"?`,
                         () => {
                           if (activeBg === customBg.id) activeBg = 'grid';
@@ -1916,7 +1916,7 @@
       {#if activeBg !== 'blank'}
         <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
           <div class="flex justify-between items-center">
-            <label for="bg-opacity-slider" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Template Opacity</label>
+            <label for="bg-opacity-slider" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('practice.canvas.opacity')}</label>
             <span class="text-xs font-bold text-primary">{bgOpacity}%</span>
           </div>
           <div class="flex items-center gap-3">
@@ -1943,7 +1943,7 @@
           title="Clear Canvas"
         >
           <span class="material-symbols-outlined text-base">delete_sweep</span>
-          <span>Clear Canvas</span>
+          <span>{t('practice.canvas.clearCanvas')}</span>
         </button>
       </div>
     </div>

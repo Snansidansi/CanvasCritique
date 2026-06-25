@@ -144,7 +144,7 @@
           </h2>
           {#if panel.id === 'feedback' && feedbackScore !== null}
             <div class="bg-primary text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-sm select-none">
-              Score: {feedbackScore}
+              {t('practice.infoPanels.score')} {feedbackScore}
             </div>
           {/if}
         </div>
@@ -169,7 +169,7 @@
             <!-- Instruction Media Files -->
             {#if task.instructionFiles && task.instructionFiles.length > 0}
               <div class="mt-5 border-t border-outline-variant/30 pt-4">
-                <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2 select-none font-sans">Task Media</h3>
+                <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2 select-none font-sans">{t('practice.infoPanels.taskMedia')}</h3>
                 <div class="flex flex-col gap-3">
                   {#each task.instructionFiles as file, idx}
                     {@const mediaId = `task-inst-${idx}`}
@@ -195,7 +195,7 @@
                               openPreview(file);
                             }}
                             class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
-                            title="Open in full screen"
+                            title={t('practice.infoPanels.openFullScreen')}
                           >
                             zoom_in
                           </button>
@@ -242,7 +242,7 @@
             <!-- Solution Media Files inside Solution Panel -->
             {#if task.solutionFiles && task.solutionFiles.length > 0}
               <div class="mt-5 border-t border-outline-variant/30 pt-4">
-                <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2 select-none font-sans">Solution Media</h3>
+                <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2 select-none font-sans">{t('practice.infoPanels.solutionMedia')}</h3>
                 <div class="flex flex-col gap-3">
                   {#each task.solutionFiles as file, idx}
                     {@const mediaId = `sol-sol-${idx}`}
@@ -268,7 +268,7 @@
                               openPreview(file);
                             }}
                             class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
-                            title="Open in full screen"
+                            title={t('practice.infoPanels.openFullScreen')}
                           >
                             zoom_in
                           </button>

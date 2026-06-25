@@ -206,7 +206,7 @@
     <button 
       onclick={toggleCollapse}
       class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors focus:outline-none cursor-pointer flex items-center justify-center shrink-0 border-0 bg-transparent"
-      title="Collapse drawing tools"
+      title={t('practice.palette.collapse')}
     >
       <span class="material-symbols-outlined text-base">chevron_right</span>
     </button>
@@ -214,7 +214,7 @@
     <!-- Drag Handle -->
     <div 
       class="cursor-grab active:cursor-grabbing text-outline hover:text-on-surface-variant flex items-center justify-center pr-2 border-r border-outline-variant/30 shrink-0 drag-handle-area font-bold"
-      title="Drag to reposition"
+      title={t('practice.palette.drag')}
     >
       <span class="material-symbols-outlined text-[18px]">drag_indicator</span>
     </div>
@@ -230,13 +230,13 @@
             onclick={() => selectColor(color)}
             class="w-6 h-6 rounded-full cursor-pointer border-2 transition-all hover:scale-110 focus:outline-none" 
             style="background-color: {color}; border-color: {strokeColor === color && activeTool === 'pen' ? 'var(--md-sys-color-primary, #1d4ed8)' : 'rgba(0, 0, 0, 0.15)'}; transform: {strokeColor === color && activeTool === 'pen' ? 'scale(1.15)' : 'none'}; box-shadow: {strokeColor === color && activeTool === 'pen' ? '0 0 0 2px var(--md-sys-color-primary-container, rgba(29,78,216,0.25))' : '0 1px 2px rgba(0,0,0,0.1)'};"
-            title="Click to select"
+            title={t('practice.palette.clickToSelect')}
           ></button>
           {#if recentColors.length > 1}
             <button
               onclick={() => removeColorFromPalette(idx)}
               class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-error text-on-error text-[9px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-0 shadow-sm z-10 hover:scale-110"
-              title="Remove from palette"
+              title={t('practice.palette.removeFromPalette')}
             >×</button>
           {/if}
         </div>
@@ -247,7 +247,7 @@
         <button
           onclick={addColorToPalette}
           class="w-6 h-6 rounded-full cursor-pointer border-2 border-dashed border-primary/60 hover:border-primary hover:bg-primary/10 transition-all flex items-center justify-center text-primary hover:scale-110 focus:outline-none bg-transparent"
-          title="Save current color to palette"
+          title={t('practice.palette.saveToPalette')}
         >
           <span class="material-symbols-outlined text-[14px]">add</span>
         </button>
@@ -258,7 +258,7 @@
         onclick={() => colorInput?.click()}
         class="w-6 h-6 rounded-full cursor-pointer border border-outline-variant/60 hover:scale-110 active:scale-[0.9] transition-all flex items-center justify-center relative overflow-hidden shrink-0"
         style="background: conic-gradient(from 0deg, red, yellow, lime, aqua, blue, magenta, red);"
-        title="Pick custom color"
+        title={t('practice.palette.pickColor')}
       >
         <span class="material-symbols-outlined text-[13px] text-white font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">palette</span>
       </button>
@@ -280,7 +280,7 @@
                  {activeTool === 'pen' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
         >
           <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'pen' ? 'fill' : 'normal'}>edit</span>
-          <span class="text-[9px]">Pen</span>
+          <span class="text-[9px]">{t('practice.palette.pen')}</span>
         </button>
         
         <button 
@@ -289,7 +289,7 @@
                  {activeTool === 'eraser' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
         >
           <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'eraser' ? 'fill' : 'normal'}>ink_eraser</span>
-          <span class="text-[9px]">Eraser</span>
+          <span class="text-[9px]">{t('practice.palette.eraser')}</span>
         </button>
 
         <button 
@@ -299,7 +299,7 @@
           title="Selection Tool"
         >
           <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'select' ? 'fill' : 'normal'}>select_all</span>
-          <span class="text-[9px]">Select</span>
+          <span class="text-[9px]">{t('practice.palette.select')}</span>
         </button>
 
         {#if canvasMode === 'infinite'}
@@ -310,7 +310,7 @@
             title="Pan Canvas"
           >
             <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'pan' ? 'fill' : 'normal'}>pan_tool</span>
-            <span class="text-[9px]">Hand</span>
+            <span class="text-[9px]">{t('practice.palette.hand')}</span>
           </button>
         {/if}
       </div>
@@ -323,7 +323,7 @@
           onclick={handleUndo}
           disabled={strokeHistory.length === 0}
           class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer border-0 bg-transparent"
-          title="Undo (Ctrl+Z)"
+          title={t('practice.palette.undo')}
         >
           <span class="material-symbols-outlined text-[20px]">undo</span>
           <span class="text-[9px]">Undo</span>
@@ -333,7 +333,7 @@
           onclick={handleRedo}
           disabled={redoStack.length === 0}
           class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer border-0 bg-transparent"
-          title="Redo (Ctrl+Y)"
+          title={t('practice.palette.redo')}
         >
           <span class="material-symbols-outlined text-[20px]">redo</span>
           <span class="text-[9px]">Redo</span>
@@ -343,7 +343,7 @@
       <!-- Pen/Eraser stroke width controller -->
       <div class="flex items-center gap-1.5 border-l border-outline-variant pl-4 min-w-35 justify-end shrink-0">
         {#if activeTool === 'pen'}
-          <span class="text-[10px] text-outline">Size</span>
+          <span class="text-[10px] text-outline">{t('practice.palette.size')}</span>
           <input 
             type="range" 
             min="1" 
@@ -353,7 +353,7 @@
           />
           <span class="text-[10px] text-on-surface min-w-[24px] text-right">{brushWidth}px</span>
         {:else if activeTool === 'eraser'}
-          <span class="text-[10px] text-outline">Size</span>
+          <span class="text-[10px] text-outline">{t('practice.palette.size')}</span>
           <input 
             type="range" 
             min="4" 

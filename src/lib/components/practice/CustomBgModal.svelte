@@ -58,11 +58,11 @@
 {#if isCustomBgModalOpen}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm select-none">
     <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-100 shadow-xl flex flex-col gap-4">
-      <h3 class="font-bold text-base text-on-surface">Add Custom Background Template</h3>
+      <h3 class="font-bold text-base text-on-surface">{t('practice.customBg.title')}</h3>
       
       <form onsubmit={handleAddCustomBg} class="flex flex-col gap-4">
         <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-on-surface-variant" for="bgName">Template Name</label>
+          <label class="text-xs font-semibold text-on-surface-variant" for="bgName">{t('practice.customBg.nameLabel')}</label>
           <input 
             type="text" 
             id="bgName" 
@@ -74,7 +74,7 @@
         </div>
         
         <div class="flex flex-col gap-1">
-          <span class="text-xs font-semibold text-on-surface-variant">Upload Pattern Image (repeats automatically)</span>
+          <span class="text-xs font-semibold text-on-surface-variant">{t('practice.customBg.uploadPattern')}</span>
           <input 
             type="file" 
             accept="image/*"
@@ -91,12 +91,12 @@
             bind:checked={useBgAsIcon}
             class="w-4 h-4 text-primary bg-surface border-outline-variant focus:ring-primary focus:outline-none rounded cursor-pointer"
           />
-          <label class="text-xs text-on-surface-variant select-none cursor-pointer font-semibold" for="useAsIcon">Use pattern as option icon</label>
+          <label class="text-xs text-on-surface-variant select-none cursor-pointer font-semibold" for="useAsIcon">{t('practice.customBg.useAsIcon')}</label>
         </div>
         
         {#if !useBgAsIcon}
           <div class="flex flex-col gap-1 animate-fade-in">
-            <span class="text-xs font-semibold text-on-surface-variant">Upload Small Icon (PNG/JPG)</span>
+            <span class="text-xs font-semibold text-on-surface-variant">{t('practice.customBg.uploadIcon')}</span>
             <input 
               type="file" 
               accept="image/*"
@@ -112,13 +112,13 @@
             onclick={() => { isCustomBgModalOpen = false; resetCustomBgModal(); }}
             class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button 
             type="submit"
             class="px-4 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer"
           >
-            Add Template
+            {t('practice.customBg.addTemplate')}
           </button>
         </div>
       </form>
