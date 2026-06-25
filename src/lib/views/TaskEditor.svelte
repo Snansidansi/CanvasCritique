@@ -232,10 +232,10 @@
         <select 
           id="category"
           bind:value={category}
-          class="w-full bg-transparent border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+          class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
         >
           {#each categories as cat}
-            <option value={cat}>{cat}</option>
+            <option value={cat} class="bg-surface-container-low text-on-surface">{cat}</option>
           {/each}
         </select>
       </div>
