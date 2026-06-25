@@ -289,14 +289,14 @@
     const opacity = bgOpacity;
     const offset = panOffset;
     const pIndex = activePageIndex;
-    const historyLen = strokeHistory.length;
-    const activeStrokeLen = currentStroke.length;
+    const history = strokeHistory;
+    const actStroke = currentStroke;
     const scale = zoomScale;
     const bgImg = currentBgImage;
     
     // Selection visual triggers
     const selBox = selectionBox;
-    const selStrokesLen = selectedStrokes.length;
+    const selStrokes = selectedStrokes;
     const isMoving = isMovingSelection;
     const bounds = selectionBoundingBox;
 
@@ -566,8 +566,12 @@
     // Only allow drawing/selecting/panning on left-click (or barrel button actions)
     if (e.button !== 0 && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen) return;
 
-    // In stylus mode, finger/touch/mouse cannot draw/select on A4 canvas either
-    if (store.settings.stylusMode && isFingerOrMouse) {
+    const coords = getCoords(e);
+    const bounds = selectionBoundingBox;
+    const isClickInSelection = activeTool === 'select' && bounds && isPointInBounds(coords.x, coords.y, bounds);
+
+    // In stylus mode, finger/touch/mouse cannot draw/select on A4 canvas either (unless clicking in selection to drag/move)
+    if (store.settings.stylusMode && isFingerOrMouse && !isClickInSelection) {
       if (canvasMode !== 'infinite') {
         e.preventDefault();
         return;
@@ -578,8 +582,6 @@
     try {
       canvasElement.setPointerCapture(e.pointerId);
     } catch (err) {}
-
-    const coords = getCoords(e);
 
     // Setup long-press (600ms) timer for context menu (stylus paste shortcut)
     if (!isPointerEraser && !isPointerSelect && !isPointerPan) {
@@ -608,11 +610,14 @@
       isMovingSelection = false;
     } else if (activeTool === 'select') {
       // Check if clicking inside current selection bounding box
-      const bounds = selectionBoundingBox;
-      if (isPointInBounds(coords.x, coords.y, bounds)) {
+      if (isClickInSelection) {
         isMovingSelection = true;
         selectionDragStart = { x: coords.x, y: coords.y };
         selectionBox = null;
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
       } else {
         if (isSelectToolOneShot) {
           // Revert tool if it was a temporary stylus shortcut
