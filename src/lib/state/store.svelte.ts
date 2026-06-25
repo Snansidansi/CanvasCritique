@@ -258,7 +258,7 @@ const defaultSettings: Settings = {
   language: 'English',
   stylusButtons: [],
   stylusMode: false,
-  autoCompleteOnSuccess: false
+  autoCompleteOnSuccess: true
 };
 
 // State classes for Svelte 5 Runes reactivity
