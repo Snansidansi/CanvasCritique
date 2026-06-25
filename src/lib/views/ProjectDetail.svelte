@@ -28,6 +28,25 @@
   let isSelectionMode = $state(false);
   let selectedTaskIds = $state(new Set<string>());
 
+  // Task Import (Step 5)
+  let taskFileInput: HTMLInputElement | null = $state(null);
+
+  function handleImportTasksFile(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const imported = JSON.parse(reader.result as string);
+        store.importProject(imported, project.id);
+      } catch (err) {
+        alert("Failed to parse file. Make sure it is valid JSON.");
+      }
+    };
+    reader.readAsText(file);
+    (e.target as HTMLInputElement).value = "";
+  }
+
   // Derived progress rune
   let progress = $derived(getProjectProgress());
 
@@ -302,16 +321,35 @@
 
   <!-- Categories section lists -->
   <section class="flex flex-col gap-6 shrink-0">
-    <!-- Category header toolbar -->
+    <!-- Category header toolbar (Step 5) -->
     <div class="flex justify-between items-center border-b border-outline-variant pb-2">
       <h3 class="font-bold text-sm text-on-surface uppercase tracking-wider">Lesson Roadmap</h3>
-      <button 
-        onclick={() => isAddCategoryOpen = true}
-        class="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer"
-      >
-        <span class="material-symbols-outlined text-[16px]">create_new_folder</span>
-        Add Custom Topic
-      </button>
+      <div class="flex items-center gap-4">
+        <!-- Hidden file input for importing tasks directly -->
+        <input
+          type="file"
+          accept="application/json"
+          bind:this={taskFileInput}
+          onchange={handleImportTasksFile}
+          class="hidden"
+        />
+        <button 
+          onclick={() => taskFileInput?.click()}
+          class="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer focus:outline-none"
+          title="Import tasks into this lesson"
+        >
+          <span class="material-symbols-outlined text-[16px]">file_upload</span>
+          Import Tasks
+        </button>
+
+        <button 
+          onclick={() => isAddCategoryOpen = true}
+          class="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer focus:outline-none"
+        >
+          <span class="material-symbols-outlined text-[16px]">create_new_folder</span>
+          Add Custom Topic
+        </button>
+      </div>
     </div>
 
     <!-- Dynamic Category Sections -->
