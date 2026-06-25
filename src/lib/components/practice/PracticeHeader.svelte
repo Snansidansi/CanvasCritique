@@ -8,8 +8,6 @@
     activePageIndex = $bindable(),
     strokeHistory,
     redoStack,
-    activeBg = $bindable(),
-    bgOpacity = $bindable(),
     zoomScale = $bindable(),
     panOffset = $bindable(),
     showTask = $bindable(),
@@ -17,24 +15,15 @@
     showFeedback = $bindable(),
     hasCheckedWork,
     activeTooltipMarker = $bindable(),
-    isCustomBgModalOpen = $bindable(),
     handleBack,
     handleUndo,
     handleRedo,
-    clearCanvas,
     checkWork
   } = $props();
 
-  let bgDropdownOpen = $state(false);
-
-  let currentBgObject = $derived(
-    store.customBackgrounds.find(bg => bg.id === activeBg)
+  let currentTaskIndex = $derived(
+    store.activeProject?.tasks?.findIndex(t => t.id === task.id) ?? -1
   );
-
-  function saveToStore() {
-    // Note: The parent component should handle saving to store when relevant values change.
-    // However, some UI events here might require manual trigger.
-  }
 </script>
 
 <header class="bg-surface border-b border-outline-variant flex items-center justify-between w-full px-6 py-3 shrink-0 z-20 select-none gap-4">
@@ -57,129 +46,41 @@
         {task.completed ? 'check_circle' : 'radio_button_unchecked'}
       </span>
     </button>
+
+    <!-- Task Navigation Buttons -->
+    {#if store.activeProject?.tasks?.length > 1}
+      <div class="flex items-center gap-0.5 border-l border-outline-variant/30 pl-2 ml-1">
+        <button 
+          onclick={() => {
+            if (currentTaskIndex > 0) {
+              store.selectTask(store.activeProject.tasks[currentTaskIndex - 1]);
+            }
+          }}
+          disabled={currentTaskIndex <= 0}
+          class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none flex items-center justify-center"
+          title="Previous Lesson"
+        >
+          <span class="material-symbols-outlined text-base">chevron_left</span>
+        </button>
+        <button 
+          onclick={() => {
+            if (currentTaskIndex < store.activeProject.tasks.length - 1) {
+              store.selectTask(store.activeProject.tasks[currentTaskIndex + 1]);
+            }
+          }}
+          disabled={currentTaskIndex >= store.activeProject.tasks.length - 1}
+          class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none flex items-center justify-center"
+          title="Next Lesson"
+        >
+          <span class="material-symbols-outlined text-base">chevron_right</span>
+        </button>
+      </div>
+    {/if}
   </div>
 
   <!-- Center: Premium Practice Controls Toolbar -->
   <div class="flex items-center gap-4 text-xs font-semibold text-on-surface-variant flex-wrap justify-center">
     
-    <!-- Background Selection Autocomplete -->
-    <div class="relative">
-      <button 
-        onclick={() => bgDropdownOpen = !bgDropdownOpen}
-        class="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-outline-variant rounded-lg bg-surface hover:bg-surface-container cursor-pointer focus:outline-none"
-      >
-        {#if activeBg === 'grid'}
-          <span class="material-symbols-outlined text-base">apps</span>
-        {:else if activeBg === 'lines'}
-          <span class="material-symbols-outlined text-base">reorder</span>
-        {:else if activeBg === 'blank'}
-          <span class="material-symbols-outlined text-base">check_box_outline_blank</span>
-        {:else if currentBgObject && currentBgObject.icon && currentBgObject.icon.startsWith('data:image/')}
-          <img src={currentBgObject.icon} class="w-4 h-4 object-contain rounded" alt="" />
-        {:else}
-          <span class="material-symbols-outlined text-base">image</span>
-        {/if}
-        <span>Bg: {
-          activeBg === 'grid' ? 'Dots' :
-          activeBg === 'lines' ? 'Lines' :
-          activeBg === 'blank' ? 'Blank' :
-          (currentBgObject ? currentBgObject.name : 'Custom')
-        }</span>
-        <span class="material-symbols-outlined text-xs">expand_more</span>
-      </button>
-
-      {#if bgDropdownOpen}
-        <!-- Invisible Click-Away overlay -->
-        <button type="button" class="fixed inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" onclick={() => bgDropdownOpen = false}></button>
-        
-        <!-- Dropdown Options Box -->
-        <div class="absolute top-[calc(100%+4px)] left-0 bg-surface-container-high border border-outline-variant rounded-lg shadow-lg z-50 py-1 min-w-50 max-h-60 overflow-y-auto custom-scrollbar">
-          <button 
-            onclick={() => { activeBg = 'grid'; bgDropdownOpen = false; }}
-            class="w-full text-left px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer {activeBg === 'grid' ? 'bg-primary/5 text-primary font-bold' : 'text-on-surface'}"
-          >
-            <span class="material-symbols-outlined text-base">apps</span>
-            Dots
-          </button>
-          <button 
-            onclick={() => { activeBg = 'lines'; bgDropdownOpen = false; }}
-            class="w-full text-left px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer {activeBg === 'lines' ? 'bg-primary/5 text-primary font-bold' : 'text-on-surface'}"
-          >
-            <span class="material-symbols-outlined text-base">reorder</span>
-            Ruled Lines
-          </button>
-          <button 
-            onclick={() => { activeBg = 'blank'; bgDropdownOpen = false; }}
-            class="w-full text-left px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer {activeBg === 'blank' ? 'bg-primary/5 text-primary font-bold' : 'text-on-surface'}"
-          >
-            <span class="material-symbols-outlined text-base">check_box_outline_blank</span>
-            Blank Paper
-          </button>
-
-          <!-- Render Uploaded Templates List -->
-          {#if store.customBackgrounds.length > 0}
-            <div class="border-t border-outline-variant/30 my-1"></div>
-            {#each store.customBackgrounds as customBg}
-              <div class="flex items-center justify-between hover:bg-primary/10 hover:text-primary group px-1">
-                <button 
-                  onclick={() => { activeBg = customBg.id; bgDropdownOpen = false; }}
-                  class="grow text-left px-2 py-2 text-xs flex items-center gap-2 cursor-pointer {activeBg === customBg.id ? 'bg-primary/5 text-primary font-bold' : 'text-on-surface'}"
-                >
-                  {#if customBg.icon && customBg.icon.startsWith('data:image/')}
-                    <img src={customBg.icon} class="w-4 h-4 object-contain rounded" alt="" />
-                  {:else}
-                    <span class="material-symbols-outlined text-base">image</span>
-                  {/if}
-                  <span class="truncate max-w-30">{customBg.name}</span>
-                </button>
-                <button 
-                  onclick={() => {
-                    bgDropdownOpen = false;
-                    store.confirm(
-                      'Delete Background Template',
-                      `Are you sure you want to delete the background template "${customBg.name}"?`,
-                      () => {
-                        if (activeBg === customBg.id) activeBg = 'grid';
-                        store.deleteCustomBackground(customBg.id);
-                      }
-                    );
-                  }}
-                  class="p-1.5 text-outline hover:text-error opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none cursor-pointer flex items-center justify-center"
-                  title="Delete Background"
-                >
-                  <span class="material-symbols-outlined text-sm">delete</span>
-                </button>
-              </div>
-            {/each}
-          {/if}
-
-          <div class="border-t border-outline-variant/30 my-1"></div>
-          <button 
-            onclick={() => { isCustomBgModalOpen = true; bgDropdownOpen = false; }}
-            class="w-full text-left px-3 py-2 text-xs hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer text-primary font-semibold"
-          >
-            <span class="material-symbols-outlined text-base">add_box</span>
-            Add Custom Background...
-          </button>
-        </div>
-      {/if}
-    </div>
-
-    <!-- Template Background Opacity Slider -->
-    {#if activeBg !== 'blank'}
-      <div class="flex items-center gap-2 border-r border-outline-variant/30 pr-4">
-        <span class="text-[10px] text-outline">Opacity</span>
-        <input 
-          type="range" 
-          min="1" 
-          max="100" 
-          bind:value={bgOpacity}
-          class="w-16 h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary"
-        />
-        <span class="text-[10px] text-on-surface min-w-[24px]">{bgOpacity}%</span>
-      </div>
-    {/if}
-
     <!-- Zoom Controls -->
     <div class="flex items-center gap-1 border-r border-outline-variant/30 pr-4">
       <button 
@@ -334,16 +235,6 @@
       {/if}
     </div>
 
-    <!-- Divider element and Clear button -->
-    <div class="h-5 w-px bg-outline-variant/30 hidden sm:block"></div>
-    <button 
-      onclick={clearCanvas}
-      class="flex items-center gap-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-highest px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none"
-      title="Clear Canvas"
-    >
-      <span class="material-symbols-outlined text-base">delete_sweep</span>
-      <span>Clear</span>
-    </button>
   </div>
 
   <!-- Right side: Undo / Redo & Check Work Actions -->

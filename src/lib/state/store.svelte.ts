@@ -158,6 +158,7 @@ class CanvasCritiqueStore {
   customBackgrounds = $state([]);
   confirmDialog = $state(null);
   canvasSaves = $state({});
+  canvasSettingsOpen = $state(false);
 
   // Getters for dynamic API/Model selection
   get apiKey() {

@@ -1741,8 +1741,6 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     bind:activePageIndex
     {strokeHistory}
     {redoStack}
-    bind:activeBg
-    bind:bgOpacity
     bind:zoomScale
     bind:panOffset
     bind:showTask
@@ -1750,11 +1748,9 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     bind:showFeedback
     {hasCheckedWork}
     bind:activeTooltipMarker
-    bind:isCustomBgModalOpen
     {handleBack}
     {handleUndo}
     {handleRedo}
-    {clearCanvas}
     {checkWork}
   />
 
@@ -2070,3 +2066,140 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   bind:isCustomBgModalOpen
   bind:activeBg
 />
+
+<!-- Canvas Settings Modal Popup -->
+{#if store.canvasSettingsOpen}
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in select-none">
+    <button type="button" aria-label="Close Canvas Settings" class="absolute inset-0 bg-transparent border-0 cursor-default p-0 m-0 w-full h-full focus:outline-none" onclick={() => store.canvasSettingsOpen = false}></button>
+    <div class="bg-surface border border-outline-variant rounded-xl p-6 w-96 shadow-2xl flex flex-col gap-5 z-10 relative">
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-outline-variant/30 pb-3">
+        <div class="flex items-center gap-2 text-primary">
+          <span class="material-symbols-outlined text-xl">tune</span>
+          <h3 class="font-bold text-base text-on-surface">Canvas Settings</h3>
+        </div>
+        <button 
+          onclick={() => store.canvasSettingsOpen = false}
+          class="text-on-surface-variant hover:bg-surface-container-high rounded-lg p-1.5 flex items-center justify-center transition-colors focus:outline-none cursor-pointer border-0 bg-transparent"
+        >
+          <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+      </div>
+
+      <!-- Background Selection -->
+      <div class="flex flex-col gap-2">
+        <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Background Pattern</span>
+        <!-- Grid of standard options -->
+        <div class="grid grid-cols-3 gap-2">
+          <button 
+            onclick={() => activeBg = 'grid'}
+            class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
+                   {activeBg === 'grid' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+          >
+            <span class="material-symbols-outlined text-xl">apps</span>
+            <span class="text-[11px] font-semibold">Dots</span>
+          </button>
+          <button 
+            onclick={() => activeBg = 'lines'}
+            class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
+                   {activeBg === 'lines' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+          >
+            <span class="material-symbols-outlined text-xl">reorder</span>
+            <span class="text-[11px] font-semibold">Lines</span>
+          </button>
+          <button 
+            onclick={() => activeBg = 'blank'}
+            class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
+                   {activeBg === 'blank' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+          >
+            <span class="material-symbols-outlined text-xl">check_box_outline_blank</span>
+            <span class="text-[11px] font-semibold">Blank</span>
+          </button>
+        </div>
+
+        <!-- Custom Backgrounds list if any -->
+        {#if store.customBackgrounds.length > 0}
+          <div class="mt-2 flex flex-col gap-1.5">
+            <span class="text-[11px] font-semibold text-on-surface-variant">Custom Templates</span>
+            <div class="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar border border-outline-variant/30 rounded-lg p-1">
+              {#each store.customBackgrounds as customBg}
+                <div class="flex items-center justify-between hover:bg-surface-container-high rounded-md group px-2 py-1">
+                  <button 
+                    onclick={() => activeBg = customBg.id}
+                    class="grow text-left text-xs flex items-center gap-2 cursor-pointer border-0 bg-transparent focus:outline-none {activeBg === customBg.id ? 'text-primary font-bold' : 'text-on-surface'}"
+                  >
+                    {#if customBg.icon && customBg.icon.startsWith('data:image/')}
+                      <img src={customBg.icon} class="w-4 h-4 object-contain rounded" alt="" />
+                    {:else}
+                      <span class="material-symbols-outlined text-base">image</span>
+                    {/if}
+                    <span class="truncate max-w-50">{customBg.name}</span>
+                  </button>
+                  <button 
+                    onclick={() => {
+                      store.confirm(
+                        'Delete Background Template',
+                        `Are you sure you want to delete the background template "${customBg.name}"?`,
+                        () => {
+                          if (activeBg === customBg.id) activeBg = 'grid';
+                          store.deleteCustomBackground(customBg.id);
+                        }
+                      );
+                    }}
+                    class="p-1 text-outline hover:text-error opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none cursor-pointer flex items-center justify-center border-0 bg-transparent"
+                    title="Delete Background"
+                  >
+                    <span class="material-symbols-outlined text-sm">delete</span>
+                  </button>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <button 
+          onclick={() => { isCustomBgModalOpen = true; }}
+          class="mt-2 w-full py-2 border border-dashed border-primary/50 text-primary hover:bg-primary/10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none bg-transparent"
+        >
+          <span class="material-symbols-outlined text-base">add_box</span>
+          <span>Add Custom Background</span>
+        </button>
+      </div>
+
+      <!-- Opacity Slider -->
+      {#if activeBg !== 'blank'}
+        <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+          <div class="flex justify-between items-center">
+            <label for="bg-opacity-slider" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Template Opacity</label>
+            <span class="text-xs font-bold text-primary">{bgOpacity}%</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-base text-outline">opacity</span>
+            <input 
+              id="bg-opacity-slider"
+              type="range" 
+              min="1" 
+              max="100" 
+              bind:value={bgOpacity}
+              class="grow h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary border-0"
+            />
+          </div>
+        </div>
+      {/if}
+
+      <!-- Actions -->
+      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4 mt-1">
+        <button 
+          onclick={() => {
+            clearCanvas();
+          }}
+          class="w-full flex items-center justify-center gap-1.5 border border-outline-variant text-on-surface-variant hover:bg-error/10 hover:text-error hover:border-error/30 py-2.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none bg-transparent transition-colors"
+          title="Clear Canvas"
+        >
+          <span class="material-symbols-outlined text-base">delete_sweep</span>
+          <span>Clear Canvas</span>
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

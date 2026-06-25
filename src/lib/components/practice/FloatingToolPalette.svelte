@@ -16,6 +16,22 @@
   let recentColors = $state(['#000000', '#1d4ed8', '#dc2626', '#059669']);
   let colorInput = $state(null);
 
+  // Collapsible state
+  let isCollapsed = $state(false);
+
+  // Position state (right & bottom offset from viewport boundaries)
+  let rightX = $state<number | null>(null);
+  let bottomY = $state<number | null>(null);
+  let isDragging = $state(false);
+  let dragMoved = false;
+
+  let dragStartMouseX = 0;
+  let dragStartMouseY = 0;
+  let dragStartRight = 0;
+  let dragStartBottom = 0;
+
+  let paletteElement = $state<HTMLElement | null>(null);
+
   function selectColor(color) {
     strokeColor = color;
     activeTool = 'pen';
@@ -40,6 +56,7 @@
   let isCustomColorInPalette = $derived(recentColors.includes(strokeColor));
 
   onMount(() => {
+    // Load recent colors
     const savedRecents = localStorage.getItem('canvascritique_recent_colors') || localStorage.getItem('scribeflow_recent_colors');
     if (savedRecents) {
       try {
@@ -48,153 +65,308 @@
         // Fallback
       }
     }
+
+    // Load position
+    const savedPos = localStorage.getItem('canvascritique_palette_pos');
+    if (savedPos) {
+      try {
+        const { right, bottom } = JSON.parse(savedPos);
+        rightX = right;
+        bottomY = bottom;
+      } catch (e) {
+        // Fallback
+      }
+    }
+
+    // Load collapse state
+    const savedCollapse = localStorage.getItem('canvascritique_palette_collapsed');
+    if (savedCollapse !== null) {
+      isCollapsed = savedCollapse === 'true';
+    }
   });
+
+  // Calculate inline style for position
+  let positionStyle = $derived.by(() => {
+    if (rightX === null || bottomY === null) {
+      return 'bottom: 24px; right: 24px;';
+    }
+    return `right: ${rightX}px; bottom: ${bottomY}px; left: auto; top: auto;`;
+  });
+
+  function toggleCollapse() {
+    isCollapsed = !isCollapsed;
+    localStorage.setItem('canvascritique_palette_collapsed', String(isCollapsed));
+  }
+
+  function onMouseDown(e: MouseEvent) {
+    // If expanded, we only drag via dragHandle
+    // If collapsed, we can drag by clicking anywhere on it
+    const target = e.target as HTMLElement;
+    const dragHandle = target.closest('.drag-handle-area');
+    const isCollapsedDrag = isCollapsed;
+
+    if (!dragHandle && !isCollapsedDrag) return;
+
+    e.preventDefault();
+    isDragging = true;
+    dragMoved = false;
+
+    dragStartMouseX = e.clientX;
+    dragStartMouseY = e.clientY;
+
+    if (rightX === null || bottomY === null) {
+      if (paletteElement) {
+        const rect = paletteElement.getBoundingClientRect();
+        rightX = window.innerWidth - rect.right;
+        bottomY = window.innerHeight - rect.bottom;
+      } else {
+        rightX = 24;
+        bottomY = 24;
+      }
+    }
+
+    dragStartRight = rightX;
+    dragStartBottom = bottomY;
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
+
+  function onMouseMove(e: MouseEvent) {
+    if (!isDragging) return;
+
+    const deltaX = e.clientX - dragStartMouseX;
+    const deltaY = e.clientY - dragStartMouseY;
+
+    // Mark as moved if threshold exceeded to distinguish click vs drag
+    if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+      dragMoved = true;
+    }
+
+    let newRight = dragStartRight - deltaX;
+    let newBottom = dragStartBottom - deltaY;
+
+    if (paletteElement) {
+      const rect = paletteElement.getBoundingClientRect();
+      const margin = 12;
+      
+      newRight = Math.max(margin, Math.min(newRight, window.innerWidth - rect.width - margin));
+      newBottom = Math.max(margin, Math.min(newBottom, window.innerHeight - rect.height - margin));
+    }
+
+    rightX = newRight;
+    bottomY = newBottom;
+  }
+
+  function onMouseUp() {
+    isDragging = false;
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+
+    if (rightX !== null && bottomY !== null) {
+      localStorage.setItem('canvascritique_palette_pos', JSON.stringify({ right: rightX, bottom: bottomY }));
+    }
+
+    // Toggle collapse state on simple click when collapsed
+    if (isCollapsed && !dragMoved) {
+      toggleCollapse();
+    }
+  }
 </script>
 
-<div class="fixed bottom-6 right-6 bg-surface-container/95 backdrop-blur-md px-5 py-2.5 rounded-full flex items-center gap-5 shadow-lg border border-outline-variant/30 transition-all hover:scale-[1.02] z-20 select-none">
-  
-  <!-- Color Pickers -->
-  <div class="flex items-center gap-1.5 border-r border-outline-variant pr-4">
-    {#each recentColors as color, idx}
-      <div class="relative group">
+<div 
+  bind:this={paletteElement}
+  class="fixed bg-surface-container/95 backdrop-blur-md shadow-lg border border-outline-variant/30 select-none z-20 flex items-center palette-transition
+         {isCollapsed ? 'w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : (canvasMode === 'infinite' ? 'w-172' : 'w-162') + ' h-12 px-4 rounded-full'}"
+  style="{positionStyle}"
+  onmousedown={onMouseDown}
+>
+  {#if !isCollapsed}
+    <!-- Collapse trigger (arrow on the far left) -->
+    <button 
+      onclick={toggleCollapse}
+      class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors focus:outline-none cursor-pointer flex items-center justify-center shrink-0 border-0 bg-transparent"
+      title="Collapse drawing tools"
+    >
+      <span class="material-symbols-outlined text-base">chevron_right</span>
+    </button>
+
+    <!-- Drag Handle -->
+    <div 
+      class="cursor-grab active:cursor-grabbing text-outline hover:text-on-surface-variant flex items-center justify-center pr-2 border-r border-outline-variant/30 shrink-0 drag-handle-area font-bold"
+      title="Drag to reposition"
+    >
+      <span class="material-symbols-outlined text-[18px]">drag_indicator</span>
+    </div>
+  {/if}
+
+  <!-- Combined inner wrapper that handles fade and overflow -->
+  <div class="grow flex items-center justify-between min-w-0 pl-2 transition-all duration-200 {isCollapsed ? 'opacity-0 w-0 pointer-events-none overflow-hidden' : 'opacity-100'}">
+    <!-- Color Pickers -->
+    <div class="flex items-center gap-1.5 border-r border-outline-variant pr-4 shrink-0">
+      {#each recentColors as color, idx}
+        <div class="relative group">
+          <button 
+            onclick={() => selectColor(color)}
+            class="w-6 h-6 rounded-full cursor-pointer border-2 transition-all hover:scale-110 focus:outline-none" 
+            style="background-color: {color}; border-color: {strokeColor === color && activeTool === 'pen' ? 'var(--md-sys-color-primary, #1d4ed8)' : 'rgba(0, 0, 0, 0.15)'}; transform: {strokeColor === color && activeTool === 'pen' ? 'scale(1.15)' : 'none'}; box-shadow: {strokeColor === color && activeTool === 'pen' ? '0 0 0 2px var(--md-sys-color-primary-container, rgba(29,78,216,0.25))' : '0 1px 2px rgba(0,0,0,0.1)'};"
+            title="Click to select"
+          ></button>
+          {#if recentColors.length > 1}
+            <button
+              onclick={() => removeColorFromPalette(idx)}
+              class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-error text-on-error text-[9px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-0 shadow-sm z-10 hover:scale-110"
+              title="Remove from palette"
+            >×</button>
+          {/if}
+        </div>
+      {/each}
+      
+      <!-- Save to palette button -->
+      {#if !isCustomColorInPalette && activeTool === 'pen'}
+        <button
+          onclick={addColorToPalette}
+          class="w-6 h-6 rounded-full cursor-pointer border-2 border-dashed border-primary/60 hover:border-primary hover:bg-primary/10 transition-all flex items-center justify-center text-primary hover:scale-110 focus:outline-none bg-transparent"
+          title="Save current color to palette"
+        >
+          <span class="material-symbols-outlined text-[14px]">add</span>
+        </button>
+      {/if}
+
+      <!-- Custom Color Picker Button -->
+      <button 
+        onclick={() => colorInput?.click()}
+        class="w-6 h-6 rounded-full cursor-pointer border border-outline-variant/60 hover:scale-110 active:scale-[0.9] transition-all flex items-center justify-center relative overflow-hidden shrink-0"
+        style="background: conic-gradient(from 0deg, red, yellow, lime, aqua, blue, magenta, red);"
+        title="Pick custom color"
+      >
+        <span class="material-symbols-outlined text-[13px] text-white font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">palette</span>
+      </button>
+      <input 
+        type="color" 
+        bind:this={colorInput} 
+        value={strokeColor} 
+        onchange={(e) => selectColor(e.currentTarget.value)} 
+        class="hidden" 
+      />
+    </div>
+
+    <!-- Tool selectors (Pen / Eraser / Hand / Select) and Brush slider -->
+    <div class="flex items-center gap-4 text-xs font-semibold grow justify-between">
+      <div class="flex items-center gap-3">
         <button 
-          onclick={() => selectColor(color)}
-          class="w-6 h-6 rounded-full cursor-pointer border-2 transition-all hover:scale-110 focus:outline-none" 
-          style="background-color: {color}; border-color: {strokeColor === color && activeTool === 'pen' ? 'var(--md-sys-color-primary, #1d4ed8)' : 'rgba(0, 0, 0, 0.15)'}; transform: {strokeColor === color && activeTool === 'pen' ? 'scale(1.15)' : 'none'}; box-shadow: {strokeColor === color && activeTool === 'pen' ? '0 0 0 2px var(--md-sys-color-primary-container, rgba(29,78,216,0.25))' : '0 1px 2px rgba(0,0,0,0.1)'};"
-          title="Click to select"
-        ></button>
-        {#if recentColors.length > 1}
-          <button
-            onclick={() => removeColorFromPalette(idx)}
-            class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-error text-on-error text-[9px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-0 shadow-sm z-10 hover:scale-110"
-            title="Remove from palette"
-          >×</button>
+          onclick={() => activeTool = 'pen'}
+          class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors border-0 bg-transparent cursor-pointer
+                 {activeTool === 'pen' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
+        >
+          <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'pen' ? 'fill' : 'normal'}>edit</span>
+          <span class="text-[9px]">Pen</span>
+        </button>
+        
+        <button 
+          onclick={() => activeTool = 'eraser'}
+          class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors border-0 bg-transparent cursor-pointer
+                 {activeTool === 'eraser' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
+        >
+          <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'eraser' ? 'fill' : 'normal'}>ink_eraser</span>
+          <span class="text-[9px]">Eraser</span>
+        </button>
+
+        <button 
+          onclick={() => activeTool = 'select'}
+          class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors border-0 bg-transparent cursor-pointer
+                 {activeTool === 'select' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
+          title="Selection Tool"
+        >
+          <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'select' ? 'fill' : 'normal'}>select_all</span>
+          <span class="text-[9px]">Select</span>
+        </button>
+
+        {#if canvasMode === 'infinite'}
+          <button 
+            onclick={() => activeTool = 'pan'}
+            class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors border-0 bg-transparent cursor-pointer
+                   {activeTool === 'pan' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
+            title="Pan Canvas"
+          >
+            <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'pan' ? 'fill' : 'normal'}>pan_tool</span>
+            <span class="text-[9px]">Hand</span>
+          </button>
         {/if}
       </div>
-    {/each}
-    
-    <!-- Save to palette button (visible when custom color not in palette) -->
-    {#if !isCustomColorInPalette && activeTool === 'pen'}
-      <button
-        onclick={addColorToPalette}
-        class="w-6 h-6 rounded-full cursor-pointer border-2 border-dashed border-primary/60 hover:border-primary hover:bg-primary/10 transition-all flex items-center justify-center text-primary hover:scale-110 focus:outline-none"
-        title="Save current color to palette"
-      >
-        <span class="material-symbols-outlined text-[14px]">add</span>
-      </button>
-    {/if}
 
-    <!-- Custom Color Picker Button -->
-    <button 
-      onclick={() => colorInput?.click()}
-      class="w-6 h-6 rounded-full cursor-pointer border border-outline-variant/60 hover:scale-110 active:scale-[0.9] transition-all flex items-center justify-center relative overflow-hidden shrink-0"
-      style="background: conic-gradient(from 0deg, red, yellow, lime, aqua, blue, magenta, red);"
-      title="Pick custom color"
-    >
-      <span class="material-symbols-outlined text-[13px] text-white font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">palette</span>
-    </button>
-    <input 
-      type="color" 
-      bind:this={colorInput} 
-      value={strokeColor} 
-      onchange={(e) => selectColor(e.currentTarget.value)} 
-      class="hidden" 
-    />
+      <!-- Floating Undo / Redo Buttons -->
+      <div class="flex items-center gap-3">
+        <div class="h-5 w-px bg-outline-variant/30"></div>
+        
+        <button 
+          onclick={handleUndo}
+          disabled={strokeHistory.length === 0}
+          class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer border-0 bg-transparent"
+          title="Undo (Ctrl+Z)"
+        >
+          <span class="material-symbols-outlined text-[20px]">undo</span>
+          <span class="text-[9px]">Undo</span>
+        </button>
+        
+        <button 
+          onclick={handleRedo}
+          disabled={redoStack.length === 0}
+          class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer border-0 bg-transparent"
+          title="Redo (Ctrl+Y)"
+        >
+          <span class="material-symbols-outlined text-[20px]">redo</span>
+          <span class="text-[9px]">Redo</span>
+        </button>
+      </div>
+      
+      <!-- Pen/Eraser stroke width controller -->
+      <div class="flex items-center gap-1.5 border-l border-outline-variant pl-4 min-w-35 justify-end shrink-0">
+        {#if activeTool === 'pen'}
+          <span class="text-[10px] text-outline">Size</span>
+          <input 
+            type="range" 
+            min="1" 
+            max="12" 
+            bind:value={brushWidth} 
+            class="w-16 h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary border-0" 
+          />
+          <span class="text-[10px] text-on-surface min-w-[24px] text-right">{brushWidth}px</span>
+        {:else if activeTool === 'eraser'}
+          <span class="text-[10px] text-outline">Size</span>
+          <input 
+            type="range" 
+            min="4" 
+            max="80" 
+            bind:value={eraserWidth} 
+            class="w-16 h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary border-0" 
+          />
+          <span class="text-[10px] text-on-surface min-w-[24px] text-right">{eraserWidth}px</span>
+        {:else}
+          <!-- Empty placeholder to maintain width stability -->
+          <div class="w-28"></div>
+        {/if}
+      </div>
+    </div>
   </div>
 
-  <!-- Tool selectors (Pen / Eraser / Hand / Select) and Brush slider -->
-  <div class="flex items-center gap-4 text-xs font-semibold">
-    <button 
-      onclick={() => activeTool = 'pen'}
-      class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors
-             {activeTool === 'pen' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
+  <!-- Expand Button (visible when collapsed) -->
+  {#if isCollapsed}
+    <div 
+      class="absolute inset-0 w-full h-full flex items-center justify-center text-primary hover:bg-surface-container-high transition-colors rounded-full"
+      title="Expand drawing tools"
     >
-      <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'pen' ? 'fill' : 'normal'}>edit</span>
-      <span class="text-[9px]">Pen</span>
-    </button>
-    
-    <button 
-      onclick={() => activeTool = 'eraser'}
-      class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors
-             {activeTool === 'eraser' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
-    >
-      <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'eraser' ? 'fill' : 'normal'}>ink_eraser</span>
-      <span class="text-[9px]">Eraser</span>
-    </button>
-
-    <button 
-      onclick={() => activeTool = 'select'}
-      class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors
-             {activeTool === 'select' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
-      title="Selection Tool"
-    >
-      <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'select' ? 'fill' : 'normal'}>select_all</span>
-      <span class="text-[9px]">Select</span>
-    </button>
-
-    {#if canvasMode === 'infinite'}
-      <button 
-        onclick={() => activeTool = 'pan'}
-        class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors
-               {activeTool === 'pan' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
-        title="Pan Canvas"
-      >
-        <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'pan' ? 'fill' : 'normal'}>pan_tool</span>
-        <span class="text-[9px]">Hand</span>
-      </button>
-    {/if}
-
-    <!-- Floating Undo / Redo Buttons -->
-    <div class="h-5 w-px bg-outline-variant/30"></div>
-    
-    <button 
-      onclick={handleUndo}
-      disabled={strokeHistory.length === 0}
-      class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer"
-      title="Undo (Ctrl+Z)"
-    >
-      <span class="material-symbols-outlined text-[20px]">undo</span>
-      <span class="text-[9px]">Undo</span>
-    </button>
-    
-    <button 
-      onclick={handleRedo}
-      disabled={redoStack.length === 0}
-      class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer"
-      title="Redo (Ctrl+Y)"
-    >
-      <span class="material-symbols-outlined text-[20px]">redo</span>
-      <span class="text-[9px]">Redo</span>
-    </button>
-    
-    <!-- Pen stroke width controller -->
-    {#if activeTool === 'pen'}
-      <div class="flex items-center gap-1.5 border-l border-outline-variant pl-4">
-        <span class="text-[10px] text-outline">Pen Size</span>
-        <input 
-          type="range" 
-          min="1" 
-          max="12" 
-          bind:value={brushWidth} 
-          class="w-16 h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary" 
-        />
-        <span class="text-[10px] text-on-surface min-w-3">{brushWidth}px</span>
-      </div>
-    {/if}
-    
-    <!-- Eraser stroke width controller -->
-    {#if activeTool === 'eraser'}
-      <div class="flex items-center gap-1.5 border-l border-outline-variant pl-4">
-        <span class="text-[10px] text-outline">Eraser Size</span>
-        <input 
-          type="range" 
-          min="4" 
-          max="80" 
-          bind:value={eraserWidth} 
-          class="w-16 h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary" 
-        />
-        <span class="text-[10px] text-on-surface min-w-3">{eraserWidth}px</span>
-      </div>
-    {/if}
-  </div>
+      <span class="material-symbols-outlined text-[22px]">brush</span>
+    </div>
+  {/if}
 </div>
+
+<style>
+  .palette-transition {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                background-color 0.2s ease;
+  }
+</style>

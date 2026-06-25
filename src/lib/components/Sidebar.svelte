@@ -142,6 +142,41 @@
   <div
     class="mt-auto border-t border-outline-variant/30 pt-4 flex flex-col gap-1"
   >
+    <!-- Canvas Settings -->
+    <button
+      onclick={() => {
+        if (store.currentView === 'practice') {
+          store.canvasSettingsOpen = true;
+        }
+      }}
+      disabled={store.currentView !== 'practice'}
+      class="w-full flex items-center rounded-lg transition-all font-semibold text-sm relative group
+             {isCollapsed ? 'justify-center px-0 py-3' : 'gap-3 px-4 py-3'}
+             {store.currentView !== 'practice'
+        ? 'opacity-40 cursor-not-allowed text-on-surface-variant/40'
+        : (store.canvasSettingsOpen
+          ? 'bg-secondary-container text-on-secondary-container border-l-4 border-primary'
+          : 'text-on-surface-variant hover:bg-surface-container-highest')}"
+      title={store.currentView !== 'practice' ? "Only available on drawing canvas" : "Canvas Settings"}
+    >
+      <span
+        class="material-symbols-outlined"
+        data-weight={store.canvasSettingsOpen ? "fill" : "normal"}
+        >tune</span
+      >
+      {#if !isCollapsed}
+        <span>Canvas Settings</span>
+      {/if}
+      {#if isCollapsed}
+        <div
+          class="absolute left-16 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
+        >
+          Canvas Settings
+        </div>
+      {/if}
+    </button>
+
+    <!-- App Settings -->
     <button
       onclick={() => handleNavigate("settings")}
       class="w-full flex items-center rounded-lg transition-all font-semibold text-sm relative group
