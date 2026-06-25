@@ -1,5 +1,6 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
+  import GeminiLogo from '../icons/GeminiLogo.svelte';
 
   // State variables for statistics settings and visualization
   let timeframe = $state<'7' | '30'>('7'); // '7' | '30' days
@@ -281,7 +282,7 @@
     <!-- Gemini Card -->
     <div class="bg-surface p-5 rounded-xl border border-outline-variant shadow-sm hover:shadow-md transition-shadow">
       <div class="flex items-center gap-2.5 mb-4">
-        <span class="material-symbols-outlined text-secondary text-xl">google</span>
+        <GeminiLogo class="text-secondary w-5 h-5 shrink-0" />
         <h4 class="font-bold text-sm text-on-surface">Gemini API</h4>
       </div>
       <div class="space-y-2.5 text-xs text-on-surface-variant">
