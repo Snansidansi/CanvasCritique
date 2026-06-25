@@ -84,7 +84,23 @@
 
   // Data export/import
   async function handleExportData() {
-    await store.saveFileWithDialog('canvascritique_data.json', JSON.stringify(store.projects, null, 2));
+    // Clone the projects to avoid mutating active runtime state
+    const exportProjects = JSON.parse(JSON.stringify(store.projects));
+    
+    // Attach canvas saves for all tasks in each project
+    for (const proj of exportProjects) {
+      proj.canvasSaves = {};
+      if (proj.tasks) {
+        for (const task of proj.tasks) {
+          const save = store.getCanvasState(task.id);
+          if (save) {
+            proj.canvasSaves[task.id] = save;
+          }
+        }
+      }
+    }
+
+    await store.saveFileWithDialog('canvascritique_data.json', JSON.stringify(exportProjects, null, 2));
   }
 
   function handleImportData() {
