@@ -11,7 +11,7 @@
   // Native folder pick wrapper or mock directory selector
   async function selectFolder(type) {
     try {
-      if ((window as any).__TAURI__) {
+      if ((window as any).__TAURI_INTERNALS__) {
         const moduleName = '@tauri-apps/plugin-dialog';
         const { open } = await import(/* @vite-ignore */ moduleName);
         const selected = await open({

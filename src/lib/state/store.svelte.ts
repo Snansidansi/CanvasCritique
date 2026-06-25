@@ -1222,7 +1222,7 @@ class CanvasCritiqueStore {
    */
   async saveFileWithDialog(suggestedFilename: string, content: string): Promise<void> {
     try {
-      if ((window as any).__TAURI__) {
+      if ((window as any).__TAURI_INTERNALS__) {
         const dialogModule = '@tauri-apps/plugin-dialog';
         const fsModule = '@tauri-apps/plugin-fs';
         const { save } = await import(/* @vite-ignore */ dialogModule);
