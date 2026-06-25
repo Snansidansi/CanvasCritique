@@ -168,6 +168,7 @@
       () => {
         store.deleteTasks(project.id, Array.from(selectedTaskIds));
         selectedTaskIds.clear();
+        selectedTaskIds = new Set<string>();
         isSelectionMode = false;
       }
     );
@@ -178,7 +179,31 @@
     const selectedTasks = project.tasks.filter(t => selectedTaskIds.has(t.id));
     store.exportTasks(project, selectedTasks);
     selectedTaskIds.clear();
+    selectedTaskIds = new Set<string>();
     isSelectionMode = false;
+  }
+
+  function toggleSelectTask(taskId: string) {
+    if (selectedTaskIds.has(taskId)) {
+      selectedTaskIds.delete(taskId);
+    } else {
+      selectedTaskIds.add(taskId);
+    }
+    selectedTaskIds = new Set(selectedTaskIds);
+  }
+
+  function handleRowClick(e: MouseEvent, task: any) {
+    if (
+      (e.target as HTMLElement).closest('button') || 
+      (e.target as HTMLElement).closest('input[type="checkbox"]')
+    ) {
+      return;
+    }
+    if (isSelectionMode) {
+      toggleSelectTask(task.id);
+    } else {
+      openPractice(task);
+    }
   }
 </script>
 
@@ -238,6 +263,7 @@
         onclick={() => {
           isSelectionMode = !isSelectionMode;
           selectedTaskIds.clear();
+          selectedTaskIds = new Set<string>();
         }}
         class="font-semibold text-xs py-2.5 px-4 rounded-lg border transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none
                {isSelectionMode ? 'bg-primary/10 text-primary border-primary hover:bg-primary/20' : 'bg-surface-container-low text-on-surface border-outline-variant hover:bg-surface-container'}"
@@ -388,8 +414,16 @@
                   draggable={!isSelectionMode}
                   ondragstart={(e) => handleDragStart(e, task.id, category)}
                   ondrop={(e) => handleDrop(e, category, index)}
-                  class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-4 flex items-center justify-between group hover:border-primary transition-all duration-150 shadow-sm relative overflow-hidden
-                         {isSelectionMode ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}"
+                  onclick={(e) => handleRowClick(e, task)}
+                  onkeydown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      handleRowClick(e as any, task);
+                    }
+                  }}
+                  role="button"
+                  tabindex="0"
+                  class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-4 flex items-center justify-between group hover:border-primary transition-all duration-150 shadow-sm relative overflow-hidden focus:outline-none focus:border-primary
+                         {isSelectionMode ? 'cursor-default' : 'cursor-pointer'}"
                 >
                   <!-- Visual drag indicator or selection checkbox -->
                   <div class="flex items-center gap-3">
@@ -398,11 +432,7 @@
                         type="checkbox" 
                         checked={selectedTaskIds.has(task.id)}
                         onchange={() => {
-                          if (selectedTaskIds.has(task.id)) {
-                            selectedTaskIds.delete(task.id);
-                          } else {
-                            selectedTaskIds.add(task.id);
-                          }
+                          toggleSelectTask(task.id);
                         }}
                         class="rounded border-outline-variant text-primary focus:ring-primary h-4.5 w-4.5 cursor-pointer mr-1.5"
                       />
@@ -412,7 +442,10 @@
                       </span>
 
                       <button 
-                        onclick={() => store.toggleTaskCompleted(project.id, task.id)}
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          store.toggleTaskCompleted(project.id, task.id);
+                        }}
                         class="text-primary hover:opacity-85 focus:outline-none flex items-center cursor-pointer"
                         title={task.completed ? "Mark incomplete" : "Mark complete"}
                       >
@@ -422,23 +455,12 @@
                       </button>
                     {/if}
 
-                    <button 
-                      onclick={() => {
-                        if (isSelectionMode) {
-                          if (selectedTaskIds.has(task.id)) {
-                            selectedTaskIds.delete(task.id);
-                          } else {
-                            selectedTaskIds.add(task.id);
-                          }
-                        } else {
-                          openPractice(task);
-                        }
-                      }}
-                      class="text-left font-semibold text-sm text-on-surface hover:text-primary hover:underline transition-colors focus:outline-none
+                    <span 
+                      class="text-left font-semibold text-sm text-on-surface group-hover:text-primary transition-colors
                              {task.completed && !isSelectionMode ? 'line-through text-outline' : ''}"
                     >
                       {task.name}
-                    </button>
+                    </span>
                   </div>
 
                   <!-- Hover actions (Edit, Export & Delete) -->
@@ -446,7 +468,10 @@
                     <div class="flex items-center gap-2">
                       <!-- Task Edit Icon -->
                       <button 
-                        onclick={() => handleEditTask(task)}
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          handleEditTask(task);
+                        }}
                         class="text-outline hover:text-primary transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm" 
                         title="Edit Task Details"
                       >
@@ -455,7 +480,10 @@
                       </button>
                       <!-- Task Export Icon -->
                       <button 
-                        onclick={() => store.exportTasks(project, [task])}
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          store.exportTasks(project, [task]);
+                        }}
                         class="text-outline hover:text-primary transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm" 
                         title="Export Task"
                       >
@@ -464,11 +492,14 @@
                       </button>
                       <!-- Task Delete Icon -->
                       <button 
-                        onclick={() => store.confirm(
-                          "Delete Task",
-                          `Are you sure you want to delete "${task.name}"? This will permanently delete the task and its canvas drawing history.`,
-                          () => store.deleteTask(project.id, task.id)
-                        )}
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          store.confirm(
+                            "Delete Task",
+                            `Are you sure you want to delete "${task.name}"? This will permanently delete the task and its canvas drawing history.`,
+                            () => store.deleteTask(project.id, task.id)
+                          );
+                        }}
                         class="text-outline hover:text-error hover:border-error/40 transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm"
                         title="Delete Task"
                       >
