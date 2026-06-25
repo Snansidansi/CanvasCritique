@@ -3,6 +3,29 @@
   import Sidebar from "./lib/components/Sidebar.svelte";
   import { onMount } from "svelte";
 
+  // Local state variables for export popup checkboxes
+  let exportIncludeCritique = $state(true);
+  let exportIncludeCanvas = $state(true);
+
+  // Local state variables for import popup checkboxes
+  let importIncludeCritique = $state(true);
+  let importIncludeCanvas = $state(true);
+
+  // Sync checkboxes with store dialog state when opened
+  $effect(() => {
+    if (store.exportDialog) {
+      exportIncludeCritique = store.exportDialog.hasCritique;
+      exportIncludeCanvas = store.exportDialog.hasCanvas;
+    }
+  });
+
+  $effect(() => {
+    if (store.importDialog) {
+      importIncludeCritique = store.importDialog.hasCritique;
+      importIncludeCanvas = store.importDialog.hasCanvas;
+    }
+  });
+
   // Views
   import Dashboard from "./lib/views/Dashboard.svelte";
   import ProjectDetail from "./lib/views/ProjectDetail.svelte";
@@ -74,6 +97,166 @@
           class="px-4 py-2 bg-error text-white text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
         >
           Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Global Export Options Popup Modal Dialog -->
+{#if store.exportDialog}
+  {@const dialog = store.exportDialog}
+  <div
+    class="fixed inset-0 z-100 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in select-none"
+  >
+    <div
+      class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-105 max-w-[90vw] shadow-2xl flex flex-col gap-4"
+    >
+      <div class="flex items-center gap-3 text-primary">
+        <span class="material-symbols-outlined text-2xl">file_download</span>
+        <h3 class="font-bold text-base text-on-surface">
+          Export Options
+        </h3>
+      </div>
+
+      <p class="text-xs text-on-surface-variant leading-relaxed">
+        Choose what additional information you want to save along with the lesson <strong>"{dialog.project.name}"</strong>:
+      </p>
+
+      <div class="flex flex-col gap-3 my-1">
+        <!-- AI Critique Option -->
+        <label class="flex items-start gap-3 p-3 rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer select-none {!dialog.hasCritique ? 'opacity-50 cursor-not-allowed' : ''}">
+          <input
+            type="checkbox"
+            bind:checked={exportIncludeCritique}
+            disabled={!dialog.hasCritique}
+            class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer disabled:cursor-not-allowed"
+          />
+          <div class="flex flex-col">
+            <span class="text-xs font-bold text-on-surface">Include AI Feedback</span>
+            <span class="text-[11px] text-on-surface-variant mt-0.5">
+              {#if dialog.hasCritique}
+                Saves the reviews, scores, and highlighted corrections made by the AI helper.
+              {:else}
+                No AI feedback has been generated yet for this lesson.
+              {/if}
+            </span>
+          </div>
+        </label>
+
+        <!-- Canvas Saves Option -->
+        <label class="flex items-start gap-3 p-3 rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer select-none {!dialog.hasCanvas ? 'opacity-50 cursor-not-allowed' : ''}">
+          <input
+            type="checkbox"
+            bind:checked={exportIncludeCanvas}
+            disabled={!dialog.hasCanvas}
+            class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer disabled:cursor-not-allowed"
+          />
+          <div class="flex flex-col">
+            <span class="text-xs font-bold text-on-surface">Include Your Handwriting</span>
+            <span class="text-[11px] text-on-surface-variant mt-0.5">
+              {#if dialog.hasCanvas}
+                Saves the actual drawings, letters, and practices you wrote on the screen canvas.
+              {:else}
+                No handwriting or drawings have been recorded yet in this lesson.
+              {/if}
+            </span>
+          </div>
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-2">
+        <button
+          onclick={dialog.onCancel}
+          class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
+        >
+          Cancel
+        </button>
+        <button
+          onclick={() => dialog.onConfirm({ includeCritique: exportIncludeCritique, includeCanvas: exportIncludeCanvas })}
+          class="px-4 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
+        >
+          Export Lesson
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Global Import Options Popup Modal Dialog -->
+{#if store.importDialog}
+  {@const dialog = store.importDialog}
+  <div
+    class="fixed inset-0 z-100 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in select-none"
+  >
+    <div
+      class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-105 max-w-[90vw] shadow-2xl flex flex-col gap-4"
+    >
+      <div class="flex items-center gap-3 text-primary">
+        <span class="material-symbols-outlined text-2xl">file_upload</span>
+        <h3 class="font-bold text-base text-on-surface">
+          Import Options
+        </h3>
+      </div>
+
+      <p class="text-xs text-on-surface-variant leading-relaxed">
+        This file contains a calligraphy lesson. Select which items you would like to import:
+      </p>
+
+      <div class="flex flex-col gap-3 my-1">
+        <!-- AI Critique Option -->
+        <label class="flex items-start gap-3 p-3 rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer select-none {!dialog.hasCritique ? 'opacity-50 cursor-not-allowed' : ''}">
+          <input
+            type="checkbox"
+            bind:checked={importIncludeCritique}
+            disabled={!dialog.hasCritique}
+            class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer disabled:cursor-not-allowed"
+          />
+          <div class="flex flex-col">
+            <span class="text-xs font-bold text-on-surface">Import AI Feedback</span>
+            <span class="text-[11px] text-on-surface-variant mt-0.5">
+              {#if dialog.hasCritique}
+                Loads the reviews, scores, and highlighted corrections previously saved.
+              {:else}
+                No AI feedback was found in this file.
+              {/if}
+            </span>
+          </div>
+        </label>
+
+        <!-- Canvas Saves Option -->
+        <label class="flex items-start gap-3 p-3 rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer select-none {!dialog.hasCanvas ? 'opacity-50 cursor-not-allowed' : ''}">
+          <input
+            type="checkbox"
+            bind:checked={importIncludeCanvas}
+            disabled={!dialog.hasCanvas}
+            class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer disabled:cursor-not-allowed"
+          />
+          <div class="flex flex-col">
+            <span class="text-xs font-bold text-on-surface">Import Your Handwriting</span>
+            <span class="text-[11px] text-on-surface-variant mt-0.5">
+              {#if dialog.hasCanvas}
+                Loads the handwritten practices and strokes previously drawn on the screens.
+              {:else}
+                No handwriting or drawings were found in this file.
+              {/if}
+            </span>
+          </div>
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-2">
+        <button
+          onclick={dialog.onCancel}
+          class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
+        >
+          Cancel
+        </button>
+        <button
+          onclick={() => dialog.onConfirm({ importCritique: importIncludeCritique, importCanvas: importIncludeCanvas })}
+          class="px-4 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
+        >
+          Import Lesson
         </button>
       </div>
     </div>

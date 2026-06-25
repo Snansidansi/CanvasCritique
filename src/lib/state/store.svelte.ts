@@ -82,6 +82,22 @@ export interface ConfirmDialog {
   onCancel: () => void;
 }
 
+export interface ExportDialog {
+  project: Project;
+  hasCritique: boolean;
+  hasCanvas: boolean;
+  onConfirm: (options: { includeCritique: boolean; includeCanvas: boolean }) => void;
+  onCancel: () => void;
+}
+
+export interface ImportDialog {
+  projectData: any;
+  hasCritique: boolean;
+  hasCanvas: boolean;
+  onConfirm: (options: { importCritique: boolean; importCanvas: boolean }) => void;
+  onCancel: () => void;
+}
+
 const STORAGE_KEY_PROJECTS = 'canvascritique_projects';
 const STORAGE_KEY_SETTINGS = 'canvascritique_settings';
 
@@ -244,6 +260,8 @@ class CanvasCritiqueStore {
   settings = $state<Settings>(defaultSettings);
   customBackgrounds = $state<CustomBackground[]>([]);
   confirmDialog = $state<ConfirmDialog | null>(null);
+  exportDialog = $state<ExportDialog | null>(null);
+  importDialog = $state<ImportDialog | null>(null);
   canvasSaves = $state<Record<string, any>>({});
   canvasSettingsOpen = $state(false);
   lastDetectedButton = $state<{ button: number; buttons: number; pointerType: string } | null>(null);
@@ -812,6 +830,40 @@ class CanvasCritiqueStore {
 
   importProject(projectData: any): void {
     const data = Array.isArray(projectData) ? projectData : [projectData];
+
+    let hasCritique = false;
+    let hasCanvas = false;
+    for (const proj of data) {
+      if (proj && typeof proj === 'object') {
+        if (proj.canvasSaves && Object.keys(proj.canvasSaves).length > 0) {
+          hasCanvas = true;
+        }
+        if (proj.tasks) {
+          for (const task of proj.tasks) {
+            if (task.critique) {
+              hasCritique = true;
+            }
+          }
+        }
+      }
+    }
+
+    this.importDialog = {
+      projectData,
+      hasCritique,
+      hasCanvas,
+      onConfirm: (options) => {
+        this.executeImportProject(projectData, options);
+        this.importDialog = null;
+      },
+      onCancel: () => {
+        this.importDialog = null;
+      }
+    };
+  }
+
+  private executeImportProject(projectData: any, options: { importCritique: boolean; importCanvas: boolean }): void {
+    const data = Array.isArray(projectData) ? projectData : [projectData];
     let lastImported: Project | null = null;
 
     for (const proj of data) {
@@ -835,7 +887,7 @@ class CanvasCritiqueStore {
         }
 
         // Migrate canvas save under the new task ID
-        if (oldTaskId && importedCanvasSaves[oldTaskId]) {
+        if (options.importCanvas && oldTaskId && importedCanvasSaves[oldTaskId]) {
           this.canvasSaves[taskId] = importedCanvasSaves[oldTaskId];
         }
 
@@ -848,7 +900,7 @@ class CanvasCritiqueStore {
           solutionFiles = [t.solutionFile];
         }
 
-        return {
+        const taskCopy = {
           ...t,
           id: taskId,
           completed: !!t.completed,
@@ -857,6 +909,12 @@ class CanvasCritiqueStore {
           instructionFile: null,
           solutionFile: null
         };
+
+        if (!options.importCritique) {
+          delete taskCopy.critique;
+        }
+
+        return taskCopy;
       });
 
       const newProj: Project = {
@@ -892,26 +950,47 @@ class CanvasCritiqueStore {
   }
 
   exportProject(project: Project): void {
-    // Clone the project to avoid mutating active runtime state
-    const exportData = JSON.parse(JSON.stringify(project));
-    
-    // Attach canvas saves for all tasks in this project
-    exportData.canvasSaves = {};
-    if (project.tasks) {
-      for (const task of project.tasks) {
-        if (this.canvasSaves[task.id]) {
-          exportData.canvasSaves[task.id] = this.canvasSaves[task.id];
-        }
-      }
-    }
+    const hasCritique = !!(project.tasks && project.tasks.some(t => t.critique));
+    const hasCanvas = !!(project.tasks && project.tasks.some(t => this.canvasSaves[t.id]));
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+    this.exportDialog = {
+      project,
+      hasCritique,
+      hasCanvas,
+      onConfirm: (options) => {
+        // Clone the project to avoid mutating active runtime state
+        const exportData = JSON.parse(JSON.stringify(project));
+        
+        // Attach canvas saves for all tasks in this project if requested
+        exportData.canvasSaves = {};
+        if (options.includeCanvas && project.tasks) {
+          for (const task of project.tasks) {
+            if (this.canvasSaves[task.id]) {
+              exportData.canvasSaves[task.id] = this.canvasSaves[task.id];
+            }
+          }
+        }
+
+        // Remove critique from all tasks if not requested
+        if (!options.includeCritique && exportData.tasks) {
+          for (const task of exportData.tasks) {
+            delete task.critique;
+          }
+        }
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        this.exportDialog = null;
+      },
+      onCancel: () => {
+        this.exportDialog = null;
+      }
+    };
   }
 }
 
