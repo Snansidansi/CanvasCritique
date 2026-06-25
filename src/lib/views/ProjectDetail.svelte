@@ -343,8 +343,8 @@
 </script>
 
 <!-- TopAppBar -->
-<header class="h-16 px-8 border-b border-outline-variant bg-surface flex justify-between items-center z-10 shrink-0 select-none">
-  <div class="flex items-center gap-4 min-w-0">
+<header class="h-16 px-4 md:px-8 border-b border-outline-variant bg-surface flex justify-between items-center z-10 shrink-0 select-none">
+  <div class="flex items-center gap-2 md:gap-4 min-w-0">
     <button 
       onclick={handleBack}
       class="material-symbols-outlined text-primary hover:bg-surface-container-high p-2 rounded-full -ml-2 focus:outline-none cursor-pointer"
@@ -353,7 +353,7 @@
       arrow_back
     </button>
     
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 md:gap-3 min-w-0">
       <input
         type="file"
         accept="image/*"
@@ -397,7 +397,7 @@
           <button
             type="button"
             onclick={startNameEdit}
-            class="group flex items-center gap-1.5 font-bold text-lg text-on-surface hover:text-primary transition-colors cursor-pointer text-left focus:outline-none focus:underline"
+            class="group flex items-center gap-1.5 font-bold text-lg text-on-surface hover:text-primary transition-colors cursor-pointer text-left focus:outline-none focus:underline min-w-0"
             title="Click to rename lesson"
           >
             <span class="truncate">{project.name}</span>
@@ -410,10 +410,10 @@
     </div>
   </div>
 
-  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-1.5 md:gap-3">
     <!-- Hide Completed Toggle -->
     {#if project.id !== 'No Lesson Selected'}
-      <label class="flex items-center gap-2 text-xs font-semibold text-on-surface cursor-pointer select-none border border-outline-variant/40 bg-surface-container-low px-3 py-2.5 rounded-lg hover:bg-surface-container transition-all">
+      <label class="flex items-center gap-2 text-xs font-semibold text-on-surface cursor-pointer select-none border border-outline-variant/40 bg-surface-container-low px-2.5 md:px-3 py-2.5 rounded-lg hover:bg-surface-container transition-all" title="Hide Completed Tasks">
         <input 
           type="checkbox" 
           checked={project.hideCompleted || false} 
@@ -423,29 +423,29 @@
           }}
           class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
         />
-        <span>Hide Completed</span>
+        <span class="hidden lg:inline">Hide Completed</span>
       </label>
     {/if}
 
     <!-- Export Lesson Button -->
     <button 
       onclick={() => store.exportProject(project)}
-      class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
+      class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-2.5 md:px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
       title="Export Lesson"
     >
       <span class="material-symbols-outlined text-[18px]">file_download</span>
-      Export Lesson
+      <span class="hidden lg:inline">Export Lesson</span>
     </button>
 
     <!-- Lesson Settings Override Button -->
     {#if project.id !== 'No Lesson Selected'}
       <button 
         onclick={() => showSettingsOverrideModal = true}
-        class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
+        class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-2.5 md:px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
         title="Lesson AI & Evaluation Settings"
       >
         <span class="material-symbols-outlined text-[18px]">settings</span>
-        Settings
+        <span class="hidden lg:inline">Settings</span>
       </button>
     {/if}
 
@@ -457,22 +457,23 @@
           selectedTaskIds.clear();
           selectedTaskIds = new Set<string>();
         }}
-        class="font-semibold text-xs py-2.5 px-4 rounded-lg border transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none
+        class="font-semibold text-xs py-2.5 px-2.5 md:px-4 rounded-lg border transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none
                {isSelectionMode ? 'bg-primary/10 text-primary border-primary hover:bg-primary/20' : 'bg-surface-container-low text-on-surface border-outline-variant hover:bg-surface-container'}"
         title="Toggle Selection Mode"
       >
         <span class="material-symbols-outlined text-[18px]">checklist</span>
-        {isSelectionMode ? 'Cancel Selection' : 'Select Tasks'}
+        <span class="hidden lg:inline">{isSelectionMode ? 'Cancel Selection' : 'Select Tasks'}</span>
       </button>
     {/if}
 
     <!-- Inline Create New Task -->
     <button 
       onclick={handleAddTask}
-      class="bg-primary text-on-primary font-semibold text-xs py-2.5 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
+      class="bg-primary text-on-primary font-semibold text-xs py-2.5 px-2.5 md:px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
+      title="Create New Task"
     >
       <span class="material-symbols-outlined text-[18px]">add_circle</span>
-      Create New Task
+      <span class="hidden md:inline">Create New Task</span>
     </button>
   </div>
 </header>
