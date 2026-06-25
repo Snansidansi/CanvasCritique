@@ -26,6 +26,7 @@ export interface Project {
   categories: string[];
   tasks: Task[];
   profileId: string;
+  hideCompleted?: boolean;
 }
 
 export interface StylusButton {
@@ -736,6 +737,24 @@ class CanvasCritiqueStore {
     }
     if (this.activeTask && this.activeTask.id === taskId) {
       this.activeTask = task;
+    }
+  }
+
+  deleteTask(projectId: string, taskId: string): void {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    project.tasks = project.tasks.filter(t => t.id !== taskId);
+    this.saveProjects();
+
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
+    if (this.activeTask && this.activeTask.id === taskId) {
+      this.activeTask = null;
+    }
+    if (this.editingTask && this.editingTask.id === taskId) {
+      this.editingTask = null;
     }
   }
 

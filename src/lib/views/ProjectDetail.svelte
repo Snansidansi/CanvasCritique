@@ -1,13 +1,16 @@
 <script lang="ts">
-  import { store } from '../state/store.svelte';
+  import { store, type Project } from '../state/store.svelte';
 
   // Derived project state from store
-  let project = $derived(store.activeProject || {
+  let project = $derived(store.activeProject || ({
+    id: '',
     name: 'No Lesson Selected',
     icon: 'history_edu',
+    guidelines: '',
     categories: [],
-    tasks: []
-  });
+    tasks: [],
+    profileId: ''
+  } as Project));
 
   // Categories list
   let categories = $derived(project.categories || []);
@@ -328,7 +331,7 @@
                     </button>
                   </div>
 
-                  <!-- Hover actions (Edit) -->
+                  <!-- Hover actions (Edit & Delete) -->
                   <div class="flex items-center gap-2">
                     <!-- Task Edit Pen Icon: Always visible -->
                     <button 
@@ -338,6 +341,18 @@
                     >
                       <span class="material-symbols-outlined text-[16px]">edit</span>
                       Edit
+                    </button>
+                    <button 
+                      onclick={() => store.confirm(
+                        "Delete Task",
+                        `Are you sure you want to delete "${task.name}"? This will permanently delete the task and its canvas drawing history.`,
+                        () => store.deleteTask(project.id, task.id)
+                      )}
+                      class="text-outline hover:text-error hover:border-error/40 transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm"
+                      title="Delete Task"
+                    >
+                      <span class="material-symbols-outlined text-[16px] text-error">delete</span>
+                      Delete
                     </button>
                   </div>
                 </div>
