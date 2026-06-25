@@ -87,7 +87,7 @@ export interface ExportDialog {
   project: Project;
   hasCritique: boolean;
   hasCanvas: boolean;
-  onConfirm: (options: { includeCritique: boolean; includeCanvas: boolean }) => void;
+  onConfirm: (options: { includeCritique: boolean; includeCanvas: boolean; includeCompleted: boolean }) => void;
   onCancel: () => void;
 }
 
@@ -95,7 +95,7 @@ export interface ImportDialog {
   projectData: any;
   hasCritique: boolean;
   hasCanvas: boolean;
-  onConfirm: (options: { importCritique: boolean; importCanvas: boolean }) => void;
+  onConfirm: (options: { importCritique: boolean; importCanvas: boolean; importCompleted: boolean }) => void;
   onCancel: () => void;
 }
 
@@ -864,7 +864,7 @@ class CanvasCritiqueStore {
     };
   }
 
-  private executeImportProject(projectData: any, options: { importCritique: boolean; importCanvas: boolean }): void {
+  private executeImportProject(projectData: any, options: { importCritique: boolean; importCanvas: boolean; importCompleted: boolean }): void {
     const data = Array.isArray(projectData) ? projectData : [projectData];
     let lastImported: Project | null = null;
 
@@ -905,7 +905,7 @@ class CanvasCritiqueStore {
         const taskCopy = {
           ...t,
           id: taskId,
-          completed: !!t.completed,
+          completed: options.importCompleted ? !!t.completed : false,
           instructionFiles,
           solutionFiles,
           instructionFile: null,
@@ -977,6 +977,13 @@ class CanvasCritiqueStore {
         if (!options.includeCritique && exportData.tasks) {
           for (const task of exportData.tasks) {
             delete task.critique;
+          }
+        }
+
+        // Remove completed status from all tasks if not requested
+        if (!options.includeCompleted && exportData.tasks) {
+          for (const task of exportData.tasks) {
+            task.completed = false;
           }
         }
 

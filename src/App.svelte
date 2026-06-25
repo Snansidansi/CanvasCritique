@@ -6,16 +6,19 @@
   // Local state variables for export popup checkboxes
   let exportIncludeCritique = $state(true);
   let exportIncludeCanvas = $state(true);
+  let exportIncludeCompleted = $state(true);
 
   // Local state variables for import popup checkboxes
   let importIncludeCritique = $state(true);
   let importIncludeCanvas = $state(true);
+  let importIncludeCompleted = $state(true);
 
   // Sync checkboxes with store dialog state when opened
   $effect(() => {
     if (store.exportDialog) {
       exportIncludeCritique = store.exportDialog.hasCritique;
       exportIncludeCanvas = store.exportDialog.hasCanvas;
+      exportIncludeCompleted = true;
     }
   });
 
@@ -23,6 +26,7 @@
     if (store.importDialog) {
       importIncludeCritique = store.importDialog.hasCritique;
       importIncludeCanvas = store.importDialog.hasCanvas;
+      importIncludeCompleted = true;
     }
   });
 
@@ -163,6 +167,21 @@
             </span>
           </div>
         </label>
+
+        <!-- Task Completion Option -->
+        <label class="flex items-start gap-3 p-3 rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer select-none">
+          <input
+            type="checkbox"
+            bind:checked={exportIncludeCompleted}
+            class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+          />
+          <div class="flex flex-col">
+            <span class="text-xs font-bold text-on-surface">Include Task Status</span>
+            <span class="text-[11px] text-on-surface-variant mt-0.5">
+              Saves whether tasks are marked as finished or not.
+            </span>
+          </div>
+        </label>
       </div>
 
       <div class="flex justify-end gap-3 mt-2">
@@ -173,7 +192,7 @@
           Cancel
         </button>
         <button
-          onclick={() => dialog.onConfirm({ includeCritique: exportIncludeCritique, includeCanvas: exportIncludeCanvas })}
+          onclick={() => dialog.onConfirm({ includeCritique: exportIncludeCritique, includeCanvas: exportIncludeCanvas, includeCompleted: exportIncludeCompleted })}
           class="px-4 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
         >
           Export Lesson
@@ -243,6 +262,21 @@
             </span>
           </div>
         </label>
+
+        <!-- Task Completion Option -->
+        <label class="flex items-start gap-3 p-3 rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer select-none">
+          <input
+            type="checkbox"
+            bind:checked={importIncludeCompleted}
+            class="mt-1 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+          />
+          <div class="flex flex-col">
+            <span class="text-xs font-bold text-on-surface">Import Task Status</span>
+            <span class="text-[11px] text-on-surface-variant mt-0.5">
+              Loads the checked/unchecked status of tasks from the file.
+            </span>
+          </div>
+        </label>
       </div>
 
       <div class="flex justify-end gap-3 mt-2">
@@ -253,7 +287,7 @@
           Cancel
         </button>
         <button
-          onclick={() => dialog.onConfirm({ importCritique: importIncludeCritique, importCanvas: importIncludeCanvas })}
+          onclick={() => dialog.onConfirm({ importCritique: importIncludeCritique, importCanvas: importIncludeCanvas, importCompleted: importIncludeCompleted })}
           class="px-4 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
         >
           Import Lesson
