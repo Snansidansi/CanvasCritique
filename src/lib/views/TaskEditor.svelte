@@ -197,8 +197,8 @@
       <div class="flex gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-amber-800 dark:text-amber-300">
         <span class="material-symbols-outlined text-[20px] shrink-0 mt-0.5">warning</span>
         <div class="flex flex-col gap-0.5">
-          <p class="text-xs font-semibold">Hinweis zu Dokumenten &amp; API-Kosten</p>
-          <p class="text-[11px] leading-normal opacity-90">Zu viele Dokumente erhöhen den API-Kontext, wodurch das Ergebnis ungenauer werden kann und die Kosten steigen. Bitte lade nur die notwendigen Referenzmaterialien hoch.</p>
+          <p class="text-xs font-semibold">Note on Documents &amp; API Costs</p>
+          <p class="text-[11px] leading-normal opacity-90">Too many documents increase the API context size, which can make the results less accurate and increase costs. Please only upload the necessary reference materials.</p>
         </div>
       </div>
 
