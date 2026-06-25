@@ -201,9 +201,19 @@
             </button>
 
             <div class="flex gap-2">
+              {#if project.tasks && project.tasks.length > 0}
+                {@const nextTask = project.tasks.find(t => !t.completed) || project.tasks[0]}
+                <button
+                  onclick={() => openPractice(nextTask, project)}
+                  class="text-outline hover:text-primary transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer flex items-center justify-center"
+                  title="Resume/Start Lesson"
+                >
+                  <span class="material-symbols-outlined text-[20px]">play_arrow</span>
+                </button>
+              {/if}
               <button
                 onclick={() => store.exportProject(project)}
-                class="text-outline hover:text-primary transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer"
+                class="text-outline hover:text-primary transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer flex items-center justify-center"
                 title="Export Lesson"
               >
                 <span class="material-symbols-outlined text-[20px]"
