@@ -212,6 +212,13 @@
     }
   });
 
+  let activePointers = new Map<number, PointerEvent>();
+  let initialPinchDistance = 0;
+  let initialPinchZoom = 1;
+  let initialPinchMidpoint = { x: 0, y: 0 };
+  let initialPinchPanOffset = { x: 0, y: 0 };
+  let isPinching = false;
+
 
 
   // Dynamic background mapping
@@ -425,6 +432,38 @@
   function handlePointerDown(e) {
     if (!ctx || !canvasElement) return;
 
+    activePointers.set(e.pointerId, e);
+
+    // Check if 2 fingers are touching for pinch-to-zoom
+    if (activePointers.size === 2) {
+      const pts = Array.from(activePointers.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      
+      // Calculate initial pinch values
+      initialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      initialPinchZoom = zoomScale;
+      initialPinchMidpoint = {
+        x: (p1.clientX + p2.clientX) / 2,
+        y: (p1.clientY + p2.clientY) / 2
+      };
+      initialPinchPanOffset = { ...panOffset };
+      isPinching = true;
+      
+      // Cancel drawing or simple panning
+      isDrawing = false;
+      currentStroke = [];
+      isPanning = false;
+      
+      e.preventDefault();
+      return;
+    }
+
+    if (activePointers.size > 2) {
+      e.preventDefault();
+      return;
+    }
+
     // Check stylus characteristics
     const isPen = e.pointerType === 'pen';
     const hasPenButton3 = isPen && (((e.buttons & 8) !== 0) || ((e.buttons & 16) !== 0) || e.button === 3 || e.button === 4);
@@ -561,6 +600,50 @@
   }
 
   function handlePointerMove(e) {
+    activePointers.set(e.pointerId, e);
+
+    if (isPinching && activePointers.size === 2) {
+      e.preventDefault();
+      const pts = Array.from(activePointers.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      
+      const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      const currentMidpoint = {
+        x: (p1.clientX + p2.clientX) / 2,
+        y: (p1.clientY + p2.clientY) / 2
+      };
+      
+      if (initialPinchDistance > 0 && canvasElement) {
+        const factor = currentDistance / initialPinchDistance;
+        const newScale = Math.max(0.2, Math.min(4.0, initialPinchZoom * factor));
+        
+        const rect = canvasElement.getBoundingClientRect();
+        
+        // World coordinates of initial midpoint
+        const worldX = (initialPinchMidpoint.x - rect.left - initialPinchPanOffset.x) / initialPinchZoom;
+        const worldY = (initialPinchMidpoint.y - rect.top - initialPinchPanOffset.y) / initialPinchZoom;
+        
+        // Calculate new pan offset based on current midpoint and new scale
+        let newPanX = (currentMidpoint.x - rect.left) - worldX * newScale;
+        let newPanY = (currentMidpoint.y - rect.top) - worldY * newScale;
+        
+        if (canvasMode === 'infinite') {
+          newPanX = Math.min(0, newPanX);
+          newPanY = Math.min(0, newPanY);
+        }
+        
+        zoomScale = newScale;
+        panOffset = { x: newPanX, y: newPanY };
+        saveToStoreDebounced();
+      }
+      return;
+    }
+
+    if (activePointers.size > 1) {
+      return;
+    }
+
     // If long-press is active, cancel it if cursor moves > 5px
     if (longPressTimer) {
       const dist = Math.hypot(e.clientX - longPressStartPos.x, e.clientY - longPressStartPos.y);
@@ -623,10 +706,21 @@
   }
 
   function handlePointerUp(e) {
+    activePointers.delete(e.pointerId);
+
     if (e && canvasElement && canvasElement.hasPointerCapture(e.pointerId)) {
       try {
         canvasElement.releasePointerCapture(e.pointerId);
       } catch (err) {}
+    }
+
+    if (isPinching) {
+      if (activePointers.size < 2) {
+        isPinching = false;
+      }
+      saveToStore();
+      e.preventDefault();
+      return;
     }
 
     if (longPressTimer) {
@@ -677,6 +771,16 @@
   }
 
   function handlePointerLeave(e) {
+    activePointers.delete(e.pointerId);
+
+    if (isPinching) {
+      if (activePointers.size < 2) {
+        isPinching = false;
+      }
+      saveToStore();
+      return;
+    }
+
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       longPressTimer = null;
@@ -692,6 +796,19 @@
     isPointerSelect = false;
     isPointerPan = false;
     isPointerPen = false;
+  }
+
+  function handlePointerCancel(e) {
+    activePointers.delete(e.pointerId);
+    if (isPinching) {
+      if (activePointers.size < 2) {
+        isPinching = false;
+      }
+      saveToStore();
+    }
+    isDrawing = false;
+    currentStroke = [];
+    isPanning = false;
   }
 
   function handleWheel(e) {
@@ -1225,6 +1342,7 @@
             onpointermove={handlePointerMove}
             onpointerup={handlePointerUp}
             onpointerleave={handlePointerLeave}
+            onpointercancel={handlePointerCancel}
             onwheel={handleWheel}
             oncontextmenu={e => e.preventDefault()}
             class="absolute inset-0 w-full h-full z-10 bg-white {cursorClass}"
@@ -1313,6 +1431,7 @@
             onpointermove={handlePointerMove}
             onpointerup={handlePointerUp}
             onpointerleave={handlePointerLeave}
+            onpointercancel={handlePointerCancel}
             oncontextmenu={e => e.preventDefault()}
             class="absolute inset-0 w-full h-full z-10 bg-transparent {cursorClass}"
             style="touch-action: none;"
