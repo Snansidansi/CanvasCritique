@@ -26,6 +26,7 @@ export * from './defaults';
 class CanvasCritiqueStore {
   // Runes
   currentView = $state('dashboard'); // 'dashboard' | 'practice' | 'settings' | 'task-editor' | 'project-detail'
+  previousView = $state('dashboard');
   projects = $state<Project[]>([]);
   activeProject = $state<Project | null>(null);
   activeTask = $state<Task | null>(null);
@@ -340,6 +341,11 @@ class CanvasCritiqueStore {
 
   // Navigation actions
   setView(view: string): void {
+    if (this.currentView !== 'settings' && view === 'settings') {
+      this.previousView = this.currentView;
+    } else if (view !== 'settings' && this.currentView !== 'settings') {
+      this.previousView = this.currentView;
+    }
     this.currentView = view;
   }
 

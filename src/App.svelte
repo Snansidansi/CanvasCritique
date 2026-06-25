@@ -57,9 +57,22 @@
     const handleGlobalContextMenu = (e: MouseEvent) => {
       e.preventDefault();
     };
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Toggle settings with Ctrl + , or Cmd + ,
+      if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+        e.preventDefault();
+        if (store.currentView === 'settings') {
+          store.setView(store.previousView || 'dashboard');
+        } else {
+          store.setView('settings');
+        }
+      }
+    };
     window.addEventListener("contextmenu", handleGlobalContextMenu);
+    window.addEventListener("keydown", handleGlobalKeyDown);
     return () => {
       window.removeEventListener("contextmenu", handleGlobalContextMenu);
+      window.removeEventListener("keydown", handleGlobalKeyDown);
     };
   });
 </script>
