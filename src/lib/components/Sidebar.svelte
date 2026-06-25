@@ -101,39 +101,63 @@
       class="flex flex-col gap-1 overflow-y-auto overflow-x-hidden max-h-[50vh] custom-scrollbar"
     >
       {#each store.projects.filter(p => p.profileId === store.activeProfileId) as project}
-        <button
+        <div
+          role="button"
+          tabindex="0"
           onclick={() => handleNavigate("project-detail", project)}
-          class="w-full flex items-center rounded-lg hover:bg-surface-container-highest text-on-surface-variant text-left relative group
-                 {isCollapsed
-            ? 'justify-center px-0 py-2.5'
-            : 'gap-3 px-4 py-2 text-sm'}
+          onkeydown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleNavigate("project-detail", project);
+            }
+          }}
+          class="w-full flex items-center justify-between rounded-lg hover:bg-surface-container-highest text-on-surface-variant text-left relative group cursor-pointer transition-colors duration-200 select-none
+                 {isCollapsed ? 'justify-center px-0 py-2.5' : 'pl-4 py-2 text-sm'}
+                 {!isCollapsed && project.tasks && project.tasks.length > 0 ? 'pr-2' : 'pr-4'}
                  {store.activeProject?.id === project.id &&
           (store.currentView === 'project-detail' ||
             store.currentView === 'practice')
             ? 'bg-surface-container font-semibold text-primary'
             : ''}"
         >
-          {#if project.icon && project.icon.startsWith("data:image/")}
-            <img
-              src={project.icon}
-              class="w-4.5 h-4.5 object-contain rounded shrink-0"
-              alt=""
-            />
-          {:else}
-            <span class="material-symbols-outlined text-[18px] shrink-0"
-              >{project.icon || "history_edu"}</span
+          <div class="flex items-center gap-3 min-w-0 flex-1">
+            {#if project.icon && project.icon.startsWith("data:image/")}
+              <img
+                src={project.icon}
+                class="w-4.5 h-4.5 object-contain rounded shrink-0"
+                alt=""
+              />
+            {:else}
+              <span class="material-symbols-outlined text-[18px] shrink-0"
+                >{project.icon || "history_edu"}</span
+              >
+            {/if}
+            {#if !isCollapsed}
+              <span class="truncate flex-1 min-w-0">{project.name}</span>
+            {:else}
+              <div
+                class="absolute left-16 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
+              >
+                {project.name}
+              </div>
+            {/if}
+          </div>
+
+          {#if !isCollapsed && project.tasks && project.tasks.length > 0}
+            {@const nextTask = project.tasks.find(t => !t.completed) || project.tasks[0]}
+            <button
+              onclick={(e) => {
+                e.stopPropagation();
+                store.selectProject(project);
+                store.selectTask(nextTask);
+              }}
+              class="text-outline hover:text-primary transition-all p-1 rounded hover:bg-surface-container-high cursor-pointer flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto shrink-0"
+              title="Resume/Start Lesson"
             >
+              <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+            </button>
           {/if}
-          {#if !isCollapsed}
-            <span class="truncate">{project.name}</span>
-          {:else}
-            <div
-              class="absolute left-16 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
-            >
-              {project.name}
-            </div>
-          {/if}
-        </button>
+        </div>
       {/each}
     </div>
   </nav>
