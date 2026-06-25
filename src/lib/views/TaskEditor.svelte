@@ -58,7 +58,7 @@
       return;
     }
     if (!targetProjectId) {
-      alert('Please select a project or create one first.');
+      alert('Please select a lesson or create one first.');
       return;
     }
 

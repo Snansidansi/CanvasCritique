@@ -3,7 +3,7 @@
 
   // Derived project state from store
   let project = $derived(store.activeProject || {
-    name: 'No Project Selected',
+    name: 'No Lesson Selected',
     icon: 'history_edu',
     categories: [],
     tasks: []
@@ -153,14 +153,14 @@
   </div>
 
   <div class="flex items-center gap-3">
-    <!-- Export Project Button -->
+    <!-- Export Lesson Button -->
     <button 
       onclick={() => store.exportProject(project)}
       class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
-      title="Export Project"
+      title="Export Lesson"
     >
       <span class="material-symbols-outlined text-[18px]">file_download</span>
-      Export Project
+      Export Lesson
     </button>
 
     <!-- Inline Create New Task -->

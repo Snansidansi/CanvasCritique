@@ -6,6 +6,23 @@
   let isAddProjectOpen = $state(false);
   let newProjectName = $state('');
   let newProjectIcon = $state('history_edu');
+  let fileInput: HTMLInputElement | null = $state(null);
+  
+  function handleImportFile(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(reader.result as string);
+        store.importProject(imported);
+      } catch (err) {
+        alert('Failed to parse file. Make sure it is valid JSON.');
+      }
+    };
+    reader.readAsText(file);
+    (e.target as HTMLInputElement).value = '';
+  }
   
   // Quick task add state per project
   let quickTaskName = $state({}); // key is projectId, value is task name
@@ -85,7 +102,7 @@
 <!-- Header bar -->
 <header class="h-16 px-8 border-b border-outline-variant bg-surface flex justify-between items-center z-10 shrink-0">
   <div class="text-on-surface font-semibold text-lg">
-    Projects Dashboard
+    Lesson Dashboard
   </div>
   
   <!-- Search & Actions -->
@@ -96,26 +113,34 @@
       <input 
         bind:value={searchQuery}
         class="w-full bg-surface-container-low border border-outline-variant rounded-full py-1.5 pl-10 pr-4 text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
-        placeholder="Search projects..." 
+        placeholder="Search lessons..." 
         type="text"
       />
     </div>
 
-    <!-- Import Mock Button -->
+    <!-- Import Lesson Button -->
+    <input 
+      type="file" 
+      accept="application/json" 
+      bind:this={fileInput} 
+      onchange={handleImportFile} 
+      class="hidden" 
+    />
     <button 
-      class="bg-surface-container-low text-on-surface p-2 rounded-lg border border-outline-variant hover:bg-surface-container-high transition-colors flex items-center justify-center shrink-0" 
-      title="Import Project"
+      onclick={() => fileInput?.click()}
+      class="bg-surface-container-low text-on-surface p-2 rounded-lg border border-outline-variant hover:bg-surface-container-high transition-colors flex items-center justify-center shrink-0 cursor-pointer" 
+      title="Import Lesson"
     >
       <span class="material-symbols-outlined text-[20px]">file_upload</span>
     </button>
 
-    <!-- Create project button -->
+    <!-- Create lesson button -->
     <button 
       onclick={() => isAddProjectOpen = true}
-      class="bg-primary text-on-primary font-semibold text-xs py-2.5 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5 shrink-0"
+      class="bg-primary text-on-primary font-semibold text-xs py-2.5 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer"
     >
       <span class="material-symbols-outlined text-[18px]">add_circle</span>
-      Create Project
+      Create Lesson
     </button>
   </div>
 </header>
@@ -126,7 +151,7 @@
   <section class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
     <div>
       <h2 class="text-2xl font-bold text-on-background">Welcome back, Calligrapher</h2>
-      <p class="text-sm text-on-surface-variant mt-1">You have {activeProjectsCount} active projects in progress.</p>
+      <p class="text-sm text-on-surface-variant mt-1">You have {activeProjectsCount} active lessons in progress.</p>
     </div>
   </section>
 
@@ -155,18 +180,18 @@
               <button 
                 onclick={() => store.exportProject(project)}
                 class="text-outline hover:text-primary transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer" 
-                title="Export Project"
+                title="Export Lesson"
               >
                 <span class="material-symbols-outlined text-[20px]">file_download</span>
               </button>
               <button 
                 onclick={() => store.confirm(
-                  'Delete Lesson Script',
-                  `Are you sure you want to delete "${project.name}"? This will permanently discard this calligraphy script project, its task lists, reference files, and historical practice logs.`,
+                  'Delete Lesson',
+                  `Are you sure you want to delete "${project.name}"? This will permanently discard this calligraphy lesson, its task lists, reference files, and historical practice logs.`,
                   () => store.deleteProject(project.id)
                 )}
                 class="text-outline hover:text-error transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer" 
-                title="Delete Project"
+                title="Delete Lesson"
               >
                 <span class="material-symbols-outlined text-[20px]">delete</span>
               </button>
@@ -289,11 +314,11 @@
 {#if isAddProjectOpen}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
     <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-100 shadow-xl flex flex-col gap-4">
-      <h3 class="font-bold text-lg text-on-surface">Create Calligraphy Script</h3>
+      <h3 class="font-bold text-lg text-on-surface">Create Calligraphy Lesson</h3>
       
       <form onsubmit={handleCreateProject} class="flex flex-col gap-4">
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-semibold text-on-surface-variant" for="projName">Script Name</label>
+          <label class="text-xs font-semibold text-on-surface-variant" for="projName">Lesson Name</label>
           <input 
             type="text" 
             id="projName" 

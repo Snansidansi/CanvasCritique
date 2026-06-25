@@ -574,11 +574,79 @@ class CanvasCritiqueStore {
     return this.canvasSaves[taskId] || null;
   }
 
+  importProject(projectData: any) {
+    const data = Array.isArray(projectData) ? projectData : [projectData];
+    let lastImported = null;
+
+    for (const proj of data) {
+      if (!proj || typeof proj !== 'object' || !proj.name) continue;
+
+      // Check if project.id already exists to avoid conflict, or generate a new unique ID
+      let newId = proj.id;
+      if (!newId || this.projects.some(p => p.id === newId)) {
+        newId = 'proj-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+      }
+
+      // Ensure categories exist
+      const categories = proj.categories || [];
+
+      // Ensure tasks exist and are initialized
+      const tasks = (proj.tasks || []).map((t: any, idx: number) => {
+        let taskId = t.id;
+        if (!taskId) {
+          taskId = 'task-' + Date.now() + '-' + idx + '-' + Math.random().toString(36).substring(2, 5);
+        }
+        
+        // Normalize legacy files
+        let instructionFiles = t.instructionFiles || [];
+        if (t.instructionFile && instructionFiles.length === 0) {
+          instructionFiles = [t.instructionFile];
+        }
+        let solutionFiles = t.solutionFiles || [];
+        if (t.solutionFile && solutionFiles.length === 0) {
+          solutionFiles = [t.solutionFile];
+        }
+
+        return {
+          ...t,
+          id: taskId,
+          completed: !!t.completed,
+          instructionFiles,
+          solutionFiles,
+          instructionFile: null,
+          solutionFile: null
+        };
+      });
+
+      const newProj = {
+        ...proj,
+        id: newId,
+        name: proj.name,
+        icon: proj.icon || 'history_edu',
+        guidelines: proj.guidelines || '',
+        categories,
+        tasks
+      };
+
+      this.projects.push(newProj);
+      lastImported = newProj;
+    }
+
+    if (lastImported) {
+      this.saveProjects();
+      this.selectProject(lastImported);
+      this.setView('project-detail');
+      alert('Lesson(s) imported successfully!');
+    } else {
+      alert('Could not find any valid lesson to import.');
+    }
+  }
+
   exportProject(project: any) {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `project_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`);
+    downloadAnchor.setAttribute("download", `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();

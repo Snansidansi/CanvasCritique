@@ -115,7 +115,7 @@
             store.saveProjects();
             alert('Data imported successfully!');
           } else {
-            alert('Invalid format. Data must be a JSON array of projects.');
+            alert('Invalid format. Data must be a JSON array of lessons.');
           }
         } catch (err) {
           alert('Failed to parse file. Make sure it is valid JSON.');
@@ -285,7 +285,7 @@
       <div class="flex items-center justify-between mb-6">
         <div>
           <h4 class="font-bold text-sm text-on-surface mb-1">Automatic Database Export</h4>
-          <p class="text-xs text-on-surface-variant">Regularly save a copy of your projects and practice history.</p>
+          <p class="text-xs text-on-surface-variant">Regularly save a copy of your lessons and practice history.</p>
         </div>
         
         <label class="relative inline-flex items-center cursor-pointer select-none">
