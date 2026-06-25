@@ -48,7 +48,8 @@
   }
 
   function getCategoryTasks(cat) {
-    return project.tasks.filter(t => (t.category || 'Basics') === cat);
+    const tasks = project.tasks.filter(t => (t.category || 'Basics') === cat);
+    return project.hideCompleted ? tasks.filter(t => !t.completed) : tasks;
   }
 
   function getProjectProgress() {
@@ -153,6 +154,22 @@
   </div>
 
   <div class="flex items-center gap-3">
+    <!-- Hide Completed Toggle -->
+    {#if project.id !== 'No Lesson Selected'}
+      <label class="flex items-center gap-2 text-xs font-semibold text-on-surface cursor-pointer select-none border border-outline-variant/40 bg-surface-container-low px-3 py-2.5 rounded-lg hover:bg-surface-container transition-all">
+        <input 
+          type="checkbox" 
+          checked={project.hideCompleted || false} 
+          onchange={(e) => {
+            project.hideCompleted = (e.target as HTMLInputElement).checked;
+            store.saveProjects();
+          }}
+          class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+        />
+        <span>Hide Completed</span>
+      </label>
+    {/if}
+
     <!-- Export Lesson Button -->
     <button 
       onclick={() => store.exportProject(project)}
