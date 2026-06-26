@@ -56,11 +56,11 @@
   function handleSave(e) {
     e.preventDefault();
     if (!taskName.trim()) {
-      alert('Please enter a task name.');
+      alert(t('taskEditor.alertEnterName'));
       return;
     }
     if (!targetProjectId) {
-      alert('Please select a lesson or create one first.');
+      alert(t('taskEditor.alertSelectLesson'));
       return;
     }
 
@@ -145,7 +145,7 @@
       return decodeURIComponent(escape(atob(base64Data)));
     } catch (e) {
       console.error('Failed to decode text document', e);
-      return 'Error: Failed to decode text document.';
+      return t('taskEditor.errorDecode');
     }
   }
 
@@ -237,9 +237,9 @@
       }
 
       if (addedAny) {
-        store.showNotification('Pasted from clipboard successfully!', 'success');
+        store.showNotification(t('taskEditor.pasteSuccess'), 'success');
       } else {
-        store.showNotification('No image or text found in clipboard.', 'error');
+        store.showNotification(t('taskEditor.pasteErrorNoMedia'), 'error');
       }
     } catch (err) {
       console.error('Failed to read clipboard:', err);
@@ -257,13 +257,13 @@
           } else {
             solutionFiles = [...solutionFiles, newFile];
           }
-          store.showNotification('Pasted text from clipboard successfully!', 'success');
+          store.showNotification(t('taskEditor.pasteTextSuccess'), 'success');
         } else {
-          store.showNotification('Clipboard is empty or does not contain text.', 'error');
+          store.showNotification(t('taskEditor.pasteErrorEmpty'), 'error');
         }
       } catch (fallbackErr) {
         console.error('Fallback readText also failed:', fallbackErr);
-        store.showNotification('Could not paste from clipboard. Please allow permission.', 'error');
+        store.showNotification(t('taskEditor.pasteErrorPermission'), 'error');
       }
     }
   }

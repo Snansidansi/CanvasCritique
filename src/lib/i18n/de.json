@@ -141,7 +141,15 @@
     "solutionMaterial": "Lösungsmaterial",
     "uploadPromptSolution": "Klicken zum Hochladen von Lösungsmaterial",
     "saveTask": "Aufgabe speichern",
-    "saveChanges": "Änderungen speichern"
+    "saveChanges": "Änderungen speichern",
+    "pasteSuccess": "Erfolgreich aus der Zwischenablage eingefügt!",
+    "pasteTextSuccess": "Text erfolgreich aus der Zwischenablage eingefügt!",
+    "pasteErrorNoMedia": "Kein Bild oder Text in der Zwischenablage gefunden.",
+    "pasteErrorEmpty": "Die Zwischenablage ist leer oder enthält keinen Text.",
+    "pasteErrorPermission": "Einfügen aus der Zwischenablage fehlgeschlagen. Bitte Berechtigung erteilen.",
+    "alertEnterName": "Bitte geben Sie einen Aufgabennamen ein.",
+    "alertSelectLesson": "Bitte wählen Sie eine Lektion aus oder erstellen Sie zuerst eine.",
+    "errorDecode": "Fehler: Textdokument konnte nicht decodiert werden."
   },
   "taskSelection": {
     "taskSelected": "1 Aufgabe ausgewählt",
