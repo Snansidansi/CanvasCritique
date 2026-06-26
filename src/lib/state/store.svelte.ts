@@ -60,23 +60,29 @@ class CanvasCritiqueStore {
   getEffectiveSettings(projectId: string): Settings {
     const project = this.projects.find(p => p.id === projectId);
     const globalSettings = this.settings;
-    if (project && project.settingsOverride && project.settingsOverride.overrideSettings) {
+    if (project && project.settingsOverride) {
       const override = project.settingsOverride;
+      const isOverrideModel = override.overrideModel ?? override.overrideSettings ?? false;
+      const isOverrideCanvas = override.overrideCanvas ?? override.overrideSettings ?? false;
+      const isOverrideEvaluation = override.overrideEvaluation ?? override.overrideSettings ?? false;
+      const isOverrideSystemPrompt = override.overrideSystemPrompt ?? override.overrideSettings ?? false;
+      const isAnyOverride = isOverrideModel || isOverrideCanvas || isOverrideEvaluation || isOverrideSystemPrompt;
+
       return {
         ...globalSettings,
-        apiProvider: override.apiProvider ?? globalSettings.apiProvider,
-        geminiModel: override.geminiModel ?? globalSettings.geminiModel,
-        openRouterModel: override.openRouterModel ?? globalSettings.openRouterModel,
-        openRouterReasoning: override.openRouterReasoning ?? globalSettings.openRouterReasoning,
-        openRouterProvider: override.openRouterProvider ?? globalSettings.openRouterProvider,
-        sendTaskMedia: override.sendTaskMedia ?? globalSettings.sendTaskMedia,
-        sendSolutionMedia: override.sendSolutionMedia ?? globalSettings.sendSolutionMedia,
-        sendCanvasBackground: override.sendCanvasBackground ?? globalSettings.sendCanvasBackground,
-        sendTaskText: override.sendTaskText ?? globalSettings.sendTaskText,
-        sendSolutionText: override.sendSolutionText ?? globalSettings.sendSolutionText,
-        customSystemPrompt: override.customSystemPrompt !== undefined && override.customSystemPrompt !== null ? override.customSystemPrompt : globalSettings.customSystemPrompt,
-        language: override.language ?? globalSettings.language,
-        canvasMode: override.canvasMode ?? globalSettings.canvasMode
+        apiProvider: isOverrideModel ? (override.apiProvider ?? globalSettings.apiProvider) : globalSettings.apiProvider,
+        geminiModel: isOverrideModel ? (override.geminiModel ?? globalSettings.geminiModel) : globalSettings.geminiModel,
+        openRouterModel: isOverrideModel ? (override.openRouterModel ?? globalSettings.openRouterModel) : globalSettings.openRouterModel,
+        openRouterReasoning: isOverrideModel ? (override.openRouterReasoning ?? globalSettings.openRouterReasoning) : globalSettings.openRouterReasoning,
+        openRouterProvider: isOverrideModel ? (override.openRouterProvider ?? globalSettings.openRouterProvider) : globalSettings.openRouterProvider,
+        sendTaskMedia: isOverrideEvaluation ? (override.sendTaskMedia ?? globalSettings.sendTaskMedia) : globalSettings.sendTaskMedia,
+        sendSolutionMedia: isOverrideEvaluation ? (override.sendSolutionMedia ?? globalSettings.sendSolutionMedia) : globalSettings.sendSolutionMedia,
+        sendCanvasBackground: isOverrideEvaluation ? (override.sendCanvasBackground ?? globalSettings.sendCanvasBackground) : globalSettings.sendCanvasBackground,
+        sendTaskText: isOverrideEvaluation ? (override.sendTaskText ?? globalSettings.sendTaskText) : globalSettings.sendTaskText,
+        sendSolutionText: isOverrideEvaluation ? (override.sendSolutionText ?? globalSettings.sendSolutionText) : globalSettings.sendSolutionText,
+        customSystemPrompt: isOverrideSystemPrompt ? (override.customSystemPrompt !== undefined && override.customSystemPrompt !== null ? override.customSystemPrompt : globalSettings.customSystemPrompt) : globalSettings.customSystemPrompt,
+        language: isAnyOverride ? (override.language ?? globalSettings.language) : globalSettings.language,
+        canvasMode: isOverrideCanvas ? (override.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode
       };
     }
     return globalSettings;

@@ -20,6 +20,10 @@ export interface Task {
 
 export interface ProjectSettingsOverride {
   overrideSettings: boolean;
+  overrideModel?: boolean;
+  overrideCanvas?: boolean;
+  overrideEvaluation?: boolean;
+  overrideSystemPrompt?: boolean;
   apiProvider?: string;
   geminiModel?: string;
   openRouterModel?: string;
