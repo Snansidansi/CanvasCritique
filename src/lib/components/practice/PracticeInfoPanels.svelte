@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from '../../services/i18n';
+
   let {
     splitWidth = $bindable(400),
     activeLeftPanels,

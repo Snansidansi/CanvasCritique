@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from '../../services/i18n';
+
   let {
     showCritiqueBanner = $bindable(),
     isChecking,
