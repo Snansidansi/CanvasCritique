@@ -140,7 +140,7 @@
 
 {#if isOpen && project}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-full max-w-2xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden animate-fade-in">
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-full max-w-3xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden animate-fade-in">
       <!-- Modal Header -->
       <div class="flex items-center justify-between pb-4 border-b border-outline-variant shrink-0">
         <div class="flex items-center gap-2">
@@ -157,221 +157,224 @@
         </button>
       </div>
 
-      <!-- Tab Bar -->
-      <div class="flex gap-1 overflow-x-auto no-scrollbar border-b border-outline-variant/30 mt-4 mb-2 shrink-0">
-        {#each tabs as tab}
-          <button
-            onclick={() => activeTab = tab.id as TabId}
-            class="flex items-center gap-1.5 px-4 py-2.5 font-semibold text-xs border-b-2 transition-colors shrink-0 focus:outline-none rounded-t-lg
-                   {activeTab === tab.id
-                     ? 'text-primary border-primary bg-primary/5'
-                     : 'text-on-surface-variant border-transparent hover:bg-surface-variant/30 hover:text-on-surface'}"
-          >
-            <span class="material-symbols-outlined text-[16px]">{tab.icon}</span>
-            {t(tab.labelKey)}
-          </button>
-        {/each}
-      </div>
+      <!-- Modal Body (Two-Column Layout) -->
+      <div class="flex grow overflow-hidden mt-4 min-h-0 gap-6">
+        <!-- Sidebar Tabs -->
+        <div class="w-48 shrink-0 flex flex-col gap-1 border-r border-outline-variant/30 pr-4 overflow-y-auto no-scrollbar py-1">
+          {#each tabs as tab}
+            <button
+              onclick={() => activeTab = tab.id as TabId}
+              class="flex items-center gap-2 px-3 py-2.5 font-semibold text-xs rounded-lg transition-colors text-left focus:outline-none w-full cursor-pointer
+                     {activeTab === tab.id
+                       ? 'text-primary bg-primary/10'
+                       : 'text-on-surface-variant hover:bg-surface-variant/30 hover:text-on-surface'}"
+            >
+              <span class="material-symbols-outlined text-[18px]">{tab.icon}</span>
+              <span class="truncate">{t(tab.labelKey)}</span>
+            </button>
+          {/each}
+        </div>
 
-      <!-- Modal Content (Scrollable) -->
-      <div class="grow overflow-y-auto py-2 pr-1 flex flex-col gap-4 custom-scrollbar">
-        {#if activeTab === 'model'}
-          <!-- Model Override Toggle -->
-          <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
-            <div class="flex flex-col gap-0.5">
-              <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideModelLabel')}</span>
-              <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideModelDesc')}</span>
+        <!-- Modal Content (Scrollable Pane) -->
+        <div class="grow overflow-y-auto py-1 pr-1 flex flex-col gap-4 custom-scrollbar min-h-0">
+          {#if activeTab === 'model'}
+            <!-- Model Override Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideModelLabel')}</span>
+                <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideModelDesc')}</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={project.settingsOverride?.overrideModel || false} 
+                  onchange={(e) => handleToggleOverride('overrideModel', e)}
+                  class="sr-only peer"
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
             </div>
-            <label class="relative inline-flex items-center cursor-pointer select-none">
-              <input 
-                type="checkbox" 
-                checked={project.settingsOverride?.overrideModel || false} 
-                onchange={(e) => handleToggleOverride('overrideModel', e)}
-                class="sr-only peer"
-              />
-              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
 
-          {#if project.settingsOverride?.overrideModel}
-            <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
-              <AiModelConfig 
-                settings={project.settingsOverride} 
-                showKeys={false} 
-                onchange={() => store.saveProjects()} 
-              />
-            </div>
-          {:else}
-            <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
-              <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">smart_toy</span>
-              <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
-              <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
-                {t('lessonSettings.usingGlobalDesc', { provider: store.settings.apiProvider === 'gemini' ? 'Gemini' : 'OpenRouter', model: store.settings.apiProvider === 'gemini' ? store.settings.geminiModel : store.settings.openRouterModel })}
-              </p>
-            </div>
-          {/if}
-
-        {:else if activeTab === 'canvas'}
-          <!-- Canvas Override Toggle -->
-          <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
-            <div class="flex flex-col gap-0.5">
-              <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideCanvasLabel')}</span>
-              <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideCanvasDesc')}</span>
-            </div>
-            <label class="relative inline-flex items-center cursor-pointer select-none">
-              <input 
-                type="checkbox" 
-                checked={project.settingsOverride?.overrideCanvas || false} 
-                onchange={(e) => handleToggleOverride('overrideCanvas', e)}
-                class="sr-only peer"
-              />
-              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-
-          {#if project.settingsOverride?.overrideCanvas}
-            <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
-              <CanvasModeSelector 
-                settings={project.settingsOverride} 
-                onchange={() => store.saveProjects()} 
-              />
-            </div>
-          {:else}
-            <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
-              <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">aspect_ratio</span>
-              <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
-              <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
-                {t('lessonSettings.canvasLayoutTitle')}: {store.settings.canvasMode === 'side-by-side' ? 'Side by Side' : 'Split Screen'}
-              </p>
-            </div>
-          {/if}
-
-        {:else if activeTab === 'evaluation'}
-          <!-- Evaluation Override Toggle -->
-          <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
-            <div class="flex flex-col gap-0.5">
-              <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideEvaluationLabel')}</span>
-              <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideEvaluationDesc')}</span>
-            </div>
-            <label class="relative inline-flex items-center cursor-pointer select-none">
-              <input 
-                type="checkbox" 
-                checked={project.settingsOverride?.overrideEvaluation || false} 
-                onchange={(e) => handleToggleOverride('overrideEvaluation', e)}
-                class="sr-only peer"
-              />
-              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-
-          {#if project.settingsOverride?.overrideEvaluation}
-            <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
-              <EvaluationDetailsSettings 
-                settings={project.settingsOverride} 
-                onchange={() => store.saveProjects()} 
-              />
-            </div>
-          {:else}
-            <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
-              <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">fact_check</span>
-              <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
-              <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
-                Using global evaluation details settings.
-              </p>
-            </div>
-          {/if}
-
-        {:else if activeTab === 'prompt'}
-          <!-- Prompt Override Toggle -->
-          <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
-            <div class="flex flex-col gap-0.5">
-              <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideSystemPromptLabel')}</span>
-              <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideSystemPromptDesc')}</span>
-            </div>
-            <label class="relative inline-flex items-center cursor-pointer select-none">
-              <input 
-                type="checkbox" 
-                checked={project.settingsOverride?.overrideSystemPrompt || false} 
-                onchange={(e) => handleToggleOverride('overrideSystemPrompt', e)}
-                class="sr-only peer"
-              />
-              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-
-          {#if project.settingsOverride?.overrideSystemPrompt}
-            <div class="flex flex-col gap-3 border-t border-outline-variant/30 pt-4 animate-fade-in">
-              <div class="flex flex-col gap-1.5">
-                <div class="flex justify-between items-center">
-                  <label for="lessonSystemPromptArea" class="text-xs font-bold text-on-surface">
-                    {t('lessonSettings.lessonPromptTemplate')}
-                  </label>
-                  <button 
-                    type="button" 
-                    onclick={resetPromptToDefault}
-                    class="text-[10.5px] text-primary hover:underline font-semibold focus:outline-none bg-transparent border-0 cursor-pointer"
-                  >
-                    {t('lessonSettings.resetToDefault')}
-                  </button>
-                </div>
-                <textarea
-                  id="lessonSystemPromptArea"
-                  value={project.settingsOverride.customSystemPrompt || DEFAULT_SYSTEM_PROMPT}
-                  oninput={handlePromptInput}
-                  rows="6"
-                  class="w-full text-xs font-mono p-3 bg-surface-container-low border border-outline-variant rounded-lg text-on-surface focus:outline-none focus:border-primary custom-scrollbar"
-                  spellcheck="false"
-                ></textarea>
-                <p class="text-[9px] text-on-surface-variant leading-tight">
-                  {t('lessonSettings.placeholdersLabel')} <code>{"{{"}task_name{"}}"}</code> <code>{"{{"}task_instructions{"}}"}</code> <code>{"{{"}task_solution{"}}"}</code> <code>{"{{"}guidelines{"}}"}</code> <code>{"{{"}page_info{"}}"}</code> <code>{"{{"}image_dimensions{"}}"}</code>
+            {#if project.settingsOverride?.overrideModel}
+              <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                <AiModelConfig 
+                  settings={project.settingsOverride} 
+                  showKeys={false} 
+                  onchange={() => store.saveProjects()} 
+                />
+              </div>
+            {:else}
+              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">smart_toy</span>
+                <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
+                  {t('lessonSettings.usingGlobalDesc', { provider: store.settings.apiProvider === 'gemini' ? 'Gemini' : 'OpenRouter', model: store.settings.apiProvider === 'gemini' ? store.settings.geminiModel : store.settings.openRouterModel })}
                 </p>
               </div>
-            </div>
-          {:else}
-            <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
-              <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">terminal</span>
-              <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
-              <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
-                Using global system prompt.
-              </p>
-            </div>
-          {/if}
+            {/if}
 
-        {:else if activeTab === 'numbering'}
-          <!-- Task Numbering Override Toggle -->
-          <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
-            <div class="flex flex-col gap-0.5">
-              <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideTaskNumberingLabel')}</span>
-              <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideTaskNumberingDesc')}</span>
+          {:else if activeTab === 'canvas'}
+            <!-- Canvas Override Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideCanvasLabel')}</span>
+                <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideCanvasDesc')}</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={project.settingsOverride?.overrideCanvas || false} 
+                  onchange={(e) => handleToggleOverride('overrideCanvas', e)}
+                  class="sr-only peer"
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
             </div>
-            <label class="relative inline-flex items-center cursor-pointer select-none">
-              <input 
-                type="checkbox" 
-                checked={project.settingsOverride?.overrideTaskNumbering || false} 
-                onchange={(e) => handleToggleOverride('overrideTaskNumbering', e)}
-                class="sr-only peer"
-              />
-              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
 
-          {#if project.settingsOverride?.overrideTaskNumbering}
-            <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
-              <TaskNumberingConfig 
-                settings={project.settingsOverride} 
-                onchange={() => store.saveProjects()} 
-              />
+            {#if project.settingsOverride?.overrideCanvas}
+              <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                <CanvasModeSelector 
+                  settings={project.settingsOverride} 
+                  onchange={() => store.saveProjects()} 
+                />
+              </div>
+            {:else}
+              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">aspect_ratio</span>
+                <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
+                  {t('lessonSettings.canvasLayoutTitle')}: {store.settings.canvasMode === 'side-by-side' ? 'Side by Side' : 'Split Screen'}
+                </p>
+              </div>
+            {/if}
+
+          {:else if activeTab === 'evaluation'}
+            <!-- Evaluation Override Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideEvaluationLabel')}</span>
+                <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideEvaluationDesc')}</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={project.settingsOverride?.overrideEvaluation || false} 
+                  onchange={(e) => handleToggleOverride('overrideEvaluation', e)}
+                  class="sr-only peer"
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
             </div>
-          {:else}
-            <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
-              <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">format_list_numbered</span>
-              <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
-              <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto font-medium">
-                {t('settings.taskNumbering.title')}: {store.settings.autoNumberTasks ? `${t('settings.taskNumbering.autoNumber')} (${store.settings.taskNumberingTemplate})` : (store.settings.language === 'Deutsch' ? 'Deaktiviert' : 'Deactivated')}
-              </p>
+
+            {#if project.settingsOverride?.overrideEvaluation}
+              <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                <EvaluationDetailsSettings 
+                  settings={project.settingsOverride} 
+                  onchange={() => store.saveProjects()} 
+                />
+              </div>
+            {:else}
+              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">fact_check</span>
+                <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
+                  Using global evaluation details settings.
+                </p>
+              </div>
+            {/if}
+
+          {:else if activeTab === 'prompt'}
+            <!-- Prompt Override Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideSystemPromptLabel')}</span>
+                <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideSystemPromptDesc')}</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={project.settingsOverride?.overrideSystemPrompt || false} 
+                  onchange={(e) => handleToggleOverride('overrideSystemPrompt', e)}
+                  class="sr-only peer"
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
             </div>
+
+            {#if project.settingsOverride?.overrideSystemPrompt}
+              <div class="flex flex-col gap-3 border-t border-outline-variant/30 pt-4 animate-fade-in">
+                <div class="flex flex-col gap-1.5">
+                  <div class="flex justify-between items-center">
+                    <label for="lessonSystemPromptArea" class="text-xs font-bold text-on-surface">
+                      {t('lessonSettings.lessonPromptTemplate')}
+                    </label>
+                    <button 
+                      type="button" 
+                      onclick={resetPromptToDefault}
+                      class="text-[10.5px] text-primary hover:underline font-semibold focus:outline-none bg-transparent border-0 cursor-pointer"
+                    >
+                      {t('lessonSettings.resetToDefault')}
+                    </button>
+                  </div>
+                  <textarea
+                    id="lessonSystemPromptArea"
+                    value={project.settingsOverride.customSystemPrompt || DEFAULT_SYSTEM_PROMPT}
+                    oninput={handlePromptInput}
+                    rows="6"
+                    class="w-full text-xs font-mono p-3 bg-surface-container-low border border-outline-variant rounded-lg text-on-surface focus:outline-none focus:border-primary custom-scrollbar"
+                    spellcheck="false"
+                  ></textarea>
+                  <p class="text-[9px] text-on-surface-variant leading-tight">
+                    {t('lessonSettings.placeholdersLabel')} <code>{"{{"}task_name{"}}"}</code> <code>{"{{"}task_instructions{"}}"}</code> <code>{"{{"}task_solution{"}}"}</code> <code>{"{{"}guidelines{"}}"}</code> <code>{"{{"}page_info{"}}"}</code> <code>{"{{"}image_dimensions{"}}"}</code>
+                  </p>
+                </div>
+              </div>
+            {:else}
+              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">terminal</span>
+                <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
+                  Using global system prompt.
+                </p>
+              </div>
+            {/if}
+
+          {:else if activeTab === 'numbering'}
+            <!-- Task Numbering Override Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideTaskNumberingLabel')}</span>
+                <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideTaskNumberingDesc')}</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={project.settingsOverride?.overrideTaskNumbering || false} 
+                  onchange={(e) => handleToggleOverride('overrideTaskNumbering', e)}
+                  class="sr-only peer"
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+
+            {#if project.settingsOverride?.overrideTaskNumbering}
+              <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                <TaskNumberingConfig 
+                  settings={project.settingsOverride} 
+                  onchange={() => store.saveProjects()} 
+                />
+              </div>
+            {:else}
+              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">format_list_numbered</span>
+                <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto font-medium">
+                  {t('settings.taskNumbering.title')}: {store.settings.autoNumberTasks ? `${t('settings.taskNumbering.autoNumber')} (${store.settings.taskNumberingTemplate})` : (store.settings.language === 'Deutsch' ? 'Deaktiviert' : 'Deactivated')}
+                </p>
+              </div>
+            {/if}
           {/if}
-        {/if}
+        </div>
       </div>
 
       <!-- Modal Footer -->
