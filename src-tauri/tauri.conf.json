@@ -1,5 +1,5 @@
 {
-  "productName": "CanvasCritique",
+  "productName": "Canvas Critique",
   "version": "0.1.0",
   "identifier": "com.canvascritique.app",
   "build": {
@@ -12,7 +12,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "CanvasCritique",
+        "title": "Canvas Critique",
         "width": 1200,
         "height": 800,
         "resizable": true,

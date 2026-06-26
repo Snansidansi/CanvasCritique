@@ -38,7 +38,7 @@
       </div>
       <span
         class="font-bold text-xl text-primary tracking-tight transition-opacity duration-200"
-        >CanvasCritique</span
+        >Canvas Critique</span
       >
     {/if}
     <button

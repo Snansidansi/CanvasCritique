@@ -1,7 +1,7 @@
 [package]
 name = "canvascritique"
 version = "0.1.0"
-description = "CanvasCritique Handwriting Practice App"
+description = "Canvas Critique Handwriting Practice App"
 authors = ["Franz"]
 edition = "2021"
 

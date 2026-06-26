@@ -1,10 +1,10 @@
-# CanvasCritique
+# Canvas Critique
 
 A desktop application for practicing handwritten exercises. It uses AI models like Gemini and OpenRouter to analyze drawings and place feedback markers directly on the canvas.
 
 ## What It Is
 
-**CanvasCritique** is a desktop app for practicing handwriting, calligraphy, or other stroke-based exercises on a digital canvas.
+**Canvas Critique** is a desktop app for practicing handwriting, calligraphy, or other stroke-based exercises on a digital canvas.
 
 The basic idea is simple:  
 You draw on the canvas, send your work to an AI model, and receive feedback directly on the page.

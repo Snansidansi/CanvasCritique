@@ -1,4 +1,4 @@
-# Makefile for CanvasCritique
+# Makefile for Canvas Critique
 
 .PHONY: dev build-installer build-portable clean clean-all help
 
