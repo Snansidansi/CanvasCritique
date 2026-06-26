@@ -28,12 +28,15 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
 export function getStrokesBoundingBox(history: Stroke[], canvasMode: 'infinite' | 'a4'): BoundingBox | null {
   if (!history || history.length === 0) return null;
   
+  const drawingStrokes = history.filter(s => s.color !== 'eraser' && s.color !== '#FFFFFF' && s.points.length > 0);
+  if (drawingStrokes.length === 0) return null;
+  
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
   
-  for (const stroke of history) {
+  for (const stroke of drawingStrokes) {
     const halfWidth = stroke.width / 2;
     for (const p of stroke.points) {
       if (p.x - halfWidth < minX) minX = p.x - halfWidth;

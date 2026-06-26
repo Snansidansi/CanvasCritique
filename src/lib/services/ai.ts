@@ -117,14 +117,19 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     defaultSystemPrompt
   } = options;
 
+  // Helper to determine if history contains any visible (non-eraser) drawing strokes with points
+  const hasVisibleStrokes = (history: Stroke[]): boolean => {
+    return history.some(s => s.color !== 'eraser' && s.color !== '#FFFFFF' && s.points.length > 0);
+  };
+
   // 1. Gather all non-empty pages to evaluate
   let activePagesWithIndex: Array<{ strokeHistory: Stroke[]; originalIndex: number }> = [];
   if (canvasMode === 'a4') {
     activePagesWithIndex = pages
       .map((p, idx) => ({ strokeHistory: p.strokeHistory, originalIndex: idx }))
-      .filter(item => item.strokeHistory.length > 0);
+      .filter(item => hasVisibleStrokes(item.strokeHistory));
   } else {
-    if (infiniteStrokes.length > 0) {
+    if (hasVisibleStrokes(infiniteStrokes)) {
       activePagesWithIndex = [{ strokeHistory: infiniteStrokes, originalIndex: 0 }];
     }
   }
