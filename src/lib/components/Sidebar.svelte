@@ -95,7 +95,7 @@
           {t("sidebar.myLessons")}
         </p>
       {:else}
-        <div class="h-px w-8 bg-outline-variant/70"></div>
+        <div class="h-0.5 w-8 bg-outline-variant"></div>
       {/if}
     </div>
     <div
