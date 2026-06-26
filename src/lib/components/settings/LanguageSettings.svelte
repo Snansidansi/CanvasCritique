@@ -19,65 +19,25 @@
       {t("settings.language.title")}
     </h3>
   </div>
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <!-- English Card -->
-    <button
-      type="button"
-      onclick={() => setLanguage("English")}
-      class="cursor-pointer group text-left focus:outline-none"
-    >
-      <div
-        class="border rounded-lg p-4 mb-2 bg-surface-container-low flex flex-col justify-between h-24 relative overflow-hidden transition-all
-             {store.settings.language === 'English'
-          ? 'border-primary border-2 bg-primary/5'
-          : 'border-outline-variant hover:border-primary'}"
-      >
-        {#if store.settings.language === "English"}
-          <div
-            class="absolute top-2 right-2 w-4 h-4 rounded-full bg-primary flex items-center justify-center z-10"
-          >
-            <span
-              class="material-symbols-outlined text-[10px] text-white font-bold"
-              >check</span
-            >
-          </div>
-        {/if}
-        <div class="flex items-center gap-2">
-          <span class="font-bold text-sm text-on-surface"
-            >{t("settings.language.english")}</span
-          >
-        </div>
-      </div>
-    </button>
 
-    <!-- German Card -->
-    <button
-      type="button"
-      onclick={() => setLanguage("Deutsch")}
-      class="cursor-pointer group text-left focus:outline-none"
-    >
-      <div
-        class="border rounded-lg p-4 mb-2 bg-surface-container-low flex flex-col justify-between h-24 relative overflow-hidden transition-all
-             {store.settings.language === 'Deutsch'
-          ? 'border-primary border-2 bg-primary/5'
-          : 'border-outline-variant hover:border-primary'}"
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h4 class="font-bold text-sm text-on-surface mb-0.5">{t('settings.language.selectLabel')}</h4>
+      <p class="text-xs text-on-surface-variant">{t('settings.language.selectDesc')}</p>
+    </div>
+
+    <div class="relative w-full sm:w-48 shrink-0">
+      <select
+        value={store.settings.language || 'English'}
+        onchange={(e) => setLanguage(e.currentTarget.value)}
+        class="appearance-none w-full bg-surface-container-low text-on-surface border border-outline-variant rounded-lg px-3.5 py-2.5 pr-10 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer transition-all hover:bg-surface-container"
       >
-        {#if store.settings.language === "Deutsch"}
-          <div
-            class="absolute top-2 right-2 w-4 h-4 rounded-full bg-primary flex items-center justify-center z-10"
-          >
-            <span
-              class="material-symbols-outlined text-[10px] text-white font-bold"
-              >check</span
-            >
-          </div>
-        {/if}
-        <div class="flex items-center gap-2">
-          <span class="font-bold text-sm text-on-surface"
-            >{t("settings.language.german")}</span
-          >
-        </div>
-      </div>
-    </button>
+        <option value="English">{t("settings.language.english")}</option>
+        <option value="Deutsch">{t("settings.language.german")}</option>
+      </select>
+      <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-[20px]">
+        expand_more
+      </span>
+    </div>
   </div>
 </section>

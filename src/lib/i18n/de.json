@@ -408,6 +408,8 @@
     },
     "language": {
       "title": "Sprachauswahl",
+      "selectLabel": "App-Sprache",
+      "selectDesc": "Wähle die Sprache für die Benutzeroberfläche",
       "english": "Englisch",
       "german": "Deutsch"
     }

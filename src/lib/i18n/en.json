@@ -409,6 +409,8 @@
     },
     "language": {
       "title": "Language Selection",
+      "selectLabel": "App Language",
+      "selectDesc": "Choose the language for the user interface",
       "english": "English",
       "german": "German"
     }
