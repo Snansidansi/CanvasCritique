@@ -32,6 +32,7 @@ export interface ProjectSettingsOverride {
   sendSolutionText?: boolean;
   customSystemPrompt?: string;
   language?: string;
+  canvasMode?: string;
 }
 
 export interface Project {

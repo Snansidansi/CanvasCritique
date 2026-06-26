@@ -75,7 +75,8 @@ class CanvasCritiqueStore {
         sendTaskText: override.sendTaskText ?? globalSettings.sendTaskText,
         sendSolutionText: override.sendSolutionText ?? globalSettings.sendSolutionText,
         customSystemPrompt: override.customSystemPrompt !== undefined && override.customSystemPrompt !== null ? override.customSystemPrompt : globalSettings.customSystemPrompt,
-        language: override.language ?? globalSettings.language
+        language: override.language ?? globalSettings.language,
+        canvasMode: override.canvasMode ?? globalSettings.canvasMode
       };
     }
     return globalSettings;

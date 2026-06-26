@@ -157,6 +157,7 @@
     "overrideGlobalLabel": "Override Global Settings",
     "overrideGlobalDesc": "Use custom settings for this lesson instead of global settings",
     "modelConfigTitle": "Model Configuration",
+    "canvasLayoutTitle": "Canvas Layout (Mode)",
     "evaluationDetailsTitle": "Evaluation Details",
     "systemPromptTitle": "System Prompt",
     "enableCustomPrompt": "Enable Custom Prompt",

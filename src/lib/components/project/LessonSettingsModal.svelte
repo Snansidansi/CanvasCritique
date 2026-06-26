@@ -2,6 +2,7 @@
   import { store, DEFAULT_SYSTEM_PROMPT } from '../../state/store.svelte';
   import AiModelConfig from '../settings/AiModelConfig.svelte';
   import EvaluationDetailsSettings from '../settings/EvaluationDetailsSettings.svelte';
+  import CanvasModeSelector from '../settings/CanvasModeSelector.svelte';
   import type { Project } from '../../state/types';
   import { t } from '../../services/i18n';
 
@@ -29,7 +30,8 @@
         sendTaskText: store.settings.sendTaskText,
         sendSolutionText: store.settings.sendSolutionText,
         language: store.settings.language,
-        customSystemPrompt: store.settings.customSystemPrompt || ''
+        customSystemPrompt: store.settings.customSystemPrompt || '',
+        canvasMode: store.settings.canvasMode
       };
     }
   });
@@ -131,6 +133,15 @@
             <AiModelConfig 
               settings={project.settingsOverride} 
               showKeys={false} 
+              onchange={() => store.saveProjects()} 
+            />
+          </div>
+
+          <!-- Canvas Layout override -->
+          <div class="border-t border-outline-variant/30 pt-4">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-on-surface mb-3">{t('lessonSettings.canvasLayoutTitle')}</h4>
+            <CanvasModeSelector 
+              settings={project.settingsOverride} 
               onchange={() => store.saveProjects()} 
             />
           </div>

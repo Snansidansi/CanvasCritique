@@ -86,8 +86,12 @@
   let activeTooltipMarker = $state(null);
   let showSuccessNotification = $state(false);
 
-  // Canvas mode derived from store settings
-  let canvasMode = $derived(store.settings.canvasMode);
+  // Canvas mode derived from store settings (with per-lesson override)
+  let canvasMode = $derived(
+    store.activeProject
+      ? store.getEffectiveSettings(store.activeProject.id).canvasMode
+      : store.settings.canvasMode
+  );
 
   // A4 Pages state
   let pages = $state([

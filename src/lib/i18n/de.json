@@ -156,6 +156,7 @@
     "overrideGlobalLabel": "Globale Einstellungen überschreiben",
     "overrideGlobalDesc": "Benutze benutzerdefinierte Einstellungen für diese Lektion statt globaler Einstellungen",
     "modelConfigTitle": "Modellkonfiguration",
+    "canvasLayoutTitle": "Canvas-Layout (Modus)",
     "evaluationDetailsTitle": "Bewertungsdetails",
     "systemPromptTitle": "System-Prompt",
     "enableCustomPrompt": "Benutzerdefinierten Prompt aktivieren",
