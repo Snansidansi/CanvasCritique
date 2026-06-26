@@ -44,8 +44,14 @@
       category = store.quickAddTaskData.category || 'Basics';
       targetProjectId = store.activeProject?.id || (store.projects.find(p => p.profileId === store.activeProfileId)?.id || '');
       store.quickAddTaskData = null; // Clear it out
+      if (!taskName && targetProjectId) {
+        taskName = store.generateNextTaskName(targetProjectId);
+      }
     } else {
       targetProjectId = store.activeProject?.id || (store.projects.find(p => p.profileId === store.activeProfileId)?.id || '');
+      if (targetProjectId) {
+        taskName = store.generateNextTaskName(targetProjectId);
+      }
     }
 
     setTimeout(() => {

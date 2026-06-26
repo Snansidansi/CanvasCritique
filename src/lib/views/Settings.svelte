@@ -3,6 +3,7 @@
   import AppearanceSettings from '../components/settings/AppearanceSettings.svelte';
   import LanguageSettings from '../components/settings/LanguageSettings.svelte';
   import CanvasPreferences from '../components/settings/CanvasPreferences.svelte';
+  import TaskNumberingSettings from '../components/settings/TaskNumberingSettings.svelte';
   import DataManagement from '../components/settings/DataManagement.svelte';
   import ApiSettings from '../components/settings/ApiSettings.svelte';
   import SystemPromptSettings from '../components/settings/SystemPromptSettings.svelte';
@@ -57,6 +58,7 @@
         <AppearanceSettings />
         <LanguageSettings />
         <CanvasPreferences />
+        <TaskNumberingSettings />
 
       {:else if activeTab === 'stylus'}
         <StylusSettings />

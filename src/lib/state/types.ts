@@ -24,6 +24,7 @@ export interface ProjectSettingsOverride {
   overrideCanvas?: boolean;
   overrideEvaluation?: boolean;
   overrideSystemPrompt?: boolean;
+  overrideTaskNumbering?: boolean;
   apiProvider?: string;
   geminiModel?: string;
   openRouterModel?: string;
@@ -37,6 +38,8 @@ export interface ProjectSettingsOverride {
   customSystemPrompt?: string;
   language?: string;
   canvasMode?: string;
+  autoNumberTasks?: boolean;
+  taskNumberingTemplate?: string;
 }
 
 export interface Project {
@@ -96,6 +99,8 @@ export interface Settings {
   customSystemPrompt: string;
   systemPromptEditingEnabled: boolean;
   language: string;
+  autoNumberTasks: boolean;
+  taskNumberingTemplate: string;
   stylusButtons: StylusButton[];
   stylusMode: boolean;
   autoCompleteOnSuccess: boolean;

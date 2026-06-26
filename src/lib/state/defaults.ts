@@ -106,6 +106,8 @@ export const defaultSettings: Settings = {
   customSystemPrompt: '',
   systemPromptEditingEnabled: false,
   language: getSystemLanguage(),
+  autoNumberTasks: false,
+  taskNumberingTemplate: getSystemLanguage() === 'Deutsch' ? 'Aufgabe {n}' : 'Task {n}',
   stylusButtons: [],
   stylusMode: false,
   autoCompleteOnSuccess: true,

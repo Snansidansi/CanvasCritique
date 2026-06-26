@@ -57,6 +57,42 @@ class CanvasCritiqueStore {
       : this.settings.openRouterModel;
   }
 
+  generateNextTaskName(projectId: string): string {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return '';
+
+    const settings = this.getEffectiveSettings(projectId);
+    if (!settings.autoNumberTasks) return '';
+
+    let template = settings.taskNumberingTemplate || 'Aufgabe {n}';
+    if (!template.includes('{n}')) {
+      template += ' {n}';
+    }
+
+    // Escape regex special chars except {n}
+    const escapedTemplate = template.replace(/[-\/\\^$*+?.()|[\]{}]/g, (ch) => {
+      if (ch === '{' || ch === '}') return ch;
+      return '\\' + ch;
+    });
+
+    const regexStr = '^' + escapedTemplate.replace('{n}', '(\\d+)') + '$';
+    const regex = new RegExp(regexStr);
+
+    let maxN = 0;
+    const tasks = project.tasks || [];
+    for (const task of tasks) {
+      const match = task.name.match(regex);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxN) {
+          maxN = num;
+        }
+      }
+    }
+
+    return template.replace('{n}', String(maxN + 1));
+  }
+
   getEffectiveSettings(projectId: string): Settings {
     const project = this.projects.find(p => p.id === projectId);
     const globalSettings = this.settings;
@@ -66,7 +102,8 @@ class CanvasCritiqueStore {
       const isOverrideCanvas = override.overrideCanvas ?? override.overrideSettings ?? false;
       const isOverrideEvaluation = override.overrideEvaluation ?? override.overrideSettings ?? false;
       const isOverrideSystemPrompt = override.overrideSystemPrompt ?? override.overrideSettings ?? false;
-      const isAnyOverride = isOverrideModel || isOverrideCanvas || isOverrideEvaluation || isOverrideSystemPrompt;
+      const isOverrideTaskNumbering = override.overrideTaskNumbering ?? override.overrideSettings ?? false;
+      const isAnyOverride = isOverrideModel || isOverrideCanvas || isOverrideEvaluation || isOverrideSystemPrompt || isOverrideTaskNumbering;
 
       return {
         ...globalSettings,
@@ -82,7 +119,9 @@ class CanvasCritiqueStore {
         sendSolutionText: isOverrideEvaluation ? (override.sendSolutionText ?? globalSettings.sendSolutionText) : globalSettings.sendSolutionText,
         customSystemPrompt: isOverrideSystemPrompt ? (override.customSystemPrompt !== undefined && override.customSystemPrompt !== null ? override.customSystemPrompt : globalSettings.customSystemPrompt) : globalSettings.customSystemPrompt,
         language: isAnyOverride ? (override.language ?? globalSettings.language) : globalSettings.language,
-        canvasMode: isOverrideCanvas ? (override.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode
+        canvasMode: isOverrideCanvas ? (override.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode,
+        autoNumberTasks: isOverrideTaskNumbering ? (override.autoNumberTasks ?? globalSettings.autoNumberTasks) : globalSettings.autoNumberTasks,
+        taskNumberingTemplate: isOverrideTaskNumbering ? (override.taskNumberingTemplate ?? globalSettings.taskNumberingTemplate) : globalSettings.taskNumberingTemplate
       };
     }
     return globalSettings;

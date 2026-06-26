@@ -3,6 +3,7 @@
   import AiModelConfig from '../settings/AiModelConfig.svelte';
   import EvaluationDetailsSettings from '../settings/EvaluationDetailsSettings.svelte';
   import CanvasModeSelector from '../settings/CanvasModeSelector.svelte';
+  import TaskNumberingConfig from '../settings/TaskNumberingConfig.svelte';
   import type { Project } from '../../state/types';
   import { t } from '../../services/i18n';
 
@@ -35,7 +36,10 @@
         sendSolutionText: store.settings.sendSolutionText,
         language: store.settings.language,
         customSystemPrompt: store.settings.customSystemPrompt || '',
-        canvasMode: store.settings.canvasMode
+        canvasMode: store.settings.canvasMode,
+        overrideTaskNumbering: false,
+        autoNumberTasks: store.settings.autoNumberTasks,
+        taskNumberingTemplate: store.settings.taskNumberingTemplate
       };
     }
   });
@@ -44,14 +48,15 @@
   let hasCustomSystemPrompt = $state(false);
 
   // Tab navigation state
-  type TabId = 'model' | 'canvas' | 'evaluation' | 'prompt';
+  type TabId = 'model' | 'canvas' | 'evaluation' | 'prompt' | 'numbering';
   let activeTab = $state<TabId>('model');
 
   const tabs = [
     { id: 'model', labelKey: 'lessonSettings.modelConfigTitle', icon: 'smart_toy' },
     { id: 'canvas', labelKey: 'lessonSettings.canvasLayoutTitle', icon: 'aspect_ratio' },
     { id: 'evaluation', labelKey: 'lessonSettings.evaluationDetailsTitle', icon: 'fact_check' },
-    { id: 'prompt', labelKey: 'lessonSettings.systemPromptTitle', icon: 'terminal' }
+    { id: 'prompt', labelKey: 'lessonSettings.systemPromptTitle', icon: 'terminal' },
+    { id: 'numbering', labelKey: 'lessonSettings.taskNumberingTitle', icon: 'format_list_numbered' }
   ];
 
   $effect(() => {
@@ -69,6 +74,15 @@
       if (project.settingsOverride.overrideSystemPrompt === undefined) {
         project.settingsOverride.overrideSystemPrompt = project.settingsOverride.overrideSettings || false;
       }
+      if (project.settingsOverride.overrideTaskNumbering === undefined) {
+        project.settingsOverride.overrideTaskNumbering = project.settingsOverride.overrideSettings || false;
+      }
+      if (project.settingsOverride.autoNumberTasks === undefined) {
+        project.settingsOverride.autoNumberTasks = store.settings.autoNumberTasks;
+      }
+      if (project.settingsOverride.taskNumberingTemplate === undefined) {
+        project.settingsOverride.taskNumberingTemplate = store.settings.taskNumberingTemplate;
+      }
       hasCustomSystemPrompt = !!project.settingsOverride.customSystemPrompt;
     }
   });
@@ -83,7 +97,7 @@
     isOpen = false;
   }
 
-  function handleToggleOverride(category: 'overrideModel' | 'overrideCanvas' | 'overrideEvaluation' | 'overrideSystemPrompt', e: Event & { currentTarget: HTMLInputElement }) {
+  function handleToggleOverride(category: 'overrideModel' | 'overrideCanvas' | 'overrideEvaluation' | 'overrideSystemPrompt' | 'overrideTaskNumbering', e: Event & { currentTarget: HTMLInputElement }) {
     if (!project.settingsOverride) return;
     const checked = e.currentTarget.checked;
     project.settingsOverride[category] = checked;
@@ -93,7 +107,8 @@
       project.settingsOverride.overrideModel ||
       project.settingsOverride.overrideCanvas ||
       project.settingsOverride.overrideEvaluation ||
-      project.settingsOverride.overrideSystemPrompt
+      project.settingsOverride.overrideSystemPrompt ||
+      project.settingsOverride.overrideTaskNumbering
     );
 
     if (category === 'overrideSystemPrompt') {
@@ -318,6 +333,41 @@
               <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
               <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
                 Using global system prompt.
+              </p>
+            </div>
+          {/if}
+
+        {:else if activeTab === 'numbering'}
+          <!-- Task Numbering Override Toggle -->
+          <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+            <div class="flex flex-col gap-0.5">
+              <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideTaskNumberingLabel')}</span>
+              <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideTaskNumberingDesc')}</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                checked={project.settingsOverride?.overrideTaskNumbering || false} 
+                onchange={(e) => handleToggleOverride('overrideTaskNumbering', e)}
+                class="sr-only peer"
+              />
+              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          {#if project.settingsOverride?.overrideTaskNumbering}
+            <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+              <TaskNumberingConfig 
+                settings={project.settingsOverride} 
+                onchange={() => store.saveProjects()} 
+              />
+            </div>
+          {:else}
+            <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+              <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">format_list_numbered</span>
+              <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+              <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto font-medium">
+                {t('settings.taskNumbering.title')}: {store.settings.autoNumberTasks ? `${t('settings.taskNumbering.autoNumber')} (${store.settings.taskNumberingTemplate})` : (store.settings.language === 'Deutsch' ? 'Deaktiviert' : 'Deactivated')}
               </p>
             </div>
           {/if}

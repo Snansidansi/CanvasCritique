@@ -184,7 +184,10 @@
     "usingGlobalDesc": "Diese Lektion verwendet die globalen {provider} {model} Einstellungen.",
     "usingGlobalHint": "Aktiviere Überschreiben, um Einstellungen für diese Lektion anzupassen.",
     "saveSettings": "Einstellungen speichern",
-    "saveSuccess": "Lektionseinstellungen erfolgreich gespeichert"
+    "saveSuccess": "Lektionseinstellungen erfolgreich gespeichert",
+    "overrideTaskNumberingLabel": "Aufgabennummerierung überschreiben",
+    "overrideTaskNumberingDesc": "Verwende für diese Lektion eigene Einstellungen zur Aufgabennummerierung statt der globalen Einstellungen",
+    "taskNumberingTitle": "Aufgabennummerierung"
   },
   "practice": {
     "backToProject": "Zurück zum Projekt",
@@ -284,6 +287,15 @@
       "a4Desc": "Feste A4-Seitengröße",
       "autoCompleteOnSuccess": "Automatisch abschließen bei Erfolg",
       "autoCompleteOnSuccessDesc": "Aufgabe automatisch als abgeschlossen markieren, wenn Punktzahl 100% beträgt"
+    },
+    "taskNumbering": {
+      "title": "Aufgabennummerierung",
+      "desc": "Konfiguriere die automatische Nummerierung von Aufgaben basierend auf einer Vorlage.",
+      "autoNumber": "Neue Aufgaben automatisch nummerieren",
+      "autoNumberDesc": "Wenn aktiv, werden neue Aufgaben automatisch nach der Vorlage benannt.",
+      "templateLabel": "Vorlage für Aufgabennamen",
+      "templateDesc": "Verwende {n} als Platzhalter für die aufsteigende Nummer.",
+      "templatePlaceholder": "z.B. Aufgabe {n}"
     },
     "api": {
       "title": "API",

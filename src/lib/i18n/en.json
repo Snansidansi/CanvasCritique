@@ -185,7 +185,10 @@
     "usingGlobalDesc": "This lesson is using the global {provider} {model} settings.",
     "usingGlobalHint": "Enable override to customize settings for this lesson.",
     "saveSettings": "Save Settings",
-    "saveSuccess": "Lesson settings saved successfully"
+    "saveSuccess": "Lesson settings saved successfully",
+    "overrideTaskNumberingLabel": "Override Task Numbering",
+    "overrideTaskNumberingDesc": "Use custom task numbering settings for this lesson instead of global settings",
+    "taskNumberingTitle": "Task Numbering"
   },
   "practice": {
     "backToProject": "Back to Project",
@@ -285,6 +288,15 @@
       "a4Desc": "Fixed A4 page size",
       "autoCompleteOnSuccess": "Auto-complete on Success",
       "autoCompleteOnSuccessDesc": "Automatically mark task as completed when score is 100%"
+    },
+    "taskNumbering": {
+      "title": "Task Numbering",
+      "desc": "Configure automatic numbering of tasks based on a template.",
+      "autoNumber": "Auto-number new tasks",
+      "autoNumberDesc": "When active, new tasks are automatically named using the template.",
+      "templateLabel": "Task Naming Template",
+      "templateDesc": "Use {n} as a placeholder for the ascending number.",
+      "templatePlaceholder": "e.g. Task {n}"
     },
     "api": {
       "title": "API",
