@@ -57,7 +57,7 @@ class CanvasCritiqueStore {
       : this.settings.openRouterModel;
   }
 
-  generateNextTaskName(projectId: string): string {
+  generateNextTaskName(projectId: string, category?: string): string {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return '';
 
@@ -81,6 +81,9 @@ class CanvasCritiqueStore {
     let maxN = 0;
     const tasks = project.tasks || [];
     for (const task of tasks) {
+      if (category && (task.category || 'Basics') !== category) {
+        continue;
+      }
       const match = task.name.match(regex);
       if (match) {
         const num = parseInt(match[1], 10);
@@ -91,6 +94,24 @@ class CanvasCritiqueStore {
     }
 
     return template.replace('{n}', String(maxN + 1));
+  }
+
+  isNameMatchingTemplate(name: string, projectId: string): boolean {
+    const settings = this.getEffectiveSettings(projectId);
+    let template = settings.taskNumberingTemplate || 'Aufgabe {n}';
+    if (!template.includes('{n}')) {
+      template += ' {n}';
+    }
+
+    // Escape regex special chars except {n}
+    const escapedTemplate = template.replace(/[-\/\\^$*+?.()|[\]{}]/g, (ch) => {
+      if (ch === '{' || ch === '}') return ch;
+      return '\\' + ch;
+    });
+
+    const regexStr = '^' + escapedTemplate.replace('{n}', '(\\d+)') + '$';
+    const regex = new RegExp(regexStr);
+    return regex.test(name);
   }
 
   getEffectiveSettings(projectId: string): Settings {

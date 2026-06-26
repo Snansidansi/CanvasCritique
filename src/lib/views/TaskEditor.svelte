@@ -45,13 +45,12 @@
       targetProjectId = store.activeProject?.id || (store.projects.find(p => p.profileId === store.activeProfileId)?.id || '');
       store.quickAddTaskData = null; // Clear it out
       if (!taskName && targetProjectId) {
-        taskName = store.generateNextTaskName(targetProjectId);
+        taskName = store.generateNextTaskName(targetProjectId, category);
       }
     } else {
       targetProjectId = store.activeProject?.id || (store.projects.find(p => p.profileId === store.activeProfileId)?.id || '');
-      if (targetProjectId) {
-        taskName = store.generateNextTaskName(targetProjectId);
-      }
+      // When created via general add task button, we don't automatically generate name here.
+      taskName = '';
     }
 
     setTimeout(() => {
@@ -63,6 +62,19 @@
       }
     }, 50);
   });
+
+  function handleCategoryChange(newCategory: string) {
+    if (isEditMode) return;
+    const settings = store.getEffectiveSettings(targetProjectId);
+    if (!settings.autoNumberTasks) return;
+
+    const isNameEmpty = !taskName.trim();
+    const isNameTemplate = store.isNameMatchingTemplate(taskName, targetProjectId);
+
+    if (isNameEmpty || isNameTemplate) {
+      taskName = store.generateNextTaskName(targetProjectId, newCategory);
+    }
+  }
 
   // Categories list of target project
   let categories = $derived(
@@ -450,7 +462,14 @@
         <label class="text-sm font-semibold text-on-surface" for="category">{t('taskEditor.categoryLabel')}</label>
         <select 
           id="category"
-          bind:value={category}
+          value={category}
+          onchange={(e) => {
+            const oldCategory = category;
+            category = e.currentTarget.value;
+            if (category !== oldCategory) {
+              handleCategoryChange(category);
+            }
+          }}
           class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
         >
           {#each categories as cat}
