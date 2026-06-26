@@ -99,7 +99,8 @@
       {/if}
     </div>
     <div
-      class="flex flex-col gap-1 overflow-y-auto overflow-x-hidden max-h-[50vh] custom-scrollbar"
+      class="flex flex-col gap-1 overflow-x-hidden max-h-[50vh]
+             {isCollapsed ? 'overflow-y-auto hide-scrollbar' : 'overflow-y-auto custom-scrollbar'}"
     >
       {#each store.projects.filter(p => p.profileId === store.activeProfileId) as project}
         <div
@@ -114,7 +115,7 @@
           }}
           class="w-full flex items-center rounded-lg hover:bg-surface-container-highest text-on-surface-variant text-left relative group cursor-pointer transition-colors duration-200 select-none
                  {isCollapsed ? 'justify-center px-0 py-2.5' : 'justify-between pl-4 py-2 text-sm'}
-                 {!isCollapsed && project.tasks && project.tasks.length > 0 ? 'pr-2' : 'pr-4'}
+                 {!isCollapsed ? (project.tasks && project.tasks.length > 0 ? 'pr-2' : 'pr-4') : ''}
                  {store.activeProject?.id === project.id &&
           (store.currentView === 'project-detail' ||
             store.currentView === 'practice')
