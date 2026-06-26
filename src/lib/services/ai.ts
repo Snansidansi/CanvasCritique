@@ -231,8 +231,12 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
           
           if (stroke.points.length > 0) {
             strokesCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-            for (let i = 1; i < stroke.points.length; i++) {
-              strokesCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            if (stroke.points.length === 1) {
+              strokesCtx.lineTo(stroke.points[0].x, stroke.points[0].y);
+            } else {
+              for (let i = 1; i < stroke.points.length; i++) {
+                strokesCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+              }
             }
             strokesCtx.stroke();
           }

@@ -90,8 +90,12 @@ export function drawStroke(ctxTarget: CanvasRenderingContext2D, stroke: Stroke):
   ctxTarget.lineJoin = 'round';
   
   ctxTarget.moveTo(stroke.points[0].x, stroke.points[0].y);
-  for (let i = 1; i < stroke.points.length; i++) {
-    ctxTarget.lineTo(stroke.points[i].x, stroke.points[i].y);
+  if (stroke.points.length === 1) {
+    ctxTarget.lineTo(stroke.points[0].x, stroke.points[0].y);
+  } else {
+    for (let i = 1; i < stroke.points.length; i++) {
+      ctxTarget.lineTo(stroke.points[i].x, stroke.points[i].y);
+    }
   }
   ctxTarget.stroke();
   ctxTarget.restore();
