@@ -1,5 +1,6 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
+  import { t } from '../../services/i18n';
 
   let {
     isCustomBgModalOpen = $bindable(),
@@ -25,7 +26,7 @@
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const bgUrl = event.target.result;
+      const bgUrl = event.target?.result as string;
 
       if (useBgAsIcon || !newBgIconFile) {
         const bg = store.addCustomBackground(newBgName.trim(), bgUrl, bgUrl);
@@ -35,7 +36,7 @@
       } else {
         const iconReader = new FileReader();
         iconReader.onload = (iconEvent) => {
-          const iconUrl = iconEvent.target.result;
+          const iconUrl = iconEvent.target?.result as string;
           const bg = store.addCustomBackground(newBgName.trim(), bgUrl, iconUrl);
           activeBg = bg.id;
           isCustomBgModalOpen = false;

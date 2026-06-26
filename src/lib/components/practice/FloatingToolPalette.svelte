@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { t } from '../../services/i18n';
 
   let {
     strokeColor = $bindable(),
