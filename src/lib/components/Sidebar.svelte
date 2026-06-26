@@ -112,8 +112,8 @@
               handleNavigate("project-detail", project);
             }
           }}
-          class="w-full flex items-center justify-between rounded-lg hover:bg-surface-container-highest text-on-surface-variant text-left relative group cursor-pointer transition-colors duration-200 select-none
-                 {isCollapsed ? 'justify-center px-0 py-2.5' : 'pl-4 py-2 text-sm'}
+          class="w-full flex items-center rounded-lg hover:bg-surface-container-highest text-on-surface-variant text-left relative group cursor-pointer transition-colors duration-200 select-none
+                 {isCollapsed ? 'justify-center px-0 py-2.5' : 'justify-between pl-4 py-2 text-sm'}
                  {!isCollapsed && project.tasks && project.tasks.length > 0 ? 'pr-2' : 'pr-4'}
                  {store.activeProject?.id === project.id &&
           (store.currentView === 'project-detail' ||
@@ -121,7 +121,7 @@
             ? 'bg-surface-container font-semibold text-primary'
             : ''}"
         >
-          <div class="flex items-center gap-3 min-w-0 flex-1">
+          <div class="flex items-center min-w-0 {isCollapsed ? 'justify-center' : 'gap-3 flex-1'}">
             {#if project.icon && project.icon.startsWith("data:image/")}
               <img
                 src={project.icon}
