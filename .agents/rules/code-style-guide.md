@@ -2,8 +2,8 @@
 trigger: always_on
 ---
 
-Versuche immer wenn Dateien (besonders .svelte Dateien) nicht zu groß werden zu lassen. Erstelle umbedingt components und verwende diese auch wieder.
+Always try to keep files (especially `.svelte` files) from becoming too large. Definitely create components and reuse them.
 
-UI texte müssten immer auf englisch und deutsch geschreiben sein und per i18n implementiert werden und in einfacher Sprache geschrieben werden.
+UI texts must always be written in both English and German, implemented via i18n, and written in plain language.
 
-Wenn der User die mehrer schritte mit 1. 2. 3. usw. gibt committe umbedingt nach jedem task.
+If the user provides several steps (1., 2., 3., etc.), you must commit after each task.
