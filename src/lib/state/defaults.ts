@@ -5,79 +5,26 @@ export const STORAGE_KEY_SETTINGS = 'canvascritique_settings';
 
 export const defaultProjects: Project[] = [
   {
-    id: 'spencerian',
-    name: 'Spencerian Script',
-    icon: 'history_edu',
-    guidelines: '',
-    categories: ['Basics', 'Intermediate', 'Advanced'],
+    id: 'math-basics',
+    name: getSystemLanguage() === 'Deutsch' ? 'Mathematik-Grundlagen' : 'Math Basics',
+    icon: 'calculate',
+    guidelines: getSystemLanguage() === 'Deutsch'
+      ? 'Löse die Matheaufgaben auf der Zeichenfläche. Schreibe deine Rechenschritte übersichtlich auf und kreise das Endergebnis ein.'
+      : 'Solve the math problems on the canvas. Write your steps clearly and circle your final answer.',
+    categories: getSystemLanguage() === 'Deutsch' ? ['Grundlagen'] : ['Basics'],
     profileId: 'default-profile',
     tasks: [
       {
-        id: 'sp-1',
-        name: 'Grip & Posture',
-        completed: true,
-        category: 'Basics',
-        instructions: 'Focus on holding the pen at a 45-degree angle. Relax your hand muscles and sit upright.',
-        solution: 'Relaxed hand, correct finger placement, upright spine.'
-      },
-      {
-        id: 'sp-2',
-        name: 'Basic Ovals',
+        id: 'math-1',
+        name: getSystemLanguage() === 'Deutsch' ? 'Grundrechenarten' : 'Basic Arithmetic',
         completed: false,
-        category: 'Basics',
-        instructions: 'Practice drawing smooth ovals at a 55-degree slant. Fill half a page.',
-        solution: 'Consistent 55-degree slant, smooth curved lines, baseline touch.'
-      },
-      {
-        id: 'sp-3',
-        name: 'Upper Loops (l, h, k, b)',
-        completed: false,
-        category: 'Intermediate',
-        instructions: 'Start at the baseline with a light upward stroke.\nMaintain a consistent 55-degree slant throughout the entire loop.\nThe peak of the loop should touch the ascender line gently.\nThe downward stroke should be slightly thicker (a "swell") as it returns to the baseline.\nThe cross-over point should be exactly at the header line.',
-        solution: 'Symmetrical upper loops crossing exactly at the header line.'
-      }
-    ]
-  },
-  {
-    id: 'copperplate',
-    name: 'Copperplate Basics',
-    icon: 'draw',
-    guidelines: '',
-    categories: ['Basics', 'Intermediate', 'Advanced'],
-    profileId: 'default-profile',
-    tasks: [
-      {
-        id: 'cp-1',
-        name: 'Lowercase Connectors',
-        completed: true,
-        category: 'Intermediate',
-        instructions: 'Connect lowercase letters with hairline upward entries and shaded downward strokes.',
-        solution: 'Consistent connector angle and distinct weight contrast.'
-      },
-      {
-        id: 'cp-2',
-        name: 'Capital Stem Strokes',
-        completed: false,
-        category: 'Advanced',
-        instructions: 'Create the universal capital stem with a curved swell.',
-        solution: 'Smooth transitions from hairline to full shaded swell.'
-      }
-    ]
-  },
-  {
-    id: 'penmanship',
-    name: 'Business Penmanship',
-    icon: 'ink_pen',
-    categories: ['Basics', 'Intermediate', 'Advanced'],
-    profileId: 'default-profile',
-    tasks: [
-      {
-        id: 'bp-1',
-        name: 'Flourishing Basics',
-        completed: false,
-        category: 'Advanced',
-        instructions: 'Extend loop lines into elegant, crossing sweeps.',
-        solution: 'Symmetrical loops, clean line intersections without wobbles.'
+        category: getSystemLanguage() === 'Deutsch' ? 'Grundlagen' : 'Basics',
+        instructions: getSystemLanguage() === 'Deutsch'
+          ? 'Schreibe die folgenden 5 Aufgaben auf und löse sie:\n\n1) 12 + 15 = \n2) 45 - 18 = \n3) 7 * 8 = \n4) 144 / 12 = \n5) 83 + 19 = '
+          : 'Write down the following 5 problems and solve them:\n\n1) 12 + 15 = \n2) 45 - 18 = \n3) 7 * 8 = \n4) 144 / 12 = \n5) 83 + 19 = ',
+        solution: getSystemLanguage() === 'Deutsch'
+          ? 'Lösungen:\n1) 27\n2) 27\n3) 56\n4) 12\n5) 102'
+          : 'Solutions:\n1) 27\n2) 27\n3) 56\n4) 12\n5) 102'
       }
     ]
   }
