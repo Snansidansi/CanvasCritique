@@ -321,6 +321,33 @@
     }
   }
 
+  // Category inline editing state and handlers
+  let editingCategory = $state<string | null>(null);
+  let editCategoryValue = $state('');
+
+  function startCategoryEdit(category: string) {
+    editCategoryValue = category;
+    editingCategory = category;
+  }
+
+  function saveCategoryEdit(oldCategory: string) {
+    if (editingCategory !== oldCategory) return;
+    const trimmed = editCategoryValue.trim();
+    if (trimmed && trimmed !== oldCategory) {
+      store.renameCategory(project.id, oldCategory, trimmed);
+    }
+    editingCategory = null;
+  }
+
+  function handleCategoryKeydown(e: KeyboardEvent, oldCategory: string) {
+    if (e.key === 'Enter') {
+      saveCategoryEdit(oldCategory);
+    } else if (e.key === 'Escape') {
+      editingCategory = null;
+    }
+  }
+
+
   function triggerImageUpload() {
     if (project.id === 'No Lesson Selected') return;
     const fileInput = document.getElementById('project-image-upload') as HTMLInputElement;
@@ -581,19 +608,26 @@
         <div class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-6 flex flex-col gap-4">
           <div class="flex items-center justify-between border-b border-outline-variant/20 pb-3">
             <div class="flex items-center gap-2">
-              <button
-                type="button"
-                onclick={() => {
-                  const newName = prompt(t('projectDetail.renameTopicPrompt', { category }), category);
-                  if (newName && newName.trim() && newName.trim() !== category) {
-                    store.renameCategory(project.id, category, newName.trim());
-                  }
-                }}
-                class="text-xs font-bold text-primary uppercase tracking-widest hover:underline cursor-pointer border-0 bg-transparent p-0 text-left focus:outline-none"
-                title={t('projectDetail.renameTopicTooltip')}
-              >
-                {category}
-              </button>
+              {#if editingCategory === category}
+                <input
+                  type="text"
+                  bind:value={editCategoryValue}
+                  onblur={() => saveCategoryEdit(category)}
+                  onkeydown={(e) => handleCategoryKeydown(e, category)}
+                  class="font-bold text-xs text-primary bg-surface-container border-b border-primary px-1 py-0.5 rounded focus:outline-none w-48 max-w-full uppercase tracking-widest"
+                  use:selectAndFocus
+                />
+              {:else}
+                <button
+                  type="button"
+                  onclick={() => startCategoryEdit(category)}
+                  class="group flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-widest hover:underline cursor-pointer border-0 bg-transparent p-0 text-left focus:outline-none"
+                  title={t('projectDetail.renameTopicTooltip')}
+                >
+                  <span>{category}</span>
+                  <span class="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity text-outline-variant">edit</span>
+                </button>
+              {/if}
 
               <button
                 type="button"
