@@ -45,7 +45,7 @@ export function t(key: string, replacements?: Record<string, string | number>): 
   if (replacements) {
     let result = value;
     for (const [k, val] of Object.entries(replacements)) {
-      result = result.replace(new RegExp(`{${k}}`, 'g'), String(val));
+      result = result.replace(new RegExp(`\\{\\{${k}\\}\\}|\\{${k}\\}`, 'g'), String(val));
     }
     return result;
   }
