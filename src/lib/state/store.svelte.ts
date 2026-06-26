@@ -1085,7 +1085,12 @@ class CanvasCritiqueStore {
 
         if (filePath) {
           await writeTextFile(filePath, content);
-          this.showNotification('Exported to Downloads folder.', 'success');
+          this.showNotification(
+            this.settings?.language === 'Deutsch'
+              ? 'Erfolgreich in den Downloads-Ordner exportiert.'
+              : 'Exported to Downloads folder.',
+            'success'
+          );
         }
         return;
       }
@@ -1101,7 +1106,12 @@ class CanvasCritiqueStore {
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
-    this.showNotification('Exported to Downloads folder.', 'success');
+    this.showNotification(
+      this.settings?.language === 'Deutsch'
+        ? 'Erfolgreich in den Downloads-Ordner exportiert.'
+        : 'Exported to Downloads folder.',
+      'success'
+    );
   }
 
   recordRequest(
