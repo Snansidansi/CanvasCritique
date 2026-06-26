@@ -64,9 +64,7 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': 'https://canvascritique.app',
-            'X-Title': 'CanvasCritique'
+            'Authorization': `Bearer ${apiKey}`
           },
           body: JSON.stringify(requestBody)
         });
