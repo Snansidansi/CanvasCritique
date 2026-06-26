@@ -2,6 +2,7 @@
   import { store, DEFAULT_SYSTEM_PROMPT, type Task } from '../state/store.svelte';
   import { onMount, tick } from 'svelte';
   import { fly } from 'svelte/transition';
+  import { t } from '../services/i18n';
 
   // Subcomponents
   import PracticeHeader from '../components/practice/PracticeHeader.svelte';
