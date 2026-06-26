@@ -95,7 +95,7 @@
           {t("sidebar.myLessons")}
         </p>
       {:else}
-        <div class="h-px w-8 bg-outline-variant/30"></div>
+        <div class="h-px w-8 bg-outline-variant/70"></div>
       {/if}
     </div>
     <div
@@ -121,7 +121,37 @@
             ? 'bg-surface-container font-semibold text-primary'
             : ''}"
         >
-          <div class="flex items-center min-w-0 {isCollapsed ? 'justify-center' : 'gap-3 flex-1'}">
+          {#if !isCollapsed}
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+              {#if project.icon && project.icon.startsWith("data:image/")}
+                <img
+                  src={project.icon}
+                  class="w-4.5 h-4.5 object-contain rounded shrink-0"
+                  alt=""
+                />
+              {:else}
+                <span class="material-symbols-outlined text-[18px] shrink-0"
+                  >{project.icon || "history_edu"}</span
+                >
+              {/if}
+              <span class="truncate flex-1 min-w-0">{project.name}</span>
+            </div>
+
+            {#if project.tasks && project.tasks.length > 0}
+              {@const nextTask = project.tasks.find(t => !t.completed) || project.tasks[0]}
+              <button
+                onclick={(e) => {
+                  e.stopPropagation();
+                  store.selectProject(project);
+                  store.selectTask(nextTask);
+                }}
+                class="text-outline hover:text-primary transition-all p-1 rounded hover:bg-surface-container-high cursor-pointer flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto shrink-0"
+                title={t("sidebar.resumeLesson")}
+              >
+                <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+              </button>
+            {/if}
+          {:else}
             {#if project.icon && project.icon.startsWith("data:image/")}
               <img
                 src={project.icon}
@@ -133,30 +163,11 @@
                 >{project.icon || "history_edu"}</span
               >
             {/if}
-            {#if !isCollapsed}
-              <span class="truncate flex-1 min-w-0">{project.name}</span>
-            {:else}
-              <div
-                class="absolute left-16 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
-              >
-                {project.name}
-              </div>
-            {/if}
-          </div>
-
-          {#if !isCollapsed && project.tasks && project.tasks.length > 0}
-            {@const nextTask = project.tasks.find(t => !t.completed) || project.tasks[0]}
-            <button
-              onclick={(e) => {
-                e.stopPropagation();
-                store.selectProject(project);
-                store.selectTask(nextTask);
-              }}
-              class="text-outline hover:text-primary transition-all p-1 rounded hover:bg-surface-container-high cursor-pointer flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto shrink-0"
-              title={t("sidebar.resumeLesson")}
+            <div
+              class="absolute left-16 bg-inverse-surface text-inverse-on-surface text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
             >
-              <span class="material-symbols-outlined text-[18px]">play_arrow</span>
-            </button>
+              {project.name}
+            </div>
           {/if}
         </div>
       {/each}
