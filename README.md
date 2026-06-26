@@ -1,94 +1,99 @@
 # CanvasCritique
 
-A beautiful, feature-rich desktop application for practicing calligraphy and handwriting, built using Svelte 5, Vite, and Tauri v2. CanvasCritique integrates with Gemini AI to provide real-time, interactive visual feedback directly on your drawing canvas.
-
----
-
-<!-- Placeholder for Application Banner / Screenshot -->
-> [!TIP]
-> **[Placeholder: Add Application Main Banner or Overview Image Here]**
-<!-- [IMAGE: /path/to/main_banner.png] -->
-
----
+A desktop application for practicing handwritten exercises. It uses AI models like Gemini and OpenRouter to analyze drawings and place feedback markers directly on the canvas.
 
 ## What It Is
 
-**CanvasCritique** is a modern desktop application that bridges the gap between traditional handwriting practice and digital feedback. Built for students, calligraphy enthusiasts, and language learners, it lets you practice strokes on a digital canvas and receive targeted, visual, and qualitative critique from state-of-the-art AI models.
+**CanvasCritique** is a desktop app for practicing handwriting, calligraphy, or other stroke-based exercises on a digital canvas.
 
-No more guessing if your stroke order, angle, height, or proportions are correct. With CanvasCritique, you get immediate guidance and visual correction markers, right on the page.
+The basic idea is simple:  
+You draw on the canvas, send your work to an AI model, and receive feedback directly on the page.
 
----
+The AI can check things like stroke position, proportions, angles, spacing, or other task-specific rules depending on how the lesson is configured.
 
-## Key Features
+## Features
 
-* **Interactive Practice Canvas:**
-  * Support for both structured **A4 Page layouts** and an **Infinite Canvas**.
-  * Custom grid patterns, baseline grids, slant lines, and trace templates.
-  * Real-time adjustment of template guidelines and background opacity.
-* **AI-Powered Evaluation:**
-  * Detailed grading and qualitative feedback on your calligraphy practices.
-  * Visual correction markers (Correct, Incorrect, Partial) placed at precise coordinates on your canvas.
-  * Custom system prompts and fine-tuned settings to control the evaluation details.
-* **Lesson & Project Management:**
-  * Organize your practice into logical learning paths (Projects) and modules (Lessons).
-  * Configure individual task objectives, trace guides, and solution assets.
-  * Enable lesson-specific setting overrides for tailored AI evaluations.
-* **Rich Task Editor:**
-  * Add task instructions, guidelines, and reference solution templates.
-  * Drag-and-drop support for media files and clipboard image pasting.
-* **Aesthetics & Customization:**
-  * Sleek user interface with full light and dark mode compatibility.
-  * Comprehensive usage statistics, token counts, and API call cost estimation.
+* **Drawing Canvas**
+  * Supports both fixed **A4 pages** and an **Infinite Canvas**
+  * Optional guide overlays (grid lines, baselines, slants, trace templates)
+  * Adjustable background and guideline visibility
 
----
+* **AI Evaluation**
+  * Sends drawings to AI models for analysis
+  * Returns text feedback and a score
+  * Places visual feedback markers directly on the canvas
+
+* **Projects & Lessons**
+  * Organize exercises into projects and lessons
+  * Each lesson can contain its own tasks and instructions
+  * Custom AI settings can be configured per lesson
+
+* **Task Editor**
+  * Create tasks with instructions and reference images
+  * Add trace templates or example solutions
+  * Supports drag & drop and clipboard image pasting
+
+* **Additional Tools**
+  * Usage statistics
+  * API token/cost tracking
+  * Light and dark mode
+ 
+## LLM Model Choice
+It is necessary to choose an LLM model with vision capabilities. I found that `Gemini 3 Flash` is fast and good enough for the job at the current date (26.06.2026).
+
+If you choose an LLM model that is too weak, it could happen, for example, that the markers on the canvas are offset.
+
+## Gallery & Interface Placeholders
+
+Below are placeholders for screenshots of the application.
+
+### Main Dashboard
+<img width="1202" height="832" alt="image" src="https://github.com/user-attachments/assets/3cc123cb-3042-40fa-9ffe-9783d237fbc0" />
+
+### Practice Canvas
+<img width="1202" height="832" alt="image" src="https://github.com/user-attachments/assets/362ac353-cc1b-4a25-8ab7-9f4a47b60930" />
+
+### AI Feedback & Visual Markers
+<img width="1279" height="832" alt="image" src="https://github.com/user-attachments/assets/67ecf43d-3100-4b83-a81e-330e28ef2385" />
+
+### Lesson Creator
+<img width="1628" height="985" alt="image" src="https://github.com/user-attachments/assets/1a6c39e1-5892-4d00-9342-375fc30fd85c" />
+
+### Task Editor
+<img width="1628" height="1508" alt="image" src="https://github.com/user-attachments/assets/506f6d3a-1973-4fa6-829e-debf9ab53efc" />
 
 ## How It Works
 
 ```mermaid
 graph TD
-    A[Select Project / Lesson] --> B[Practice Writing on Canvas]
-    B --> C[Request AI Critique]
-    C --> D{AI Evaluation}
-    D -->|Analyze Strokes, Guidelines & References| E[Generate Visual Markers & Text Feedback]
-    E --> F[Render Interactive Markers Directly on Canvas]
+    A[Select Project / Lesson] --> B[Draw on Canvas]
+    B --> C[Request AI Review]
+    C --> D{AI Analysis}
+    D --> E[Generate Feedback + Marker Positions]
+    E --> F[Render Markers on Canvas]
 ```
 
-### 1. Practice and Draw
-Select a lesson, read the instructions, and write directly on the canvas using your drawing tablet or mouse. You can toggle guide overlays (such as baseline grids, slants, or standard guidelines) or trace over background reference images.
+### 1. Draw
 
-### 2. Request Critique
-When you are ready, click the **Check Work** button. The application extracts the bounding boxes of your drawings, bundles them with the lesson guidelines, reference solution images, and task text, and sends them to the configured AI API (such as Gemini 1.5 Flash).
+Open a lesson and complete the task by drawing directly on the canvas using a mouse or drawing tablet.
 
-### 3. Review Visual Annotations
-The AI analyzes your strokes against the guidelines and solutions. It returns general text feedback, a score, and a list of specific coordinates with feedback annotations. CanvasCritique draws these markers directly onto your canvas. Hovering over a marker reveals the critique (e.g., "Stroke is too high," "Excellent entry angle").
+Optional guides or background templates can be enabled depending on the exercise.
 
----
+### 2. Send for Review
 
-## Gallery & Interface Placeholders
+After finishing, click **Check Work**.
 
-Below are placeholders to showcase the core user interface of the application:
+The application collects the drawing data together with task instructions, lesson settings, and optional reference images.
 
-### Main Dashboard
-> [!NOTE]  
-> **[Placeholder: Add Main Dashboard / Projects List Image Here]**
-<!-- [IMAGE: /path/to/dashboard.png] -->
+This data is then sent to the configured AI API.
 
-### Interactive Practice Canvas
-> [!NOTE]  
-> **[Placeholder: Add Practice Canvas with Drawing & Guidelines Image Here]**
-<!-- [IMAGE: /path/to/practice_canvas.png] -->
+### 3. Review Feedback
 
-### AI Feedback & Visual Markers
-> [!NOTE]  
-> **[Placeholder: Add Drawing with Visual AI Feedback Markers Image Here]**
-<!-- [IMAGE: /path/to/ai_feedback.png] -->
+The AI returns text feedback, a score, and marker positions.
 
-### Task Editor & Lesson Creator
-> [!NOTE]  
-> **[Placeholder: Add Task Editor with Media Uploads Image Here]**
-<!-- [IMAGE: /path/to/task_editor.png] -->
+These markers are drawn directly on the canvas.
 
----
+Each marker contains feedback for a specific part of the drawing (for example incorrect angle, wrong height, bad alignment, etc.).
 
 ## WSL Development & Windows Build Guide
 
@@ -171,3 +176,4 @@ After running `make build`, the outputs are located at:
 
 > [!NOTE]  
 > This project code was co-written using **Antigravity** (AI coding assistant by Google DeepMind) and manually verified and tested.
+> So this project was not created to program but to get the product.
