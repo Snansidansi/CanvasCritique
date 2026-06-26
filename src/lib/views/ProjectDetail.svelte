@@ -145,8 +145,6 @@
     // Ignore drags starting on interactive children (buttons, checkboxes)
     if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input')) return;
 
-    e.preventDefault();
-
     dragPointerStartX = e.clientX;
     dragPointerStartY = e.clientY;
     dragSourceEl = target;
