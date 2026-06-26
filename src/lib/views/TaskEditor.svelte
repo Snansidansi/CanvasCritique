@@ -7,6 +7,7 @@
   // Form states
   let taskName = $state('');
   let targetProjectId = $state('');
+  let nameInput = $state<HTMLInputElement | null>(null);
   let instructions = $state('');
   let solution = $state('');
   let category = $state('Basics');
@@ -46,6 +47,15 @@
     } else {
       targetProjectId = store.activeProject?.id || (store.projects.find(p => p.profileId === store.activeProfileId)?.id || '');
     }
+
+    setTimeout(() => {
+      if (nameInput) {
+        nameInput.focus();
+        if (taskName) {
+          nameInput.select();
+        }
+      }
+    }, 50);
   });
 
   // Categories list of target project
@@ -421,6 +431,7 @@
         <input 
           id="taskName" 
           type="text" 
+          bind:this={nameInput}
           bind:value={taskName}
           placeholder={t('taskEditor.namePlaceholder')}
           class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-2.5 text-base text-on-surface placeholder:text-outline focus:ring-0 focus:border-primary focus:border-b-2 transition-all focus:outline-none"
