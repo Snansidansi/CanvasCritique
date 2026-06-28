@@ -348,7 +348,7 @@ class CanvasCritiqueStore {
         }
       }
       // Upsert project metadata
-      const existing = await db.select('SELECT id FROM projects WHERE id = ?', [project.id]);
+      const existing: any[] = await db.select('SELECT id FROM projects WHERE id = ?', [project.id]);
       if (existing.length > 0) {
         await dbUpdateProject(db, project.id, {
           name: project.name,
@@ -364,7 +364,7 @@ class CanvasCritiqueStore {
       }
       // Sync tasks
       for (const task of (project.tasks || [])) {
-        const existingTask = await db.select('SELECT id FROM tasks WHERE id = ?', [task.id]);
+        const existingTask: any[] = await db.select('SELECT id FROM tasks WHERE id = ?', [task.id]);
         if (existingTask.length > 0) {
           await dbUpdateTask(db, task.id, {
             name: task.name,
@@ -406,7 +406,7 @@ class CanvasCritiqueStore {
           } catch (_) {}
         }
       }
-      const existing = await db.select('SELECT id FROM profiles WHERE id = ?', [profile.id]);
+      const existing: any[] = await db.select('SELECT id FROM profiles WHERE id = ?', [profile.id]);
       if (existing.length > 0) {
         await dbUpdateProfile(db, profile.id, profile);
       } else {

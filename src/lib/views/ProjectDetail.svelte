@@ -828,6 +828,7 @@
           <!-- Pointer-based draggable task list -->
           <div class="bg-surface-container-low border border-outline-variant/60 rounded-b-xl rounded-t-none px-6 pb-6 pt-0 border-t-0 -mt-0.5">
           <div 
+            role="region"
             class="flex flex-col gap-2 min-h-12.5 {sectionDropTargetCat === category ? 'border-2 border-dashed border-primary bg-primary/5 rounded-lg' : ''}"
             data-category-container={category}
             ondragover={(e) => handleSectionDragOver(e, category)}
@@ -982,7 +983,6 @@
             placeholder={t('projectDetail.topicNamePlaceholder')}
             class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary"
             required
-            autofocus
           />
         </div>
 

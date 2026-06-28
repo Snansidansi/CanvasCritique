@@ -13,6 +13,7 @@ export interface Task {
   instructions: string;
   solution: string;
   category: string;
+  projectId?: string;
   instructionFiles?: MediaFile[];
   solutionFiles?: MediaFile[];
   instructionFile?: MediaFile | null; // legacy

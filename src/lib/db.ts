@@ -407,12 +407,7 @@ export async function loadAllData(db: Database): Promise<AllData> {
   ]);
 
   for (const project of projects) {
-    project.tasks = tasks.filter(t => (t as any).projectId === project.id);
-    delete (project as any).projectId;
-  }
-
-  for (const task of tasks) {
-    delete (task as any).projectId;
+    project.tasks = tasks.filter(t => t.projectId === project.id);
   }
 
   return { profiles, settings, projects, tasks, backgrounds };

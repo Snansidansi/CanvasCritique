@@ -240,13 +240,6 @@
 
   onMount(() => {
     const savedRecents = store.settings.recentColors; if (savedRecents.length > 0) { recentColors = [...savedRecents]; }
-    if (savedRecents) {
-      try {
-        recentColors = JSON.parse(savedRecents);
-      } catch (e) {
-        // Fallback
-      }
-    }
   });
 
   // Active stroke lists mapped as derived properties

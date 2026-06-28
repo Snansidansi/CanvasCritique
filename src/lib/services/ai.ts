@@ -52,10 +52,10 @@ export interface CheckWorkTask {
   section?: string;
   instructions?: string;
   solution?: string;
-  instructionFiles?: Array<{ name: string; dataUrl?: string }>;
-  solutionFiles?: Array<{ name: string; dataUrl?: string }>;
-  instructionFile?: { name: string; dataUrl?: string }; // legacy
-  solutionFile?: { name: string; dataUrl?: string }; // legacy
+  instructionFiles?: Array<{ name: string; dataUrl?: string; mediaId?: string }>;
+  solutionFiles?: Array<{ name: string; dataUrl?: string; mediaId?: string }>;
+  instructionFile?: { name: string; dataUrl?: string; mediaId?: string }; // legacy
+  solutionFile?: { name: string; dataUrl?: string; mediaId?: string }; // legacy
 }
 
 export interface CheckWorkSettings {
