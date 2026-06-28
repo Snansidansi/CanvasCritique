@@ -1,5 +1,4 @@
 import Database from '@tauri-apps/plugin-sql';
-import { appLocalDataDir } from '@tauri-apps/api/path';
 import type { Profile, Settings, Project, Task, CustomBackground, ProjectSettingsOverride } from './state/types';
 import { defaultSettings } from './state/defaults';
 import { encrypt, decrypt } from './db/crypto';
@@ -9,8 +8,7 @@ let dbInstance: Database | null = null;
 export async function initDb(): Promise<Database> {
   if (dbInstance) return dbInstance;
 
-  const localDataDir = await appLocalDataDir();
-  const db = await Database.load(`sqlite:${localDataDir}canvascritique.db`);
+  const db = await Database.load('sqlite:canvascritique.db');
   dbInstance = db;
 
   await db.execute('PRAGMA foreign_keys = ON');

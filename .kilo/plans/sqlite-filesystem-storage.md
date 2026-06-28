@@ -14,12 +14,14 @@ Replace localStorage-based persistence with:
 
 ```
 appLocalDataDir/
-├── canvascritique.db          # SQLite database
 ├── media/                      # All binary media files
-│   ├── task_<uuid1>.png
-│   ├── task_<uuid2>.jpg
-│   └── bg_<uuid>.png
+│   ├── <uuid1>.png
+│   ├── <uuid2>.jpg
+│   └── <uuid>.png
 └── .encryption_key             # Auto-generated encryption key
+
+appDataDir/
+└── canvascritique.db           # SQLite database (Plugin-Default = Roaming)
 ```
 
 ## Step 1 — Database Setup (SQLite)
