@@ -305,9 +305,9 @@
   });
 
   let activeLeftPanels = $derived([
-    showTask && { id: 'task', title: `${task.name} Instructions`, content: task.instructions },
-    showSolution && { id: 'solution', title: 'Evaluation Goal / Solution', content: task.solution },
-    showFeedback && hasCheckedWork && { id: 'feedback', title: 'AI Critique & Feedback', isFeedback: true }
+    showTask && { id: 'task', title: `${task.category && task.category !== 'Basics' ? task.category + ' - ' : ''}${task.name}`, content: task.instructions },
+    showSolution && { id: 'solution', title: t('practice.evaluationGoal'), content: task.solution },
+    showFeedback && hasCheckedWork && { id: 'feedback', title: t('practice.aiCritiqueFeedback'), isFeedback: true }
   ].filter(Boolean));
 
   // Initialize context when canvas mounts or switches
@@ -1483,6 +1483,8 @@
         };
         if (feedbackScore === 100 && store.settings.autoCompleteOnSuccess) {
           updatedData.completed = true;
+        } else {
+          updatedData.completed = false;
         }
         store.updateTask(store.activeProject.id, store.activeTask.id, updatedData);
       }

@@ -223,6 +223,10 @@
     "solutionLabel": "Solution",
     "critiqueLabel": "Critique",
     "stylusMode": "Stylus Mode",
+    "evaluationGoal": "Evaluation Goal / Solution",
+    "aiCritiqueFeedback": "AI Critique & Feedback",
+    "noInstructions": "No instructions provided",
+    "noSolution": "No solution provided",
     "infoPanels": {
       "taskMedia": "Task Media",
       "solutionMedia": "Solution Media",
