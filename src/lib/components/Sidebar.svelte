@@ -15,6 +15,17 @@
     }
     store.setView(view);
   }
+
+  function getNextTaskInOrder(project: any) {
+    if (!project.tasks || project.tasks.length === 0) return null;
+    const categories = project.categories || [];
+    for (const category of categories) {
+      const tasks = project.tasks.filter((t: any) => (t.category || 'Basics') === category);
+      const next = tasks.find((t: any) => !t.completed);
+      if (next) return next;
+    }
+    return project.tasks.find((t: any) => !t.completed) || project.tasks[0];
+  }
 </script>
 
 <!-- Desktop Sidebar Navigation -->
@@ -139,7 +150,7 @@
             </div>
 
             {#if project.tasks && project.tasks.length > 0}
-              {@const nextTask = project.tasks.find(t => !t.completed) || project.tasks[0]}
+              {@const nextTask = getNextTaskInOrder(project)}
               <button
                 onclick={(e) => {
                   e.stopPropagation();

@@ -54,6 +54,7 @@ class CanvasCritiqueStore {
   activeTask = $state<Task | null>(null);
   editingTask = $state<Task | null>(null);
   quickAddTaskData = $state<{ name: string; category: string } | null>(null);
+  pendingScrollCategory = $state<string | null>(null);
   settings = $state<Settings>(defaultSettings);
   customBackgrounds = $state<CustomBackground[]>([]);
   confirmDialog = $state<ConfirmDialog | null>(null);

@@ -73,6 +73,20 @@
     (e.target as HTMLInputElement).value = "";
   }
 
+  // Auto-scroll to section after task creation
+  $effect(() => {
+    if (store.pendingScrollCategory && store.currentView === 'project-detail') {
+      const cat = store.pendingScrollCategory;
+      store.pendingScrollCategory = null;
+      setTimeout(() => {
+        const el = document.querySelector(`[data-section-category="${CSS.escape(cat)}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  });
+
   // Derived progress rune
   let progress = $derived(getProjectProgress());
 
@@ -116,6 +130,7 @@
 
   function handleAddTaskInCategory(category: string) {
     store.quickAddTaskData = { name: '', category };
+    store.pendingScrollCategory = category;
     store.setView('task-editor');
   }
 

@@ -170,6 +170,17 @@
     return project.tasks.filter((t: any) => !t.completed).length;
   }
 
+  function getNextTaskInOrder(project: any) {
+    if (!project.tasks || project.tasks.length === 0) return null;
+    const categories = project.categories || [];
+    for (const category of categories) {
+      const tasks = project.tasks.filter((t: any) => (t.category || 'Basics') === category);
+      const next = tasks.find((t: any) => !t.completed);
+      if (next) return next;
+    }
+    return project.tasks.find((t: any) => !t.completed) || project.tasks[0];
+  }
+
   // Lesson drag-and-drop handlers
   function handleLessonPointerDown(e: PointerEvent, projectId: string) {
     if (e.button !== 0 && e.button !== -1) return;
@@ -483,7 +494,7 @@
 
             <div class="flex gap-2">
               {#if project.tasks && project.tasks.length > 0}
-                {@const nextTask = project.tasks.find(t => !t.completed) || project.tasks[0]}
+                {@const nextTask = getNextTaskInOrder(project)}
                 <button
                   onclick={() => openPractice(nextTask, project)}
                   class="text-outline hover:text-primary transition-colors p-1 rounded hover:bg-surface-container-high cursor-pointer flex items-center justify-center"
