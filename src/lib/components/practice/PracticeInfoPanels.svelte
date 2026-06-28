@@ -143,29 +143,34 @@
 
   let isSolutionTextEmpty = $derived(!task.solution || !task.solution.trim());
 
-  function startSplitDrag(e) {
+  let splitDragPointerId = -1;
+
+  function startSplitDrag(e: PointerEvent) {
     isDraggingSplitter = true;
+    splitDragPointerId = e.pointerId;
     startX = e.clientX;
     startWidth = splitWidth;
-    window.addEventListener('mousemove', handleSplitDrag);
-    window.addEventListener('mouseup', stopSplitDrag);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch (_) {}
   }
 
-  function handleSplitDrag(e) {
+  function handleSplitDrag(e: PointerEvent) {
     if (!isDraggingSplitter) return;
     const deltaX = e.clientX - startX;
     const newWidth = startWidth + deltaX;
-    
-    // Bounds constraints
     if (newWidth >= 180 && newWidth <= 800) {
       splitWidth = newWidth;
     }
   }
 
-  function stopSplitDrag() {
+  function stopSplitDrag(e: PointerEvent) {
+    if (!isDraggingSplitter) return;
     isDraggingSplitter = false;
-    window.removeEventListener('mousemove', handleSplitDrag);
-    window.removeEventListener('mouseup', stopSplitDrag);
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(splitDragPointerId);
+    } catch (_) {}
+    splitDragPointerId = -1;
   }
 </script>
 
@@ -383,7 +388,11 @@
     role="separator"
     aria-valuenow={splitWidth}
     class="w-1.5 hover:w-2 bg-outline-variant/60 hover:bg-primary cursor-col-resize select-none h-full z-20 transition-all active:bg-primary shrink-0"
-    onmousedown={startSplitDrag}
+    style="touch-action: none;"
+    onpointerdown={startSplitDrag}
+    onpointermove={handleSplitDrag}
+    onpointerup={stopSplitDrag}
+    onpointercancel={stopSplitDrag}
   ></div>
 {/if}
 

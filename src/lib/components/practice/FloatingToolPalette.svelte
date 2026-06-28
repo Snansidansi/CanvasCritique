@@ -25,6 +25,7 @@
   let bottomY = $state<number | null>(null);
   let isDragging = $state(false);
   let dragMoved = false;
+  let pointerDownTime = 0;
 
   let dragStartMouseX = 0;
   let dragStartMouseY = 0;
@@ -111,6 +112,7 @@
 
     isDragging = true;
     dragMoved = false;
+    pointerDownTime = Date.now();
 
     dragStartMouseX = e.clientX;
     dragStartMouseY = e.clientY;
@@ -174,9 +176,12 @@
       localStorage.setItem('canvascritique_palette_pos', JSON.stringify({ right: rightX, bottom: bottomY }));
     }
 
-    // Toggle collapse state on simple click when collapsed
+    // Toggle collapse state on quick tap when collapsed (press-and-hold or drag goes into move mode)
     if (isCollapsed && !dragMoved) {
-      toggleCollapse();
+      const elapsed = Date.now() - pointerDownTime;
+      if (elapsed < 200) {
+        toggleCollapse();
+      }
     }
   }
 

@@ -232,9 +232,39 @@
   let hoverPos = $state(null);
 
   let previousTool = $state('pen');
+  let keyboardToolSwitch = $state(false);
+  let keyboardToolSwitchTimeout: ReturnType<typeof setTimeout> | null = null;
+
   $effect(() => {
     if (activeTool !== 'select') {
       previousTool = activeTool;
+    }
+  });
+
+  $effect(() => {
+    const btn = store.lastDetectedButton;
+    if (!btn) return;
+    const isPenHovering = lastPointerType === 'pen';
+    if (!isPenHovering) return;
+    const stylusButtons = store.settings.stylusButtons || [];
+    for (const mapping of stylusButtons) {
+      const matchButton = mapping.button !== undefined && mapping.button !== null && btn.button === mapping.button;
+      const matchButtons = mapping.buttons !== undefined && mapping.buttons !== null && mapping.buttons !== 0 && (btn.buttons & mapping.buttons) !== 0;
+      if (matchButton || matchButtons) {
+        if (mapping.action === 'eraser') {
+          activeTool = 'eraser';
+        } else if (mapping.action === 'select') {
+          activeTool = 'select';
+        } else if (mapping.action === 'pan') {
+          activeTool = 'pan';
+        } else if (mapping.action === 'pen') {
+          activeTool = 'pen';
+        }
+        keyboardToolSwitch = true;
+        if (keyboardToolSwitchTimeout) clearTimeout(keyboardToolSwitchTimeout);
+        keyboardToolSwitchTimeout = setTimeout(() => { keyboardToolSwitch = false; }, 1000);
+        break;
+      }
     }
   });
 
@@ -564,7 +594,12 @@
     }
 
     if (store.settings.stylusMode && isPen && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen) {
-      activeTool = 'pen';
+      if (keyboardToolSwitch) {
+        keyboardToolSwitch = false;
+        if (keyboardToolSwitchTimeout) clearTimeout(keyboardToolSwitchTimeout);
+      } else {
+        activeTool = 'pen';
+      }
     }
 
     // Check for right-click: open paste context menu for mouse/non-pen pointers
@@ -1302,6 +1337,26 @@
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedStrokes.length > 0) {
           deleteSelected();
+          e.preventDefault();
+        }
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        const keyMap: Record<string, string> = {
+          'p': 'pen',
+          'P': 'pen',
+          'e': 'eraser',
+          'E': 'eraser',
+          'h': 'pan',
+          'H': 'pan',
+          's': 'select',
+          'S': 'select',
+        };
+        const newTool = keyMap[e.key];
+        if (newTool) {
+          if (newTool === 'pan' && canvasMode !== 'infinite') return;
+          activeTool = newTool;
+          keyboardToolSwitch = true;
+          if (keyboardToolSwitchTimeout) clearTimeout(keyboardToolSwitchTimeout);
+          keyboardToolSwitchTimeout = setTimeout(() => { keyboardToolSwitch = false; }, 1000);
           e.preventDefault();
         }
       }
