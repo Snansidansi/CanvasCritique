@@ -44,8 +44,12 @@ export interface ProjectSettingsOverride {
   customSystemPrompt?: string;
   language?: string;
   canvasMode?: string;
+  canvasFontSize?: number;
   autoNumberTasks?: boolean;
   taskNumberingTemplate?: string;
+  eraserMode?: 'normal' | 'stroke';
+  eraserRadiusNormal?: number;
+  eraserRadiusStroke?: number;
 }
 
 export interface Project {
@@ -102,6 +106,7 @@ export interface Settings {
   sendTaskText: boolean;
   sendSolutionText: boolean;
   canvasMode: string;
+  canvasFontSize: number;
   customSystemPrompt: string;
   systemPromptEditingEnabled: boolean;
   language: string;
@@ -110,12 +115,20 @@ export interface Settings {
   stylusButtons: StylusButton[];
   stylusMode: boolean;
   autoCompleteOnSuccess: boolean;
+  recentColors: string[];
+  penSize: number;
   statsEnabled: boolean;
   stats: {
     daily: Record<string, DailyStats>;
   };
   geminiInputCostPerMillion: number;
   geminiOutputCostPerMillion: number;
+  eraserMode: 'normal' | 'stroke';
+  eraserRadiusNormal: number;
+  eraserRadiusStroke: number;
+  penRecentColors: string[];
+  penBrushWidth: number;
+  penEraserWidth: number;
 }
 
 export interface Profile {

@@ -105,6 +105,7 @@ export const defaultSettings: Settings = {
   sendTaskText: true,
   sendSolutionText: true,
   canvasMode: 'infinite',
+  canvasFontSize: 13,
   customSystemPrompt: '',
   systemPromptEditingEnabled: false,
   language: getSystemLanguage(),
@@ -112,10 +113,18 @@ export const defaultSettings: Settings = {
   taskNumberingTemplate: getSystemLanguage() === 'Deutsch' ? 'Aufgabe {n}' : 'Task {n}',
   stylusButtons: [],
   stylusMode: false,
+  recentColors: ['#000000', '#e03131', '#2f9e44', '#1971c2', '#f08c00', '#9c36b5'],
+  penSize: 3,
   autoCompleteOnSuccess: true,
   statsEnabled: true,
   stats: { daily: {} },
   geminiInputCostPerMillion: 0.075,
-  geminiOutputCostPerMillion: 0.30
+  geminiOutputCostPerMillion: 0.30,
+  eraserMode: 'normal',
+  eraserRadiusNormal: 24,
+  eraserRadiusStroke: 24,
+  penRecentColors: ['#000000', '#1d4ed8', '#dc2626', '#059669'],
+  penBrushWidth: 2,
+  penEraserWidth: 24
 };
 

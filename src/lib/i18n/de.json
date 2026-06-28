@@ -297,7 +297,9 @@
       "a4": "A4-Format",
       "a4Desc": "Feste A4-Seitengröße",
       "autoCompleteOnSuccess": "Automatisch abschließen bei Erfolg",
-      "autoCompleteOnSuccessDesc": "Aufgabe automatisch als abgeschlossen markieren, wenn Punktzahl 100% beträgt"
+      "autoCompleteOnSuccessDesc": "Aufgabe automatisch als abgeschlossen markieren, wenn Punktzahl 100% beträgt",
+      "textFontSize": "Text-Schriftgröße",
+      "textFontSizeDesc": "Schriftgröße für Aufgabenstellung, Lösung und KI-Kritik im Canvas-Bildschirm"
     },
     "taskNumbering": {
       "title": "Aufgabennummerierung",

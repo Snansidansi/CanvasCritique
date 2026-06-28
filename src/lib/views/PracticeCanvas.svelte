@@ -94,6 +94,18 @@
       : store.settings.canvasMode
   );
 
+  let canvasTextFontSize = $derived(
+    store.activeProject
+      ? store.getEffectiveSettings(store.activeProject.id).canvasFontSize ?? 13
+      : store.settings.canvasFontSize ?? 13
+  );
+
+  let effectiveEraserSettings = $derived(
+    store.activeProject
+      ? store.getEffectiveSettings(store.activeProject.id)
+      : store.settings
+  );
+
   // A4 Pages state
   let pages = $state([
     {
@@ -177,13 +189,15 @@
     } else {
       recentColors = [...recentColors, strokeColor];
     }
-    localStorage.setItem('canvascritique_recent_colors', JSON.stringify(recentColors));
+    store.settings.recentColors = recentColors;
+    store.saveSettings();
   }
 
   function removeColorFromPalette(idx) {
     if (recentColors.length <= 1) return;
     recentColors = recentColors.filter((_, i) => i !== idx);
-    localStorage.setItem('canvascritique_recent_colors', JSON.stringify(recentColors));
+    store.settings.recentColors = recentColors;
+    store.saveSettings();
   }
 
   let isCustomColorInPalette = $derived(recentColors.includes(strokeColor));
@@ -198,7 +212,7 @@
   });
 
   onMount(() => {
-    const savedRecents = localStorage.getItem('canvascritique_recent_colors') || localStorage.getItem('scribeflow_recent_colors');
+    const savedRecents = store.settings.recentColors; if (savedRecents.length > 0) { recentColors = [...savedRecents]; }
     if (savedRecents) {
       try {
         recentColors = JSON.parse(savedRecents);
@@ -640,6 +654,22 @@
     const coords = getCoords(e);
     const bounds = selectionBoundingBox;
     const isClickInSelection = activeTool === 'select' && bounds && isPointInBounds(coords.x, coords.y, bounds);
+
+    // Stroke-erase mode: delete entire stroke under pointer
+    if ((activeTool === 'eraser' || isPointerEraser) && effectiveEraserSettings.eraserMode === 'stroke') {
+      const hitRadius = effectiveEraserSettings.eraserRadiusStroke ?? 24;
+      const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+      for (let i = currentHistory.length - 1; i >= 0; i--) {
+        const stroke = currentHistory[i];
+        if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
+        if (stroke.points.some(p => Math.abs(p.x - coords.x) < hitRadius && Math.abs(p.y - coords.y) < hitRadius)) {
+          currentHistory.splice(i, 1);
+          saveToStore();
+          return;
+        }
+      }
+      return;
+    }
 
     // In stylus mode, finger/touch/mouse cannot draw/select on A4 canvas either (unless clicking in selection to drag/move)
     if (store.settings.stylusMode && isFingerOrMouse && !isClickInSelection) {
@@ -1554,6 +1584,7 @@
       {parseMarkdown}
       {handleCritiqueClick}
       {task}
+      textFontSize={canvasTextFontSize}
     />
 
     <!-- Right side: Drawing Workspace (Infinite or A4 Centered) -->

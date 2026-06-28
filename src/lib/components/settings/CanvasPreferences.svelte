@@ -16,6 +16,25 @@
   
   <CanvasModeSelector settings={store.settings} onchange={() => store.saveSettings()} />
 
+  <!-- Font Size -->
+  <div class="mt-6 border-t border-outline-variant/40 pt-5 flex flex-col gap-3">
+    <div>
+      <h4 class="font-bold text-sm text-on-surface mb-0.5">{t('settings.canvas.textFontSize')}</h4>
+      <p class="text-xs text-on-surface-variant">{t('settings.canvas.textFontSizeDesc')}</p>
+    </div>
+    <div class="flex items-center gap-4">
+      <input
+        type="range"
+        min="10"
+        max="24"
+        bind:value={store.settings.canvasFontSize}
+        onchange={() => store.saveSettings()}
+        class="flex-1 h-1 accent-primary cursor-pointer"
+      />
+      <span class="text-sm font-bold text-on-surface w-10 text-right">{store.settings.canvasFontSize}px</span>
+    </div>
+  </div>
+
   <!-- Auto-complete on AI success -->
   <div class="mt-6 border-t border-outline-variant/40 pt-5 flex items-center justify-between gap-4">
     <div>

@@ -298,7 +298,9 @@
       "a4": "A4 Format",
       "a4Desc": "Fixed A4 page size",
       "autoCompleteOnSuccess": "Auto-complete on Success",
-      "autoCompleteOnSuccessDesc": "Automatically mark task as completed when score is 100%"
+      "autoCompleteOnSuccessDesc": "Automatically mark task as completed when score is 100%",
+      "textFontSize": "Text Font Size",
+      "textFontSizeDesc": "Font size for task instructions, solution, and AI critique on the canvas screen"
     },
     "taskNumbering": {
       "title": "Task Numbering",

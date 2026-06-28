@@ -16,7 +16,8 @@
     feedbackText,
     parseMarkdown,
     handleCritiqueClick,
-    task
+    task,
+    textFontSize = 13
   } = $props();
 
   let isDraggingSplitter = $state(false);
@@ -219,7 +220,7 @@
             </div>
           {/if}
         {:else}
-          <div class="text-xs text-on-surface-variant leading-relaxed prose prose-sm dark:prose-invert select-text">
+          <div class="text-xs text-on-surface-variant leading-relaxed prose prose-sm dark:prose-invert select-text" style="font-size: {textFontSize}px;">
             {#if panel.content && panel.content.trim()}
               {@html parseMarkdown(panel.content)}
             {:else}

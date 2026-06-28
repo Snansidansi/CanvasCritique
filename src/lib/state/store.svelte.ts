@@ -172,6 +172,10 @@ class CanvasCritiqueStore {
         customSystemPrompt: isOverrideSystemPrompt ? (override.customSystemPrompt !== undefined && override.customSystemPrompt !== null ? override.customSystemPrompt : globalSettings.customSystemPrompt) : globalSettings.customSystemPrompt,
         language: isAnyOverride ? (override.language ?? globalSettings.language) : globalSettings.language,
         canvasMode: isOverrideCanvas ? (override.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode,
+        canvasFontSize: isOverrideCanvas ? (override.canvasFontSize ?? globalSettings.canvasFontSize) : globalSettings.canvasFontSize,
+        eraserMode: isOverrideCanvas ? (override.eraserMode ?? globalSettings.eraserMode) : globalSettings.eraserMode,
+        eraserRadiusNormal: isOverrideCanvas ? (override.eraserRadiusNormal ?? globalSettings.eraserRadiusNormal) : globalSettings.eraserRadiusNormal,
+        eraserRadiusStroke: isOverrideCanvas ? (override.eraserRadiusStroke ?? globalSettings.eraserRadiusStroke) : globalSettings.eraserRadiusStroke,
         autoNumberTasks: isOverrideTaskNumbering ? (override.autoNumberTasks ?? globalSettings.autoNumberTasks) : globalSettings.autoNumberTasks,
         taskNumberingTemplate: isOverrideTaskNumbering ? (override.taskNumberingTemplate ?? globalSettings.taskNumberingTemplate) : globalSettings.taskNumberingTemplate
       };
@@ -240,6 +244,12 @@ class CanvasCritiqueStore {
       if (!this.settings.stylusButtons || !Array.isArray(this.settings.stylusButtons)) {
         this.settings.stylusButtons = [];
       }
+      if (!this.settings.recentColors || !Array.isArray(this.settings.recentColors)) {
+        this.settings.recentColors = defaultSettings.recentColors;
+      }
+      if (!this.settings.penSize) {
+        this.settings.penSize = defaultSettings.penSize;
+      }
       if (this.settings.openRouterProvider && typeof this.settings.openRouterProvider === 'string') {
         this.settings.openRouterProvider = [this.settings.openRouterProvider];
       } else if (!this.settings.openRouterProvider) {
@@ -250,6 +260,27 @@ class CanvasCritiqueStore {
       }
       if (typeof this.settings.geminiOutputCostPerMillion !== 'number' || isNaN(this.settings.geminiOutputCostPerMillion) || this.settings.geminiOutputCostPerMillion <= 0) {
         this.settings.geminiOutputCostPerMillion = 0.30;
+      }
+      if (!this.settings.canvasFontSize || typeof this.settings.canvasFontSize !== 'number') {
+        this.settings.canvasFontSize = 13;
+      }
+      if (!this.settings.eraserMode || (this.settings.eraserMode !== 'normal' && this.settings.eraserMode !== 'stroke')) {
+        this.settings.eraserMode = 'normal';
+      }
+      if (!this.settings.eraserRadiusNormal || typeof this.settings.eraserRadiusNormal !== 'number') {
+        this.settings.eraserRadiusNormal = 24;
+      }
+      if (!this.settings.eraserRadiusStroke || typeof this.settings.eraserRadiusStroke !== 'number') {
+        this.settings.eraserRadiusStroke = 24;
+      }
+      if (!this.settings.penRecentColors || !Array.isArray(this.settings.penRecentColors)) {
+        this.settings.penRecentColors = ['#000000', '#1d4ed8', '#dc2626', '#059669'];
+      }
+      if (!this.settings.penBrushWidth || typeof this.settings.penBrushWidth !== 'number') {
+        this.settings.penBrushWidth = 2;
+      }
+      if (!this.settings.penEraserWidth || typeof this.settings.penEraserWidth !== 'number') {
+        this.settings.penEraserWidth = 24;
       }
 
       if (data.projects.length > 0) {
