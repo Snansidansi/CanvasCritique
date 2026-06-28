@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
+  import { saveMediaFile } from '../../db/media';
 
   let { 
     isOpen = $bindable(false), 
@@ -48,15 +49,15 @@
     }
   });
 
-  function handleSaveProfile(e: Event) {
+  async function handleSaveProfile(e: Event) {
     e.preventDefault();
     if (!profileFormName.trim()) return;
 
     if (mode === 'create') {
-      const newProf = store.addProfile(profileFormName.trim(), profileFormIcon, profileFormColor);
+      const newProf = await store.addProfile(profileFormName.trim(), profileFormIcon, profileFormColor);
       store.selectProfile(newProf.id);
     } else {
-      store.updateProfile(profileId, {
+      await store.updateProfile(profileId, {
         name: profileFormName.trim(),
         icon: profileFormIcon,
         color: profileFormColor
@@ -65,12 +66,17 @@
     isOpen = false;
   }
 
-  function handleProfileIconSelect(e: Event) {
+  async function handleProfileIconSelect(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      profileFormIcon = reader.result as string;
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      try {
+        profileFormIcon = await saveMediaFile(dataUrl);
+      } catch (_) {
+        profileFormIcon = dataUrl;
+      }
     };
     reader.readAsDataURL(file);
   }

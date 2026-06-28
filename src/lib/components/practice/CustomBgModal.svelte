@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
+  import { saveMediaFile } from '../../db/media';
 
   let {
     isCustomBgModalOpen = $bindable(),
@@ -8,36 +9,36 @@
   } = $props();
 
   let newBgName = $state('');
-  let newBgFile = $state(null);
-  let newBgIconFile = $state(null);
+  let newBgFile = $state<File | null>(null);
+  let newBgIconFile = $state<File | null>(null);
   let useBgAsIcon = $state(true);
 
-  function handleBgUploadChange(e) {
+  function handleBgUploadChange(e: any) {
     newBgFile = e.target.files[0];
   }
   
-  function handleBgIconUploadChange(e) {
+  function handleBgIconUploadChange(e: any) {
     newBgIconFile = e.target.files[0];
   }
 
-  function handleAddCustomBg(e) {
+  async function handleAddCustomBg(e: Event) {
     e.preventDefault();
     if (!newBgName.trim() || !newBgFile) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const bgUrl = event.target?.result as string;
 
       if (useBgAsIcon || !newBgIconFile) {
-        const bg = store.addCustomBackground(newBgName.trim(), bgUrl, bgUrl);
+        const bg = await store.addCustomBackground(newBgName.trim(), bgUrl, bgUrl);
         activeBg = bg.id;
         isCustomBgModalOpen = false;
         resetCustomBgModal();
       } else {
         const iconReader = new FileReader();
-        iconReader.onload = (iconEvent) => {
+        iconReader.onload = async (iconEvent) => {
           const iconUrl = iconEvent.target?.result as string;
-          const bg = store.addCustomBackground(newBgName.trim(), bgUrl, iconUrl);
+          const bg = await store.addCustomBackground(newBgName.trim(), bgUrl, iconUrl);
           activeBg = bg.id;
           isCustomBgModalOpen = false;
           resetCustomBgModal();

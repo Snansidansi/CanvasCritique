@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
+  import { saveMediaFile } from '../../db/media';
 
   let { 
     isOpen = $bindable(false) 
@@ -19,22 +20,26 @@
     }
   });
 
-  function handleCreateProject(e: Event) {
+  async function handleCreateProject(e: Event) {
     e.preventDefault();
     if (!newProjectName.trim()) return;
-    const proj = store.addProject(newProjectName.trim(), newProjectIcon);
+    const proj = await store.addProject(newProjectName.trim(), newProjectIcon);
     isOpen = false;
-    // Navigate immediately
     store.selectProject(proj);
     store.setView("project-detail");
   }
 
-  function handleCustomIconUpload(e: Event) {
+  async function handleCustomIconUpload(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      newProjectIcon = reader.result as string;
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      try {
+        newProjectIcon = await saveMediaFile(dataUrl);
+      } catch (_) {
+        newProjectIcon = dataUrl;
+      }
     };
     reader.readAsDataURL(file);
   }

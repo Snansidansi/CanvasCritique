@@ -23,6 +23,7 @@
     type Point
   } from '../utils/canvas';
   import { runCheckWork } from '../services/ai';
+  import { readMediaFile } from '../db/media';
 
 
   // Active task details from store
@@ -256,11 +257,22 @@
   let currentBgObject = $derived(
     store.customBackgrounds.find(bg => bg.id === activeBg)
   );
+  let customBgUrlCache = $state<Record<string, string>>({});
   let currentBgUrl = $derived(
     activeBg === 'grid' || activeBg === 'lines' || activeBg === 'blank'
       ? null
-      : (currentBgObject ? currentBgObject.url : customBgUrl)
+      : (currentBgObject ? (customBgUrlCache[currentBgObject.id] || null) : customBgUrl)
   );
+
+  // Load custom background from filesystem when selected
+  $effect(() => {
+    const bg = currentBgObject;
+    if (bg && bg.relativePath && !customBgUrlCache[bg.id]) {
+      readMediaFile(bg.relativePath).then(url => {
+        customBgUrlCache[bg.id] = url;
+      }).catch(() => {});
+    }
+  });
 
   let activeLeftPanels = $derived([
     showTask && { id: 'task', title: `${task.name} Instructions`, content: task.instructions },

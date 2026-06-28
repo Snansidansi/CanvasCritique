@@ -7,6 +7,7 @@ import {
   getStrokesBoundingBox 
 } from '../utils/canvas';
 import { store } from '../state/store.svelte';
+import { readMediaFile } from '../db/media';
 
 export function estimateCost(provider: 'gemini' | 'openrouter', model: string, inputTokens: number, outputTokens: number): number {
   const modelLower = model.toLowerCase();
@@ -111,11 +112,48 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     currentBgUrl,
     bgOpacity,
     activeBg,
-    task,
+    task: initialTask,
     projectGuidelines,
     settings,
     defaultSystemPrompt
   } = options;
+
+  // Resolve media files from filesystem to data URLs
+  const task = { ...initialTask };
+  if (task.instructionFiles) {
+    task.instructionFiles = await Promise.all(
+      task.instructionFiles.map(async (f) => {
+        if (!f.dataUrl && f.relativePath) {
+          try {
+            return { ...f, dataUrl: await readMediaFile(f.relativePath) };
+          } catch (_) {}
+        }
+        return { ...f };
+      })
+    );
+  }
+  if (task.solutionFiles) {
+    task.solutionFiles = await Promise.all(
+      task.solutionFiles.map(async (f) => {
+        if (!f.dataUrl && f.relativePath) {
+          try {
+            return { ...f, dataUrl: await readMediaFile(f.relativePath) };
+          } catch (_) {}
+        }
+        return { ...f };
+      })
+    );
+  }
+  if (task.instructionFile && !task.instructionFile.dataUrl && task.instructionFile.relativePath) {
+    try {
+      task.instructionFile = { ...task.instructionFile, dataUrl: await readMediaFile(task.instructionFile.relativePath) };
+    } catch (_) {}
+  }
+  if (task.solutionFile && !task.solutionFile.dataUrl && task.solutionFile.relativePath) {
+    try {
+      task.solutionFile = { ...task.solutionFile, dataUrl: await readMediaFile(task.solutionFile.relativePath) };
+    } catch (_) {}
+  }
 
   // Helper to determine if history contains any visible (non-eraser) drawing strokes with points
   const hasVisibleStrokes = (history: Stroke[]): boolean => {

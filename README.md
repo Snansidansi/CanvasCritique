@@ -120,18 +120,24 @@ Run the following commands inside your WSL terminal to set up the build tools:
    sudo apt install -y lld clang nsis
    ```
 
-4. **Add the Windows MSVC Target to Rust:**
+4. **Install Linux Dev Packages (for `cargo check` on host):**
+   These are required to compile the Tauri backend on the Linux host for development:
    ```bash
-   rustup target add x86_64-pc-windows-msvc
+   sudo apt install -y libdbus-1-dev libglib2.0-dev libgtk-3-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev libwebkit2gtk-4.1-dev
    ```
 
-5. **Install `cargo-xwin`:**
+5. **Add the Windows MSVC Target to Rust:**
+    ```bash
+    rustup target add x86_64-pc-windows-msvc
+    ```
+
+6. **Install `cargo-xwin`:**
    Installs the tool that fetches and configures the Windows SDK headers:
    ```bash
    cargo install --locked cargo-xwin
    ```
 
-6. **Link the LLVM Resource Compiler:**
+7. **Link the LLVM Resource Compiler:**
    Tauri relies on `llvm-rc` to compile Windows resource files. Link your versioned LLVM resource compiler into Cargo's binary path:
    ```bash
    ln -sf /usr/bin/llvm-rc-18 $HOME/.cargo/bin/llvm-rc

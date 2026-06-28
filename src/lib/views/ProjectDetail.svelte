@@ -3,6 +3,7 @@
   import TaskSelectionBar from '../components/project/TaskSelectionBar.svelte';
   import LessonSettingsModal from '../components/project/LessonSettingsModal.svelte';
   import { t } from '../services/i18n';
+  import { saveMediaFile } from '../db/media';
 
   // Derived project state from store
   let project = $derived(store.activeProject || ({
@@ -352,13 +353,18 @@
     if (fileInput) fileInput.click();
   }
 
-  function handleImageUpload(e: Event) {
+  async function handleImageUpload(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const dataUrl = reader.result as string;
-      store.updateProjectDetails(project.id, { icon: dataUrl });
+      try {
+        const relativePath = await saveMediaFile(dataUrl);
+        await store.updateProjectDetails(project.id, { icon: relativePath });
+      } catch (_) {
+        await store.updateProjectDetails(project.id, { icon: dataUrl });
+      }
     };
     reader.readAsDataURL(file);
     (e.target as HTMLInputElement).value = '';

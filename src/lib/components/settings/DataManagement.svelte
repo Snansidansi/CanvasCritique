@@ -9,50 +9,27 @@
     store.saveSettings();
   }
 
-  // Native folder pick wrapper or mock directory selector
-  async function selectFolder(type) {
+  // Native folder pick wrapper
+  async function selectFolder(type: string) {
     try {
-      if ((window as any).__TAURI_INTERNALS__) {
-        const moduleName = '@tauri-apps/plugin-dialog';
-        const { open } = await import(/* @vite-ignore */ moduleName);
-        const selected = await open({
-          directory: true,
-          multiple: false,
-          title: t('settings.data.destinationPath')
-        });
-        if (selected) {
-          if (type === 'settings') {
-            store.settings.exportPathSettings = selected;
-          } else {
-            store.settings.exportPathData = selected;
-          }
-          store.saveSettings();
-        }
-        return;
-      }
-    } catch (e) {
-      console.warn('Tauri dialog plugin not available, falling back to browser folder select mock:', e);
-    }
-
-    // Fallback: Web browser simulated absolute directory path pick
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.webkitdirectory = true;
-    input.onchange = (e) => {
-      const files = (e.target as HTMLInputElement).files;
-      if (files && files.length > 0) {
-        const firstFile = files[0];
-        const folderName = firstFile.webkitRelativePath.split('/')[0] || 'backups';
-        const finalPath = `/home/user/Downloads/${folderName}`;
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: t('settings.data.destinationPath')
+      });
+      if (selected) {
         if (type === 'settings') {
-          store.settings.exportPathSettings = finalPath;
+          store.settings.exportPathSettings = selected;
         } else {
-          store.settings.exportPathData = finalPath;
+          store.settings.exportPathData = selected;
         }
         store.saveSettings();
       }
-    };
-    input.click();
+      return;
+    } catch (e) {
+      console.warn('Tauri dialog plugin not available:', e);
+    }
   }
 
   // Settings export/import

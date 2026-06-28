@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { parseMarkdown } from '../utils/markdown';
   import { t } from '../services/i18n';
+  import { saveMediaFile, readMediaFile } from '../db/media';
 
   // Form states
   let taskName = $state('');
@@ -134,17 +135,26 @@
     if (input) input.click();
   }
 
-  function handleFileSelect(e: any, type: string) {
+  async function handleFileSelect(e: any, type: string) {
     const target = e.target as HTMLInputElement;
     const files = Array.from(target.files || []) as File[];
     if (!files.length) return;
 
-    files.forEach((file: File) => {
+    for (const file of files) {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
+        const dataUrl = event.target?.result as string;
+        let relativePath = '';
+        try {
+          relativePath = await saveMediaFile(dataUrl);
+        } catch (e) {
+          console.error('Failed to save media file:', e);
+          relativePath = '';
+        }
         const fileData = {
           name: file.name,
-          dataUrl: event.target?.result as string // Base64 Data URL
+          dataUrl,
+          relativePath: relativePath || undefined
         };
         if (type === 'instruction') {
           instructionFiles = [...instructionFiles, fileData];
@@ -153,7 +163,7 @@
         }
       };
       reader.readAsDataURL(file);
-    });
+    }
     // Reset value so selection event triggers even for the same files
     target.value = '';
   }
@@ -177,8 +187,14 @@
     }
   }
 
-  function openPreview(file: { name: string; dataUrl: string }) {
-    previewFile = file;
+  async function openPreview(file: { name: string; dataUrl?: string; relativePath?: string }) {
+    let dataUrl = file.dataUrl || '';
+    if (!dataUrl && file.relativePath) {
+      try {
+        dataUrl = await readMediaFile(file.relativePath);
+      } catch (_) {}
+    }
+    previewFile = { name: file.name, dataUrl };
     modalZoom = 1;
     modalPan = { x: 0, y: 0 };
   }
@@ -232,9 +248,12 @@
           const blob = await item.getType(imageType);
           const ext = imageType.split('/')[1] || 'png';
           const base64Data = await blobToBase64(blob);
+          let relativePath = '';
+          try { relativePath = await saveMediaFile(base64Data); } catch (_) {}
           const newFile = {
             name: `clipboard_image_${Date.now()}.${ext}`,
-            dataUrl: base64Data
+            dataUrl: base64Data,
+            relativePath: relativePath || undefined
           };
           if (type === 'instruction') {
             instructionFiles = [...instructionFiles, newFile];

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from '../../services/i18n';
+  import { readMediaFile } from '../../db/media';
 
   let {
     splitWidth = $bindable(400),
@@ -17,6 +18,49 @@
   let startWidth = 0;
 
   let expandedMediaIds = $state<Record<string, boolean>>({});
+
+  // Cache loaded media URLs
+  let mediaUrlCache = $state<Record<string, string>>({});
+
+  async function getMediaUrl(file: { name: string; dataUrl?: string; relativePath?: string }): Promise<string> {
+    if (file.dataUrl) return file.dataUrl;
+    if (file.relativePath) {
+      const key = file.relativePath;
+      if (mediaUrlCache[key]) return mediaUrlCache[key];
+      try {
+        const url = await readMediaFile(key);
+        mediaUrlCache[key] = url;
+        return url;
+      } catch (_) {}
+    }
+    return '';
+  }
+
+  // Pre-load media when task changes
+  $effect(() => {
+    const filesToLoad: Array<{ name: string; dataUrl?: string; relativePath?: string }> = [];
+    if (task?.instructionFiles) {
+      filesToLoad.push(...task.instructionFiles.filter(f => f.relativePath && !f.dataUrl));
+    }
+    if (task?.solutionFiles) {
+      filesToLoad.push(...task.solutionFiles.filter(f => f.relativePath && !f.dataUrl));
+    }
+    for (const file of filesToLoad) {
+      if (file.relativePath && !mediaUrlCache[file.relativePath]) {
+        readMediaFile(file.relativePath).then(url => {
+          mediaUrlCache[file.relativePath!] = url;
+        }).catch(() => {});
+      }
+    }
+  });
+
+  let loadedPreviewUrl = $state('');
+
+  async function loadPreviewUrl(file: { name: string; dataUrl?: string; relativePath?: string }): Promise<string> {
+    const url = await getMediaUrl(file);
+    loadedPreviewUrl = url;
+    return url;
+  }
 
   function toggleMedia(mediaId: string) {
     expandedMediaIds[mediaId] = !expandedMediaIds[mediaId];
@@ -47,8 +91,9 @@
     }
   }
 
-  function openPreview(file: { name: string; dataUrl: string }) {
-    previewFile = file;
+  async function openPreview(file: { name: string; dataUrl?: string; relativePath?: string }) {
+    const url = await getMediaUrl(file);
+    previewFile = { name: file.name, dataUrl: url };
     modalZoom = 1;
     modalPan = { x: 0, y: 0 };
   }
@@ -208,24 +253,25 @@
                       </div>
 
                       {#if open}
+                        {@const fileUrl = mediaUrlCache[file.relativePath || ''] || file.dataUrl || ''}
                         <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
                           {#if file.name.toLowerCase().endsWith('.pdf')}
                             <iframe 
-                              src={file.dataUrl} 
+                              src={fileUrl} 
                               title={file.name} 
                               class="w-full h-100 border-0 rounded-lg"
                             ></iframe>
                           {:else if file.name.toLowerCase().endsWith('.md')}
                             <div class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
-                              {@html parseMarkdown(decodeBase64Text(file.dataUrl))}
+                              {@html parseMarkdown(decodeBase64Text(fileUrl))}
                             </div>
                           {:else if file.name.toLowerCase().endsWith('.txt')}
-                            <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(file.dataUrl)}</pre>
+                            <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
                           {:else}
                             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <img 
-                              src={file.dataUrl} 
+                              src={fileUrl} 
                               alt={file.name} 
                               onclick={() => openPreview(file)}
                               class="max-w-full max-h-125 object-contain rounded-lg shadow-sm cursor-zoom-in hover:opacity-95 transition-opacity"
@@ -281,24 +327,25 @@
                       </div>
 
                       {#if open}
+                        {@const fileUrl = mediaUrlCache[file.relativePath || ''] || file.dataUrl || ''}
                         <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
                           {#if file.name.toLowerCase().endsWith('.pdf')}
                             <iframe 
-                              src={file.dataUrl} 
+                              src={fileUrl} 
                               title={file.name} 
                               class="w-full h-100 border-0 rounded-lg"
                             ></iframe>
                           {:else if file.name.toLowerCase().endsWith('.md')}
                             <div class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
-                              {@html parseMarkdown(decodeBase64Text(file.dataUrl))}
+                              {@html parseMarkdown(decodeBase64Text(fileUrl))}
                             </div>
                           {:else if file.name.toLowerCase().endsWith('.txt')}
-                            <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(file.dataUrl)}</pre>
+                            <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
                           {:else}
                             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <img 
-                              src={file.dataUrl} 
+                              src={fileUrl} 
                               alt={file.name} 
                               onclick={() => openPreview(file)}
                               class="max-w-full max-h-125 object-contain rounded-lg shadow-sm cursor-zoom-in hover:opacity-95 transition-opacity"
