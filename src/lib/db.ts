@@ -17,17 +17,7 @@ export async function initDb(): Promise<Database> {
     CREATE TABLE IF NOT EXISTS media (
       id TEXT PRIMARY KEY,
       data BLOB NOT NULL,
-      mime_type TEXT NOT NULL,
-      name TEXT NOT NULL
-    )
-  `);
-
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS media (
-      id TEXT PRIMARY KEY,
-      data BLOB NOT NULL,
-      mime_type TEXT NOT NULL,
-      name TEXT NOT NULL
+      mime_type TEXT NOT NULL
     )
   `);
 

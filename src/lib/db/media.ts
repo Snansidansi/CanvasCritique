@@ -46,8 +46,8 @@ export async function saveMediaToDb(dataUrl: string): Promise<string> {
   const bytes = base64ToBytes(parsed.base64);
 
   await db.execute(
-    'INSERT INTO media (id, data, mime_type, name) VALUES (?, ?, ?, ?)',
-    [id, bytes, parsed.mimeType, id]
+    'INSERT INTO media (id, data, mime_type) VALUES (?, ?, ?)',
+    [id, bytes, parsed.mimeType]
   );
 
   return id;
@@ -94,8 +94,8 @@ export async function migrateMediaFromFs(): Promise<void> {
           const mediaId = uuidv4();
           const bytes = base64ToBytes(parsed.base64);
           await db.execute(
-            'INSERT OR IGNORE INTO media (id, data, mime_type, name) VALUES (?, ?, ?, ?)',
-            [mediaId, bytes, parsed.mimeType, p.id]
+            'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
+            [mediaId, bytes, parsed.mimeType]
           );
           await db.execute('UPDATE profiles SET icon = ? WHERE id = ?', [mediaId, p.id]);
         } else {
@@ -121,8 +121,8 @@ export async function migrateMediaFromFs(): Promise<void> {
           const mimeType = mimeMap[ext] || 'application/octet-stream';
           const mediaId = uuidv4();
           await db.execute(
-            'INSERT OR IGNORE INTO media (id, data, mime_type, name) VALUES (?, ?, ?, ?)',
-            [mediaId, bytes, mimeType, proj.id]
+            'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
+            [mediaId, bytes, mimeType]
           );
           await db.execute('UPDATE projects SET icon_media_path = ? WHERE id = ?', [mediaId, proj.id]);
         } catch {
@@ -152,8 +152,8 @@ export async function migrateMediaFromFs(): Promise<void> {
             const mimeType = mimeMap[ext] || 'application/octet-stream';
             const mediaId = uuidv4();
             await db.execute(
-              'INSERT OR IGNORE INTO media (id, data, mime_type, name) VALUES (?, ?, ?, ?)',
-              [mediaId, bytes, mimeType, file.name || filename]
+              'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
+              [mediaId, bytes, mimeType]
             );
             file.mediaId = mediaId;
             delete file.relativePath;
@@ -179,8 +179,8 @@ export async function migrateMediaFromFs(): Promise<void> {
             const mimeType = mimeMap[ext] || 'application/octet-stream';
             const mediaId = uuidv4();
             await db.execute(
-              'INSERT OR IGNORE INTO media (id, data, mime_type, name) VALUES (?, ?, ?, ?)',
-              [mediaId, bytes, mimeType, file.name || filename]
+              'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
+              [mediaId, bytes, mimeType]
             );
             file.mediaId = mediaId;
             delete file.relativePath;
@@ -216,8 +216,8 @@ export async function migrateMediaFromFs(): Promise<void> {
           const mimeType = mimeMap[ext] || 'application/octet-stream';
           const mediaId = uuidv4();
           await db.execute(
-            'INSERT OR IGNORE INTO media (id, data, mime_type, name) VALUES (?, ?, ?, ?)',
-            [mediaId, bytes, mimeType, bg.name || filename]
+            'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
+            [mediaId, bytes, mimeType]
           );
           await db.execute('UPDATE custom_backgrounds SET relative_path = ? WHERE id = ?', [mediaId, bg.id]);
         } catch {}
@@ -237,8 +237,8 @@ export async function migrateMediaFromFs(): Promise<void> {
           const mimeType = mimeMap[ext] || 'application/octet-stream';
           const iconMediaId = uuidv4();
           await db.execute(
-            'INSERT OR IGNORE INTO media (id, data, mime_type, name) VALUES (?, ?, ?, ?)',
-            [iconMediaId, bytes, mimeType, bg.name || iconFilename]
+            'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
+            [iconMediaId, bytes, mimeType]
           );
           await db.execute('UPDATE custom_backgrounds SET icon = ? WHERE id = ?', [iconMediaId, bg.id]);
         } catch {}
