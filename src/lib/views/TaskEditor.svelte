@@ -331,6 +331,10 @@
     });
   }
 
+  // Filesystem drag-and-drop onto upload areas
+  let isDragOverInstruction = $state(false);
+  let isDragOverSolution = $state(false);
+
   // Pointer-based media drag state
   let draggedFileIndex = $state<number | null>(null);
   let draggedFileType = $state<'instruction' | 'solution' | null>(null);
@@ -349,6 +353,9 @@
     
     // Ignore if close/remove button is clicked or if preview is clicked
     if ((e.target as HTMLElement).closest('.remove-file-btn') || (e.target as HTMLElement).closest('.preview-file-click')) return;
+
+    mediaDragPointerStartX = e.clientX;
+    mediaDragPointerStartY = e.clientY;
 
     try { target.setPointerCapture(e.pointerId); } catch (_) {}
 
@@ -438,6 +445,60 @@
       const [moved] = list.splice(from, 1);
       list.splice(to, 0, moved);
       solutionFiles = list;
+    }
+  }
+
+  function handleDragOver(type: 'instruction' | 'solution', e: DragEvent) {
+    e.preventDefault();
+    if (type === 'instruction') {
+      isDragOverInstruction = true;
+    } else {
+      isDragOverSolution = true;
+    }
+  }
+
+  function handleDragLeave(type: 'instruction' | 'solution') {
+    if (type === 'instruction') {
+      isDragOverInstruction = false;
+    } else {
+      isDragOverSolution = false;
+    }
+  }
+
+  function handleFileDrop(type: 'instruction' | 'solution', e: DragEvent) {
+    e.preventDefault();
+    if (type === 'instruction') {
+      isDragOverInstruction = false;
+    } else {
+      isDragOverSolution = false;
+    }
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    const fileList = Array.from(files) as File[];
+    for (const file of fileList) {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const dataUrl = event.target?.result as string;
+        let mediaId = '';
+        try {
+          mediaId = await saveMediaToDb(dataUrl);
+        } catch (e) {
+          console.error('Failed to save media file:', e);
+          mediaId = '';
+        }
+        const fileData = {
+          name: file.name,
+          dataUrl,
+          mediaId: mediaId || undefined
+        };
+        if (type === 'instruction') {
+          instructionFiles = [...instructionFiles, fileData];
+        } else {
+          solutionFiles = [...solutionFiles, fileData];
+        }
+      };
+      reader.readAsDataURL(file);
     }
   }
 </script>
@@ -534,7 +595,10 @@
         <button 
           type="button"
           onclick={() => triggerUpload('instruction')}
-          class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer"
+          ondragover={(e) => handleDragOver('instruction', e)}
+          ondragleave={() => handleDragLeave('instruction')}
+          ondrop={(e) => handleFileDrop('instruction', e)}
+          class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer {isDragOverInstruction ? 'border-primary bg-primary/5' : ''}"
         >
           <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
             <span class="material-symbols-outlined text-[24px]">upload_file</span>
@@ -627,7 +691,10 @@
         <button 
           type="button"
           onclick={() => triggerUpload('solution')}
-          class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer"
+          ondragover={(e) => handleDragOver('solution', e)}
+          ondragleave={() => handleDragLeave('solution')}
+          ondrop={(e) => handleFileDrop('solution', e)}
+          class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer {isDragOverSolution ? 'border-primary bg-primary/5' : ''}"
         >
           <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
             <span class="material-symbols-outlined text-[24px]">upload_file</span>
