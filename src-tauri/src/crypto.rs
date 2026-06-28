@@ -12,7 +12,7 @@ const KEY_FILE_NAME: &str = ".encryption_key";
 fn get_key_path(app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {
     let data_dir = app_handle
         .path()
-        .app_data_dir()
+        .app_local_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {}", e))?;
     fs::create_dir_all(&data_dir)
         .map_err(|e| format!("Failed to create app data dir: {}", e))?;

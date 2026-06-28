@@ -1,4 +1,4 @@
-import { appDataDir } from '@tauri-apps/api/path';
+import { appLocalDataDir } from '@tauri-apps/api/path';
 import { writeFile, readFile, remove } from '@tauri-apps/plugin-fs';
 import { v4 as uuidv4 } from './uuid';
 
@@ -6,7 +6,7 @@ let mediaDirCache: string | null = null;
 
 async function getMediaDir(): Promise<string> {
   if (mediaDirCache) return mediaDirCache;
-  const appData = await appDataDir();
+  const appData = await appLocalDataDir();
   mediaDirCache = `${appData}media/`;
   return mediaDirCache;
 }
