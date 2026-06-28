@@ -351,8 +351,9 @@
     if (e.button !== 0 && e.button !== -1) return;
     const target = e.currentTarget as HTMLElement;
     
-    // Ignore if close/remove button is clicked or if preview is clicked
-    if ((e.target as HTMLElement).closest('.remove-file-btn') || (e.target as HTMLElement).closest('.preview-file-click')) return;
+    // Ignore if close/remove button is clicked or if preview is clicked (but allow drag-handle inside preview)
+    if ((e.target as HTMLElement).closest('.remove-file-btn') || 
+        ((e.target as HTMLElement).closest('.preview-file-click') && !(e.target as HTMLElement).closest('.drag-handle'))) return;
 
     mediaDragPointerStartX = e.clientX;
     mediaDragPointerStartY = e.clientY;
