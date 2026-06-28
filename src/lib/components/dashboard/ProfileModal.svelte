@@ -243,7 +243,7 @@
               type="submit"
               class="px-4 py-2 bg-primary text-on-primary text-xs font-bold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
             >
-              {mode === 'create' ? t('profile.createProfile') : t('profile.saveChanges')}
+              {mode === 'create' ? t('profile.createProfile') : t('common.saveChanges')}
             </button>
           </div>
         </div>
