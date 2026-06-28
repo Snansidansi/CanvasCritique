@@ -988,78 +988,89 @@ class CanvasCritiqueStore {
         if (!proj || typeof proj !== 'object') continue;
 
         const importedCanvasSaves = proj.canvasSaves || {};
-        const importedTasks = proj.tasks || [];
+        const importedTasks: any[] = proj.tasks || [];
+        const importedCategories: string[] = proj.categories || [];
 
-        for (const t of importedTasks) {
-          if (!t.name) continue;
+        // Walk imported sections in order
+        for (const importedCat of importedCategories) {
+          const sectionImportedTasks = importedTasks.filter((t: any) => (t.category || 'Basics') === importedCat);
+          if (sectionImportedTasks.length === 0) continue;
 
-          const matchedTask = mergeProject.tasks.find(
-            et => et.name.trim().toLowerCase() === t.name.trim().toLowerCase()
-          );
+          // Ensure target section exists
+          if (!mergeProject.categories || !mergeProject.categories.includes(importedCat)) {
+            if (!mergeProject.categories) mergeProject.categories = [];
+            mergeProject.categories.push(importedCat);
+          }
 
-          if (matchedTask) {
-            if (options.mergeMode === 'update') {
-              if (t.instructions !== undefined) matchedTask.instructions = t.instructions;
-              if (t.solution !== undefined) matchedTask.solution = t.solution;
-              if (t.category !== undefined) matchedTask.category = t.category;
-              if (t.instructionFiles !== undefined) {
-                matchedTask.instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles));
-              } else if (t.instructionFile) {
-                matchedTask.instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
+          for (const t of sectionImportedTasks) {
+            if (!t.name) continue;
+
+            // Match by name within the SAME section
+            const matchedTask = mergeProject.tasks.find(
+              et => et.name.trim().toLowerCase() === t.name.trim().toLowerCase() && (et.category || 'Basics') === importedCat
+            );
+
+            if (matchedTask) {
+              if (options.mergeMode === 'update') {
+                matchedTask.instructions = t.instructions !== undefined ? t.instructions : matchedTask.instructions;
+                matchedTask.solution = t.solution !== undefined ? t.solution : matchedTask.solution;
+                matchedTask.category = importedCat;
+                if (t.instructionFiles !== undefined) {
+                  matchedTask.instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles));
+                } else if (t.instructionFile) {
+                  matchedTask.instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
+                }
+                if (t.solutionFiles !== undefined) {
+                  matchedTask.solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles));
+                } else if (t.solutionFile) {
+                  matchedTask.solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
+                }
+                if (options.importCompleted && t.completed !== undefined) matchedTask.completed = !!t.completed;
+                if (options.importCritique && t.critique !== undefined) matchedTask.critique = t.critique;
+
+                await dbUpdateTask(db, matchedTask.id, matchedTask);
+                if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
+                  this.canvasSaves[matchedTask.id] = importedCanvasSaves[t.id];
+                  await setCanvasState(db, matchedTask.id, importedCanvasSaves[t.id]);
+                }
               }
-              if (t.solutionFiles !== undefined) {
-                matchedTask.solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles));
-              } else if (t.solutionFile) {
-                matchedTask.solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
+              // skip mode: do nothing for matched tasks
+            } else {
+              // Task doesn't exist in this section -> always import
+              let taskId = t.id;
+              const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(et => et.id === taskId));
+              if (!taskId || isDuplicateId) {
+                taskId = 'task-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
               }
-              if (options.importCompleted && t.completed !== undefined) matchedTask.completed = !!t.completed;
-              if (options.importCritique && t.critique !== undefined) matchedTask.critique = t.critique;
 
-              await dbUpdateTask(db, matchedTask.id, matchedTask);
               if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
-                this.canvasSaves[matchedTask.id] = importedCanvasSaves[t.id];
-                await setCanvasState(db, matchedTask.id, importedCanvasSaves[t.id]);
+                this.canvasSaves[taskId] = importedCanvasSaves[t.id];
+                await setCanvasState(db, taskId, importedCanvasSaves[t.id]);
               }
-            }
-          } else {
-            let taskId = t.id;
-            const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(et => et.id === taskId));
-            if (!taskId || isDuplicateId) {
-              taskId = 'task-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
-            }
 
-            if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
-              this.canvasSaves[taskId] = importedCanvasSaves[t.id];
-              await setCanvasState(db, taskId, importedCanvasSaves[t.id]);
-            }
+              let instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles || []));
+              if (t.instructionFile && instructionFiles.length === 0) {
+                instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
+              }
+              let solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles || []));
+              if (t.solutionFile && solutionFiles.length === 0) {
+                solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
+              }
 
-            let instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles || []));
-            if (t.instructionFile && instructionFiles.length === 0) {
-              instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
-            }
-            let solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles || []));
-            if (t.solutionFile && solutionFiles.length === 0) {
-              solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
-            }
+              const newTask: Task = {
+                id: taskId,
+                name: t.name,
+                completed: options.importCompleted ? !!t.completed : false,
+                instructions: t.instructions || '',
+                solution: t.solution || '',
+                category: importedCat,
+                instructionFiles,
+                solutionFiles
+              };
+              if (options.importCritique && t.critique) newTask.critique = t.critique;
 
-            const newTask: Task = {
-              id: taskId,
-              name: t.name,
-              completed: options.importCompleted ? !!t.completed : false,
-              instructions: t.instructions || '',
-              solution: t.solution || '',
-              category: t.category || 'Basics',
-              instructionFiles,
-              solutionFiles
-            };
-            if (options.importCritique && t.critique) newTask.critique = t.critique;
-
-            mergeProject.tasks.push(newTask);
-            await insertTask(db, newTask, mergeProject.id);
-
-            const cat = newTask.category || 'Basics';
-            if (mergeProject.categories && !mergeProject.categories.includes(cat)) {
-              mergeProject.categories.push(cat);
+              mergeProject.tasks.push(newTask);
+              await insertTask(db, newTask, mergeProject.id);
             }
           }
         }
