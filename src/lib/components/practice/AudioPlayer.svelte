@@ -136,7 +136,7 @@
       </span>
     </button>
     {#if showVolumeSlider}
-      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-surface-container-low border border-outline-variant rounded-lg shadow-lg p-3 flex flex-col items-center gap-1 z-50">
+      <div class="absolute bottom-full right-0 mb-2 bg-surface-container-low border border-outline-variant rounded-lg shadow-lg p-3 flex flex-col items-center gap-1 z-50 min-w-[120px]">
         <input
           type="range"
           min="0"
@@ -144,8 +144,7 @@
           step="0.05"
           value={volume}
           oninput={onVolumeChange}
-          class="h-20 w-1 accent-primary cursor-pointer"
-          style="-webkit-appearance: slider-vertical; writing-mode: vertical-lr; direction: rtl;"
+          class="w-full h-1 accent-primary cursor-pointer"
         />
         <span class="text-[10px] text-on-surface-variant font-mono">{Math.round(volume * 100)}%</span>
       </div>

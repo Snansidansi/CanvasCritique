@@ -26,8 +26,8 @@
 
   let expandedMediaIds = $state<Record<string, boolean>>({});
 
-  // Cache loaded media URLs
-  let mediaUrlCache = $state<Record<string, string>>({});
+  // Cache loaded media URLs with loading state
+  let loadedMedia = $state<Record<string, { url: string; loading: boolean }>>({});
 
   // Inline image zoom/pan state (keyed by mediaId)
   let inlineStates = $state<Record<string, { zoom: number; panX: number; panY: number; isDragging: boolean; dragStartX: number; dragStartY: number; panBaseX: number; panBaseY: number; dragged: boolean }>>({});
@@ -109,17 +109,34 @@
     if (file.dataUrl) return file.dataUrl;
     if (file.mediaId) {
       const key = file.mediaId;
-      if (mediaUrlCache[key]) return mediaUrlCache[key];
-      try {
-        const url = await getMediaDataUrl(key);
-        mediaUrlCache[key] = url;
-        return url;
-      } catch (_) {}
+      if (loadedMedia[key]?.url) return loadedMedia[key].url;
+      if (!loadedMedia[key]) {
+        loadedMedia[key] = { url: '', loading: true };
+        try {
+          const url = await getMediaDataUrl(key);
+          loadedMedia[key] = { url, loading: false };
+          return url;
+        } catch (_) {
+          loadedMedia[key] = { url: '', loading: false };
+        }
+      }
     }
     return '';
   }
 
-  // Pre-load media when task changes
+  function resolveMediaUrl(file: { name: string; dataUrl?: string; mediaId?: string }): string {
+    if (file.dataUrl) return file.dataUrl;
+    if (file.mediaId && loadedMedia[file.mediaId]?.url) return loadedMedia[file.mediaId].url;
+    return '';
+  }
+
+  function isMediaLoading(file: { name: string; dataUrl?: string; mediaId?: string }): boolean {
+    if (file.dataUrl) return false;
+    if (file.mediaId && loadedMedia[file.mediaId]?.loading) return true;
+    return false;
+  }
+
+  // Pre-load all media files on task change
   $effect(() => {
     const filesToLoad: Array<{ name: string; dataUrl?: string; mediaId?: string }> = [];
     if (task?.instructionFiles) {
@@ -129,10 +146,13 @@
       filesToLoad.push(...task.solutionFiles.filter(f => f.mediaId && !f.dataUrl));
     }
     for (const file of filesToLoad) {
-      if (file.mediaId && !mediaUrlCache[file.mediaId]) {
+      if (file.mediaId && !loadedMedia[file.mediaId]) {
+        loadedMedia[file.mediaId] = { url: '', loading: true };
         getMediaDataUrl(file.mediaId).then(url => {
-          mediaUrlCache[file.mediaId!] = url;
-        }).catch(() => {});
+          loadedMedia[file.mediaId!] = { url, loading: false };
+        }).catch(() => {
+          loadedMedia[file.mediaId!] = { url: '', loading: false };
+        });
       }
     }
   });
@@ -351,9 +371,15 @@
                       </div>
 
                       {#if open}
-                        {@const fileUrl = mediaUrlCache[file.mediaId || ''] || file.dataUrl || ''}
+                        {@const fileUrl = resolveMediaUrl(file)}
+                        {@const loading = isMediaLoading(file)}
                         <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
-                          {#if file.name.toLowerCase().endsWith('.pdf')}
+                          {#if loading}
+                            <div class="flex items-center justify-center py-4 gap-2 text-on-surface-variant text-[10px]">
+                              <div class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              {t('taskEditor.audio.loading')}
+                            </div>
+                          {:else if file.name.toLowerCase().endsWith('.pdf')}
                             <iframe 
                               src={fileUrl} 
                               title={file.name} 
@@ -366,7 +392,9 @@
                           {:else if file.name.toLowerCase().endsWith('.txt')}
                             <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
                           {:else if isAudioFile(file.name)}
-                            <AudioPlayer dataUrl={fileUrl} compact={true} />
+                            {#if fileUrl}
+                              <AudioPlayer dataUrl={fileUrl} compact={true} />
+                            {/if}
                           {:else}
                             {@const inlineImgState = inlineStates[mediaId]}
                             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -437,9 +465,15 @@
                       </div>
 
                       {#if open}
-                        {@const fileUrl = mediaUrlCache[file.mediaId || ''] || file.dataUrl || ''}
+                        {@const fileUrl = resolveMediaUrl(file)}
+                        {@const loading = isMediaLoading(file)}
                         <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
-                          {#if file.name.toLowerCase().endsWith('.pdf')}
+                          {#if loading}
+                            <div class="flex items-center justify-center py-4 gap-2 text-on-surface-variant text-[10px]">
+                              <div class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              {t('taskEditor.audio.loading')}
+                            </div>
+                          {:else if file.name.toLowerCase().endsWith('.pdf')}
                             <iframe 
                               src={fileUrl} 
                               title={file.name} 
@@ -452,7 +486,9 @@
                           {:else if file.name.toLowerCase().endsWith('.txt')}
                             <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
                           {:else if isAudioFile(file.name)}
-                            <AudioPlayer dataUrl={fileUrl} compact={true} />
+                            {#if fileUrl}
+                              <AudioPlayer dataUrl={fileUrl} compact={true} />
+                            {/if}
                           {:else}
                             {@const inlineImgState = inlineStates[mediaId]}
                             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
