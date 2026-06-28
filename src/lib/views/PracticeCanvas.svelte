@@ -502,6 +502,7 @@
     const maxY = Math.max(y1, y2);
     
     return strokeHistory.filter(stroke => {
+      if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') return false;
       // A stroke is selected if at least one point lies within the selection rectangle
       return stroke.points.some(p => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
     });
