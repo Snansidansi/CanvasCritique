@@ -1,6 +1,6 @@
 import Database from '@tauri-apps/plugin-sql';
 import type { Profile, Settings, Project, Task, CustomBackground, ProjectSettingsOverride } from './state/types';
-import { defaultSettings } from './state/defaults';
+import { defaultSettings, defaultProjects } from './state/defaults';
 import { encrypt, decrypt } from './db/crypto';
 
 let dbInstance: Database | null = null;
@@ -68,6 +68,52 @@ export async function initDb(): Promise<Database> {
       icon TEXT
     )
   `);
+
+  // Seed defaults if database is fresh (no profiles)
+  const profileCount = await db.select('SELECT COUNT(*) as count FROM profiles');
+  if ((profileCount[0] as any).count === 0) {
+    await db.execute(
+      'INSERT INTO profiles (id, name, icon, color) VALUES (?, ?, ?, ?)',
+      ['default-profile', 'General', null, '#3b82f6']
+    );
+
+    for (const project of defaultProjects) {
+      await db.execute(
+        `INSERT INTO projects (id, name, icon_media_path, guidelines, categories_json, profile_id, hide_completed, settings_override_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          project.id,
+          project.name,
+          project.icon && !project.icon.startsWith('data:') ? project.icon : null,
+          project.guidelines || '',
+          JSON.stringify(project.categories || []),
+          project.profileId || 'default-profile',
+          project.hideCompleted ? 1 : 0,
+          project.settingsOverride ? JSON.stringify(project.settingsOverride) : null
+        ]
+      );
+
+      for (const task of (project.tasks || [])) {
+        await db.execute(
+          `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            task.id,
+            task.name,
+            task.completed ? 1 : 0,
+            task.instructions || '',
+            task.solution || '',
+            task.category || 'Basics',
+            JSON.stringify(task.instructionFiles || []),
+            JSON.stringify(task.solutionFiles || []),
+            task.critique ? JSON.stringify(task.critique) : null,
+            null,
+            project.id
+          ]
+        );
+      }
+    }
+  }
 
   return db;
 }

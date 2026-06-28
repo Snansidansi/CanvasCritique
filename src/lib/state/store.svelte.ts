@@ -196,19 +196,6 @@ class CanvasCritiqueStore {
 
       if (data.profiles.length > 0) {
         this.profiles = data.profiles;
-      } else {
-        // Create default profile
-        this.profiles = [
-          {
-            id: 'default-profile',
-            name: 'General',
-            icon: null,
-            color: '#3b82f6'
-          }
-        ];
-        for (const p of this.profiles) {
-          await insertProfile(database, p);
-        }
       }
 
       // Restore active profile
@@ -251,18 +238,6 @@ class CanvasCritiqueStore {
         for (const p of this.projects) {
           if (!p.profileId) {
             p.profileId = 'default-profile';
-          }
-        }
-      } else {
-        this.projects = defaultProjects;
-        for (const p of this.projects) {
-          p.profileId = 'default-profile';
-        }
-        // Save default projects to DB
-        for (const p of this.projects) {
-          await insertProject(database, p);
-          for (const t of (p.tasks || [])) {
-            await insertTask(database, t, p.id);
           }
         }
       }
