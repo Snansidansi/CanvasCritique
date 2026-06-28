@@ -150,7 +150,14 @@
     "pasteErrorPermission": "Could not paste from clipboard. Please allow permission.",
     "alertEnterName": "Please enter a task name.",
     "alertSelectLesson": "Please select a lesson or create one first.",
-    "errorDecode": "Error: Failed to decode text document."
+    "errorDecode": "Error: Failed to decode text document.",
+    "audio": {
+      "play": "Play",
+      "pause": "Pause",
+      "volume": "Volume",
+      "duration": "Duration",
+      "loading": "Loading audio..."
+    }
   },
   "taskSelection": {
     "taskSelected": "1 task selected",

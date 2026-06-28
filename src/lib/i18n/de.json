@@ -149,7 +149,14 @@
     "pasteErrorPermission": "Einfügen aus der Zwischenablage fehlgeschlagen. Bitte Berechtigung erteilen.",
     "alertEnterName": "Bitte geben Sie einen Aufgabennamen ein.",
     "alertSelectLesson": "Bitte wählen Sie eine Lektion aus oder erstellen Sie zuerst eine.",
-    "errorDecode": "Fehler: Textdokument konnte nicht decodiert werden."
+    "errorDecode": "Fehler: Textdokument konnte nicht decodiert werden.",
+    "audio": {
+      "play": "Abspielen",
+      "pause": "Pause",
+      "volume": "Lautstärke",
+      "duration": "Dauer",
+      "loading": "Audio lädt..."
+    }
   },
   "taskSelection": {
     "taskSelected": "1 Aufgabe ausgewählt",
