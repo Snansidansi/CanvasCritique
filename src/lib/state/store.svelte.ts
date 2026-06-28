@@ -36,7 +36,7 @@ import {
   deleteCustomBackground as dbDeleteCustomBackground,
 } from '../db';
 
-import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs } from '../db/media';
+import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs, deleteMediaForTask, collectMediaIds } from '../db/media';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 
@@ -807,10 +807,20 @@ class CanvasCritiqueStore {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
+    const task = project.tasks.find(t => t.id === taskId);
+    const mediaIds: string[] = [];
+    if (task) {
+      mediaIds.push(...collectMediaIds(task.instructionFiles || []));
+      mediaIds.push(...collectMediaIds(task.solutionFiles || []));
+    }
+
     project.tasks = project.tasks.filter(t => t.id !== taskId);
 
     const db = this.getDb();
     await dbDeleteTask(db, taskId);
+    if (mediaIds.length > 0) {
+      await deleteMediaForTask(mediaIds);
+    }
 
     if (this.canvasSaves[taskId]) {
       delete this.canvasSaves[taskId];
@@ -833,10 +843,22 @@ class CanvasCritiqueStore {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
+    const mediaIds: string[] = [];
+    for (const taskId of taskIds) {
+      const task = project.tasks.find(t => t.id === taskId);
+      if (task) {
+        mediaIds.push(...collectMediaIds(task.instructionFiles || []));
+        mediaIds.push(...collectMediaIds(task.solutionFiles || []));
+      }
+    }
+
     project.tasks = project.tasks.filter(t => !taskIds.includes(t.id));
 
     const db = this.getDb();
     await dbDeleteTasks(db, taskIds);
+    if (mediaIds.length > 0) {
+      await deleteMediaForTask(mediaIds);
+    }
 
     for (const taskId of taskIds) {
       if (this.canvasSaves[taskId]) {
@@ -879,16 +901,22 @@ class CanvasCritiqueStore {
   }
 
   async deleteProject(projectId: string): Promise<void> {
-    const db = this.getDb();
-    await dbDeleteProject(db, projectId);
-
     const project = this.projects.find(p => p.id === projectId);
+    const mediaIds: string[] = [];
     if (project && project.tasks) {
       for (const t of project.tasks) {
+        mediaIds.push(...collectMediaIds(t.instructionFiles || []));
+        mediaIds.push(...collectMediaIds(t.solutionFiles || []));
         if (this.canvasSaves[t.id]) {
           delete this.canvasSaves[t.id];
         }
       }
+    }
+
+    const db = this.getDb();
+    await dbDeleteProject(db, projectId);
+    if (mediaIds.length > 0) {
+      await deleteMediaForTask(mediaIds);
     }
 
     this.projects = this.projects.filter(p => p.id !== projectId);

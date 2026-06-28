@@ -27,7 +27,7 @@
   let expandedMediaIds = $state<Record<string, boolean>>({});
 
   // Cache loaded media URLs with loading state
-  let loadedMedia = $state<Record<string, { url: string; loading: boolean }>>({});
+  let loadedMedia = $state<Record<string, { url: string; loading: boolean; error: boolean }>>({});
 
   // Inline image zoom/pan state (keyed by mediaId)
   let inlineStates = $state<Record<string, { zoom: number; panX: number; panY: number; isDragging: boolean; dragStartX: number; dragStartY: number; panBaseX: number; panBaseY: number; dragged: boolean }>>({});
@@ -110,14 +110,15 @@
     if (file.mediaId) {
       const key = file.mediaId;
       if (loadedMedia[key]?.url) return loadedMedia[key].url;
+      if (loadedMedia[key]?.error) return '';
       if (!loadedMedia[key]) {
-        loadedMedia[key] = { url: '', loading: true };
+        loadedMedia[key] = { url: '', loading: true, error: false };
         try {
           const url = await getMediaDataUrl(key);
-          loadedMedia[key] = { url, loading: false };
+          loadedMedia[key] = { url, loading: false, error: false };
           return url;
         } catch (_) {
-          loadedMedia[key] = { url: '', loading: false };
+          loadedMedia[key] = { url: '', loading: false, error: true };
         }
       }
     }
@@ -136,6 +137,12 @@
     return false;
   }
 
+  function isMediaError(file: { name: string; dataUrl?: string; mediaId?: string }): boolean {
+    if (file.dataUrl) return false;
+    if (file.mediaId && loadedMedia[file.mediaId]?.error) return true;
+    return false;
+  }
+
   // Pre-load all media files on task change
   $effect(() => {
     const filesToLoad: Array<{ name: string; dataUrl?: string; mediaId?: string }> = [];
@@ -147,11 +154,11 @@
     }
     for (const file of filesToLoad) {
       if (file.mediaId && !loadedMedia[file.mediaId]) {
-        loadedMedia[file.mediaId] = { url: '', loading: true };
+        loadedMedia[file.mediaId] = { url: '', loading: true, error: false };
         getMediaDataUrl(file.mediaId).then(url => {
-          loadedMedia[file.mediaId!] = { url, loading: false };
+          loadedMedia[file.mediaId!] = { url, loading: false, error: false };
         }).catch(() => {
-          loadedMedia[file.mediaId!] = { url: '', loading: false };
+          loadedMedia[file.mediaId!] = { url: '', loading: false, error: true };
         });
       }
     }
@@ -373,12 +380,15 @@
                       {#if open}
                         {@const fileUrl = resolveMediaUrl(file)}
                         {@const loading = isMediaLoading(file)}
+                        {@const error = isMediaError(file)}
                         <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
                           {#if loading}
                             <div class="flex items-center justify-center py-4 gap-2 text-on-surface-variant text-[10px]">
                               <div class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                               {t('taskEditor.audio.loading')}
                             </div>
+                          {:else if error}
+                            <span class="text-[10px] text-error italic">{t('practice.infoPanels.mediaError')}</span>
                           {:else if file.name.toLowerCase().endsWith('.pdf')}
                             <iframe 
                               src={fileUrl} 
@@ -467,12 +477,15 @@
                       {#if open}
                         {@const fileUrl = resolveMediaUrl(file)}
                         {@const loading = isMediaLoading(file)}
+                        {@const error = isMediaError(file)}
                         <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
                           {#if loading}
                             <div class="flex items-center justify-center py-4 gap-2 text-on-surface-variant text-[10px]">
                               <div class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                               {t('taskEditor.audio.loading')}
                             </div>
+                          {:else if error}
+                            <span class="text-[10px] text-error italic">{t('practice.infoPanels.mediaError')}</span>
                           {:else if file.name.toLowerCase().endsWith('.pdf')}
                             <iframe 
                               src={fileUrl} 

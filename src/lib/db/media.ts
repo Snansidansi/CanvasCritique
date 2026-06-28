@@ -75,6 +75,23 @@ export async function deleteMediaFromDb(mediaId: string): Promise<void> {
   }
 }
 
+export async function deleteMediaForTask(mediaIds: string[]): Promise<void> {
+  if (mediaIds.length === 0) return;
+  const db = getDb();
+  const placeholders = mediaIds.map(() => '?').join(',');
+  try {
+    await db.execute(`DELETE FROM media WHERE id IN (${placeholders})`, mediaIds);
+  } catch {
+    // Ignore if doesn't exist
+  }
+}
+
+function collectMediaIds(files: { mediaId?: string }[]): string[] {
+  return files.map(f => f.mediaId).filter(Boolean) as string[];
+}
+
+export { collectMediaIds };
+
 export async function migrateMediaFromFs(): Promise<void> {
   try {
     const { appLocalDataDir } = await import('@tauri-apps/api/path');

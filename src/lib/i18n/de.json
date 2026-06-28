@@ -230,7 +230,8 @@
       "taskMedia": "Aufgabenmedien",
       "solutionMedia": "Lösungsmedien",
       "score": "Punktzahl:",
-      "openFullScreen": "Im Vollbild öffnen"
+      "openFullScreen": "Im Vollbild öffnen",
+      "mediaError": "Medium nicht gefunden"
     },
     "palette": {
       "collapse": "Zeichenwerkzeuge einklappen",

@@ -231,7 +231,8 @@
       "taskMedia": "Task Media",
       "solutionMedia": "Solution Media",
       "score": "Score:",
-      "openFullScreen": "Open in full screen"
+      "openFullScreen": "Open in full screen",
+      "mediaError": "Media not found"
     },
     "palette": {
       "collapse": "Collapse drawing tools",
