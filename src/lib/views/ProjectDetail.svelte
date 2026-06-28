@@ -134,6 +134,46 @@
     store.setView('task-editor');
   }
 
+  function handleExportSection(category: string) {
+    const tasks = project.tasks.filter((t: any) => (t.category || 'Basics') === category);
+    store.exportTasks(project, tasks);
+  }
+
+  let sectionDropTargetCat = $state<string | null>(null);
+
+  function handleSectionDragOver(e: DragEvent, category: string) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    sectionDropTargetCat = category;
+  }
+
+  function handleSectionDragLeave(e: DragEvent) {
+    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as HTMLElement)) {
+      sectionDropTargetCat = null;
+    }
+  }
+
+  function handleSectionDrop(e: DragEvent, category: string) {
+    e.preventDefault();
+    sectionDropTargetCat = null;
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+      store.showNotification(t('dashboard.notifications.dropValidJson'), 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const imported = JSON.parse(reader.result as string);
+        store.importProject(imported, project.id);
+      } catch (err) {
+        alert(t('dashboard.notifications.parseFailed'));
+      }
+    };
+    reader.readAsText(file);
+  }
+
   function handleEditTask(task) {
     store.setEditingTask(task);
   }
@@ -763,6 +803,14 @@
               </span>
               <button
                 type="button"
+                onclick={(e) => { e.preventDefault(); e.stopPropagation(); handleExportSection(category); }}
+                class="flex items-center gap-1 px-2 py-1 text-outline hover:text-primary text-[11px] font-bold rounded-lg hover:bg-surface-container cursor-pointer focus:outline-none"
+                title={t('projectDetail.exportBtn')}
+              >
+                <span class="material-symbols-outlined text-[14px]">file_download</span>
+              </button>
+              <button
+                type="button"
                 onclick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddTaskInCategory(category); }}
                 class="flex items-center gap-1 px-3 py-1 bg-primary text-on-primary font-bold text-[11px] rounded-lg hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer focus:outline-none"
                 title={t('projectDetail.addTaskInTopicTooltip')}
@@ -780,8 +828,11 @@
           <!-- Pointer-based draggable task list -->
           <div class="bg-surface-container-low border border-outline-variant/60 rounded-b-xl rounded-t-none px-6 pb-6 pt-0 border-t-0 -mt-0.5">
           <div 
-            class="flex flex-col gap-2 min-h-12.5"
+            class="flex flex-col gap-2 min-h-12.5 {sectionDropTargetCat === category ? 'border-2 border-dashed border-primary bg-primary/5 rounded-lg' : ''}"
             data-category-container={category}
+            ondragover={(e) => handleSectionDragOver(e, category)}
+            ondragleave={handleSectionDragLeave}
+            ondrop={(e) => handleSectionDrop(e, category)}
           >
             {#if catTasks.length > 0}
               {#each catTasks as task, index (task.id)}
