@@ -1,5 +1,11 @@
 // CanvasCritique Store Types & Interfaces
 
+export interface MediaFile {
+  name: string;
+  dataUrl?: string;
+  relativePath?: string;
+}
+
 export interface Task {
   id: string;
   name: string;
@@ -7,10 +13,10 @@ export interface Task {
   instructions: string;
   solution: string;
   category: string;
-  instructionFiles?: Array<{ name: string; dataUrl?: string }>;
-  solutionFiles?: Array<{ name: string; dataUrl?: string }>;
-  instructionFile?: { name: string; dataUrl?: string } | null; // legacy
-  solutionFile?: { name: string; dataUrl?: string } | null; // legacy
+  instructionFiles?: MediaFile[];
+  solutionFiles?: MediaFile[];
+  instructionFile?: MediaFile | null; // legacy
+  solutionFile?: MediaFile | null; // legacy
   critique?: {
     feedbackText: string;
     feedbackScore: number | null;
@@ -120,7 +126,7 @@ export interface Profile {
 export interface CustomBackground {
   id: string;
   name: string;
-  url: string;
+  relativePath: string;
   icon: string | null;
 }
 

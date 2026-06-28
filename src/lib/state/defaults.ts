@@ -1,8 +1,5 @@
 import type { Project, Settings } from './types';
 
-export const STORAGE_KEY_PROJECTS = 'canvascritique_projects';
-export const STORAGE_KEY_SETTINGS = 'canvascritique_settings';
-
 export const defaultProjects: Project[] = [
   {
     id: 'math-basics',

@@ -12,11 +12,33 @@ import type {
 } from './types';
 
 import {
-  STORAGE_KEY_PROJECTS,
-  STORAGE_KEY_SETTINGS,
   defaultProjects,
   defaultSettings
 } from './defaults';
+
+import {
+  initDb,
+  getDb,
+  loadAllData,
+  insertProfile,
+  updateProfile as dbUpdateProfile,
+  deleteProfile as dbDeleteProfile,
+  saveSettings as dbSaveSettings,
+  insertProject,
+  updateProject as dbUpdateProject,
+  deleteProject as dbDeleteProject,
+  insertTask,
+  updateTask as dbUpdateTask,
+  deleteTask as dbDeleteTask,
+  deleteTasks as dbDeleteTasks,
+  setCanvasState,
+  insertCustomBackground,
+  deleteCustomBackground as dbDeleteCustomBackground,
+} from '../db';
+
+import { readMediaFile, saveMediaFile } from '../db/media';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeTextFile } from '@tauri-apps/plugin-fs';
 
 // Re-export everything from types and defaults so existing imports in other files don't break
 export * from './types';
@@ -44,6 +66,8 @@ class CanvasCritiqueStore {
   activeProfileId = $state<string>('');
   notification = $state<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  private _dbReady = false;
+
   // Getters for dynamic API/Model selection
   get apiKey(): string {
     return this.settings.apiProvider === 'gemini'
@@ -55,6 +79,10 @@ class CanvasCritiqueStore {
     return this.settings.apiProvider === 'gemini'
       ? this.settings.geminiModel
       : this.settings.openRouterModel;
+  }
+
+  get isDbReady(): boolean {
+    return this._dbReady;
   }
 
   generateNextTaskName(projectId: string, category?: string): string {
@@ -148,18 +176,26 @@ class CanvasCritiqueStore {
     return globalSettings;
   }
 
-  constructor() {
-    this.loadState();
+  // DB init — call before using store
+  async init() {
+    const db = await initDb();
+    await this.loadState(db);
+    this._dbReady = true;
   }
 
-  loadState() {
-    // Load Profiles
+  private getDb() {
+    return getDb();
+  }
+
+  async loadState(db?: ReturnType<typeof getDb>) {
+    const database = db || this.getDb();
+
     try {
-      const savedProfiles = localStorage.getItem('canvascritique_profiles');
-      const savedActiveProfileId = localStorage.getItem('canvascritique_active_profile_id');
-      
-      if (savedProfiles) {
-        this.profiles = JSON.parse(savedProfiles);
+      // Load all data from DB
+      const data = await loadAllData(database);
+
+      if (data.profiles.length > 0) {
+        this.profiles = data.profiles;
       } else {
         // Create default profile
         this.profiles = [
@@ -170,75 +206,28 @@ class CanvasCritiqueStore {
             color: '#3b82f6'
           }
         ];
-        localStorage.setItem('canvascritique_profiles', JSON.stringify(this.profiles));
+        for (const p of this.profiles) {
+          await insertProfile(database, p);
+        }
       }
-      
+
+      // Restore active profile
+      const savedActiveProfileId = localStorage.getItem('canvascritique_active_profile_id');
       if (savedActiveProfileId && this.profiles.some(p => p.id === savedActiveProfileId)) {
         this.activeProfileId = savedActiveProfileId;
       } else {
         this.activeProfileId = this.profiles[0]?.id || 'default-profile';
       }
-    } catch (e) {
-      console.error('Error loading profiles', e);
-      this.profiles = [{ id: 'default-profile', name: 'General', icon: null, color: '#3b82f6' }];
-      this.activeProfileId = 'default-profile';
-    }
 
-    // Load Projects
-    try {
-      const savedProjects = localStorage.getItem(STORAGE_KEY_PROJECTS) || localStorage.getItem('scribeflow_projects');
-      if (savedProjects) {
-        const parsed = JSON.parse(savedProjects);
-        // Ensure categories exist and profileId exist
-        parsed.forEach(p => {
-          if (!p.categories) {
-            p.categories = [];
-          }
-          if (!p.profileId) {
-            p.profileId = 'default-profile';
-          }
-          if (p.tasks) {
-            p.tasks.forEach(t => {
-              if (t.instructionFile && (!t.instructionFiles || t.instructionFiles.length === 0)) {
-                t.instructionFiles = [t.instructionFile];
-              }
-              if (t.solutionFile && (!t.solutionFiles || t.solutionFiles.length === 0)) {
-                t.solutionFiles = [t.solutionFile];
-              }
-              if (!t.instructionFiles) {
-                t.instructionFiles = [];
-              }
-              if (!t.solutionFiles) {
-                t.solutionFiles = [];
-              }
-            });
-          }
-        });
-        this.projects = parsed;
-      } else {
-        this.projects = defaultProjects;
-        // Assign default projects to default-profile
-        this.projects.forEach(p => {
-          p.profileId = 'default-profile';
-        });
-        this.saveProjects();
-      }
-    } catch (e) {
-      console.error('Error loading projects', e);
-      this.projects = defaultProjects;
-    }
-
-    // Load Settings
-    try {
-      const savedSettings = localStorage.getItem(STORAGE_KEY_SETTINGS) || localStorage.getItem('scribeflow_settings');
-      if (savedSettings) {
-        this.settings = { ...defaultSettings, ...JSON.parse(savedSettings) };
+      if (data.settings) {
+        this.settings = data.settings;
       } else {
         this.settings = defaultSettings;
+        await dbSaveSettings(database, this.settings);
       }
 
-      // Ensure statistics fields exist for backward compatibility
-      if (!this.settings.hasOwnProperty('statsEnabled')) {
+      // Normalize settings
+      if (!this.settings.statsEnabled) {
         this.settings.statsEnabled = true;
       }
       if (!this.settings.stats) {
@@ -247,132 +236,204 @@ class CanvasCritiqueStore {
       if (!this.settings.stats.daily) {
         this.settings.stats.daily = {};
       }
-
       if (!this.settings.stylusButtons || !Array.isArray(this.settings.stylusButtons)) {
         this.settings.stylusButtons = [];
       }
-
-      // Normalize openRouterProvider to an array
       if (this.settings.openRouterProvider && typeof this.settings.openRouterProvider === 'string') {
         this.settings.openRouterProvider = [this.settings.openRouterProvider];
       } else if (!this.settings.openRouterProvider) {
         this.settings.openRouterProvider = [];
       }
+
+      if (data.projects.length > 0) {
+        this.projects = data.projects;
+        // Ensure all projects have profileId set
+        for (const p of this.projects) {
+          if (!p.profileId) {
+            p.profileId = 'default-profile';
+          }
+        }
+      } else {
+        this.projects = defaultProjects;
+        for (const p of this.projects) {
+          p.profileId = 'default-profile';
+        }
+        // Save default projects to DB
+        for (const p of this.projects) {
+          await insertProject(database, p);
+          for (const t of (p.tasks || [])) {
+            await insertTask(database, t, p.id);
+          }
+        }
+      }
+
+      this.customBackgrounds = data.backgrounds;
+
+      // Build canvas saves from tasks
+      this.canvasSaves = {};
+      for (const project of this.projects) {
+        for (const task of (project.tasks || [])) {
+          const canvasData = (task as any).canvasData;
+          if (canvasData) {
+            this.canvasSaves[task.id] = canvasData;
+            delete (task as any).canvasData;
+          }
+        }
+      }
+
+      this.applyTheme(this.settings.theme);
     } catch (e) {
-      console.error('Error loading settings', e);
+      console.error('Error loading state from DB', e);
+      this.profiles = [{ id: 'default-profile', name: 'General', icon: null, color: '#3b82f6' }];
+      this.activeProfileId = 'default-profile';
       this.settings = defaultSettings;
-    }
-
-    // Load Custom Backgrounds
-    try {
-      const savedCustomBgs = localStorage.getItem('canvascritique_custom_backgrounds') || localStorage.getItem('scribeflow_custom_backgrounds');
-      if (savedCustomBgs) {
-        this.customBackgrounds = JSON.parse(savedCustomBgs);
-      } else {
-        this.customBackgrounds = [];
-      }
-    } catch (e) {
-      console.error('Error loading custom backgrounds', e);
+      this.projects = defaultProjects;
       this.customBackgrounds = [];
-    }
-
-    // Load Canvas Saves
-    try {
-      const savedSaves = localStorage.getItem('canvascritique_canvas_saves') || localStorage.getItem('scribeflow_canvas_saves');
-      if (savedSaves) {
-        this.canvasSaves = JSON.parse(savedSaves);
-      } else {
-        this.canvasSaves = {};
-      }
-    } catch (e) {
-      console.error('Error loading canvas saves', e);
       this.canvasSaves = {};
     }
+  }
 
-    // Apply initial theme
+  // ── Persist calls ──
+
+  async saveProjects() {
+    const db = this.getDb();
+    for (const project of this.projects) {
+      // Upsert project metadata
+      const existing = await db.select('SELECT id FROM projects WHERE id = ?', [project.id]);
+      if (existing.length > 0) {
+        await dbUpdateProject(db, project.id, {
+          name: project.name,
+          icon: project.icon,
+          guidelines: project.guidelines,
+          categories: project.categories,
+          hideCompleted: project.hideCompleted,
+          settingsOverride: project.settingsOverride
+        });
+      } else {
+        await insertProject(db, project);
+      }
+      // Sync tasks
+      for (const task of (project.tasks || [])) {
+        const existingTask = await db.select('SELECT id FROM tasks WHERE id = ?', [task.id]);
+        if (existingTask.length > 0) {
+          await dbUpdateTask(db, task.id, {
+            name: task.name,
+            completed: task.completed,
+            instructions: task.instructions,
+            solution: task.solution,
+            category: task.category,
+            instructionFiles: task.instructionFiles || [],
+            solutionFiles: task.solutionFiles || [],
+            critique: task.critique || null,
+            canvasData: this.canvasSaves[task.id] || null
+          });
+        } else {
+          const t = { ...task, canvasData: this.canvasSaves[task.id] || null };
+          await insertTask(db, t, project.id);
+        }
+      }
+    }
+  }
+
+  async saveSettings() {
+    const db = this.getDb();
+    await dbSaveSettings(db, this.settings);
     this.applyTheme(this.settings.theme);
   }
 
-  // Persist calls
-  saveProjects() {
-    localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(this.projects));
-  }
-
-  saveSettings() {
-    localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(this.settings));
-    this.applyTheme(this.settings.theme);
-  }
-
-  saveProfiles() {
-    localStorage.setItem('canvascritique_profiles', JSON.stringify(this.profiles));
+  async saveProfiles() {
+    const db = this.getDb();
+    for (const profile of this.profiles) {
+      const existing = await db.select('SELECT id FROM profiles WHERE id = ?', [profile.id]);
+      if (existing.length > 0) {
+        await dbUpdateProfile(db, profile.id, profile);
+      } else {
+        await insertProfile(db, profile);
+      }
+    }
     localStorage.setItem('canvascritique_active_profile_id', this.activeProfileId);
   }
 
-  addProfile(name: string, icon: string | null = null, color: string = '#3b82f6') {
-    const newProfile = {
+  async addProfile(name: string, icon: string | null = null, color: string = '#3b82f6') {
+    const newProfile: Profile = {
       id: 'profile-' + Date.now(),
       name,
       icon,
       color
     };
     this.profiles.push(newProfile);
-    this.saveProfiles();
+    await this.saveProfiles();
     return newProfile;
   }
 
-  updateProfile(id: string, updated: { name?: string; icon?: string | null; color?: string }) {
+  async updateProfile(id: string, updated: { name?: string; icon?: string | null; color?: string }) {
     const profile = this.profiles.find(p => p.id === id);
     if (!profile) return;
     if (updated.name !== undefined) profile.name = updated.name;
     if (updated.icon !== undefined) profile.icon = updated.icon;
     if (updated.color !== undefined) profile.color = updated.color;
-    this.saveProfiles();
+    await this.saveProfiles();
   }
 
-  deleteProfile(id: string) {
-    if (this.profiles.length <= 1) return; // Do not delete the last profile
-    
-    // Remove lessons for this profile
+  async deleteProfile(id: string) {
+    if (this.profiles.length <= 1) return;
+
+    // Remove projects for this profile
+    const db = this.getDb();
     this.projects = this.projects.filter(p => p.profileId !== id);
-    this.saveProjects();
+    await dbDeleteProfile(db, id);
+    await this.saveProjects();
 
     // Remove profile
     this.profiles = this.profiles.filter(p => p.id !== id);
-    
-    // Fallback activeProfileId if the deleted was active
+
     if (this.activeProfileId === id) {
       this.activeProfileId = this.profiles[0].id;
     }
-    
-    this.saveProfiles();
+
+    await this.saveProfiles();
   }
 
-  selectProfile(id: string) {
+  async selectProfile(id: string) {
     if (this.profiles.some(p => p.id === id)) {
       this.activeProfileId = id;
-      this.saveProfiles();
+      await this.saveProfiles();
     }
   }
 
-  saveCustomBackgrounds() {
-    localStorage.setItem('canvascritique_custom_backgrounds', JSON.stringify(this.customBackgrounds));
+  async saveCustomBackgrounds() {
+    const db = this.getDb();
+    // Delete all existing and re-insert (simplest approach)
+    await db.execute('DELETE FROM custom_backgrounds');
+    for (const bg of this.customBackgrounds) {
+      await insertCustomBackground(db, bg);
+    }
   }
 
-  addCustomBackground(name: string, url: string, icon: string | null = null): CustomBackground {
-    const newBg = {
+  async addCustomBackground(name: string, dataUrl: string, iconDataUrl: string | null = null): Promise<CustomBackground> {
+    const relativePath = await saveMediaFile(dataUrl);
+    let icon: string | null = null;
+    if (iconDataUrl && iconDataUrl !== dataUrl) {
+      icon = await saveMediaFile(iconDataUrl);
+    } else if (iconDataUrl === dataUrl) {
+      icon = relativePath;
+    }
+
+    const newBg: CustomBackground = {
       id: 'custom-bg-' + Date.now(),
       name,
-      url,
-      icon: icon || url
+      relativePath,
+      icon
     };
     this.customBackgrounds.push(newBg);
-    this.saveCustomBackgrounds();
+    await this.saveCustomBackgrounds();
     return newBg;
   }
 
-  deleteCustomBackground(id: string): void {
+  async deleteCustomBackground(id: string): Promise<void> {
     this.customBackgrounds = this.customBackgrounds.filter(bg => bg.id !== id);
-    this.saveCustomBackgrounds();
+    const db = this.getDb();
+    await dbDeleteCustomBackground(db, id);
   }
 
   recordPointerEvent(e: PointerEvent): void {
@@ -431,7 +492,7 @@ class CanvasCritiqueStore {
   }
 
   // Mutation actions
-  addProject(name: string, icon: string = 'history_edu'): Project {
+  async addProject(name: string, icon: string = 'history_edu'): Promise<Project> {
     const newProj: Project = {
       id: 'proj-' + Date.now(),
       name,
@@ -442,7 +503,7 @@ class CanvasCritiqueStore {
       profileId: this.activeProfileId
     };
     this.projects.push(newProj);
-    this.saveProjects();
+    await this.saveProjects();
 
     if (this.activeProject && this.activeProject.id === newProj.id) {
       this.activeProject = newProj;
@@ -450,7 +511,7 @@ class CanvasCritiqueStore {
     return newProj;
   }
 
-  addCategory(projectId: string, categoryName: string): void {
+  async addCategory(projectId: string, categoryName: string): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -460,7 +521,7 @@ class CanvasCritiqueStore {
 
     if (!project.categories.includes(categoryName)) {
       project.categories.push(categoryName);
-      this.saveProjects();
+      await this.saveProjects();
     }
 
     if (this.activeProject && this.activeProject.id === projectId) {
@@ -468,17 +529,15 @@ class CanvasCritiqueStore {
     }
   }
 
-  renameCategory(projectId: string, oldName: string, newName: string): void {
+  async renameCategory(projectId: string, oldName: string, newName: string): Promise<void> {
     if (!newName || !newName.trim() || oldName === newName) return;
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
-    // 1. Rename inside categories array
     if (project.categories) {
       project.categories = project.categories.map(c => c === oldName ? newName.trim() : c);
     }
 
-    // 2. Rename inside tasks
     if (project.tasks) {
       project.tasks.forEach(t => {
         if ((t.category || 'Basics') === oldName) {
@@ -487,14 +546,14 @@ class CanvasCritiqueStore {
       });
     }
 
-    this.saveProjects();
+    await this.saveProjects();
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }
   }
 
-  deleteCategory(projectId: string, categoryName: string): void {
+  async deleteCategory(projectId: string, categoryName: string): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -518,14 +577,14 @@ class CanvasCritiqueStore {
       project.categories.push(fallbackCategory);
     }
 
-    this.saveProjects();
+    await this.saveProjects();
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }
   }
 
-  addTask(
+  async addTask(
     projectId: string,
     name: string,
     instructions: string,
@@ -533,7 +592,7 @@ class CanvasCritiqueStore {
     category: string = 'Basics',
     instructionFiles: any[] = [],
     solutionFiles: any[] = []
-  ): void {
+  ): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -555,7 +614,10 @@ class CanvasCritiqueStore {
       project.categories.push(category);
     }
 
-    this.saveProjects();
+    // Insert task to DB
+    const db = this.getDb();
+    await insertTask(db, newTask, projectId);
+    await this.saveProjects();
 
     // Update active project reference if it is active
     if (this.activeProject && this.activeProject.id === projectId) {
@@ -563,7 +625,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  updateTask(projectId: string, taskId: string, updatedData: Partial<Task>): void {
+  async updateTask(projectId: string, taskId: string, updatedData: Partial<Task>): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -576,8 +638,8 @@ class CanvasCritiqueStore {
     if (updatedData.category !== undefined) task.category = updatedData.category;
     if (updatedData.instructionFiles !== undefined) task.instructionFiles = updatedData.instructionFiles;
     if (updatedData.solutionFiles !== undefined) task.solutionFiles = updatedData.solutionFiles;
-    if (updatedData.instructionFile !== undefined) task.instructionFile = updatedData.instructionFile;
-    if (updatedData.solutionFile !== undefined) task.solutionFile = updatedData.solutionFile;
+    if (updatedData.instructionFile !== undefined) (task as any).instructionFile = updatedData.instructionFile;
+    if (updatedData.solutionFile !== undefined) (task as any).solutionFile = updatedData.solutionFile;
     if (updatedData.completed !== undefined) task.completed = updatedData.completed;
     if (updatedData.critique !== undefined) task.critique = updatedData.critique;
 
@@ -586,7 +648,19 @@ class CanvasCritiqueStore {
       project.categories.push(task.category);
     }
 
-    this.saveProjects();
+    // Update task in DB
+    const db = this.getDb();
+    await dbUpdateTask(db, taskId, {
+      name: task.name,
+      completed: task.completed,
+      instructions: task.instructions,
+      solution: task.solution,
+      category: task.category,
+      instructionFiles: task.instructionFiles || [],
+      solutionFiles: task.solutionFiles || [],
+      critique: task.critique || null
+    });
+    await this.saveProjects();
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
@@ -596,15 +670,13 @@ class CanvasCritiqueStore {
     }
   }
 
-  reorderTasks(projectId: string, category: string, taskIdsOrder: string[]): void {
+  async reorderTasks(projectId: string, category: string, taskIdsOrder: string[]): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
-    // Filter tasks by category vs others
     const categoryTasks = project.tasks.filter(t => (t.category || 'Basics') === category);
     const otherTasks = project.tasks.filter(t => (t.category || 'Basics') !== category);
 
-    // Reorder categoryTasks in-place based on taskIdsOrder index
     categoryTasks.sort((a, b) => {
       const idxA = taskIdsOrder.indexOf(a.id);
       const idxB = taskIdsOrder.indexOf(b.id);
@@ -612,41 +684,40 @@ class CanvasCritiqueStore {
     });
 
     project.tasks = [...otherTasks, ...categoryTasks];
-    this.saveProjects();
+    await this.saveProjects();
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }
   }
 
-  moveAndReorderTask(projectId: string, taskId: string, targetCategory: string, targetIndex: number): void {
+  async moveAndReorderTask(projectId: string, taskId: string, targetCategory: string, targetIndex: number): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
     const task = project.tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    // Update category
     task.category = targetCategory;
 
-    // Filter tasks
+    const db = this.getDb();
+    await dbUpdateTask(db, taskId, { category: targetCategory });
+
     const otherTasks = project.tasks.filter(t => t.id !== taskId);
     const targetCategoryTasks = otherTasks.filter(t => (t.category || 'Basics') === targetCategory);
     const nonTargetCategoryTasks = otherTasks.filter(t => (t.category || 'Basics') !== targetCategory);
 
-    // Insert task at targetIndex
     targetCategoryTasks.splice(targetIndex, 0, task);
 
-    // Set new tasks array
     project.tasks = [...nonTargetCategoryTasks, ...targetCategoryTasks];
-    this.saveProjects();
+    await this.saveProjects();
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }
   }
 
-  toggleTaskCompleted(projectId: string, taskId: string): void {
+  async toggleTaskCompleted(projectId: string, taskId: string): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
@@ -654,7 +725,9 @@ class CanvasCritiqueStore {
     if (!task) return;
 
     task.completed = !task.completed;
-    this.saveProjects();
+
+    const db = this.getDb();
+    await dbUpdateTask(db, taskId, { completed: task.completed });
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
@@ -664,18 +737,20 @@ class CanvasCritiqueStore {
     }
   }
 
-  deleteTask(projectId: string, taskId: string): void {
+  async deleteTask(projectId: string, taskId: string): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
     project.tasks = project.tasks.filter(t => t.id !== taskId);
-    this.saveProjects();
 
-    // Clean up canvas saves for this task too
+    const db = this.getDb();
+    await dbDeleteTask(db, taskId);
+
     if (this.canvasSaves[taskId]) {
       delete this.canvasSaves[taskId];
-      localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
     }
+
+    await this.saveProjects();
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
@@ -688,23 +763,22 @@ class CanvasCritiqueStore {
     }
   }
 
-  deleteTasks(projectId: string, taskIds: string[]): void {
+  async deleteTasks(projectId: string, taskIds: string[]): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
     project.tasks = project.tasks.filter(t => !taskIds.includes(t.id));
-    this.saveProjects();
 
-    let canvasSavesChanged = false;
+    const db = this.getDb();
+    await dbDeleteTasks(db, taskIds);
+
     for (const taskId of taskIds) {
       if (this.canvasSaves[taskId]) {
         delete this.canvasSaves[taskId];
-        canvasSavesChanged = true;
       }
     }
-    if (canvasSavesChanged) {
-      localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
-    }
+
+    await this.saveProjects();
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
@@ -717,28 +791,31 @@ class CanvasCritiqueStore {
     }
   }
 
-  updateProjectGuidelines(projectId: string, guidelines: string): void {
+  async updateProjectGuidelines(projectId: string, guidelines: string): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
     project.guidelines = guidelines;
-    this.saveProjects();
+    await this.saveProjects();
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }
   }
 
-  updateProjectDetails(projectId: string, updates: { name?: string; icon?: string }): void {
+  async updateProjectDetails(projectId: string, updates: { name?: string; icon?: string }): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
     if (updates.name !== undefined) project.name = updates.name;
     if (updates.icon !== undefined) project.icon = updates.icon;
-    this.saveProjects();
+    await this.saveProjects();
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }
   }
 
-  deleteProject(projectId: string): void {
+  async deleteProject(projectId: string): Promise<void> {
+    const db = this.getDb();
+    await dbDeleteProject(db, projectId);
+
     const project = this.projects.find(p => p.id === projectId);
     if (project && project.tasks) {
       for (const t of project.tasks) {
@@ -746,11 +823,9 @@ class CanvasCritiqueStore {
           delete this.canvasSaves[t.id];
         }
       }
-      localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
     }
 
     this.projects = this.projects.filter(p => p.id !== projectId);
-    this.saveProjects();
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = null;
       this.activeTask = null;
@@ -773,9 +848,10 @@ class CanvasCritiqueStore {
     };
   }
 
-  saveCanvasState(taskId: string, data: any): void {
+  async saveCanvasState(taskId: string, data: any): Promise<void> {
     this.canvasSaves[taskId] = data;
-    localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
+    const db = this.getDb();
+    await setCanvasState(db, taskId, data);
   }
 
   getCanvasState(taskId: string): any {
@@ -817,7 +893,21 @@ class CanvasCritiqueStore {
     };
   }
 
-  private executeImportProject(
+  private async convertImportedFiles(files: any[]): Promise<any[]> {
+    const result = [];
+    for (const f of files) {
+      const file = { ...f };
+      if (file.dataUrl && !file.relativePath) {
+        try {
+          file.relativePath = await saveMediaFile(file.dataUrl);
+        } catch (_) {}
+      }
+      result.push(file);
+    }
+    return result;
+  }
+
+  private async executeImportProject(
     projectData: any,
     options: {
       importCritique: boolean;
@@ -826,9 +916,10 @@ class CanvasCritiqueStore {
       mergeProjectId?: string;
       mergeMode?: 'update' | 'skip';
     }
-  ): void {
+  ): Promise<void> {
     const data = Array.isArray(projectData) ? projectData : [projectData];
     let lastImported: Project | null = null;
+    const db = this.getDb();
 
     const mergeProject = options.mergeProjectId
       ? this.projects.find(p => p.id === options.mergeProjectId)
@@ -844,43 +935,35 @@ class CanvasCritiqueStore {
         for (const t of importedTasks) {
           if (!t.name) continue;
 
-          // Match by name (case-insensitive, trimmed)
           const matchedTask = mergeProject.tasks.find(
             et => et.name.trim().toLowerCase() === t.name.trim().toLowerCase()
           );
 
           if (matchedTask) {
             if (options.mergeMode === 'update') {
-              matchedTask.instructions = t.instructions !== undefined ? t.instructions : matchedTask.instructions;
-              matchedTask.solution = t.solution !== undefined ? t.solution : matchedTask.solution;
-              matchedTask.category = t.category !== undefined ? t.category : matchedTask.category;
-
+              if (t.instructions !== undefined) matchedTask.instructions = t.instructions;
+              if (t.solution !== undefined) matchedTask.solution = t.solution;
+              if (t.category !== undefined) matchedTask.category = t.category;
               if (t.instructionFiles !== undefined) {
-                matchedTask.instructionFiles = t.instructionFiles;
+                matchedTask.instructionFiles = await this.convertImportedFiles(t.instructionFiles);
               } else if (t.instructionFile) {
-                matchedTask.instructionFiles = [t.instructionFile];
+                matchedTask.instructionFiles = await this.convertImportedFiles([t.instructionFile]);
               }
-
               if (t.solutionFiles !== undefined) {
-                matchedTask.solutionFiles = t.solutionFiles;
+                matchedTask.solutionFiles = await this.convertImportedFiles(t.solutionFiles);
               } else if (t.solutionFile) {
-                matchedTask.solutionFiles = [t.solutionFile];
+                matchedTask.solutionFiles = await this.convertImportedFiles([t.solutionFile]);
               }
+              if (options.importCompleted && t.completed !== undefined) matchedTask.completed = !!t.completed;
+              if (options.importCritique && t.critique !== undefined) matchedTask.critique = t.critique;
 
-              if (options.importCompleted) {
-                matchedTask.completed = !!t.completed;
-              }
-
-              if (options.importCritique) {
-                matchedTask.critique = t.critique !== undefined ? t.critique : null;
-              }
-
+              await dbUpdateTask(db, matchedTask.id, matchedTask);
               if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
                 this.canvasSaves[matchedTask.id] = importedCanvasSaves[t.id];
+                await setCanvasState(db, matchedTask.id, importedCanvasSaves[t.id]);
               }
             }
           } else {
-            // Add new task
             let taskId = t.id;
             const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(et => et.id === taskId));
             if (!taskId || isDuplicateId) {
@@ -889,32 +972,32 @@ class CanvasCritiqueStore {
 
             if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
               this.canvasSaves[taskId] = importedCanvasSaves[t.id];
+              await setCanvasState(db, taskId, importedCanvasSaves[t.id]);
             }
 
-            let instructionFiles = t.instructionFiles || [];
+            let instructionFiles = await this.convertImportedFiles(t.instructionFiles || []);
             if (t.instructionFile && instructionFiles.length === 0) {
-              instructionFiles = [t.instructionFile];
+              instructionFiles = await this.convertImportedFiles([t.instructionFile]);
             }
-            let solutionFiles = t.solutionFiles || [];
+            let solutionFiles = await this.convertImportedFiles(t.solutionFiles || []);
             if (t.solutionFile && solutionFiles.length === 0) {
-              solutionFiles = [t.solutionFile];
+              solutionFiles = await this.convertImportedFiles([t.solutionFile]);
             }
 
             const newTask: Task = {
-              ...t,
               id: taskId,
+              name: t.name,
               completed: options.importCompleted ? !!t.completed : false,
+              instructions: t.instructions || '',
+              solution: t.solution || '',
+              category: t.category || 'Basics',
               instructionFiles,
-              solutionFiles,
-              instructionFile: null,
-              solutionFile: null
+              solutionFiles
             };
-
-            if (!options.importCritique) {
-              delete newTask.critique;
-            }
+            if (options.importCritique && t.critique) newTask.critique = t.critique;
 
             mergeProject.tasks.push(newTask);
+            await insertTask(db, newTask, mergeProject.id);
 
             const cat = newTask.category || 'Basics';
             if (mergeProject.categories && !mergeProject.categories.includes(cat)) {
@@ -923,9 +1006,9 @@ class CanvasCritiqueStore {
           }
         }
       }
+      await this.saveProjects();
       lastImported = mergeProject;
     } else {
-      // Import as a new lesson
       for (const proj of data) {
         if (!proj || typeof proj !== 'object' || !proj.name) continue;
 
@@ -937,7 +1020,9 @@ class CanvasCritiqueStore {
         const categories = proj.categories || [];
         const importedCanvasSaves = proj.canvasSaves || {};
 
-        const tasks = (proj.tasks || []).map((t: any, idx: number) => {
+        const tasks: Task[] = [];
+        for (let idx = 0; idx < (proj.tasks || []).length; idx++) {
+          const t = proj.tasks[idx];
           const oldTaskId = t.id;
           let taskId = t.id;
           const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(existingTask => existingTask.id === taskId));
@@ -947,36 +1032,34 @@ class CanvasCritiqueStore {
 
           if (options.importCanvas && oldTaskId && importedCanvasSaves[oldTaskId]) {
             this.canvasSaves[taskId] = importedCanvasSaves[oldTaskId];
+            await setCanvasState(db, taskId, importedCanvasSaves[oldTaskId]);
           }
 
-          let instructionFiles = t.instructionFiles || [];
+          let instructionFiles = await this.convertImportedFiles(t.instructionFiles || []);
           if (t.instructionFile && instructionFiles.length === 0) {
-            instructionFiles = [t.instructionFile];
+            instructionFiles = await this.convertImportedFiles([t.instructionFile]);
           }
-          let solutionFiles = t.solutionFiles || [];
+          let solutionFiles = await this.convertImportedFiles(t.solutionFiles || []);
           if (t.solutionFile && solutionFiles.length === 0) {
-            solutionFiles = [t.solutionFile];
+            solutionFiles = await this.convertImportedFiles([t.solutionFile]);
           }
 
-          const taskCopy = {
-            ...t,
+          const newTask: Task = {
             id: taskId,
+            name: t.name,
             completed: options.importCompleted ? !!t.completed : false,
+            instructions: t.instructions || '',
+            solution: t.solution || '',
+            category: t.category || 'Basics',
             instructionFiles,
-            solutionFiles,
-            instructionFile: null,
-            solutionFile: null
+            solutionFiles
           };
+          if (options.importCritique && t.critique) newTask.critique = t.critique;
 
-          if (!options.importCritique) {
-            delete taskCopy.critique;
-          }
-
-          return taskCopy;
-        });
+          tasks.push(newTask);
+        }
 
         const newProj: Project = {
-          ...proj,
           id: newId,
           name: proj.name,
           icon: proj.icon || 'history_edu',
@@ -985,19 +1068,20 @@ class CanvasCritiqueStore {
           tasks,
           profileId: this.activeProfileId
         };
-
-        if ('canvasSaves' in newProj) {
-          delete (newProj as any).canvasSaves;
+        if (proj.settingsOverride) {
+          newProj.settingsOverride = proj.settingsOverride;
         }
 
         this.projects.push(newProj);
+        await insertProject(db, newProj);
+        for (const t of tasks) {
+          await insertTask(db, t, newProj.id);
+        }
         lastImported = newProj;
       }
     }
 
     if (lastImported) {
-      localStorage.setItem('canvascritique_canvas_saves', JSON.stringify(this.canvasSaves));
-      this.saveProjects();
       this.selectProject(lastImported);
       this.setView('project-detail');
     } else {
@@ -1005,7 +1089,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  exportProject(project: Project): void {
+  async exportProject(project: Project): Promise<void> {
     const hasCritique = !!(project.tasks && project.tasks.some(t => t.critique));
     const hasCanvas = !!(project.tasks && project.tasks.some(t => this.canvasSaves[t.id]));
 
@@ -1014,9 +1098,55 @@ class CanvasCritiqueStore {
       hasCritique,
       hasCanvas,
       onConfirm: async (options) => {
-        // Clone the project to avoid mutating active runtime state
-        const exportData = JSON.parse(JSON.stringify(project));
-        
+        // Inline media files for export
+        const clonedTasks = (project.tasks || []).map(t => {
+          const cloned: any = { ...t };
+          if (cloned.instructionFiles) {
+            cloned.instructionFiles = [...cloned.instructionFiles];
+          }
+          if (cloned.solutionFiles) {
+            cloned.solutionFiles = [...cloned.solutionFiles];
+          }
+          return cloned;
+        });
+
+        // Read media files and inline as dataUrl
+        for (const task of clonedTasks) {
+          if (task.instructionFiles) {
+            for (const file of task.instructionFiles) {
+              if (file.relativePath && !file.dataUrl) {
+                try {
+                  file.dataUrl = await readMediaFile(file.relativePath);
+                  delete file.relativePath;
+                } catch (_) {}
+              }
+            }
+          }
+          if (task.solutionFiles) {
+            for (const file of task.solutionFiles) {
+              if (file.relativePath && !file.dataUrl) {
+                try {
+                  file.dataUrl = await readMediaFile(file.relativePath);
+                  delete file.relativePath;
+                } catch (_) {}
+              }
+            }
+          }
+        }
+
+        const exportData: any = {
+          id: project.id,
+          name: project.name,
+          icon: project.icon,
+          guidelines: project.guidelines,
+          categories: project.categories,
+          tasks: clonedTasks
+        };
+
+        if (project.settingsOverride) {
+          exportData.settingsOverride = project.settingsOverride;
+        }
+
         // Attach canvas saves for all tasks in this project if requested
         exportData.canvasSaves = {};
         if (options.includeCanvas && project.tasks) {
@@ -1066,62 +1196,31 @@ class CanvasCritiqueStore {
     this.exportProject(tempProject);
   }
 
-  /**
-   * Save a text/JSON file. Uses Tauri's native save dialog when available,
-   * falls back to a browser anchor-download otherwise.
-   */
   async saveFileWithDialog(suggestedFilename: string, content: string): Promise<void> {
-    try {
-      if ((window as any).__TAURI_INTERNALS__) {
-        const dialogModule = '@tauri-apps/plugin-dialog';
-        const fsModule = '@tauri-apps/plugin-fs';
-        const { save } = await import(/* @vite-ignore */ dialogModule);
-        const { writeTextFile } = await import(/* @vite-ignore */ fsModule);
+    const filePath = await save({
+      defaultPath: suggestedFilename,
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    });
 
-        const filePath = await save({
-          defaultPath: suggestedFilename,
-          filters: [{ name: 'JSON', extensions: ['json'] }]
-        });
-
-        if (filePath) {
-          await writeTextFile(filePath, content);
-          this.showNotification(
-            this.settings?.language === 'Deutsch'
-              ? 'Erfolgreich in den Downloads-Ordner exportiert.'
-              : 'Exported to Downloads folder.',
-            'success'
-          );
-        }
-        return;
-      }
-    } catch (e) {
-      console.warn('Tauri save dialog failed, falling back to browser download:', e);
+    if (filePath) {
+      await writeTextFile(filePath, content);
+      this.showNotification(
+        this.settings?.language === 'Deutsch'
+          ? 'Erfolgreich in den Downloads-Ordner exportiert.'
+          : 'Exported to Downloads folder.',
+        'success'
+      );
     }
-
-    // Browser fallback
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(content);
-    const anchor = document.createElement('a');
-    anchor.setAttribute('href', dataStr);
-    anchor.setAttribute('download', suggestedFilename);
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    this.showNotification(
-      this.settings?.language === 'Deutsch'
-        ? 'Erfolgreich in den Downloads-Ordner exportiert.'
-        : 'Exported to Downloads folder.',
-      'success'
-    );
   }
 
-  recordRequest(
+  async recordRequest(
     provider: 'gemini' | 'openrouter',
     model: string,
     inputTokens: number,
     outputTokens: number,
     reasoningTokens: number,
     cost: number
-  ): void {
+  ): Promise<void> {
     if (!this.settings.statsEnabled) return;
     if (!this.settings.stats) {
       this.settings.stats = { daily: {} };
@@ -1129,7 +1228,7 @@ class CanvasCritiqueStore {
     if (!this.settings.stats.daily) {
       this.settings.stats.daily = {};
     }
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
     if (!this.settings.stats.daily[today]) {
       this.settings.stats.daily[today] = {
         gemini: { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 },
@@ -1154,7 +1253,7 @@ class CanvasCritiqueStore {
     dayStats.reasoningTokens += reasoningTokens;
     dayStats.cost += cost;
 
-    this.saveSettings();
+    await this.saveSettings();
   }
 
   showNotification(message: string, type: 'success' | 'error' | 'info' = 'success', duration = 3000): void {
