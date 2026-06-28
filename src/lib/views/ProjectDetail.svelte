@@ -347,6 +347,16 @@
   }
 
 
+  function handleSectionToggle(e: Event) {
+    const details = e.currentTarget as HTMLDetailsElement;
+    const sectionKey = details.dataset.sectionKey;
+    if (sectionKey) localStorage.setItem(sectionKey, String(!details.open));
+  }
+
+  function getSectionOpenState(key: string): boolean {
+    return localStorage.getItem(key) !== 'true';
+  }
+
   function triggerImageUpload() {
     if (project.id === 'No Lesson Selected') return;
     const fileInput = document.getElementById('project-image-upload') as HTMLInputElement;
@@ -609,7 +619,9 @@
     <div class="grid grid-cols-1 gap-6">
       {#each categories as category}
         {@const catTasks = getCategoryTasks(category)}
-        <div class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-6 flex flex-col gap-4">
+        {@const sectionKey = `section-collapsed-${project.id}-${category}`}
+        <details class="group/section" open={getSectionOpenState(sectionKey)} data-section-key={sectionKey} ontoggle={handleSectionToggle}>
+          <summary class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-6 flex flex-col gap-4 cursor-pointer list-none">
           <div class="flex items-center justify-between border-b border-outline-variant/20 pb-3">
             <div class="flex items-center gap-2">
               {#if editingCategory === category}
@@ -658,17 +670,22 @@
               </span>
               <button
                 type="button"
-                onclick={() => handleAddTaskInCategory(category)}
+                onclick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddTaskInCategory(category); }}
                 class="flex items-center gap-1 px-3 py-1 bg-primary text-on-primary font-bold text-[11px] rounded-lg hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer focus:outline-none"
                 title={t('projectDetail.addTaskInTopicTooltip')}
               >
                 <span class="material-symbols-outlined text-[14px]">add</span>
                 {t('projectDetail.addTask')}
               </button>
+              <span class="material-symbols-outlined text-[20px] text-on-surface-variant transition-transform group-open/section:rotate-180">
+                expand_more
+              </span>
             </div>
           </div>
+          </summary>
 
           <!-- Pointer-based draggable task list -->
+          <div class="bg-surface-container-low border border-outline-variant/60 rounded-b-xl rounded-t-none px-6 pb-6 pt-0 border-t-0 -mt-0.5">
           <div 
             class="flex flex-col gap-2 min-h-12.5"
             data-category-container={category}
@@ -798,7 +815,8 @@
               </div>
             {/if}
           </div>
-        </div>
+          </div>
+        </details>
       {/each}
     </div>
   </section>
