@@ -322,7 +322,7 @@
 
   <!-- Projects Grid -->
   <section
-    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start"
+    class="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6 items-start"
   >
     {#each filteredProjects as project (project.id)}
       {@const progress = getProjectProgress(project)}
