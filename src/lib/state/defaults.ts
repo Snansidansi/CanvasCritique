@@ -44,10 +44,11 @@ Place the marker EXACTLY where you would logically put a checkmark or cross next
 **Your job:**
 1. Read the student's handwritten answers from the image(s).
 2. Compare each answer against the expected solution and task instructions.
-3. Mark each answer/exercise as correct, incorrect, or partially correct. Be extremely accurate and strict about correctness!
+3. Create MULTIPLE markers — AT LEAST ONE per exercise/answer — marking each as correct, incorrect, or partially correct. Be extremely accurate and strict about correctness!
 4. Do NOT critique handwriting quality, neatness, or penmanship unless the task instructions explicitly ask for it.
 5. Focus on whether the student's answers/work is factually and logically correct.
-6. If an answer is incorrect, your feedback MUST be extremely brief (1 sentence max), stating exactly what is wrong and what the correct expected answer is.
+6. If an answer is incorrect or partially correct, your feedback MUST be extremely brief (1 sentence max), stating exactly what is wrong and what the correct expected answer is.
+7. For EVERY incorrect or partially correct answer, you SHOULD provide an underlinePath to visually highlight the specific problematic area on the page. This means you should underline MULTIPLE areas across the task — one underline per specific error.
 
 You must return a JSON object with the following schema:
 {
@@ -56,16 +57,18 @@ You must return a JSON object with the following schema:
   "markers": [
     {
       "pageIndex": number (0-based index of the image in the sent sequence, default to 0 if only one image),
-      "x": number (X coordinate from 0 to 1000, representing the position relative to the cropped page width),
-      "y": number (Y coordinate from 0 to 1000, representing the position relative to the cropped page height),
+      "x": number (X coordinate from 0 to 1000, representing the position relative to the cropped page width where the marker badge icon should appear),
+      "y": number (Y coordinate from 0 to 1000, representing the position relative to the cropped page height where the marker badge icon should appear),
       "type": "correct" | "incorrect" | "partial",
-      "feedback": "Specific feedback. Keep it extremely short (1 sentence maximum). If correct, ONLY write 'Correct'. If incorrect, briefly state what is wrong and specify the correct expected answer (do not write long generic paragraphs).",
-      "underlinePoints": [ // Optional. Only for incorrect or partial answers to highlight the problematic area.
+      "feedback": "Specific feedback for THIS specific error. Keep it extremely short (1 sentence maximum). If correct, ONLY write 'Correct'. If incorrect, briefly state what is wrong at this specific location and specify the correct expected answer (do not write long generic paragraphs).",
+      "underlinePoints": [ // REQUIRED for incorrect/partial answers. Underline the specific problematic area. Provide at least 2 coordinate points forming a smooth underline path under the erroneous text/area.
         {"x": number, "y": number}, ... (coordinate points from 0 to 1000 relative to the cropped page width/height)
       ]
     }
   ]
 }
+
+IMPORTANT: You MUST create a separate marker entry for EACH distinct error or answer. Do NOT combine multiple errors into a single marker. Each marker's "feedback" field MUST describe ONLY the error at that specific underline location. If there are 3 errors in the student's work, return at least 3 markers with 3 distinct underlines and 3 distinct feedback strings.
 
 Return ONLY this JSON object. Do not include any other conversational text.`;
 

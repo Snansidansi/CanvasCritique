@@ -1590,11 +1590,17 @@
                 {#if marker.underlinePoints && marker.underlinePoints.length > 1}
                   <path
                     d={marker.underlinePoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${(p.x + marker.boundingBoxOffset.x) * zoomScale + panOffset.x} ${(p.y + marker.boundingBoxOffset.y) * zoomScale + panOffset.y}`).join(' ')}
-                    stroke="rgba(239, 68, 68, 0.4)"
-                    stroke-width="8"
+                    fill="none"
+                    stroke={marker.type === 'correct' ? '#10b981' : marker.type === 'partial' ? '#f59e0b' : '#ef4444'}
+                    stroke-width={2.5 / zoomScale * 2}
                     stroke-linecap="round"
                     stroke-linejoin="round"
-                    fill="none"
+                    style="pointer-events: visibleStroke; cursor: pointer;"
+                    onclick={() => activeTooltipMarker = marker}
+                    onkeydown={(e) => { if (e.key === 'Enter') activeTooltipMarker = marker; }}
+                    role="button"
+                    tabindex="0"
+                    aria-label={marker.feedback || 'Marker'}
                   />
                 {/if}
                 {#if marker.box2d && marker.box2d.length === 2}
@@ -1685,6 +1691,12 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     fill="none"
+                    style="pointer-events: visibleStroke; cursor: pointer;"
+                    role="button"
+                    tabindex="0"
+                    aria-label="Click for feedback"
+                    onclick={() => activeTooltipMarker = marker}
+                    onkeydown={(e) => { if (e.key === 'Enter') activeTooltipMarker = marker; }}
                   />
                 {/if}
                 {#if marker.box2d && marker.box2d.length === 2}
