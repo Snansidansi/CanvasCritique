@@ -244,10 +244,19 @@
       "eraser": "Eraser",
       "select": "Select",
       "hand": "Hand",
+      "shapes": "Shapes",
       "undo": "Undo (Ctrl+Z)",
       "redo": "Redo (Ctrl+Y)",
       "size": "Size",
       "openFullScreen": "Open in full screen"
+    },
+    "shapes": {
+      "circle": "Circle",
+      "ellipse": "Ellipse",
+      "line": "Line",
+      "square": "Square",
+      "rectangle": "Rectangle",
+      "triangle": "Triangle"
     },
     "critique": {
       "aiTeacher": "AI Penmanship Teacher",

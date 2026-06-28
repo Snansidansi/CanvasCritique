@@ -7,6 +7,7 @@
     activeTool = $bindable(),
     brushWidth = $bindable(),
     eraserWidth = $bindable(),
+    shapeType = $bindable(),
     canvasMode,
     strokeHistory,
     redoStack,
@@ -33,6 +34,11 @@
   let dragStartBottom = 0;
 
   let paletteElement = $state<HTMLElement | null>(null);
+
+  // Shape popup state
+  let shapePopupOpen = $state(false);
+
+  const shapeOptions = ['circle', 'ellipse', 'line', 'square', 'rectangle', 'triangle'] as const;
 
   function selectColor(color) {
     strokeColor = color;
@@ -319,6 +325,34 @@
             <span class="text-[9px]">{t('practice.palette.hand')}</span>
           </button>
         {/if}
+
+        <div class="relative">
+          <button 
+            onclick={() => { activeTool = 'shape'; shapePopupOpen = !shapePopupOpen; }}
+            class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors border-0 bg-transparent cursor-pointer
+                   {activeTool === 'shape' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'}"
+            title="Shape Tool"
+          >
+            <span class="material-symbols-outlined text-[20px]" data-weight={activeTool === 'shape' ? 'fill' : 'normal'}>shapes</span>
+            <span class="text-[9px]">{t('practice.palette.shapes')}</span>
+          </button>
+
+          {#if shapePopupOpen && activeTool === 'shape'}
+            <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-surface-container-high border border-outline-variant shadow-xl rounded-xl py-1.5 flex flex-col min-w-32 z-30">
+              {#each shapeOptions as shape}
+                <button
+                  onclick={() => { shapeType = shape; shapePopupOpen = false; }}
+                  class="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-primary/10 hover:text-primary cursor-pointer font-semibold border-0 bg-transparent flex items-center gap-2"
+                >
+                  <span class="material-symbols-outlined text-[16px]">
+                    {shape === 'circle' ? 'circle' : shape === 'ellipse' ? 'shape_line' : shape === 'line' ? 'show_chart' : shape === 'square' ? 'crop_square' : shape === 'rectangle' ? 'crop_5_4' : 'change_history'}
+                  </span>
+                  <span>{t(`practice.shapes.${shape}`)}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
       </div>
 
       <!-- Floating Undo / Redo Buttons -->

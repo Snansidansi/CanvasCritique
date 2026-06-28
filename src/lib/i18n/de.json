@@ -243,10 +243,19 @@
       "eraser": "Radierer",
       "select": "Auswahl",
       "hand": "Hand",
+      "shapes": "Formen",
       "undo": "Rückgängig (Strg+Z)",
       "redo": "Wiederherstellen (Strg+Y)",
       "size": "Größe",
       "openFullScreen": "Im Vollbild öffnen"
+    },
+    "shapes": {
+      "circle": "Kreis",
+      "ellipse": "Ellipse",
+      "line": "Linie",
+      "square": "Quadrat",
+      "rectangle": "Rechteck",
+      "triangle": "Dreieck"
     },
     "critique": {
       "aiTeacher": "KI-Schönschreiblehrer",

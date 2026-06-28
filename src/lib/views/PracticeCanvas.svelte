@@ -53,7 +53,8 @@
   let strokeColor = $state('#000000');
   let brushWidth = $state(2);
   let eraserWidth = $state(24);
-  let activeTool = $state('pen'); // 'pen' | 'eraser' | 'pan' | 'select'
+  let activeTool = $state('pen'); // 'pen' | 'eraser' | 'pan' | 'select' | 'shape'
+  let shapeType = $state('rectangle'); // 'circle' | 'ellipse' | 'line' | 'square' | 'rectangle' | 'triangle'
 
   let cursorClass = $derived.by(() => {
     // If the user is writing with a stylus (or the pen tool is active and no buttons are held), show the dot cursor
@@ -237,6 +238,12 @@
   // Stroke history state
   let isDrawing = false;
   let currentStroke = $state([]);
+  let isShapeDrawing = $state(false);
+  let shapeAnchorX = $state(0);
+  let shapeAnchorY = $state(0);
+  let shapePreviewX = $state(0);
+  let shapePreviewY = $state(0);
+  let rememberedShapeType = $state('rectangle');
   let isPointerEraser = $state(false);
   let isPointerSelect = $state(false);
   let isPointerPan = $state(false);
@@ -368,6 +375,14 @@
     const isMoving = isMovingSelection;
     const bounds = selectionBoundingBox;
 
+    // Shape drawing triggers
+    const shapeDraw = isShapeDrawing;
+    const sAnchorX = shapeAnchorX;
+    const sAnchorY = shapeAnchorY;
+    const sPrevX = shapePreviewX;
+    const sPrevY = shapePreviewY;
+    const sType = shapeType;
+
     if (ctx && canvasElement) {
       redraw();
     }
@@ -413,6 +428,16 @@
     isPanning = false;
     isDrawing = false;
     currentStroke = [];
+    isShapeDrawing = false;
+
+    // Smart shape persistence
+    if (activeTool === 'shape') {
+      if (rememberedShapeType) {
+        shapeType = rememberedShapeType;
+      }
+    } else {
+      rememberedShapeType = shapeType;
+    }
     
     // Reset selection states
     selectionBox = null;
@@ -520,6 +545,60 @@
       // A stroke is selected if at least one point lies within the selection rectangle
       return stroke.points.some(p => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
     });
+  }
+
+  function generateShapePoints(shape: string, x1: number, y1: number, x2: number, y2: number): Point[] {
+    switch (shape) {
+      case 'line':
+        return [{ x: x1, y: y1 }, { x: x2, y: y2 }];
+      case 'rectangle': {
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        return [{ x: minX, y: minY }, { x: maxX, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }, { x: minX, y: minY }];
+      }
+      case 'square': {
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        const size = Math.max(Math.abs(maxX - minX), Math.abs(maxY - minY));
+        const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+        const half = size / 2;
+        return [{ x: cx - half, y: cy - half }, { x: cx + half, y: cy - half }, { x: cx + half, y: cy + half }, { x: cx - half, y: cy + half }, { x: cx - half, y: cy - half }];
+      }
+      case 'circle': {
+        const cx = x1, cy = y1;
+        const radius = Math.hypot(x2 - x1, y2 - y1);
+        const steps = 64;
+        const pts: Point[] = [];
+        for (let i = 0; i <= steps; i++) {
+          const angle = (i / steps) * Math.PI * 2;
+          pts.push({ x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius });
+        }
+        return pts;
+      }
+      case 'ellipse': {
+        const cx = x1, cy = y1;
+        const rx = Math.abs(x2 - x1), ry = Math.abs(y2 - y1);
+        const steps = 64;
+        const pts: Point[] = [];
+        for (let i = 0; i <= steps; i++) {
+          const angle = (i / steps) * Math.PI * 2;
+          pts.push({ x: cx + Math.cos(angle) * rx, y: cy + Math.sin(angle) * ry });
+        }
+        return pts;
+      }
+      case 'triangle': {
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        return [
+          { x: (minX + maxX) / 2, y: minY },
+          { x: maxX, y: maxY },
+          { x: minX, y: maxY },
+          { x: (minX + maxX) / 2, y: minY }
+        ];
+      }
+      default:
+        return [{ x: x1, y: y1 }, { x: x2, y: y2 }];
+    }
   }
 
   // Variables to track long-press start positions
@@ -709,6 +788,12 @@
       selectedStrokes = [];
       selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
       isMovingSelection = false;
+    } else if (activeTool === 'shape') {
+      isShapeDrawing = true;
+      shapeAnchorX = coords.x;
+      shapeAnchorY = coords.y;
+      shapePreviewX = coords.x;
+      shapePreviewY = coords.y;
     } else if (activeTool === 'select') {
       // Check if clicking inside current selection bounding box
       if (isClickInSelection) {
@@ -879,6 +964,9 @@
         selectionBox.x2 = coords.x;
         selectionBox.y2 = coords.y;
       }
+    } else if (isShapeDrawing) {
+      shapePreviewX = coords.x;
+      shapePreviewY = coords.y;
     } else if (isDrawing) {
       currentStroke.push(coords);
     }
@@ -922,6 +1010,26 @@
         saveToStore();
       }
       isMovingSelection = false;
+    } else if (isShapeDrawing) {
+      isShapeDrawing = false;
+
+      const shapePoints = generateShapePoints(shapeType, shapeAnchorX, shapeAnchorY, shapePreviewX, shapePreviewY);
+      if (shapePoints.length > 0) {
+        const newStroke: Stroke = {
+          color: strokeColor,
+          width: brushWidth,
+          points: shapePoints
+        };
+
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].strokeHistory.push(newStroke);
+          pages[activePageIndex].redoStack = [];
+        } else {
+          infiniteStrokes.push(newStroke);
+          infiniteRedo = [];
+        }
+        saveToStore();
+      }
     } else if (isDrawing) {
       isDrawing = false;
       
@@ -1190,6 +1298,30 @@
       ctx.strokeRect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
       ctx.fillStyle = 'rgba(37, 99, 235, 0.05)';
       ctx.fillRect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+      ctx.restore();
+    }
+
+    // Draw ghost shape preview
+    if (isShapeDrawing) {
+      ctx.save();
+      if (canvasMode === 'infinite') {
+        ctx.translate(panOffset.x, panOffset.y);
+        ctx.scale(zoomScale, zoomScale);
+      }
+      const previewPoints = generateShapePoints(shapeType, shapeAnchorX, shapeAnchorY, shapePreviewX, shapePreviewY);
+      if (previewPoints.length > 0) {
+        ctx.strokeStyle = strokeColor + '80';
+        ctx.lineWidth = brushWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(previewPoints[0].x, previewPoints[0].y);
+        for (let i = 1; i < previewPoints.length; i++) {
+          ctx.lineTo(previewPoints[i].x, previewPoints[i].y);
+        }
+        ctx.stroke();
+      }
       ctx.restore();
     }
   }
@@ -1898,6 +2030,7 @@
         bind:activeTool
         bind:brushWidth
         bind:eraserWidth
+        bind:shapeType
         {canvasMode}
         {strokeHistory}
         {redoStack}
