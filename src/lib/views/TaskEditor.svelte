@@ -342,11 +342,6 @@
     // Ignore if close/remove button is clicked or if preview is clicked
     if ((e.target as HTMLElement).closest('.remove-file-btn') || (e.target as HTMLElement).closest('.preview-file-click')) return;
 
-    e.preventDefault();
-
-    mediaDragPointerStartX = e.clientX;
-    mediaDragPointerStartY = e.clientY;
-
     try { target.setPointerCapture(e.pointerId); } catch (_) {}
 
     function onMove(me: PointerEvent) {
