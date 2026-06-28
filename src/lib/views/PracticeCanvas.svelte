@@ -145,6 +145,32 @@
   );
   let ctx = null;
 
+  // Performance: reusable offscreen canvas for stroke compositing
+  let offscreenCanvas: HTMLCanvasElement | null = null;
+  let offscreenCtx: CanvasRenderingContext2D | null = null;
+
+  // Performance: rAF-based redraw scheduling
+  let rafPending = false;
+
+  function requestRedraw() {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => {
+      rafPending = false;
+      redraw();
+    });
+  }
+
+  // Invalidate offscreen canvas when dimensions change
+  $effect(() => {
+    const w = canvasWidth;
+    const h = canvasHeight;
+    if (offscreenCanvas && (offscreenCanvas.width !== w || offscreenCanvas.height !== h)) {
+      offscreenCanvas = null;
+      offscreenCtx = null;
+    }
+  });
+
   // Recent colors and custom color picker states
   let recentColors = $state(['#000000', '#1d4ed8', '#dc2626', '#059669']);
   let colorInput = $state(null);
@@ -384,7 +410,7 @@
     const sType = shapeType;
 
     if (ctx && canvasElement) {
-      redraw();
+      requestRedraw();
     }
   });
 
@@ -455,7 +481,7 @@
     saveTimeout = setTimeout(() => {
       saveToStore();
       saveTimeout = null;
-    }, 300);
+    }, 500);
   }
 
   function saveToStore() {
@@ -1233,36 +1259,40 @@
     }
     ctx.restore();
     
-    // Create temporary offscreen transparent canvas to draw ink strokes
-    const offscreen = document.createElement('canvas');
-    offscreen.width = canvasWidth;
-    offscreen.height = canvasHeight;
-    const oCtx = offscreen.getContext('2d');
+    // Create/update persistent offscreen canvas for stroke compositing
+    if (!offscreenCanvas) {
+      offscreenCanvas = document.createElement('canvas');
+    }
+    if (offscreenCanvas.width !== canvasWidth || offscreenCanvas.height !== canvasHeight) {
+      offscreenCanvas.width = canvasWidth;
+      offscreenCanvas.height = canvasHeight;
+      offscreenCtx = offscreenCanvas.getContext('2d');
+    }
     
-    oCtx.save();
+    offscreenCtx.save();
     if (canvasMode === 'infinite') {
-      oCtx.translate(panOffset.x, panOffset.y);
-      oCtx.scale(zoomScale, zoomScale);
+      offscreenCtx.translate(panOffset.x, panOffset.y);
+      offscreenCtx.scale(zoomScale, zoomScale);
     }
     
     // Draw historical strokes
     for (const stroke of strokeHistory) {
-      drawStroke(oCtx, stroke);
+      drawStroke(offscreenCtx, stroke);
     }
     
     // Draw active drawing stroke
     if (currentStroke.length > 0) {
-      drawStroke(oCtx, {
+      drawStroke(offscreenCtx, {
         color: (activeTool === 'eraser' || isPointerEraser) ? 'eraser' : strokeColor,
         width: (activeTool === 'eraser' || isPointerEraser) ? eraserWidth : brushWidth,
         points: currentStroke
       });
     }
     
-    oCtx.restore();
+    offscreenCtx.restore();
     
     // Composite offscreen strokes canvas back onto the main canvas
-    ctx.drawImage(offscreen, 0, 0);
+    ctx.drawImage(offscreenCanvas, 0, 0);
     
     // Draw selection tools marquee box (if actively selecting)
     if ((activeTool === 'select' || isPointerSelect) && selectionBox) {
@@ -1743,7 +1773,7 @@
             onpointercancel={handlePointerCancel}
             oncontextmenu={e => e.preventDefault()}
             class="absolute inset-0 w-full h-full z-10 bg-white {cursorClass}"
-            style="touch-action: none;"
+            style="touch-action: none; will-change: transform;"
           ></canvas>
 
           <!-- SVG Overlays for Markers (Infinite Mode) -->
@@ -1839,51 +1869,8 @@
             onpointercancel={handlePointerCancel}
             oncontextmenu={e => e.preventDefault()}
             class="absolute inset-0 w-full h-full z-10 bg-transparent {cursorClass}"
-            style="touch-action: none;"
+            style="touch-action: none; will-change: transform;"
           ></canvas>
-
-          <!-- SVG Overlays for Markers (A4 Page Mode, filtered by current page index) -->
-          {#if showFeedback && hasCheckedWork && !isChecking}
-            <svg class="absolute inset-0 pointer-events-none z-20 w-full h-full">
-              {#each feedbackMarkers.filter(m => m.pageIndex === activePageIndex) as marker}
-                {#if marker.underlinePoints && marker.underlinePoints.length > 1}
-                  <path
-                    d={marker.underlinePoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x + marker.boundingBoxOffset.x} ${p.y + marker.boundingBoxOffset.y}`).join(' ')}
-                    stroke="rgba(239, 68, 68, 0.4)"
-                    stroke-width="8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    fill="none"
-                    style="pointer-events: visibleStroke; cursor: pointer;"
-                    role="button"
-                    tabindex="0"
-                    aria-label="Click for feedback"
-                    onclick={() => activeTooltipMarker = marker}
-                    onkeydown={(e) => { if (e.key === 'Enter') activeTooltipMarker = marker; }}
-                  />
-                {/if}
-                {#if marker.box2d && marker.box2d.length === 2}
-                  {@const p1 = marker.box2d[0]}
-                  {@const p2 = marker.box2d[1]}
-                  {@const x = Math.min(p1.x, p2.x) + marker.boundingBoxOffset.x}
-                  {@const y = Math.min(p1.y, p2.y) + marker.boundingBoxOffset.y}
-                  {@const w = Math.abs(p2.x - p1.x)}
-                  {@const h = Math.abs(p2.y - p1.y)}
-                  <rect
-                    {x}
-                    {y}
-                    width={w}
-                    height={h}
-                    stroke="rgba(239, 68, 68, 0.5)"
-                    stroke-width="2"
-                    stroke-dasharray="4,4"
-                    fill="rgba(239, 68, 68, 0.1)"
-                    rx="4"
-                  />
-                {/if}
-              {/each}
-            </svg>
-          {/if}
         </div>
 
         <!-- Clickable Marker Buttons (A4 Page Mode) - Placed outside the scaled div to remain crisp and full size -->
