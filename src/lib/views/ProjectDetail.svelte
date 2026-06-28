@@ -39,6 +39,16 @@
   let dropIndicatorCategory = $state<string | null>(null);
   let dropIndicatorIndex = $state<number | null>(null);
 
+  // Section drag state
+  let draggedSectionCategory = $state<string | null>(null);
+  let sectionDragGhostEl = $state<HTMLElement | null>(null);
+  let sectionDragStartX = 0;
+  let sectionDragStartY = 0;
+  let sectionDragGhostOffsetX = 0;
+  let sectionDragGhostOffsetY = 0;
+  let isSectionDragActive = $state(false);
+  let sectionDropTargetIndex = $state<number | null>(null);
+
   // Selection mode states
   let isSelectionMode = $state(false);
   let selectedTaskIds = $state(new Set<string>());
@@ -240,6 +250,71 @@
       dropIndicatorCategory = null;
       dropIndicatorIndex = null;
       dragSourceEl = null;
+    }
+
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
+  }
+
+  function handleSectionPointerDown(e: PointerEvent, category: string) {
+    if (isSelectionMode) return;
+    if (e.button !== 0 && e.button !== -1) return;
+    const target = e.currentTarget as HTMLElement;
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input')) return;
+
+    sectionDragStartX = e.clientX;
+    sectionDragStartY = e.clientY;
+    try { target.setPointerCapture(e.pointerId); } catch (_) {}
+
+    function onMove(me: PointerEvent) {
+      const dx = me.clientX - sectionDragStartX;
+      const dy = me.clientY - sectionDragStartY;
+      if (!isSectionDragActive && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+        isSectionDragActive = true;
+        draggedSectionCategory = category;
+        const ghost = target.cloneNode(true) as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        ghost.style.cssText = `position:fixed;pointer-events:none;z-index:9999;width:${rect.width}px;opacity:0.85;left:${rect.left}px;top:${rect.top}px;box-shadow:0 8px 24px rgba(0,0,0,0.18);border-radius:0.5rem;transform:scale(1.02);transition:none;`;
+        sectionDragGhostOffsetX = me.clientX - rect.left;
+        sectionDragGhostOffsetY = me.clientY - rect.top;
+        document.body.appendChild(ghost);
+        sectionDragGhostEl = ghost;
+      }
+      if (!isSectionDragActive) return;
+      if (sectionDragGhostEl) {
+        sectionDragGhostEl.style.left = `${me.clientX - sectionDragGhostOffsetX}px`;
+        sectionDragGhostEl.style.top = `${me.clientY - sectionDragGhostOffsetY}px`;
+      }
+      if (sectionDragGhostEl) sectionDragGhostEl.style.display = 'none';
+      const el = document.elementFromPoint(me.clientX, me.clientY);
+      if (sectionDragGhostEl) sectionDragGhostEl.style.display = '';
+      const sectionEl = el?.closest('[data-section-category]') as HTMLElement | null;
+      if (sectionEl && sectionEl.dataset.sectionCategory !== draggedSectionCategory) {
+        const sections = Array.from(document.querySelectorAll('[data-section-category]'));
+        const idx = sections.indexOf(sectionEl);
+        sectionDropTargetIndex = idx;
+      }
+    }
+
+    function onUp(ue: PointerEvent) {
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
+      try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
+      if (sectionDragGhostEl) { sectionDragGhostEl.remove(); sectionDragGhostEl = null; }
+      if (isSectionDragActive && draggedSectionCategory && sectionDropTargetIndex !== null) {
+        const cats = [...(project.categories || [])];
+        const draggedIdx = cats.indexOf(draggedSectionCategory);
+        if (draggedIdx !== -1 && draggedIdx !== sectionDropTargetIndex) {
+          cats.splice(draggedIdx, 1);
+          cats.splice(sectionDropTargetIndex, 0, draggedSectionCategory);
+          store.reorderCategories(project.id, cats);
+        }
+      }
+      isSectionDragActive = false;
+      draggedSectionCategory = null;
+      sectionDropTargetIndex = null;
     }
 
     target.addEventListener('pointermove', onMove);
@@ -617,11 +692,14 @@
 
     <!-- Dynamic Category Sections -->
     <div class="grid grid-cols-1 gap-6">
-      {#each categories as category}
+      {#each categories as category, secIdx}
+        {#if isSectionDragActive && sectionDropTargetIndex === secIdx && draggedSectionCategory && draggedSectionCategory !== category}
+          <div class="h-1 bg-primary rounded-full mx-2 animate-pulse"></div>
+        {/if}
         {@const catTasks = getCategoryTasks(category)}
         {@const sectionKey = `section-collapsed-${project.id}-${category}`}
-        <details class="group/section" open={getSectionOpenState(sectionKey)} data-section-key={sectionKey} ontoggle={handleSectionToggle}>
-          <summary class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-6 flex flex-col gap-4 cursor-pointer list-none">
+        <details class="group/section" open={getSectionOpenState(sectionKey)} data-section-key={sectionKey} data-section-category={category} ontoggle={handleSectionToggle}>
+          <summary class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-6 flex flex-col gap-4 cursor-pointer list-none" onpointerdown={(e) => handleSectionPointerDown(e, category)}>
           <div class="flex items-center justify-between border-b border-outline-variant/20 pb-3">
             <div class="flex items-center gap-2">
               {#if editingCategory === category}

@@ -870,6 +870,16 @@ class CanvasCritiqueStore {
     await this.saveProjects();
   }
 
+  async reorderCategories(projectId: string, categoryOrder: string[]): Promise<void> {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+    project.categories = categoryOrder;
+    await this.saveProjects();
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
+  }
+
   confirm(title: string, message: string, onConfirm: () => void, onCancel: (() => void) | null = null): void {
     this.confirmDialog = {
       title,
