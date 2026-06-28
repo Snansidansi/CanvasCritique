@@ -133,9 +133,9 @@
   function handleModalMouseUp() {
     isModalDragging = false;
   }
+  let isTaskTextEmpty = $derived(!task.instructions || !task.instructions.trim());
 
-  let isTaskTextEmpty = $derived(!task.instructions || !task.instructions.trim() || task.instructions === 'No instructions provided.');
-  let isSolutionTextEmpty = $derived(!task.solution || !task.solution.trim() || task.solution === 'Review drawing output.');
+  let isSolutionTextEmpty = $derived(!task.solution || !task.solution.trim());
 
   function startSplitDrag(e) {
     isDraggingSplitter = true;

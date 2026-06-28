@@ -297,8 +297,8 @@ class CanvasCritiqueStore {
             instructions: task.instructions,
             solution: task.solution,
             category: task.category,
-            instructionFiles: task.instructionFiles || [],
-            solutionFiles: task.solutionFiles || [],
+            instructionFiles: this.stripDataUrls(task.instructionFiles || []),
+            solutionFiles: this.stripDataUrls(task.solutionFiles || []),
             critique: task.critique || null,
             canvasData: this.canvasSaves[task.id] || null
           });
@@ -578,8 +578,8 @@ class CanvasCritiqueStore {
       instructions,
       solution,
       category,
-      instructionFiles,
-      solutionFiles
+      instructionFiles: this.stripDataUrls(instructionFiles),
+      solutionFiles: this.stripDataUrls(solutionFiles)
     };
 
     project.tasks.push(newTask);
@@ -611,8 +611,8 @@ class CanvasCritiqueStore {
     if (updatedData.instructions !== undefined) task.instructions = updatedData.instructions;
     if (updatedData.solution !== undefined) task.solution = updatedData.solution;
     if (updatedData.category !== undefined) task.category = updatedData.category;
-    if (updatedData.instructionFiles !== undefined) task.instructionFiles = updatedData.instructionFiles;
-    if (updatedData.solutionFiles !== undefined) task.solutionFiles = updatedData.solutionFiles;
+    if (updatedData.instructionFiles !== undefined) task.instructionFiles = this.stripDataUrls(updatedData.instructionFiles);
+    if (updatedData.solutionFiles !== undefined) task.solutionFiles = this.stripDataUrls(updatedData.solutionFiles);
     if (updatedData.instructionFile !== undefined) (task as any).instructionFile = updatedData.instructionFile;
     if (updatedData.solutionFile !== undefined) (task as any).solutionFile = updatedData.solutionFile;
     if (updatedData.completed !== undefined) task.completed = updatedData.completed;
@@ -882,6 +882,16 @@ class CanvasCritiqueStore {
     return result;
   }
 
+  private stripDataUrls(files: any[]): any[] {
+    return files.map(f => {
+      if (f.relativePath && f.dataUrl) {
+        const { dataUrl, ...rest } = f;
+        return rest;
+      }
+      return f;
+    });
+  }
+
   private async executeImportProject(
     projectData: any,
     options: {
@@ -920,14 +930,14 @@ class CanvasCritiqueStore {
               if (t.solution !== undefined) matchedTask.solution = t.solution;
               if (t.category !== undefined) matchedTask.category = t.category;
               if (t.instructionFiles !== undefined) {
-                matchedTask.instructionFiles = await this.convertImportedFiles(t.instructionFiles);
+                matchedTask.instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles));
               } else if (t.instructionFile) {
-                matchedTask.instructionFiles = await this.convertImportedFiles([t.instructionFile]);
+                matchedTask.instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
               }
               if (t.solutionFiles !== undefined) {
-                matchedTask.solutionFiles = await this.convertImportedFiles(t.solutionFiles);
+                matchedTask.solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles));
               } else if (t.solutionFile) {
-                matchedTask.solutionFiles = await this.convertImportedFiles([t.solutionFile]);
+                matchedTask.solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
               }
               if (options.importCompleted && t.completed !== undefined) matchedTask.completed = !!t.completed;
               if (options.importCritique && t.critique !== undefined) matchedTask.critique = t.critique;
@@ -950,13 +960,13 @@ class CanvasCritiqueStore {
               await setCanvasState(db, taskId, importedCanvasSaves[t.id]);
             }
 
-            let instructionFiles = await this.convertImportedFiles(t.instructionFiles || []);
+            let instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles || []));
             if (t.instructionFile && instructionFiles.length === 0) {
-              instructionFiles = await this.convertImportedFiles([t.instructionFile]);
+              instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
             }
-            let solutionFiles = await this.convertImportedFiles(t.solutionFiles || []);
+            let solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles || []));
             if (t.solutionFile && solutionFiles.length === 0) {
-              solutionFiles = await this.convertImportedFiles([t.solutionFile]);
+              solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
             }
 
             const newTask: Task = {
@@ -1010,13 +1020,13 @@ class CanvasCritiqueStore {
             await setCanvasState(db, taskId, importedCanvasSaves[oldTaskId]);
           }
 
-          let instructionFiles = await this.convertImportedFiles(t.instructionFiles || []);
+          let instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles || []));
           if (t.instructionFile && instructionFiles.length === 0) {
-            instructionFiles = await this.convertImportedFiles([t.instructionFile]);
+            instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
           }
-          let solutionFiles = await this.convertImportedFiles(t.solutionFiles || []);
+          let solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles || []));
           if (t.solutionFile && solutionFiles.length === 0) {
-            solutionFiles = await this.convertImportedFiles([t.solutionFile]);
+            solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
           }
 
           const newTask: Task = {

@@ -96,8 +96,8 @@
     if (isEditMode) {
       store.updateTask(targetProjectId, store.editingTask.id, {
         name: taskName.trim(),
-        instructions: instructions.trim() || 'No instructions provided.',
-        solution: solution.trim() || 'Review drawing output.',
+        instructions: instructions.trim(),
+        solution: solution.trim(),
         category,
         instructionFiles,
         solutionFiles,
@@ -110,8 +110,8 @@
       store.addTask(
         targetProjectId,
         taskName.trim(),
-        instructions.trim() || 'No instructions provided.',
-        solution.trim() || 'Review drawing output.',
+        instructions.trim(),
+        solution.trim(),
         category,
         instructionFiles,
         solutionFiles
