@@ -29,6 +29,82 @@
   // Cache loaded media URLs
   let mediaUrlCache = $state<Record<string, string>>({});
 
+  // Inline image zoom/pan state (keyed by mediaId)
+  let inlineStates = $state<Record<string, { zoom: number; panX: number; panY: number; isDragging: boolean; dragStartX: number; dragStartY: number; panBaseX: number; panBaseY: number; dragged: boolean }>>({});
+
+  function getInlineState(mediaId: string) {
+    if (!inlineStates[mediaId]) {
+      inlineStates[mediaId] = { zoom: 1, panX: 0, panY: 0, isDragging: false, dragStartX: 0, dragStartY: 0, panBaseX: 0, panBaseY: 0, dragged: false };
+    }
+    return inlineStates[mediaId];
+  }
+
+  function handleInlineWheel(e: WheelEvent) {
+    const img = e.currentTarget as HTMLElement;
+    const mediaId = img.dataset.mediaId;
+    if (!mediaId) return;
+    e.preventDefault();
+    const state = getInlineState(mediaId);
+    const zoomFactor = 0.1;
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const newZoom = Math.max(0.5, Math.min(4, state.zoom + direction * zoomFactor));
+    if (newZoom === 1) {
+      state.panX = 0;
+      state.panY = 0;
+    }
+    state.zoom = newZoom;
+  }
+
+  function handleInlinePointerDown(e: PointerEvent) {
+    const img = e.currentTarget as HTMLElement;
+    const mediaId = img.dataset.mediaId;
+    if (!mediaId) return;
+    const state = getInlineState(mediaId);
+    state.isDragging = true;
+    state.dragged = false;
+    state.dragStartX = e.clientX;
+    state.dragStartY = e.clientY;
+    state.panBaseX = state.panX;
+    state.panBaseY = state.panY;
+    try { img.setPointerCapture(e.pointerId); } catch (_) {}
+  }
+
+  function handleInlinePointerMove(e: PointerEvent) {
+    const img = e.currentTarget as HTMLElement;
+    const mediaId = img.dataset.mediaId;
+    if (!mediaId) return;
+    const state = getInlineState(mediaId);
+    if (!state.isDragging) return;
+    const dx = e.clientX - state.dragStartX;
+    const dy = e.clientY - state.dragStartY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      state.dragged = true;
+    }
+    const rect = img.getBoundingClientRect();
+    const containerW = rect.width * state.zoom;
+    const clampDX = Math.max(-containerW / 3, Math.min(containerW / 3, dx));
+    const clampDY = Math.max(-rect.height * state.zoom / 3, Math.min(rect.height * state.zoom / 3, dy));
+    state.panX = state.panBaseX + clampDX;
+    state.panY = state.panBaseY + clampDY;
+  }
+
+  function handleInlinePointerUp(e: PointerEvent) {
+    const img = e.currentTarget as HTMLElement;
+    const mediaId = img.dataset.mediaId;
+    if (!mediaId) return;
+    const state = inlineStates[mediaId];
+    if (!state) return;
+    state.isDragging = false;
+    try { img.releasePointerCapture(e.pointerId); } catch (_) {}
+  }
+
+  function handleInlineClick(e: MouseEvent, file: { name: string; dataUrl?: string; mediaId?: string }, mediaId: string) {
+    const state = inlineStates[mediaId];
+    if (!state || !state.dragged) {
+      openPreview(file);
+    }
+  }
+
   async function getMediaUrl(file: { name: string; dataUrl?: string; mediaId?: string }): Promise<string> {
     if (file.dataUrl) return file.dataUrl;
     if (file.mediaId) {
@@ -292,13 +368,21 @@
                           {:else if isAudioFile(file.name)}
                             <AudioPlayer dataUrl={fileUrl} compact={true} />
                           {:else}
+                            {@const inlineImgState = inlineStates[mediaId]}
                             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <img 
                               src={fileUrl} 
                               alt={file.name} 
-                              onclick={() => openPreview(file)}
-                              class="max-w-full max-h-125 object-contain rounded-lg shadow-sm cursor-zoom-in hover:opacity-95 transition-opacity"
+                              data-media-id={mediaId}
+                              onclick={(e) => handleInlineClick(e, file, mediaId)}
+                              onwheel={handleInlineWheel}
+                              onpointerdown={handleInlinePointerDown}
+                              onpointermove={handleInlinePointerMove}
+                              onpointerup={handleInlinePointerUp}
+                              class="max-w-full max-h-125 object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
+                              style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
+                              draggable="false"
                             />
                           {/if}
                         </div>
@@ -370,13 +454,21 @@
                           {:else if isAudioFile(file.name)}
                             <AudioPlayer dataUrl={fileUrl} compact={true} />
                           {:else}
+                            {@const inlineImgState = inlineStates[mediaId]}
                             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <img 
                               src={fileUrl} 
                               alt={file.name} 
-                              onclick={() => openPreview(file)}
-                              class="max-w-full max-h-125 object-contain rounded-lg shadow-sm cursor-zoom-in hover:opacity-95 transition-opacity"
+                              data-media-id={mediaId}
+                              onclick={(e) => handleInlineClick(e, file, mediaId)}
+                              onwheel={handleInlineWheel}
+                              onpointerdown={handleInlinePointerDown}
+                              onpointermove={handleInlinePointerMove}
+                              onpointerup={handleInlinePointerUp}
+                              class="max-w-full max-h-125 object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
+                              style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
+                              draggable="false"
                             />
                           {/if}
                         </div>
