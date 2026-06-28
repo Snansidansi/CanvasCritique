@@ -9,18 +9,20 @@ import {
 import { store } from '../state/store.svelte';
 import { getMediaDataUrl } from '../db/media';
 
-export function estimateCost(provider: 'gemini' | 'openrouter', model: string, inputTokens: number, outputTokens: number): number {
+export function estimateCost(provider: 'gemini' | 'openrouter', model: string, inputTokens: number, outputTokens: number, overrides?: { geminiInputCostPerMillion?: number; geminiOutputCostPerMillion?: number }): number {
   const modelLower = model.toLowerCase();
   
   if (provider === 'gemini') {
+    const inputPrice = overrides?.geminiInputCostPerMillion ?? 0.075;
+    const outputPrice = overrides?.geminiOutputCostPerMillion ?? 0.30;
     if (modelLower.includes('gemini-1.5-flash-8b')) {
       return (inputTokens * 0.0375 + outputTokens * 0.15) / 1000000;
     } else if (modelLower.includes('gemini-1.5-flash') || modelLower.includes('gemini-2.0-flash')) {
-      return (inputTokens * 0.075 + outputTokens * 0.30) / 1000000;
+      return (inputTokens * inputPrice + outputTokens * outputPrice) / 1000000;
     } else if (modelLower.includes('gemini-1.5-pro')) {
       return (inputTokens * 1.25 + outputTokens * 5.00) / 1000000;
     }
-    return (inputTokens * 0.075 + outputTokens * 0.30) / 1000000;
+    return (inputTokens * inputPrice + outputTokens * outputPrice) / 1000000;
   } else {
     if (modelLower.includes('gemini-flash-1.5') || modelLower.includes('gemini-2.0-flash')) {
       return (inputTokens * 0.075 + outputTokens * 0.30) / 1000000;
@@ -580,7 +582,10 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       outputTokens = resData.usage?.completion_tokens || 0;
       reasoningTokens = resData.usage?.reasoning_tokens || 0;
     }
-    const cost = estimateCost(provider as 'gemini' | 'openrouter', model, inputTokens, outputTokens);
+    const cost = estimateCost(provider as 'gemini' | 'openrouter', model, inputTokens, outputTokens, {
+      geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
+      geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
+    });
     store.recordRequest(provider as 'gemini' | 'openrouter', model, inputTokens, outputTokens, reasoningTokens, cost);
   } catch (err) {
     console.error('Failed to log LLM statistics:', err);

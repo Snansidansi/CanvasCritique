@@ -45,11 +45,12 @@ Place the marker EXACTLY where you would logically put a checkmark or cross next
 **Your job:**
 1. Read the student's handwritten answers from the image(s).
 2. Compare each answer against the expected solution and task instructions.
-3. Create MULTIPLE markers — AT LEAST ONE per exercise/answer — marking each as correct, incorrect, or partially correct. Be extremely accurate and strict about correctness!
-4. Do NOT critique handwriting quality, neatness, or penmanship unless the task instructions explicitly ask for it.
-5. Focus on whether the student's answers/work is factually and logically correct.
-6. If an answer is incorrect or partially correct, your feedback MUST be extremely brief (1 sentence max), stating exactly what is wrong and what the correct expected answer is.
-7. For EVERY incorrect or partially correct answer, you SHOULD provide an underlinePath to visually highlight the specific problematic area on the page. This means you should underline MULTIPLE areas across the task — one underline per specific error.
+ 3. Create MULTIPLE markers — AT LEAST ONE per exercise/answer — marking each as correct, incorrect, or partially correct. Be extremely accurate and strict about correctness!
+ 4. When discussing mathematical concepts, formulas, or equations, use LaTeX math notation in your critique and feedback text: $x^2$ for inline math and $$\int_0^1 f(x)\,dx$$ for display/block math. LaTeX will be rendered correctly.
+ 5. Do NOT critique handwriting quality, neatness, or penmanship unless the task instructions explicitly ask for it.
+ 6. Focus on whether the student's answers/work is factually and logically correct.
+ 7. If an answer is incorrect or partially correct, your feedback MUST be extremely brief (1 sentence max), stating exactly what is wrong and what the correct expected answer is.
+ 8. For EVERY incorrect or partially correct answer, you SHOULD provide an underlinePath to visually highlight the specific problematic area on the page. This means you should underline MULTIPLE areas across the task — one underline per specific error.
 
 You must return a JSON object with the following schema:
 {
@@ -113,6 +114,8 @@ export const defaultSettings: Settings = {
   stylusMode: false,
   autoCompleteOnSuccess: true,
   statsEnabled: true,
-  stats: { daily: {} }
+  stats: { daily: {} },
+  geminiInputCostPerMillion: 0.075,
+  geminiOutputCostPerMillion: 0.30
 };
 

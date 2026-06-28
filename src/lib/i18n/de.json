@@ -444,7 +444,12 @@
       "confirmResetMsg": "Möchtest du wirklich alle Nutzungsstatistiken zurücksetzen?",
       "notifyResetSuccess": "Statistiken erfolgreich zurückgesetzt",
       "notifyTrackingStatus": "Nutzungsverfolgung {status}",
-      "usage": "Nutzung"
+      "usage": "Nutzung",
+      "geminiCostTitle": "Gemini Token-Kostenkonfiguration",
+      "geminiCostDesc": "Lege benutzerdefinierte Preise pro Million Token für die Gemini-Kostenberechnung fest. Diese werden nur für die Statistik verwendet und beeinflussen nicht die tatsächliche API-Abrechnung.",
+      "geminiInputCostLabel": "Gemini Eingabe-Token Preis pro Million (nur für Statistiken)",
+      "geminiOutputCostLabel": "Gemini Ausgabe-Token Preis pro Million (nur für Statistiken)",
+      "perMillionTokens": "USD pro 1 Million Token"
     },
     "language": {
       "title": "Sprachauswahl",

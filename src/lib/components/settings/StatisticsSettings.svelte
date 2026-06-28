@@ -207,6 +207,10 @@
     );
   }
 
+  function handleGeminiCostChange() {
+    store.saveSettings();
+  }
+
   // Format Helper functions
   function formatCost(val: number): string {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(val);
@@ -251,6 +255,56 @@
       </span>
     </div>
   </section>
+
+  {#if store.settings.statsEnabled}
+    <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm">
+      <h4 class="text-sm font-bold text-on-surface mb-3 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-lg">payments</span>
+        {t('settings.stats.geminiCostTitle')}
+      </h4>
+      <p class="text-xs text-on-surface-variant mb-4">
+        {t('settings.stats.geminiCostDesc')}
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-semibold text-on-surface" for="geminiInputCost">
+            {t('settings.stats.geminiInputCostLabel')}
+          </label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">$</span>
+            <input
+              type="number"
+              id="geminiInputCost"
+              bind:value={store.settings.geminiInputCostPerMillion}
+              onchange={handleGeminiCostChange}
+              step="0.001"
+              min="0"
+              class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-7 pr-3 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+            />
+          </div>
+          <span class="text-[10px] text-on-surface-variant">{t('settings.stats.perMillionTokens')}</span>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-semibold text-on-surface" for="geminiOutputCost">
+            {t('settings.stats.geminiOutputCostLabel')}
+          </label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">$</span>
+            <input
+              type="number"
+              id="geminiOutputCost"
+              bind:value={store.settings.geminiOutputCostPerMillion}
+              onchange={handleGeminiCostChange}
+              step="0.001"
+              min="0"
+              class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-7 pr-3 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+            />
+          </div>
+          <span class="text-[10px] text-on-surface-variant">{t('settings.stats.perMillionTokens')}</span>
+        </div>
+      </div>
+    </section>
+  {/if}
 
   <!-- Aggregates Grid -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-5">

@@ -114,6 +114,8 @@ export interface Settings {
   stats: {
     daily: Record<string, DailyStats>;
   };
+  geminiInputCostPerMillion: number;
+  geminiOutputCostPerMillion: number;
 }
 
 export interface Profile {

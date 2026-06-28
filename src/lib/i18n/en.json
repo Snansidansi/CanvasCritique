@@ -445,7 +445,12 @@
       "confirmResetMsg": "Are you sure you want to reset all usage statistics?",
       "notifyResetSuccess": "Statistics reset successfully",
       "notifyTrackingStatus": "Usage tracking {status}",
-      "usage": "Usage"
+      "usage": "Usage",
+      "geminiCostTitle": "Gemini Token Cost Configuration",
+      "geminiCostDesc": "Set custom prices per million tokens for Gemini cost calculation. These are used for statistics only and do not affect actual API billing.",
+      "geminiInputCostLabel": "Gemini Input Token Price per Million (for statistics only)",
+      "geminiOutputCostLabel": "Gemini Output Token Price per Million (for statistics only)",
+      "perMillionTokens": "USD per 1 million tokens"
     },
     "language": {
       "title": "Language Selection",

@@ -245,6 +245,12 @@ class CanvasCritiqueStore {
       } else if (!this.settings.openRouterProvider) {
         this.settings.openRouterProvider = [];
       }
+      if (typeof this.settings.geminiInputCostPerMillion !== 'number' || isNaN(this.settings.geminiInputCostPerMillion) || this.settings.geminiInputCostPerMillion <= 0) {
+        this.settings.geminiInputCostPerMillion = 0.075;
+      }
+      if (typeof this.settings.geminiOutputCostPerMillion !== 'number' || isNaN(this.settings.geminiOutputCostPerMillion) || this.settings.geminiOutputCostPerMillion <= 0) {
+        this.settings.geminiOutputCostPerMillion = 0.30;
+      }
 
       if (data.projects.length > 0) {
         this.projects = data.projects;
