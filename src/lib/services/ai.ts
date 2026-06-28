@@ -47,6 +47,7 @@ export function estimateCost(provider: 'gemini' | 'openrouter', model: string, i
 
 export interface CheckWorkTask {
   name: string;
+  section?: string;
   instructions?: string;
   solution?: string;
   instructionFiles?: Array<{ name: string; dataUrl?: string }>;
@@ -391,6 +392,12 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
 
   let prompt = promptTemplate;
   
+  if (prompt.includes('{{task_section}}')) {
+    prompt = prompt.replace(/\{\{task_section\}\}/g, task.section ? `Topic/Section: ${task.section}` : '');
+  } else if (task.section) {
+    prompt = prompt.replace(/\{\{task_name\}\}/g, `${task.section} - ${task.name}`);
+  }
+  
   if (prompt.includes('{{task_instructions}}')) {
     prompt = prompt.replace(/\{\{task_instructions\}\}/g, taskInstructionsText);
   } else if (taskInstructionsText) {
@@ -405,6 +412,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   
   prompt = prompt
     .replace(/\{\{task_name\}\}/g, task.name)
+    .replace(/\{\{task_section\}\}/g, task.section || '')
     .replace(/\{\{guidelines\}\}/g, guidelinesPrompt)
     .replace(/\{\{page_info\}\}/g, pageInfoPrompt)
     .replace(/\{\{image_dimensions\}\}/g, imageDimensionsInfo);

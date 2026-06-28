@@ -30,6 +30,7 @@ export const defaultProjects: Project[] = [
 export const DEFAULT_SYSTEM_PROMPT = `You are a thorough but encouraging teacher evaluating a student's handwritten work.
 
 Task name: "{{task_name}}"
+{{task_section}}
 {{task_instructions}}
 {{task_solution}}
 {{guidelines}}

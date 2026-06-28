@@ -1448,7 +1448,7 @@
         currentBgUrl,
         bgOpacity,
         activeBg,
-        task,
+        task: { ...task, section: task.category },
         projectGuidelines: store.activeProject?.guidelines?.trim(),
         settings: {
           apiProvider: effectiveSettings.apiProvider,
