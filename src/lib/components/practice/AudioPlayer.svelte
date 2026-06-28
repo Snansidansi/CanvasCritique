@@ -84,7 +84,7 @@
   });
 </script>
 
-<div class="flex items-center gap-2 {compact ? 'py-1' : 'py-2'}">
+<div class="flex flex-col gap-2 {compact ? 'py-1' : 'py-2'}">
   <audio
     bind:this={audioEl}
     src={dataUrl}
@@ -96,58 +96,58 @@
     preload="metadata"
   ></audio>
 
-  <button
-    onclick={togglePlay}
-    class="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-on-primary hover:opacity-90 transition-all shrink-0 cursor-pointer"
-    title={isPlaying ? t('taskEditor.audio.pause') : t('taskEditor.audio.play')}
-  >
-    <span class="material-symbols-outlined text-[18px]">
-      {isPlaying ? 'pause' : 'play_arrow'}
-    </span>
-  </button>
-
-  {#if !compact}
-    <div class="flex items-center gap-2 flex-1 min-w-0">
-      <span class="text-[10px] text-on-surface-variant font-mono w-10 text-right shrink-0">
-        {formatTime(currentTime)}
-      </span>
-      <input
-        type="range"
-        min="0"
-        max={duration || 0}
-        value={currentTime}
-        oninput={seek}
-        class="flex-1 h-1 accent-primary cursor-pointer"
-      />
-      <span class="text-[10px] text-on-surface-variant font-mono w-10 shrink-0">
-        {formatTime(duration)}
-      </span>
-    </div>
-  {/if}
-
-  <div class="relative shrink-0" bind:this={volumePopupRef}>
+  <div class="flex items-center gap-2">
     <button
-      onclick={handleVolumeClick}
-      class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-surface-container transition-colors cursor-pointer"
-      title={t('taskEditor.audio.volume')}
+      onclick={togglePlay}
+      class="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-on-primary hover:opacity-90 transition-all shrink-0 cursor-pointer"
+      title={isPlaying ? t('taskEditor.audio.pause') : t('taskEditor.audio.play')}
     >
-      <span class="material-symbols-outlined text-[18px] text-on-surface-variant">
-        {volume === 0 ? 'volume_off' : volume < 0.5 ? 'volume_down' : 'volume_up'}
+      <span class="material-symbols-outlined text-[18px]">
+        {isPlaying ? 'pause' : 'play_arrow'}
       </span>
     </button>
-    {#if showVolumeSlider}
-      <div class="absolute bottom-full right-0 mb-2 bg-surface-container-low border border-outline-variant rounded-lg shadow-lg p-3 flex flex-col items-center gap-1 z-50 min-w-[120px]">
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value={volume}
-          oninput={onVolumeChange}
-          class="w-full h-1 accent-primary cursor-pointer"
-        />
-        <span class="text-[10px] text-on-surface-variant font-mono">{Math.round(volume * 100)}%</span>
-      </div>
-    {/if}
+
+    <div class="relative flex items-center gap-2 shrink-0" bind:this={volumePopupRef}>
+      <button
+        onclick={handleVolumeClick}
+        class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-surface-container transition-colors cursor-pointer"
+        title={t('taskEditor.audio.volume')}
+      >
+        <span class="material-symbols-outlined text-[18px] text-on-surface-variant">
+          {volume === 0 ? 'volume_off' : volume < 0.5 ? 'volume_down' : 'volume_up'}
+        </span>
+      </button>
+      {#if showVolumeSlider}
+        <div class="bg-surface-container-low border border-outline-variant rounded-lg shadow-lg px-3 py-1 flex items-center gap-2 z-50">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={volume}
+            oninput={onVolumeChange}
+            class="w-20 h-1 accent-primary cursor-pointer"
+          />
+          <span class="text-[10px] text-on-surface-variant font-mono">{Math.round(volume * 100)}%</span>
+        </div>
+      {/if}
+    </div>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <span class="text-[10px] text-on-surface-variant font-mono w-10 text-right shrink-0">
+      {formatTime(currentTime)}
+    </span>
+    <input
+      type="range"
+      min="0"
+      max={duration || 0}
+      value={currentTime}
+      oninput={seek}
+      class="flex-1 h-1 accent-primary cursor-pointer"
+    />
+    <span class="text-[10px] text-on-surface-variant font-mono w-10 shrink-0">
+      {formatTime(duration)}
+    </span>
   </div>
 </div>
