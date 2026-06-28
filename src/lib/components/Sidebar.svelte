@@ -26,6 +26,78 @@
     }
     return project.tasks.find((t: any) => !t.completed) || project.tasks[0];
   }
+
+  // Sidebar lesson reorder drag state
+  let draggedLessonId = $state<string | null>(null);
+  let sidebarDragGhostEl = $state<HTMLElement | null>(null);
+  let sidebarDragStartX = 0;
+  let sidebarDragStartY = 0;
+  let sidebarDragGhostOffsetX = 0;
+  let sidebarDragGhostOffsetY = 0;
+  let isSidebarDragActive = $state(false);
+  let sidebarDropIndex = $state<number | null>(null);
+
+  function handleSidebarPointerDown(e: PointerEvent, projectId: string) {
+    if (e.button !== 0 && e.button !== -1) return;
+    const target = e.currentTarget as HTMLElement;
+    if ((e.target as HTMLElement).closest('button')) return;
+    sidebarDragStartX = e.clientX;
+    sidebarDragStartY = e.clientY;
+    try { target.setPointerCapture(e.pointerId); } catch (_) {}
+
+    function onMove(me: PointerEvent) {
+      const dx = me.clientX - sidebarDragStartX;
+      const dy = me.clientY - sidebarDragStartY;
+      if (!isSidebarDragActive && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+        isSidebarDragActive = true;
+        draggedLessonId = projectId;
+        const ghost = target.cloneNode(true) as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        ghost.style.cssText = `position:fixed;pointer-events:none;z-index:9999;width:${rect.width}px;opacity:0.8;left:${rect.left}px;top:${rect.top}px;box-shadow:0 4px 12px rgba(0,0,0,0.15);border-radius:0.5rem;transform:scale(1.02);`;
+        sidebarDragGhostOffsetX = me.clientX - rect.left;
+        sidebarDragGhostOffsetY = me.clientY - rect.top;
+        document.body.appendChild(ghost);
+        sidebarDragGhostEl = ghost;
+      }
+      if (!isSidebarDragActive) return;
+      if (sidebarDragGhostEl) {
+        sidebarDragGhostEl.style.left = `${me.clientX - sidebarDragGhostOffsetX}px`;
+        sidebarDragGhostEl.style.top = `${me.clientY - sidebarDragGhostOffsetY}px`;
+      }
+      if (sidebarDragGhostEl) sidebarDragGhostEl.style.display = 'none';
+      const el = document.elementFromPoint(me.clientX, me.clientY);
+      if (sidebarDragGhostEl) sidebarDragGhostEl.style.display = '';
+      const row = el?.closest('[data-sidebar-project-id]') as HTMLElement | null;
+      if (row && row.dataset.sidebarProjectId !== draggedLessonId) {
+        const rows = Array.from(document.querySelectorAll('[data-sidebar-project-id]'));
+        sidebarDropIndex = rows.indexOf(row);
+      }
+    }
+
+    function onUp(ue: PointerEvent) {
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
+      try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
+      if (sidebarDragGhostEl) { sidebarDragGhostEl.remove(); sidebarDragGhostEl = null; }
+      if (isSidebarDragActive && draggedLessonId && sidebarDropIndex !== null) {
+        const projects = store.projects.filter(p => p.profileId === store.activeProfileId);
+        const ids = projects.map(p => p.id);
+        const draggedIdx = ids.indexOf(draggedLessonId);
+        if (draggedIdx !== -1 && draggedIdx !== sidebarDropIndex) {
+          ids.splice(draggedIdx, 1);
+          ids.splice(sidebarDropIndex, 0, draggedLessonId);
+          store.reorderProjects(ids);
+        }
+      }
+      isSidebarDragActive = false;
+      draggedLessonId = null;
+      sidebarDropIndex = null;
+    }
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
+  }
 </script>
 
 <!-- Desktop Sidebar Navigation -->
@@ -113,11 +185,16 @@
       class="flex flex-col gap-1 overflow-x-hidden max-h-[50vh]
              {isCollapsed ? 'overflow-y-auto hide-scrollbar' : 'overflow-y-auto custom-scrollbar'}"
     >
-      {#each store.projects.filter(p => p.profileId === store.activeProfileId) as project}
+      {#each store.projects.filter(p => p.profileId === store.activeProfileId) as project, idx}
+        {#if isSidebarDragActive && sidebarDropIndex === idx && draggedLessonId && draggedLessonId !== project.id}
+          <div class="h-0.5 bg-primary rounded-full mx-2 animate-pulse"></div>
+        {/if}
         <div
+          data-sidebar-project-id={project.id}
+          onpointerdown={(e) => handleSidebarPointerDown(e, project.id)}
           role="button"
           tabindex="0"
-          onclick={() => handleNavigate("project-detail", project)}
+          onclick={() => { if (!isSidebarDragActive) handleNavigate("project-detail", project); }}
           onkeydown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
