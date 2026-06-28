@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
+  import { getMediaDataUrl, saveMediaToDb } from '../../db/media';
 
   // Local state for settings view tabs
   let activeTab = $state('settings'); // 'settings' | 'data'
@@ -62,10 +63,8 @@
 
   // Data export/import
   async function handleExportData() {
-    // Clone the projects to avoid mutating active runtime state
     const exportProjects = JSON.parse(JSON.stringify(store.projects));
     
-    // Attach canvas saves for all tasks in each project
     for (const proj of exportProjects) {
       proj.canvasSaves = {};
       if (proj.tasks) {
@@ -73,6 +72,26 @@
           const save = store.getCanvasState(task.id);
           if (save) {
             proj.canvasSaves[task.id] = save;
+          }
+          if (task.instructionFiles) {
+            for (const file of task.instructionFiles) {
+              if (file.mediaId && !file.dataUrl) {
+                try {
+                  file.dataUrl = await getMediaDataUrl(file.mediaId);
+                  delete file.mediaId;
+                } catch (_) {}
+              }
+            }
+          }
+          if (task.solutionFiles) {
+            for (const file of task.solutionFiles) {
+              if (file.mediaId && !file.dataUrl) {
+                try {
+                  file.dataUrl = await getMediaDataUrl(file.mediaId);
+                  delete file.mediaId;
+                } catch (_) {}
+              }
+            }
           }
         }
       }
@@ -92,26 +111,50 @@
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'application/json';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         try {
           const imported = JSON.parse(reader.result as string);
           if (imported.projects && Array.isArray(imported.projects)) {
-            // Import projects
+            // Convert imported media files (dataUrl → mediaId)
+            for (const proj of imported.projects) {
+              if (proj.tasks) {
+                for (const task of proj.tasks) {
+                  if (task.instructionFiles) {
+                    for (const f of task.instructionFiles) {
+                      if (f.dataUrl && !f.mediaId) {
+                        try { f.mediaId = await saveMediaToDb(f.dataUrl); } catch (_) {}
+                      }
+                    }
+                  }
+                  if (task.solutionFiles) {
+                    for (const f of task.solutionFiles) {
+                      if (f.dataUrl && !f.mediaId) {
+                        try { f.mediaId = await saveMediaToDb(f.dataUrl); } catch (_) {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
             store.projects = imported.projects;
             store.saveProjects();
 
-            // Import profiles if they exist in the backup
             if (imported.profiles && Array.isArray(imported.profiles)) {
+              for (const p of imported.profiles) {
+                if (p.icon && p.icon.startsWith('data:')) {
+                  try { p.icon = await saveMediaToDb(p.icon); } catch (_) {}
+                }
+              }
               store.profiles = imported.profiles;
               store.activeProfileId = imported.activeProfileId || imported.profiles[0]?.id || 'default-profile';
               store.saveProfiles();
             }
 
-            // Restore canvas saves
             for (const proj of imported.projects) {
               if (proj.canvasSaves) {
                 for (const [taskId, canvasState] of Object.entries(proj.canvasSaves)) {
@@ -121,7 +164,6 @@
             }
 
             store.showNotification(t('settings.data.notifications.importDbSuccess'), 'success');
-            // Force return to dashboard to reload active lists
             store.setView('dashboard');
           } else {
             store.showNotification(t('settings.data.notifications.importDbError'), 'error');

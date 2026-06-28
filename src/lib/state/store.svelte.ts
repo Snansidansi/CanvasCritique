@@ -36,7 +36,7 @@ import {
   deleteCustomBackground as dbDeleteCustomBackground,
 } from '../db';
 
-import { readMediaFile, saveMediaFile } from '../db/media';
+import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs } from '../db/media';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 
@@ -67,6 +67,8 @@ class CanvasCritiqueStore {
   notification = $state<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   private _dbReady = false;
+  private _iconMediaIds: Record<string, string> = {};
+  private _projectIconMediaIds: Record<string, string> = {};
 
   // Getters for dynamic API/Model selection
   get apiKey(): string {
@@ -179,6 +181,7 @@ class CanvasCritiqueStore {
   // DB init — call before using store
   async init() {
     const db = await initDb();
+    await migrateMediaFromFs();
     await this.loadState(db);
     this._dbReady = true;
   }
@@ -196,6 +199,16 @@ class CanvasCritiqueStore {
 
       if (data.profiles.length > 0) {
         this.profiles = data.profiles;
+        // Resolve profile icons from mediaId to dataUrl for UI
+        for (const p of this.profiles) {
+          if (p.icon && !p.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(p.icon)) {
+            this._iconMediaIds[p.id] = p.icon;
+            try {
+              const url = await getMediaDataUrl(p.icon);
+              p.icon = url;
+            } catch (_) {}
+          }
+        }
       }
 
       // Restore active profile
@@ -234,6 +247,16 @@ class CanvasCritiqueStore {
 
       if (data.projects.length > 0) {
         this.projects = data.projects;
+        // Resolve project icons from mediaId to dataUrl
+        for (const p of this.projects) {
+          if (p.icon && !p.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(p.icon)) {
+            this._projectIconMediaIds[p.id] = p.icon;
+            try {
+              const url = await getMediaDataUrl(p.icon);
+              p.icon = url;
+            } catch (_) {}
+          }
+        }
         // Ensure all projects have profileId set
         for (const p of this.projects) {
           if (!p.profileId) {
@@ -273,19 +296,33 @@ class CanvasCritiqueStore {
   async saveProjects() {
     const db = this.getDb();
     for (const project of this.projects) {
+      // Convert dataUrl icon back to mediaId for storage
+      let icon = project.icon;
+      if (icon && icon.startsWith('data:')) {
+        if (this._projectIconMediaIds[project.id]) {
+          icon = this._projectIconMediaIds[project.id];
+        } else {
+          try {
+            const mediaId = await saveMediaToDb(icon);
+            this._projectIconMediaIds[project.id] = mediaId;
+            icon = mediaId;
+          } catch (_) {}
+        }
+      }
       // Upsert project metadata
       const existing = await db.select('SELECT id FROM projects WHERE id = ?', [project.id]);
       if (existing.length > 0) {
         await dbUpdateProject(db, project.id, {
           name: project.name,
-          icon: project.icon,
+          icon: icon,
           guidelines: project.guidelines,
           categories: project.categories,
           hideCompleted: project.hideCompleted,
           settingsOverride: project.settingsOverride
         });
       } else {
-        await insertProject(db, project);
+        const projToInsert = { ...project, icon: icon };
+        await insertProject(db, projToInsert);
       }
       // Sync tasks
       for (const task of (project.tasks || [])) {
@@ -319,6 +356,18 @@ class CanvasCritiqueStore {
   async saveProfiles() {
     const db = this.getDb();
     for (const profile of this.profiles) {
+      // Convert dataUrl icon back to mediaId for storage
+      if (profile.icon && profile.icon.startsWith('data:')) {
+        if (this._iconMediaIds[profile.id]) {
+          profile.icon = this._iconMediaIds[profile.id];
+        } else {
+          try {
+            const mediaId = await saveMediaToDb(profile.icon);
+            this._iconMediaIds[profile.id] = mediaId;
+            profile.icon = mediaId;
+          } catch (_) {}
+        }
+      }
       const existing = await db.select('SELECT id FROM profiles WHERE id = ?', [profile.id]);
       if (existing.length > 0) {
         await dbUpdateProfile(db, profile.id, profile);
@@ -386,18 +435,22 @@ class CanvasCritiqueStore {
   }
 
   async addCustomBackground(name: string, dataUrl: string, iconDataUrl: string | null = null): Promise<CustomBackground> {
-    const relativePath = await saveMediaFile(dataUrl);
+    const mediaId = await saveMediaToDb(dataUrl);
+    let iconMediaId: string | null = null;
     let icon: string | null = null;
     if (iconDataUrl && iconDataUrl !== dataUrl) {
-      icon = await saveMediaFile(iconDataUrl);
+      iconMediaId = await saveMediaToDb(iconDataUrl);
+      icon = iconMediaId;
     } else if (iconDataUrl === dataUrl) {
-      icon = relativePath;
+      iconMediaId = mediaId;
+      icon = mediaId;
     }
 
     const newBg: CustomBackground = {
       id: 'custom-bg-' + Date.now(),
       name,
-      relativePath,
+      mediaId,
+      iconMediaId,
       icon
     };
     this.customBackgrounds.push(newBg);
@@ -872,9 +925,9 @@ class CanvasCritiqueStore {
     const result = [];
     for (const f of files) {
       const file = { ...f };
-      if (file.dataUrl && !file.relativePath) {
+      if (file.dataUrl && !file.mediaId) {
         try {
-          file.relativePath = await saveMediaFile(file.dataUrl);
+          file.mediaId = await saveMediaToDb(file.dataUrl);
         } catch (_) {}
       }
       result.push(file);
@@ -884,7 +937,7 @@ class CanvasCritiqueStore {
 
   private stripDataUrls(files: any[]): any[] {
     return files.map(f => {
-      if (f.relativePath && f.dataUrl) {
+      if (f.mediaId && f.dataUrl) {
         const { dataUrl, ...rest } = f;
         return rest;
       }
@@ -1099,20 +1152,20 @@ class CanvasCritiqueStore {
         for (const task of clonedTasks) {
           if (task.instructionFiles) {
             for (const file of task.instructionFiles) {
-              if (file.relativePath && !file.dataUrl) {
+              if (file.mediaId && !file.dataUrl) {
                 try {
-                  file.dataUrl = await readMediaFile(file.relativePath);
-                  delete file.relativePath;
+                  file.dataUrl = await getMediaDataUrl(file.mediaId);
+                  delete file.mediaId;
                 } catch (_) {}
               }
             }
           }
           if (task.solutionFiles) {
             for (const file of task.solutionFiles) {
-              if (file.relativePath && !file.dataUrl) {
+              if (file.mediaId && !file.dataUrl) {
                 try {
-                  file.dataUrl = await readMediaFile(file.relativePath);
-                  delete file.relativePath;
+                  file.dataUrl = await getMediaDataUrl(file.mediaId);
+                  delete file.mediaId;
                 } catch (_) {}
               }
             }

@@ -14,6 +14,24 @@ export async function initDb(): Promise<Database> {
   await db.execute('PRAGMA foreign_keys = ON');
 
   await db.execute(`
+    CREATE TABLE IF NOT EXISTS media (
+      id TEXT PRIMARY KEY,
+      data BLOB NOT NULL,
+      mime_type TEXT NOT NULL,
+      name TEXT NOT NULL
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS media (
+      id TEXT PRIMARY KEY,
+      data BLOB NOT NULL,
+      mime_type TEXT NOT NULL,
+      name TEXT NOT NULL
+    )
+  `);
+
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS profiles (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -352,7 +370,8 @@ export async function getCustomBackgrounds(db: Database): Promise<CustomBackgrou
   return rows.map(r => ({
     id: r.id,
     name: r.name,
-    relativePath: r.relative_path,
+    mediaId: r.relative_path || '',
+    iconMediaId: r.icon || null,
     icon: r.icon || null
   }));
 }
@@ -360,7 +379,7 @@ export async function getCustomBackgrounds(db: Database): Promise<CustomBackgrou
 export async function insertCustomBackground(db: Database, bg: CustomBackground): Promise<void> {
   await db.execute(
     'INSERT INTO custom_backgrounds (id, name, relative_path, icon) VALUES (?, ?, ?, ?)',
-    [bg.id, bg.name, bg.relativePath, bg.icon || null]
+    [bg.id, bg.name, bg.mediaId, bg.iconMediaId || null]
   );
 }
 

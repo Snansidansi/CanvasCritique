@@ -1,7 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
-  import { saveMediaFile } from '../../db/media';
+  import { saveMediaToDb } from '../../db/media';
 
   let { 
     isOpen = $bindable(false) 
@@ -11,12 +11,14 @@
 
   let newProjectName = $state("");
   let newProjectIcon = $state("history_edu");
+  let newProjectIconPreview = $state("");
 
   // Reset inputs when opened
   $effect(() => {
     if (isOpen) {
       newProjectName = "";
       newProjectIcon = "history_edu";
+      newProjectIconPreview = "";
     }
   });
 
@@ -35,8 +37,9 @@
     const reader = new FileReader();
     reader.onload = async () => {
       const dataUrl = reader.result as string;
+      newProjectIconPreview = dataUrl;
       try {
-        newProjectIcon = await saveMediaFile(dataUrl);
+        newProjectIcon = await saveMediaToDb(dataUrl);
       } catch (_) {
         newProjectIcon = dataUrl;
       }
@@ -102,12 +105,12 @@
               onchange={handleCustomIconUpload}
               class="text-xs text-on-surface bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 focus:outline-none cursor-pointer"
             />
-            {#if newProjectIcon && newProjectIcon.startsWith("data:image/")}
+            {#if newProjectIconPreview}
               <div class="flex items-center gap-2 mt-1">
                 <span class="text-[10px] text-primary font-semibold"
                   >{t('dashboard.customPreviewLabel')}</span>
                 <img
-                  src={newProjectIcon}
+                  src={newProjectIconPreview}
                   class="w-8 h-8 object-contain rounded border border-primary/20 bg-white"
                   alt="Preview"
                 />

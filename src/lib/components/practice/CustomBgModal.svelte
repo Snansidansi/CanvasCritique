@@ -1,7 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
-  import { saveMediaFile } from '../../db/media';
+  import { saveMediaToDb } from '../../db/media';
 
   let {
     isCustomBgModalOpen = $bindable(),

@@ -7,7 +7,7 @@ import {
   getStrokesBoundingBox 
 } from '../utils/canvas';
 import { store } from '../state/store.svelte';
-import { readMediaFile } from '../db/media';
+import { getMediaDataUrl } from '../db/media';
 
 export function estimateCost(provider: 'gemini' | 'openrouter', model: string, inputTokens: number, outputTokens: number): number {
   const modelLower = model.toLowerCase();
@@ -123,9 +123,9 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
   if (task.instructionFiles) {
     task.instructionFiles = await Promise.all(
       task.instructionFiles.map(async (f) => {
-        if (!f.dataUrl && f.relativePath) {
+        if (!f.dataUrl && f.mediaId) {
           try {
-            return { ...f, dataUrl: await readMediaFile(f.relativePath) };
+            return { ...f, dataUrl: await getMediaDataUrl(f.mediaId) };
           } catch (_) {}
         }
         return { ...f };
@@ -135,23 +135,23 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
   if (task.solutionFiles) {
     task.solutionFiles = await Promise.all(
       task.solutionFiles.map(async (f) => {
-        if (!f.dataUrl && f.relativePath) {
+        if (!f.dataUrl && f.mediaId) {
           try {
-            return { ...f, dataUrl: await readMediaFile(f.relativePath) };
+            return { ...f, dataUrl: await getMediaDataUrl(f.mediaId) };
           } catch (_) {}
         }
         return { ...f };
       })
     );
   }
-  if (task.instructionFile && !task.instructionFile.dataUrl && task.instructionFile.relativePath) {
+  if (task.instructionFile && !task.instructionFile.dataUrl && task.instructionFile.mediaId) {
     try {
-      task.instructionFile = { ...task.instructionFile, dataUrl: await readMediaFile(task.instructionFile.relativePath) };
+      task.instructionFile = { ...task.instructionFile, dataUrl: await getMediaDataUrl(task.instructionFile.mediaId) };
     } catch (_) {}
   }
-  if (task.solutionFile && !task.solutionFile.dataUrl && task.solutionFile.relativePath) {
+  if (task.solutionFile && !task.solutionFile.dataUrl && task.solutionFile.mediaId) {
     try {
-      task.solutionFile = { ...task.solutionFile, dataUrl: await readMediaFile(task.solutionFile.relativePath) };
+      task.solutionFile = { ...task.solutionFile, dataUrl: await getMediaDataUrl(task.solutionFile.mediaId) };
     } catch (_) {}
   }
 

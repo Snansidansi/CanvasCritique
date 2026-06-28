@@ -23,7 +23,7 @@
     type Point
   } from '../utils/canvas';
   import { runCheckWork } from '../services/ai';
-  import { readMediaFile } from '../db/media';
+  import { getMediaDataUrl } from '../db/media';
 
 
   // Active task details from store
@@ -267,8 +267,8 @@
   // Load custom background from filesystem when selected
   $effect(() => {
     const bg = currentBgObject;
-    if (bg && bg.relativePath && !customBgUrlCache[bg.id]) {
-      readMediaFile(bg.relativePath).then(url => {
+    if (bg && bg.mediaId && !customBgUrlCache[bg.id]) {
+      getMediaDataUrl(bg.mediaId).then(url => {
         customBgUrlCache[bg.id] = url;
       }).catch(() => {});
     }

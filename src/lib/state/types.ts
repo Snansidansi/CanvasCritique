@@ -3,7 +3,7 @@
 export interface MediaFile {
   name: string;
   dataUrl?: string;
-  relativePath?: string;
+  mediaId?: string;
 }
 
 export interface Task {
@@ -126,7 +126,8 @@ export interface Profile {
 export interface CustomBackground {
   id: string;
   name: string;
-  relativePath: string;
+  mediaId: string;
+  iconMediaId: string | null;
   icon: string | null;
 }
 

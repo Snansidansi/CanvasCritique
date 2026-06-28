@@ -1,7 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
-  import { saveMediaFile } from '../../db/media';
+  import { saveMediaToDb, getMediaDataUrl } from '../../db/media';
 
   let { 
     isOpen = $bindable(false), 
@@ -18,6 +18,7 @@
   let profileFormName = $state('');
   let profileFormColor = $state('#3b82f6');
   let profileFormIcon = $state<string | null>(null);
+  let profileFormPreviewUrl = $state<string | null>(null);
   let fileInputProfile: HTMLInputElement | null = $state(null);
 
   const presetColors = [
@@ -38,12 +39,24 @@
         profileFormName = '';
         profileFormColor = presetColors[Math.floor(Math.random() * presetColors.length)];
         profileFormIcon = null;
+        profileFormPreviewUrl = null;
       } else {
         const profile = store.profiles.find(p => p.id === profileId);
         if (profile) {
           profileFormName = profile.name;
           profileFormColor = profile.color || '#3b82f6';
-          profileFormIcon = profile.icon || null;
+          const icon = profile.icon || null;
+          profileFormIcon = icon;
+          profileFormPreviewUrl = null;
+          if (icon && !icon.startsWith('data:')) {
+            getMediaDataUrl(icon).then(url => {
+              profileFormPreviewUrl = url;
+            }).catch(() => {
+              profileFormPreviewUrl = null;
+            });
+          } else {
+            profileFormPreviewUrl = icon;
+          }
         }
       }
     }
@@ -72,8 +85,9 @@
     const reader = new FileReader();
     reader.onload = async () => {
       const dataUrl = reader.result as string;
+      profileFormPreviewUrl = dataUrl;
       try {
-        profileFormIcon = await saveMediaFile(dataUrl);
+        profileFormIcon = await saveMediaToDb(dataUrl);
       } catch (_) {
         profileFormIcon = dataUrl;
       }
@@ -130,12 +144,12 @@
 
           <div class="flex items-center gap-4">
             <!-- Icon Preview -->
-            {#if profileFormIcon}
+            {#if profileFormPreviewUrl}
               <div class="relative shrink-0">
-                <img src={profileFormIcon} class="w-16 h-16 rounded-full object-cover border border-outline-variant shadow-sm" alt="" />
+                <img src={profileFormPreviewUrl} class="w-16 h-16 rounded-full object-cover border border-outline-variant shadow-sm" alt="" />
                 <button
                   type="button"
-                  onclick={() => profileFormIcon = null}
+                  onclick={() => { profileFormIcon = null; profileFormPreviewUrl = null; }}
                   class="absolute -top-1 -right-1 bg-error text-white rounded-full p-0.5 shadow-sm hover:scale-105 transition-transform flex items-center justify-center"
                   title={t('profile.removeImage')}
                 >
@@ -166,7 +180,7 @@
         </div>
 
         <!-- Color Selection (only shown when custom icon is not set) -->
-        {#if !profileFormIcon}
+        {#if !profileFormPreviewUrl}
           <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-3">
             <span class="text-xs font-bold text-on-surface-variant">{t('profile.colorLabel')}</span>
             <div class="flex flex-wrap gap-2.5">

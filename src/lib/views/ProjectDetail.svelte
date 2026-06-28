@@ -3,7 +3,7 @@
   import TaskSelectionBar from '../components/project/TaskSelectionBar.svelte';
   import LessonSettingsModal from '../components/project/LessonSettingsModal.svelte';
   import { t } from '../services/i18n';
-  import { saveMediaFile } from '../db/media';
+  import { saveMediaToDb } from '../db/media';
 
   // Derived project state from store
   let project = $derived(store.activeProject || ({
@@ -360,8 +360,8 @@
     reader.onload = async () => {
       const dataUrl = reader.result as string;
       try {
-        const relativePath = await saveMediaFile(dataUrl);
-        await store.updateProjectDetails(project.id, { icon: relativePath });
+        const mediaId = await saveMediaToDb(dataUrl);
+        await store.updateProjectDetails(project.id, { icon: mediaId });
       } catch (_) {
         await store.updateProjectDetails(project.id, { icon: dataUrl });
       }

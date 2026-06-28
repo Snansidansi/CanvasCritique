@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '../../services/i18n';
-  import { readMediaFile } from '../../db/media';
+  import { getMediaDataUrl } from '../../db/media';
 
   let {
     splitWidth = $bindable(400),
@@ -22,13 +22,13 @@
   // Cache loaded media URLs
   let mediaUrlCache = $state<Record<string, string>>({});
 
-  async function getMediaUrl(file: { name: string; dataUrl?: string; relativePath?: string }): Promise<string> {
+  async function getMediaUrl(file: { name: string; dataUrl?: string; mediaId?: string }): Promise<string> {
     if (file.dataUrl) return file.dataUrl;
-    if (file.relativePath) {
-      const key = file.relativePath;
+    if (file.mediaId) {
+      const key = file.mediaId;
       if (mediaUrlCache[key]) return mediaUrlCache[key];
       try {
-        const url = await readMediaFile(key);
+        const url = await getMediaDataUrl(key);
         mediaUrlCache[key] = url;
         return url;
       } catch (_) {}
@@ -38,17 +38,17 @@
 
   // Pre-load media when task changes
   $effect(() => {
-    const filesToLoad: Array<{ name: string; dataUrl?: string; relativePath?: string }> = [];
+    const filesToLoad: Array<{ name: string; dataUrl?: string; mediaId?: string }> = [];
     if (task?.instructionFiles) {
-      filesToLoad.push(...task.instructionFiles.filter(f => f.relativePath && !f.dataUrl));
+      filesToLoad.push(...task.instructionFiles.filter(f => f.mediaId && !f.dataUrl));
     }
     if (task?.solutionFiles) {
-      filesToLoad.push(...task.solutionFiles.filter(f => f.relativePath && !f.dataUrl));
+      filesToLoad.push(...task.solutionFiles.filter(f => f.mediaId && !f.dataUrl));
     }
     for (const file of filesToLoad) {
-      if (file.relativePath && !mediaUrlCache[file.relativePath]) {
-        readMediaFile(file.relativePath).then(url => {
-          mediaUrlCache[file.relativePath!] = url;
+      if (file.mediaId && !mediaUrlCache[file.mediaId]) {
+        getMediaDataUrl(file.mediaId).then(url => {
+          mediaUrlCache[file.mediaId!] = url;
         }).catch(() => {});
       }
     }
@@ -56,7 +56,7 @@
 
   let loadedPreviewUrl = $state('');
 
-  async function loadPreviewUrl(file: { name: string; dataUrl?: string; relativePath?: string }): Promise<string> {
+  async function loadPreviewUrl(file: { name: string; dataUrl?: string; mediaId?: string }): Promise<string> {
     const url = await getMediaUrl(file);
     loadedPreviewUrl = url;
     return url;
@@ -91,7 +91,7 @@
     }
   }
 
-  async function openPreview(file: { name: string; dataUrl?: string; relativePath?: string }) {
+  async function openPreview(file: { name: string; dataUrl?: string; mediaId?: string }) {
     const url = await getMediaUrl(file);
     previewFile = { name: file.name, dataUrl: url };
     modalZoom = 1;
@@ -253,7 +253,7 @@
                       </div>
 
                       {#if open}
-                        {@const fileUrl = mediaUrlCache[file.relativePath || ''] || file.dataUrl || ''}
+                        {@const fileUrl = mediaUrlCache[file.mediaId || ''] || file.dataUrl || ''}
                         <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
                           {#if file.name.toLowerCase().endsWith('.pdf')}
                             <iframe 
@@ -327,7 +327,7 @@
                       </div>
 
                       {#if open}
-                        {@const fileUrl = mediaUrlCache[file.relativePath || ''] || file.dataUrl || ''}
+                        {@const fileUrl = mediaUrlCache[file.mediaId || ''] || file.dataUrl || ''}
                         <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
                           {#if file.name.toLowerCase().endsWith('.pdf')}
                             <iframe 

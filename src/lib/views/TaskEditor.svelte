@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { parseMarkdown } from '../utils/markdown';
   import { t } from '../services/i18n';
-  import { saveMediaFile, readMediaFile } from '../db/media';
+  import { saveMediaToDb, getMediaDataUrl } from '../db/media';
 
   // Form states
   let taskName = $state('');
@@ -144,17 +144,17 @@
       const reader = new FileReader();
       reader.onload = async (event) => {
         const dataUrl = event.target?.result as string;
-        let relativePath = '';
+        let mediaId = '';
         try {
-          relativePath = await saveMediaFile(dataUrl);
+          mediaId = await saveMediaToDb(dataUrl);
         } catch (e) {
           console.error('Failed to save media file:', e);
-          relativePath = '';
+          mediaId = '';
         }
         const fileData = {
           name: file.name,
           dataUrl,
-          relativePath: relativePath || undefined
+          mediaId: mediaId || undefined
         };
         if (type === 'instruction') {
           instructionFiles = [...instructionFiles, fileData];
@@ -164,7 +164,6 @@
       };
       reader.readAsDataURL(file);
     }
-    // Reset value so selection event triggers even for the same files
     target.value = '';
   }
 
@@ -187,11 +186,11 @@
     }
   }
 
-  async function openPreview(file: { name: string; dataUrl?: string; relativePath?: string }) {
+  async function openPreview(file: { name: string; dataUrl?: string; mediaId?: string }) {
     let dataUrl = file.dataUrl || '';
-    if (!dataUrl && file.relativePath) {
+    if (!dataUrl && file.mediaId) {
       try {
-        dataUrl = await readMediaFile(file.relativePath);
+        dataUrl = await getMediaDataUrl(file.mediaId);
       } catch (_) {}
     }
     previewFile = { name: file.name, dataUrl };
@@ -248,12 +247,12 @@
           const blob = await item.getType(imageType);
           const ext = imageType.split('/')[1] || 'png';
           const base64Data = await blobToBase64(blob);
-          let relativePath = '';
-          try { relativePath = await saveMediaFile(base64Data); } catch (_) {}
+          let mediaId = '';
+          try { mediaId = await saveMediaToDb(base64Data); } catch (_) {}
           const newFile = {
             name: `clipboard_image_${Date.now()}.${ext}`,
             dataUrl: base64Data,
-            relativePath: relativePath || undefined
+            mediaId: mediaId || undefined
           };
           if (type === 'instruction') {
             instructionFiles = [...instructionFiles, newFile];
