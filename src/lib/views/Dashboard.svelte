@@ -91,6 +91,16 @@
   let isDeleteProfileConfirmOpen = $state(false);
   let profileToDelete = $state<any>(null);
 
+  // Lesson drag-and-drop reorder state
+  let draggedProjectId = $state<string | null>(null);
+  let dragGhostEl = $state<HTMLElement | null>(null);
+  let dragPointerStartX = 0;
+  let dragPointerStartY = 0;
+  let dragGhostOffsetX = 0;
+  let dragGhostOffsetY = 0;
+  let isLessonDragActive = $state(false);
+  let dropTargetIndex = $state<number | null>(null);
+
   function handleOpenCreateProfile() {
     profileModalMode = 'create';
     isProfileModalOpen = true;
@@ -158,6 +168,119 @@
   function getRemainingTasks(project: any) {
     if (!project.tasks) return 0;
     return project.tasks.filter((t: any) => !t.completed).length;
+  }
+
+  // Lesson drag-and-drop handlers
+  function handleLessonPointerDown(e: PointerEvent, projectId: string) {
+    if (e.button !== 0 && e.button !== -1) return;
+    const target = e.currentTarget as HTMLElement;
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input') || (e.target as HTMLElement).closest('select') || (e.target as HTMLElement).closest('summary') || (e.target as HTMLElement).closest('details')) return;
+
+    dragPointerStartX = e.clientX;
+    dragPointerStartY = e.clientY;
+
+    try { target.setPointerCapture(e.pointerId); } catch (_) {}
+
+    function onMove(me: PointerEvent) {
+      const dx = me.clientX - dragPointerStartX;
+      const dy = me.clientY - dragPointerStartY;
+
+      if (!isLessonDragActive && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+        isLessonDragActive = true;
+        draggedProjectId = projectId;
+
+        const ghost = target.cloneNode(true) as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        ghost.style.cssText = `
+          position: fixed;
+          pointer-events: none;
+          z-index: 9999;
+          width: ${rect.width}px;
+          opacity: 0.85;
+          left: ${rect.left}px;
+          top: ${rect.top}px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+          border-radius: 0.5rem;
+          transform: scale(1.02);
+          transition: none;
+        `;
+        dragGhostOffsetX = me.clientX - rect.left;
+        dragGhostOffsetY = me.clientY - rect.top;
+        document.body.appendChild(ghost);
+        dragGhostEl = ghost;
+      }
+
+      if (!isLessonDragActive) return;
+
+      if (dragGhostEl) {
+        dragGhostEl.style.left = `${me.clientX - dragGhostOffsetX}px`;
+        dragGhostEl.style.top  = `${me.clientY - dragGhostOffsetY}px`;
+      }
+
+      if (dragGhostEl) dragGhostEl.style.display = 'none';
+      const el = document.elementFromPoint(me.clientX, me.clientY);
+      if (dragGhostEl) dragGhostEl.style.display = '';
+
+      const card = el?.closest('[data-project-id]') as HTMLElement | null;
+      if (card && card.dataset.projectId !== draggedProjectId) {
+        const visibleCards = Array.from(
+          document.querySelectorAll('.projects-grid-section [data-project-id]')
+        );
+        const idx = visibleCards.indexOf(card);
+        const rect = card.getBoundingClientRect();
+        const midX = rect.left + rect.width / 2;
+        const midY = rect.top + rect.height / 2;
+        const dx = me.clientX - midX;
+        const dy = me.clientY - midY;
+        if (Math.abs(dx) > Math.abs(dy)) {
+          dropTargetIndex = dx < 0 ? idx : idx + 1;
+        } else {
+          dropTargetIndex = dy < 0 ? idx : idx + 1;
+        }
+      } else if (!card) {
+        const gridSection = document.querySelector('.projects-grid-section');
+        if (gridSection) {
+          const cards = Array.from(gridSection.querySelectorAll('[data-project-id]'));
+          if (cards.length > 0) {
+            const lastCard = cards[cards.length - 1];
+            const rect = lastCard.getBoundingClientRect();
+            if (me.clientY > rect.bottom) {
+              dropTargetIndex = cards.length;
+            }
+          }
+        }
+      }
+    }
+
+    function onUp(ue: PointerEvent) {
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
+      try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
+
+      if (dragGhostEl) {
+        dragGhostEl.remove();
+        dragGhostEl = null;
+      }
+
+      if (isLessonDragActive && draggedProjectId && dropTargetIndex !== null) {
+        const orderedIds = filteredProjects.map(p => p.id);
+        const draggedIdx = orderedIds.indexOf(draggedProjectId);
+        if (draggedIdx !== -1 && draggedIdx !== dropTargetIndex) {
+          orderedIds.splice(draggedIdx, 1);
+          orderedIds.splice(dropTargetIndex, 0, draggedProjectId);
+          store.reorderProjects(orderedIds);
+        }
+      }
+
+      isLessonDragActive = false;
+      draggedProjectId = null;
+      dropTargetIndex = null;
+    }
+
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
   }
 </script>
 
@@ -322,13 +445,18 @@
 
   <!-- Projects Grid -->
   <section
-    class="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6 items-start"
+    class="projects-grid-section grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6 items-start"
   >
-    {#each filteredProjects as project (project.id)}
+    {#each filteredProjects as project, idx (project.id)}
       {@const progress = getProjectProgress(project)}
       {@const remaining = getRemainingTasks(project)}
+      {#if dropTargetIndex === idx && draggedProjectId && draggedProjectId !== project.id}
+        <div class="h-1 bg-primary rounded-full mx-2 animate-pulse"></div>
+      {/if}
       <article
-        class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary transition-colors group relative overflow-hidden shadow-sm self-start w-full"
+        data-project-id={project.id}
+        onpointerdown={(e) => handleLessonPointerDown(e, project.id)}
+        class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary transition-colors group relative overflow-hidden shadow-sm self-start w-full {draggedProjectId === project.id ? 'opacity-50 scale-95' : ''} {isLessonDragActive ? 'cursor-grabbing' : 'cursor-grab'} select-none"
       >
         <div
           class="absolute top-0 left-0 w-1.5 h-full bg-primary hidden group-hover:block transition-all"
@@ -535,6 +663,9 @@
           </details>
         </div>
       </article>
+      {#if dropTargetIndex === filteredProjects.length && draggedProjectId}
+        <div class="h-1 bg-primary rounded-full mx-2 animate-pulse"></div>
+      {/if}
     {/each}
   </section>
 </main>

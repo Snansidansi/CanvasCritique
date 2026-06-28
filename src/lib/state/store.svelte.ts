@@ -861,6 +861,15 @@ class CanvasCritiqueStore {
     }
   }
 
+  async reorderProjects(projectIdsOrder: string[]): Promise<void> {
+    this.projects.sort((a, b) => {
+      const idxA = projectIdsOrder.indexOf(a.id);
+      const idxB = projectIdsOrder.indexOf(b.id);
+      return idxA - idxB;
+    });
+    await this.saveProjects();
+  }
+
   confirm(title: string, message: string, onConfirm: () => void, onCancel: (() => void) | null = null): void {
     this.confirmDialog = {
       title,
