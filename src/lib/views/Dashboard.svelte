@@ -567,63 +567,96 @@
               >
             </summary>
 
-            <div class="mt-3 space-y-4">
+            <div class="mt-3 space-y-3">
               {#if project.tasks && project.tasks.length > 0}
-                <!-- Group tasks by category -->
-                {@const categories = [
-                  ...new Set(project.tasks.map((t) => t.category || "Basics")),
-                ]}
-                {#each categories as category}
-                  <div class="space-y-2">
-                    <p
-                      class="text-[10px] font-bold text-outline uppercase tracking-wider"
-                    >
-                      {category}
-                    </p>
-                    {#each project.tasks.filter((t) => (t.category || "Basics") === category) as task}
-                      <div
-                        class="flex items-center gap-2 text-sm group/task-item py-1"
-                      >
-                        <button
-                          onclick={() =>
-                            store.toggleTaskCompleted(project.id, task.id)}
-                          class="text-primary focus:outline-none flex items-center"
-                        >
-                          <span
-                            class="material-symbols-outlined text-[20px] select-none hover:opacity-80"
-                          >
-                            {task.completed
-                              ? "check_box"
-                              : "check_box_outline_blank"}
-                          </span>
-                        </button>
-
-                        <!-- Click task title to practice -->
-                        <button
-                          onclick={() => openPractice(task, project)}
-                          class="text-left flex-1 text-on-surface hover:text-primary hover:underline truncate {task.completed
-                            ? 'line-through text-outline'
-                            : ''}"
-                        >
-                          {task.name}
-                        </button>
-
-                        <button
-                          onclick={() => {
-                            store.selectProject(project);
-                            store.setEditingTask(task);
-                          }}
-                          class="opacity-0 group-hover/task-item:opacity-100 text-outline hover:text-primary transition-opacity p-0.5 focus:opacity-100 focus:outline-none cursor-pointer"
-                          title={t('dashboard.editTask')}
-                        >
-                          <span class="material-symbols-outlined text-[18px]"
-                            >edit</span
-                          >
-                        </button>
+                {#each (project.categories || []) as category}
+                  {@const sectionTasks = project.tasks.filter((t) => (t.category || "Basics") === category)}
+                  {#if sectionTasks.length > 0}
+                    {@const allCompleted = sectionTasks.every((t) => t.completed)}
+                    <details class="group/section" open={!allCompleted}>
+                      <summary class="flex items-center justify-between cursor-pointer list-none py-1 hover:text-primary transition-colors">
+                        <p class="text-[10px] font-bold text-outline uppercase tracking-wider">
+                          {category}
+                        </p>
+                        <span class="material-symbols-outlined text-[16px] text-on-surface transition-transform group-open/section:rotate-180">
+                          expand_more
+                        </span>
+                      </summary>
+                      <div class="space-y-1 mt-1">
+                        {#each sectionTasks as task}
+                          <div class="flex items-center gap-2 text-sm group/task-item py-1">
+                            <button
+                              onclick={() => store.toggleTaskCompleted(project.id, task.id)}
+                              class="text-primary focus:outline-none flex items-center cursor-pointer"
+                            >
+                              <span class="material-symbols-outlined text-[20px] select-none hover:opacity-80">
+                                {task.completed ? "check_box" : "check_box_outline_blank"}
+                              </span>
+                            </button>
+                            <button
+                              onclick={() => openPractice(task, project)}
+                              class="text-left flex-1 text-on-surface hover:text-primary hover:underline truncate {task.completed ? 'line-through text-outline' : ''} cursor-pointer"
+                            >
+                              {task.name}
+                            </button>
+                            <button
+                              onclick={() => {
+                                store.selectProject(project);
+                                store.setEditingTask(task);
+                              }}
+                              class="opacity-0 group-hover/task-item:opacity-100 text-outline hover:text-primary transition-opacity p-0.5 focus:opacity-100 focus:outline-none cursor-pointer"
+                              title={t('dashboard.editTask')}
+                            >
+                              <span class="material-symbols-outlined text-[18px]">edit</span>
+                            </button>
+                          </div>
+                        {/each}
                       </div>
-                    {/each}
-                  </div>
+                    </details>
+                  {/if}
                 {/each}
+                {#if project.tasks.filter((t) => !(project.categories || []).includes(t.category || "Basics")).length > 0}
+                  <details class="group/section" open={!project.tasks.filter((t) => !(project.categories || []).includes(t.category || "Basics")).every((t) => t.completed)}>
+                    <summary class="flex items-center justify-between cursor-pointer list-none py-1 hover:text-primary transition-colors">
+                      <p class="text-[10px] font-bold text-outline uppercase tracking-wider">
+                        {t('projectDetail.roadmapTitle')}
+                      </p>
+                      <span class="material-symbols-outlined text-[16px] text-on-surface transition-transform group-open/section:rotate-180">
+                        expand_more
+                      </span>
+                    </summary>
+                    <div class="space-y-1 mt-1">
+                      {#each project.tasks.filter((t) => !(project.categories || []).includes(t.category || "Basics")) as task}
+                        <div class="flex items-center gap-2 text-sm group/task-item py-1">
+                          <button
+                            onclick={() => store.toggleTaskCompleted(project.id, task.id)}
+                            class="text-primary focus:outline-none flex items-center cursor-pointer"
+                          >
+                            <span class="material-symbols-outlined text-[20px] select-none hover:opacity-80">
+                              {task.completed ? "check_box" : "check_box_outline_blank"}
+                            </span>
+                          </button>
+                          <button
+                            onclick={() => openPractice(task, project)}
+                            class="text-left flex-1 text-on-surface hover:text-primary hover:underline truncate {task.completed ? 'line-through text-outline' : ''} cursor-pointer"
+                          >
+                            {task.name}
+                          </button>
+                          <button
+                            onclick={() => {
+                              store.selectProject(project);
+                              store.setEditingTask(task);
+                            }}
+                            class="opacity-0 group-hover/task-item:opacity-100 text-outline hover:text-primary transition-opacity p-0.5 focus:opacity-100 focus:outline-none cursor-pointer"
+                            title={t('dashboard.editTask')}
+                          >
+                            <span class="material-symbols-outlined text-[18px]">edit</span>
+                          </button>
+                        </div>
+                      {/each}
+                    </div>
+                  </details>
+                {/if}
               {:else}
                 <p class="text-xs text-on-surface-variant italic">
                   {t('dashboard.noTasks')}
