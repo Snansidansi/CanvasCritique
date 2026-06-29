@@ -1029,6 +1029,7 @@
         saveToStore();
       }
       isMovingSelection = false;
+      isSelectToolOneShot = false;
     } else if (isShapeDrawing) {
       isShapeDrawing = false;
 
@@ -1103,6 +1104,7 @@
     isPointerSelect = false;
     isPointerPan = false;
     isPointerPen = false;
+    isSelectToolOneShot = false;
   }
 
   function handlePointerCancel(e) {
@@ -1117,6 +1119,7 @@
     isDrawing = false;
     currentStroke = [];
     isPanning = false;
+    isSelectToolOneShot = false;
   }
 
   function handleWheel(e) {
