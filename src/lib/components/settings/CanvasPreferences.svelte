@@ -35,6 +35,80 @@
     </div>
   </div>
 
+  <!-- Eraser Mode -->
+  <div class="mt-6 border-t border-outline-variant/40 pt-5 flex flex-col gap-4">
+    <div>
+      <h4 class="font-bold text-sm text-on-surface mb-0.5">Eraser Mode</h4>
+      <p class="text-xs text-on-surface-variant">Choose how the eraser behaves when you touch the canvas.</p>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <button
+        type="button"
+        onclick={() => { store.settings.eraserMode = 'normal'; store.saveSettings(); }}
+        class="cursor-pointer text-left focus:outline-none bg-transparent border-0 p-0 w-full"
+      >
+        <div class="border rounded-lg p-3 bg-surface-container-low transition-all
+               {store.settings.eraserMode === 'normal' ? 'border-primary border-2 bg-primary/5' : 'border-outline-variant hover:border-primary'}">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-lg text-primary">brush</span>
+            <span class="font-bold text-xs text-on-surface">Normal</span>
+          </div>
+          <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">Eraser only where you draw, just like the pen.</p>
+        </div>
+      </button>
+      <button
+        type="button"
+        onclick={() => { store.settings.eraserMode = 'stroke'; store.saveSettings(); }}
+        class="cursor-pointer text-left focus:outline-none bg-transparent border-0 p-0 w-full"
+      >
+        <div class="border rounded-lg p-3 bg-surface-container-low transition-all
+               {store.settings.eraserMode === 'stroke' ? 'border-primary border-2 bg-primary/5' : 'border-outline-variant hover:border-primary'}">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-lg text-primary">auto_fix_high</span>
+            <span class="font-bold text-xs text-on-surface">Stroke</span>
+          </div>
+          <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">Delete the entire stroke you touch (like OneNote).</p>
+        </div>
+      </button>
+    </div>
+
+    {#if store.settings.eraserMode === 'normal'}
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Normal Eraser Size</span>
+          <span class="text-xs font-bold text-primary">{store.settings.eraserRadiusNormal ?? 24}px</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <input
+            type="range"
+            min="4"
+            max="80"
+            bind:value={store.settings.eraserRadiusNormal}
+            onchange={() => store.saveSettings()}
+            class="flex-1 h-1 accent-primary cursor-pointer"
+          />
+        </div>
+      </div>
+    {:else}
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Stroke Eraser Radius</span>
+          <span class="text-xs font-bold text-primary">{store.settings.eraserRadiusStroke ?? 24}px</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <input
+            type="range"
+            min="4"
+            max="80"
+            bind:value={store.settings.eraserRadiusStroke}
+            onchange={() => store.saveSettings()}
+            class="flex-1 h-1 accent-primary cursor-pointer"
+          />
+        </div>
+      </div>
+    {/if}
+  </div>
+
   <!-- Auto-complete on AI success -->
   <div class="mt-6 border-t border-outline-variant/40 pt-5 flex items-center justify-between gap-4">
     <div>
