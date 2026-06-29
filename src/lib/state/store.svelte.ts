@@ -39,6 +39,7 @@ import {
 import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs, deleteMediaForTask, collectMediaIds } from '../db/media';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
+import { downloadDir } from '@tauri-apps/api/path';
 
 // Re-export everything from types and defaults so existing imports in other files don't break
 export * from './types';
@@ -1232,89 +1233,100 @@ class CanvasCritiqueStore {
       hasCritique,
       hasCanvas,
       onConfirm: async (options) => {
-        // Inline media files for export
-        const clonedTasks = (project.tasks || []).map(t => {
-          const cloned: any = { ...t };
-          if (cloned.instructionFiles) {
-            cloned.instructionFiles = [...cloned.instructionFiles];
-          }
-          if (cloned.solutionFiles) {
-            cloned.solutionFiles = [...cloned.solutionFiles];
-          }
-          return cloned;
-        });
+        try {
+          // Inline media files for export
+          const clonedTasks = (project.tasks || []).map(t => {
+            const cloned: any = { ...t };
+            if (cloned.instructionFiles) {
+              cloned.instructionFiles = [...cloned.instructionFiles];
+            }
+            if (cloned.solutionFiles) {
+              cloned.solutionFiles = [...cloned.solutionFiles];
+            }
+            return cloned;
+          });
 
-        // Read media files and inline as dataUrl
-        for (const task of clonedTasks) {
-          if (task.instructionFiles) {
-            for (const file of task.instructionFiles) {
-              if (file.mediaId && !file.dataUrl) {
-                try {
-                  file.dataUrl = await getMediaDataUrl(file.mediaId);
-                  delete file.mediaId;
-                } catch (_) {}
+          // Read media files and inline as dataUrl
+          for (const task of clonedTasks) {
+            if (task.instructionFiles) {
+              for (const file of task.instructionFiles) {
+                if (file.mediaId && !file.dataUrl) {
+                  try {
+                    file.dataUrl = await getMediaDataUrl(file.mediaId);
+                    delete file.mediaId;
+                  } catch (_) {}
+                }
+              }
+            }
+            if (task.solutionFiles) {
+              for (const file of task.solutionFiles) {
+                if (file.mediaId && !file.dataUrl) {
+                  try {
+                    file.dataUrl = await getMediaDataUrl(file.mediaId);
+                    delete file.mediaId;
+                  } catch (_) {}
+                }
               }
             }
           }
-          if (task.solutionFiles) {
-            for (const file of task.solutionFiles) {
-              if (file.mediaId && !file.dataUrl) {
-                try {
-                  file.dataUrl = await getMediaDataUrl(file.mediaId);
-                  delete file.mediaId;
-                } catch (_) {}
+
+          const exportData: any = {
+            id: project.id,
+            name: project.name,
+            icon: project.icon,
+            guidelines: project.guidelines,
+            categories: project.categories,
+            tasks: clonedTasks
+          };
+
+          if (project.settingsOverride) {
+            exportData.settingsOverride = project.settingsOverride;
+          }
+
+          // Attach canvas saves for all tasks in this project if requested
+          exportData.canvasSaves = {};
+          if (options.includeCanvas && project.tasks) {
+            for (const task of project.tasks) {
+              if (this.canvasSaves[task.id]) {
+                exportData.canvasSaves[task.id] = this.canvasSaves[task.id];
               }
             }
           }
-        }
 
-        const exportData: any = {
-          id: project.id,
-          name: project.name,
-          icon: project.icon,
-          guidelines: project.guidelines,
-          categories: project.categories,
-          tasks: clonedTasks
-        };
-
-        if (project.settingsOverride) {
-          exportData.settingsOverride = project.settingsOverride;
-        }
-
-        // Attach canvas saves for all tasks in this project if requested
-        exportData.canvasSaves = {};
-        if (options.includeCanvas && project.tasks) {
-          for (const task of project.tasks) {
-            if (this.canvasSaves[task.id]) {
-              exportData.canvasSaves[task.id] = this.canvasSaves[task.id];
+          // Remove critique from all tasks if not requested
+          if (!options.includeCritique && exportData.tasks) {
+            for (const task of exportData.tasks) {
+              delete task.critique;
             }
           }
-        }
 
-        // Remove critique from all tasks if not requested
-        if (!options.includeCritique && exportData.tasks) {
-          for (const task of exportData.tasks) {
-            delete task.critique;
+          // Remove completed status from all tasks if not requested
+          if (!options.includeCompleted && exportData.tasks) {
+            for (const task of exportData.tasks) {
+              task.completed = false;
+            }
           }
-        }
 
-        // Remove completed status from all tasks if not requested
-        if (!options.includeCompleted && exportData.tasks) {
-          for (const task of exportData.tasks) {
-            task.completed = false;
+          let filename = `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`;
+          if (project.tasks && project.tasks.length === 1) {
+            filename = `task_${project.tasks[0].name.toLowerCase().replace(/\s+/g, '_')}.json`;
+          } else if (project.tasks && project.tasks.length < (this.projects.find(p => p.id === project.id)?.tasks.length || 0)) {
+            filename = `tasks_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`;
           }
-        }
 
-        let filename = `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`;
-        if (project.tasks && project.tasks.length === 1) {
-          filename = `task_${project.tasks[0].name.toLowerCase().replace(/\s+/g, '_')}.json`;
-        } else if (project.tasks && project.tasks.length < (this.projects.find(p => p.id === project.id)?.tasks.length || 0)) {
-          filename = `tasks_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`;
+          const dataStr = JSON.stringify(exportData);
+          await this.saveFileWithDialog(filename, dataStr);
+        } catch (e) {
+          console.error('Export failed:', e);
+          this.showNotification(
+            this.settings?.language === 'Deutsch'
+              ? `Export fehlgeschlagen: ${e}`
+              : `Export failed: ${e}`,
+            'error'
+          );
+        } finally {
+          this.exportDialog = null;
         }
-
-        const dataStr = JSON.stringify(exportData);
-        await this.saveFileWithDialog(filename, dataStr);
-        this.exportDialog = null;
       },
       onCancel: () => {
         this.exportDialog = null;
@@ -1330,20 +1342,36 @@ class CanvasCritiqueStore {
     this.exportProject(tempProject);
   }
 
-  async saveFileWithDialog(suggestedFilename: string, content: string): Promise<void> {
-    const filePath = await save({
-      defaultPath: suggestedFilename,
-      filters: [{ name: 'JSON', extensions: ['json'] }]
-    });
+  async saveFileWithDialog(suggestedFilename: string, content: string): Promise<boolean> {
+    try {
+      const downloadsBase = await downloadDir();
+      const defaultPath = `${downloadsBase}/${suggestedFilename}`;
 
-    if (filePath) {
-      await writeTextFile(filePath, content);
+      const filePath = await save({
+        defaultPath,
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      });
+
+      if (filePath) {
+        await writeTextFile(filePath, content);
+        this.showNotification(
+          this.settings?.language === 'Deutsch'
+            ? 'Erfolgreich exportiert.'
+            : 'Exported successfully.',
+          'success'
+        );
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Export failed:', e);
       this.showNotification(
         this.settings?.language === 'Deutsch'
-          ? 'Erfolgreich in den Downloads-Ordner exportiert.'
-          : 'Exported to Downloads folder.',
-        'success'
+          ? `Export fehlgeschlagen: ${e}`
+          : `Export failed: ${e}`,
+        'error'
       );
+      return false;
     }
   }
 

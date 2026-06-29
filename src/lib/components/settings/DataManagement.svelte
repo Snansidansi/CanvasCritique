@@ -35,7 +35,12 @@
 
   // Settings export/import
   async function handleExport() {
-    await store.saveFileWithDialog('canvascritique_settings.json', JSON.stringify(store.settings, null, 2));
+    try {
+      await store.saveFileWithDialog('canvascritique_settings.json', JSON.stringify(store.settings, null, 2));
+    } catch (e) {
+      console.error('Settings export failed:', e);
+      store.showNotification(t('settings.data.notifications.exportSettingsError'), 'error');
+    }
   }
 
   function handleImport() {
@@ -63,48 +68,53 @@
 
   // Data export/import
   async function handleExportData() {
-    const exportProjects = JSON.parse(JSON.stringify(store.projects));
-    
-    for (const proj of exportProjects) {
-      proj.canvasSaves = {};
-      if (proj.tasks) {
-        for (const task of proj.tasks) {
-          const save = store.getCanvasState(task.id);
-          if (save) {
-            proj.canvasSaves[task.id] = save;
-          }
-          if (task.instructionFiles) {
-            for (const file of task.instructionFiles) {
-              if (file.mediaId && !file.dataUrl) {
-                try {
-                  file.dataUrl = await getMediaDataUrl(file.mediaId);
-                  delete file.mediaId;
-                } catch (_) {}
+    try {
+      const exportProjects = JSON.parse(JSON.stringify(store.projects));
+      
+      for (const proj of exportProjects) {
+        proj.canvasSaves = {};
+        if (proj.tasks) {
+          for (const task of proj.tasks) {
+            const save = store.getCanvasState(task.id);
+            if (save) {
+              proj.canvasSaves[task.id] = save;
+            }
+            if (task.instructionFiles) {
+              for (const file of task.instructionFiles) {
+                if (file.mediaId && !file.dataUrl) {
+                  try {
+                    file.dataUrl = await getMediaDataUrl(file.mediaId);
+                    delete file.mediaId;
+                  } catch (_) {}
+                }
               }
             }
-          }
-          if (task.solutionFiles) {
-            for (const file of task.solutionFiles) {
-              if (file.mediaId && !file.dataUrl) {
-                try {
-                  file.dataUrl = await getMediaDataUrl(file.mediaId);
-                  delete file.mediaId;
-                } catch (_) {}
+            if (task.solutionFiles) {
+              for (const file of task.solutionFiles) {
+                if (file.mediaId && !file.dataUrl) {
+                  try {
+                    file.dataUrl = await getMediaDataUrl(file.mediaId);
+                    delete file.mediaId;
+                  } catch (_) {}
+                }
               }
             }
           }
         }
       }
+
+      const payload = {
+        version: '1.0',
+        projects: exportProjects,
+        profiles: store.profiles,
+        activeProfileId: store.activeProfileId
+      };
+
+      await store.saveFileWithDialog('canvascritique_workspace.json', JSON.stringify(payload, null, 2));
+    } catch (e) {
+      console.error('Data export failed:', e);
+      store.showNotification(t('settings.data.notifications.exportDbError'), 'error');
     }
-
-    const payload = {
-      version: '1.0',
-      projects: exportProjects,
-      profiles: store.profiles,
-      activeProfileId: store.activeProfileId
-    };
-
-    await store.saveFileWithDialog('canvascritique_workspace.json', JSON.stringify(payload, null, 2));
   }
 
   function handleImportData() {
