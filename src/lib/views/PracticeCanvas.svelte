@@ -459,9 +459,6 @@
     
     // Reset selection states
     selectionBox = null;
-    if (activeTool !== 'select') {
-      selectedStrokes = [];
-    }
     isMovingSelection = false;
     contextMenu = null;
   });
@@ -750,7 +747,7 @@
 
     const coords = getCoords(e);
     const bounds = selectionBoundingBox;
-    const isClickInSelection = activeTool === 'select' && bounds && isPointInBounds(coords.x, coords.y, bounds);
+    const isClickInSelection = (activeTool === 'select' || isPointerSelect) && bounds && isPointInBounds(coords.x, coords.y, bounds);
 
     // Stroke-erase mode: delete entire stroke under pointer
     if ((activeTool === 'eraser' || isPointerEraser) && effectiveEraserSettings.eraserMode === 'stroke') {
@@ -801,6 +798,7 @@
     }
 
     if (activeTool === 'shape') {
+      if (selectedStrokes.length > 0) selectedStrokes = [];
       isShapeDrawing = true;
       shapeAnchorX = coords.x;
       shapeAnchorY = coords.y;
@@ -821,6 +819,7 @@
         isMovingSelection = false;
       }
     } else {
+      if (selectedStrokes.length > 0) selectedStrokes = [];
       isDrawing = true;
       currentStroke = [coords];
     }
@@ -1259,7 +1258,7 @@
     ctx.drawImage(offscreenCanvas, 0, 0);
     
     // Draw selection tools marquee box (if actively selecting)
-    if ((activeTool === 'select' || isPointerSelect) && selectionBox) {
+    if (selectionBox) {
       ctx.save();
       if (canvasMode === 'infinite') {
         ctx.translate(panOffset.x, panOffset.y);
@@ -1279,7 +1278,7 @@
     }
     
     // Draw selection bounding box (if strokes are selected)
-    if ((activeTool === 'select' || isPointerSelect) && selectionBoundingBox) {
+    if (selectionBoundingBox) {
       const bounds = selectionBoundingBox;
       ctx.save();
       if (canvasMode === 'infinite') {
@@ -1875,7 +1874,7 @@
       {/if}
 
       <!-- Selection Bounding Box Floating Options -->
-      {#if (activeTool === 'select' || isPointerSelect) && selectionBoundingBox}
+      {#if selectionBoundingBox}
         {@const bounds = selectionBoundingBox}
         {@const leftOffset = canvasMode === 'a4' ? (containerWidth - 800 * a4Scale) / 2 + panOffset.x : panOffset.x}
         {@const topOffset = canvasMode === 'a4' ? (containerHeight - 1130 * a4Scale) / 2 + panOffset.y : panOffset.y}
