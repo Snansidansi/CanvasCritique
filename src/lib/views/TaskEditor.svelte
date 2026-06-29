@@ -183,6 +183,7 @@
   let isModalPinching = false;
   let touchPanStart = { x: 0, y: 0 };
   let touchPanBaseOffset = { x: 0, y: 0 };
+  let isTouchPanning = false;
 
   function decodeBase64Text(dataUrl: string): string {
     if (!dataUrl) return '';
@@ -245,11 +246,12 @@
   }
 
   function handleModalTouchStart(e: TouchEvent) {
+    e.preventDefault();
     if (e.touches.length === 1 && modalZoom > 1) {
       const t = e.touches[0];
       touchPanStart = { x: t.clientX, y: t.clientY };
       touchPanBaseOffset = { ...modalPan };
-      e.preventDefault();
+      isTouchPanning = true;
     } else if (e.touches.length >= 2) {
       const t1 = e.touches[0];
       const t2 = e.touches[1];
@@ -261,7 +263,6 @@
       };
       modalPinchPanOffset = { ...modalPan };
       isModalPinching = true;
-      e.preventDefault();
     }
   }
 
@@ -295,7 +296,7 @@
         }
       }
       e.preventDefault();
-    } else if (e.touches.length === 1 && modalZoom > 1 && touchPanStart.x !== 0) {
+    } else if (e.touches.length === 1 && modalZoom > 1 && isTouchPanning) {
       const t = e.touches[0];
       modalPan = {
         x: touchPanBaseOffset.x + (t.clientX - touchPanStart.x),
@@ -308,6 +309,7 @@
   function handleModalTouchEnd(e: TouchEvent) {
     if (e.touches.length === 0) {
       isModalPinching = false;
+      isTouchPanning = false;
       touchPanStart = { x: 0, y: 0 };
     } else if (e.touches.length >= 2) {
       const t1 = e.touches[0];
@@ -319,15 +321,18 @@
         y: (t1.clientY + t2.clientY) / 2
       };
       modalPinchPanOffset = { ...modalPan };
+      isTouchPanning = false;
     } else if (e.touches.length === 1 && modalZoom > 1) {
       const t = e.touches[0];
       touchPanStart = { x: t.clientX, y: t.clientY };
       touchPanBaseOffset = { ...modalPan };
+      isTouchPanning = true;
     }
   }
 
   function handleModalTouchCancel() {
     isModalPinching = false;
+    isTouchPanning = false;
     touchPanStart = { x: 0, y: 0 };
   }
 
