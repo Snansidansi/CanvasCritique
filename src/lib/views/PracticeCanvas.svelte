@@ -287,11 +287,8 @@
   let isPointerSelect = $state(false);
   let isPointerPan = $state(false);
   let isPointerPen = $state(false);
-<<<<<<< HEAD
-=======
   let isStrokeErasing = $state(false);
   let isSelectToolOneShot = $state(false);
->>>>>>> political-brother
   let lastPointerType = $state('mouse');
   let hoverPos = $state(null);
 
