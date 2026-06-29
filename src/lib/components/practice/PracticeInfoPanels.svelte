@@ -50,6 +50,16 @@
     return inlineStates[mediaId];
   }
 
+  function canvasAction(node: HTMLCanvasElement, params: { mediaId: string; url: string }) {
+    canvasRefs[params.mediaId] = node;
+    loadAndDraw(params.mediaId, params.url);
+    return {
+      update(params: { mediaId: string; url: string }) {
+        canvasRefs[params.mediaId] = node;
+        loadAndDraw(params.mediaId, params.url);
+      }
+    };
+  }
   function drawPreview(mediaId: string) {
     const canvas = canvasRefs[mediaId];
     const img = inlineImages[mediaId];
@@ -578,7 +588,7 @@
                             {:else}
                               <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                               <canvas
-                                bind:this={(el) => { canvasRefs[mediaId] = el; if (el) loadAndDraw(mediaId, fileUrl); }}
+                                use:canvasAction={{ mediaId, url: fileUrl }}
                                 data-media-id={mediaId}
                                 onclick={(e) => handleInlineClick(e, file, mediaId)}
                                 onwheel={handleInlineWheel}
@@ -671,7 +681,7 @@
                             {:else}
                               <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                               <canvas
-                                bind:this={(el) => { canvasRefs[mediaId] = el; if (el) loadAndDraw(mediaId, fileUrl); }}
+                                use:canvasAction={{ mediaId, url: fileUrl }}
                                 data-media-id={mediaId}
                                 onclick={(e) => handleInlineClick(e, file, mediaId)}
                                 onwheel={handleInlineWheel}
