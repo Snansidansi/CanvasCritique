@@ -52,7 +52,6 @@
   // Brush configuration
   let strokeColor = $state('#000000');
   let brushWidth = $state(2);
-  let eraserWidth = $state(24);
   let activeTool = $state('pen'); // 'pen' | 'eraser' | 'pan' | 'select' | 'shape'
   let shapeType = $state('rectangle'); // 'circle' | 'ellipse' | 'line' | 'square' | 'rectangle' | 'triangle'
 
@@ -106,6 +105,27 @@
       ? store.getEffectiveSettings(store.activeProject.id)
       : store.settings
   );
+
+  let eraserWidth = $state(
+    ((store.activeProject
+      ? store.getEffectiveSettings(store.activeProject.id)
+      : store.settings).eraserMode === 'stroke'
+      ? (store.activeProject
+          ? store.getEffectiveSettings(store.activeProject.id)
+          : store.settings).eraserRadiusStroke
+      : (store.activeProject
+          ? store.getEffectiveSettings(store.activeProject.id)
+          : store.settings).eraserRadiusNormal) ?? 24
+  );
+
+  $effect(() => {
+    const mode = effectiveEraserSettings.eraserMode;
+    if (mode === 'stroke') {
+      eraserWidth = effectiveEraserSettings.eraserRadiusStroke ?? 24;
+    } else {
+      eraserWidth = effectiveEraserSettings.eraserRadiusNormal ?? 24;
+    }
+  });
 
   // A4 Pages state
   let pages = $state([
@@ -566,6 +586,33 @@
     });
   }
 
+  function removeFullyErasedStrokes(eraserStroke) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of eraserStroke.points) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    const margin = eraserStroke.width;
+    minX -= margin;
+    minY -= margin;
+    maxX += margin;
+    maxY += margin;
+
+    if (canvasMode === 'a4') {
+      pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(s => {
+        if (s.color === 'eraser' || s.color === '#FFFFFF') return true;
+        return !s.points.every(p => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
+      });
+    } else {
+      infiniteStrokes = infiniteStrokes.filter(s => {
+        if (s.color === 'eraser' || s.color === '#FFFFFF') return true;
+        return !s.points.every(p => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
+      });
+    }
+  }
+
   function generateShapePoints(shape: string, x1: number, y1: number, x2: number, y2: number): Point[] {
     switch (shape) {
       case 'line':
@@ -708,7 +755,7 @@
       }
     }
 
-    if (store.settings.stylusMode && isPen && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen) {
+    if (store.settings.stylusMode && isPen && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen && activeTool !== 'eraser' && activeTool !== 'select' && activeTool !== 'pan') {
       if (keyboardToolSwitch) {
         keyboardToolSwitch = false;
         if (keyboardToolSwitchTimeout) clearTimeout(keyboardToolSwitchTimeout);
@@ -1055,19 +1102,36 @@
       isDrawing = false;
       
       if (currentStroke.length > 0) {
+        const isEraser = (activeTool === 'eraser' || isPointerEraser);
         const newStroke = {
-          color: (activeTool === 'eraser' || isPointerEraser) ? 'eraser' : strokeColor,
-          width: (activeTool === 'eraser' || isPointerEraser) ? eraserWidth : brushWidth,
+          color: isEraser ? 'eraser' : strokeColor,
+          width: isEraser ? eraserWidth : brushWidth,
           points: [...currentStroke]
         };
         
         if (canvasMode === 'a4') {
           pages[activePageIndex].strokeHistory.push(newStroke);
           pages[activePageIndex].redoStack = [];
+          if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
+            removeFullyErasedStrokes(newStroke);
+          }
         } else {
           infiniteStrokes.push(newStroke);
           infiniteRedo = [];
+          if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
+            removeFullyErasedStrokes(newStroke);
+          }
         }
+
+        if (isEraser) {
+          const mode = effectiveEraserSettings.eraserMode;
+          if (mode === 'stroke') {
+            store.settings.eraserRadiusStroke = eraserWidth;
+          } else {
+            store.settings.eraserRadiusNormal = eraserWidth;
+          }
+        }
+
         saveToStore();
       }
       currentStroke = [];
