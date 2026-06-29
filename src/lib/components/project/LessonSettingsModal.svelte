@@ -253,8 +253,8 @@
                 <!-- Eraser Mode (per-lesson override) -->
                 <div class="border-t border-outline-variant/30 pt-4">
                   <div class="mb-3">
-                    <h4 class="font-bold text-sm text-on-surface mb-0.5">Eraser Mode</h4>
-                    <p class="text-xs text-on-surface-variant">Choose how the eraser behaves for this lesson.</p>
+                    <h4 class="font-bold text-sm text-on-surface mb-0.5">{t('settings.canvas.eraser.title')}</h4>
+                    <p class="text-xs text-on-surface-variant">{t('settings.canvas.eraser.desc')}</p>
                   </div>
                   <div class="grid grid-cols-2 gap-3">
                     <button
@@ -266,9 +266,9 @@
                              {project.settingsOverride.eraserMode === 'normal' ? 'border-primary border-2 bg-primary/5' : 'border-outline-variant hover:border-primary'}">
                         <div class="flex items-center gap-2">
                           <span class="material-symbols-outlined text-lg text-primary">brush</span>
-                          <span class="font-bold text-xs text-on-surface">Normal</span>
+                          <span class="font-bold text-xs text-on-surface">{t('settings.canvas.eraser.normal')}</span>
                         </div>
-                        <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">Erase only where you draw.</p>
+                        <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">{t('settings.canvas.eraser.normalDesc')}</p>
                       </div>
                     </button>
                     <button
@@ -280,9 +280,9 @@
                              {project.settingsOverride.eraserMode === 'stroke' ? 'border-primary border-2 bg-primary/5' : 'border-outline-variant hover:border-primary'}">
                         <div class="flex items-center gap-2">
                           <span class="material-symbols-outlined text-lg text-primary">auto_fix_high</span>
-                          <span class="font-bold text-xs text-on-surface">Stroke</span>
+                          <span class="font-bold text-xs text-on-surface">{t('settings.canvas.eraser.stroke')}</span>
                         </div>
-                        <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">Delete entire strokes on touch.</p>
+                        <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">{t('settings.canvas.eraser.strokeDesc')}</p>
                       </div>
                     </button>
                   </div>
@@ -290,7 +290,7 @@
                   {#if project.settingsOverride.eraserMode === 'normal'}
                     <div class="flex flex-col gap-2 mt-3">
                       <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Normal Eraser Size</span>
+                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.eraser.normalSize')}</span>
                         <span class="text-[10px] font-bold text-primary">{project.settingsOverride.eraserRadiusNormal ?? 24}px</span>
                       </div>
                       <input
@@ -305,7 +305,7 @@
                   {:else}
                     <div class="flex flex-col gap-2 mt-3">
                       <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Stroke Eraser Radius</span>
+                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.eraser.strokeRadius')}</span>
                         <span class="text-[10px] font-bold text-primary">{project.settingsOverride.eraserRadiusStroke ?? 24}px</span>
                       </div>
                       <input
