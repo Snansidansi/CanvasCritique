@@ -17,9 +17,16 @@ export async function initDb(): Promise<Database> {
     CREATE TABLE IF NOT EXISTS media (
       id TEXT PRIMARY KEY,
       data TEXT NOT NULL,
-      mime_type TEXT NOT NULL
+      mime_type TEXT NOT NULL,
+      sha256_hash TEXT
     )
   `);
+
+  try {
+    await db.execute('ALTER TABLE media ADD COLUMN sha256_hash TEXT');
+  } catch (_) {
+    // Column already exists
+  }
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS profiles (
