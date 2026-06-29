@@ -541,6 +541,9 @@ class CanvasCritiqueStore {
     } else if (view !== 'settings' && this.currentView !== 'settings') {
       this.previousView = this.currentView;
     }
+    if (this.currentView === 'task-editor' && view !== 'task-editor') {
+      this.editingTask = null;
+    }
     this.currentView = view;
   }
 
