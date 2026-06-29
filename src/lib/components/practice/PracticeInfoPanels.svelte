@@ -29,258 +29,143 @@
   // Cache loaded media URLs with loading state
   let loadedMedia = $state<Record<string, { url: string; loading: boolean; error: boolean }>>({});
 
-  // Inline canvas preview: state per mediaId
-  let canvasRefs = $state<Record<string, HTMLCanvasElement | null>>({});
-  let inlineStates = $state<Record<string, { zoom: number; panX: number; panY: number }>>({});
-  let inlineImages: Record<string, HTMLImageElement> = {};
-  let inlineActivePointers = new Map<number, PointerEvent>();
-  let inlinePinchState: Record<string, {
-    initialDist: number; initialZoom: number; initialMidX: number; initialMidY: number;
-    initialPanX: number; initialPanY: number; isPinching: boolean
-  }> = {};
-  let inlineDragState: Record<string, {
-    startX: number; startY: number; basePanX: number; basePanY: number;
-    isDragging: boolean; dragged: boolean
-  }> = {};
+  // Inline image zoom/pan state (keyed by mediaId)
+  let inlineStates = $state<Record<string, { zoom: number; panX: number; panY: number; isDragging: boolean; dragStartX: number; dragStartY: number; panBaseX: number; panBaseY: number; dragged: boolean; activePointers: Map<number, PointerEvent>; isPinching: boolean; initialPinchDistance: number; initialPinchZoom: number; initialPinchMidpointX: number; initialPinchMidpointY: number; initialPinchPanX: number; initialPinchPanY: number }>>({});
 
   function getInlineState(mediaId: string) {
     if (!inlineStates[mediaId]) {
-      inlineStates[mediaId] = { zoom: 1, panX: 0, panY: 0 };
+      inlineStates[mediaId] = { zoom: 1, panX: 0, panY: 0, isDragging: false, dragStartX: 0, dragStartY: 0, panBaseX: 0, panBaseY: 0, dragged: false, activePointers: new Map(), isPinching: false, initialPinchDistance: 0, initialPinchZoom: 1, initialPinchMidpointX: 0, initialPinchMidpointY: 0, initialPinchPanX: 0, initialPinchPanY: 0 };
     }
     return inlineStates[mediaId];
   }
 
-  function canvasAction(node: HTMLCanvasElement, params: { mediaId: string; url: string }) {
-    canvasRefs[params.mediaId] = node;
-    loadAndDraw(params.mediaId, params.url);
-    return {
-      update(params: { mediaId: string; url: string }) {
-        canvasRefs[params.mediaId] = node;
-        loadAndDraw(params.mediaId, params.url);
-      }
-    };
-  }
-  function drawPreview(mediaId: string) {
-    const canvas = canvasRefs[mediaId];
-    const img = inlineImages[mediaId];
-    if (!canvas || !img) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const state = getInlineState(mediaId);
-
-    const dpr = window.devicePixelRatio || 1;
-    const displayW = canvas.clientWidth;
-    const displayH = canvas.clientHeight;
-    if (displayW === 0 || displayH === 0) return;
-    canvas.width = displayW * dpr;
-    canvas.height = displayH * dpr;
-
-    const fitScale = Math.min(displayW / img.width, displayH / img.height);
-    const offsetX = (displayW - img.width * fitScale) / 2;
-    const offsetY = (displayH - img.height * fitScale) / 2;
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, displayW, displayH);
-    ctx.setTransform(
-      fitScale * state.zoom * dpr, 0,
-      0, fitScale * state.zoom * dpr,
-      (offsetX + state.panX) * dpr,
-      (offsetY + state.panY) * dpr
-    );
-    ctx.drawImage(img, 0, 0);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-
-  async function loadAndDraw(mediaId: string, url: string) {
-    if (!url) return;
-    if (!inlineImages[mediaId]) {
-      const img = new Image();
-      img.onload = () => {
-        inlineImages[mediaId] = img;
-        drawPreview(mediaId);
-      };
-      img.onerror = () => {};
-      img.src = url;
-    }
-    drawPreview(mediaId);
-  }
-
-  function getCursorStyle(mediaId: string): string {
-    const state = inlineStates[mediaId];
-    const drag = inlineDragState[mediaId];
-    if (!state || state.zoom <= 1) return 'zoom-in';
-    if (drag?.isDragging) return 'grabbing';
-    return 'grab';
-  }
-
   function handleInlineWheel(e: WheelEvent) {
-    const canvas = e.currentTarget as HTMLCanvasElement;
-    const mediaId = canvas.dataset.mediaId;
+    const img = e.currentTarget as HTMLElement;
+    const mediaId = img.dataset.mediaId;
     if (!mediaId) return;
     e.preventDefault();
-
-    const zoomIntensity = 0.05;
-    const delta = -e.deltaY;
-    const factor = delta > 0 ? (1 + zoomIntensity) : (1 - zoomIntensity);
-
     const state = getInlineState(mediaId);
-    const rect = canvas.getBoundingClientRect();
-    const cursorX = e.clientX - rect.left;
-    const cursorY = e.clientY - rect.top;
-
-    const worldX = (cursorX - state.panX) / state.zoom;
-    const worldY = (cursorY - state.panY) / state.zoom;
-    const newZoom = Math.max(0.5, Math.min(4, state.zoom * factor));
-
+    const zoomFactor = 0.1;
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const newZoom = Math.max(0.5, Math.min(4, state.zoom + direction * zoomFactor));
+    if (newZoom === 1) {
+      state.panX = 0;
+      state.panY = 0;
+    }
     state.zoom = newZoom;
-    state.panX = cursorX - worldX * newZoom;
-    state.panY = cursorY - worldY * newZoom;
-    drawPreview(mediaId);
   }
 
   function handleInlinePointerDown(e: PointerEvent) {
-    const canvas = e.currentTarget as HTMLCanvasElement;
-    const mediaId = canvas.dataset.mediaId;
+    const img = e.currentTarget as HTMLElement;
+    const mediaId = img.dataset.mediaId;
     if (!mediaId) return;
-    inlineActivePointers.set(e.pointerId, e);
+    try { img.setPointerCapture(e.pointerId); } catch (_) {}
+    const state = getInlineState(mediaId);
+    state.activePointers.set(e.pointerId, e);
 
-    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
-
-    let touchCount = 0;
-    const pts: PointerEvent[] = [];
-    for (const [, ev] of inlineActivePointers) {
-      const el = ev.currentTarget as HTMLElement;
-      if (el?.dataset?.mediaId === mediaId) { touchCount++; pts.push(ev); }
-    }
-
-    if (touchCount >= 2) {
-      if (!inlineDragState[mediaId]) inlineDragState[mediaId] = { startX: 0, startY: 0, basePanX: 0, basePanY: 0, isDragging: false, dragged: false };
-      inlineDragState[mediaId].isDragging = false;
-      const state = getInlineState(mediaId);
-      if (pts.length >= 2) {
-        const p1 = pts[0]; const p2 = pts[1];
-        const rect = canvas.getBoundingClientRect();
-        inlinePinchState[mediaId] = {
-          initialDist: Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY),
-          initialZoom: state.zoom,
-          initialMidX: (p1.clientX + p2.clientX) / 2 - rect.left,
-          initialMidY: (p1.clientY + p2.clientY) / 2 - rect.top,
-          initialPanX: state.panX,
-          initialPanY: state.panY,
-          isPinching: true
-        };
+    if (state.activePointers.size === 2) {
+      const pts = Array.from(state.activePointers.values());
+      const isMultiTouch = pts.every(p => p.pointerType === 'touch');
+      if (isMultiTouch) {
+        const p1 = pts[0];
+        const p2 = pts[1];
+        state.initialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+        state.initialPinchZoom = state.zoom;
+        state.initialPinchMidpointX = (p1.clientX + p2.clientX) / 2;
+        state.initialPinchMidpointY = (p1.clientY + p2.clientY) / 2;
+        state.initialPinchPanX = state.panX;
+        state.initialPinchPanY = state.panY;
+        state.isPinching = true;
+        state.isDragging = false;
         e.preventDefault();
+        return;
       }
-    } else {
-      if (!inlineDragState[mediaId]) inlineDragState[mediaId] = { startX: 0, startY: 0, basePanX: 0, basePanY: 0, isDragging: false, dragged: false };
-      inlineDragState[mediaId].isDragging = true;
-      inlineDragState[mediaId].dragged = false;
-      inlineDragState[mediaId].startX = e.clientX;
-      inlineDragState[mediaId].startY = e.clientY;
-      inlineDragState[mediaId].basePanX = inlineStates[mediaId]?.panX ?? 0;
-      inlineDragState[mediaId].basePanY = inlineStates[mediaId]?.panY ?? 0;
     }
+
+    if (state.activePointers.size > 2) {
+      e.preventDefault();
+      return;
+    }
+
+    state.isDragging = true;
+    state.dragged = false;
+    state.dragStartX = e.clientX;
+    state.dragStartY = e.clientY;
+    state.panBaseX = state.panX;
+    state.panBaseY = state.panY;
   }
 
   function handleInlinePointerMove(e: PointerEvent) {
-    const canvas = e.currentTarget as HTMLCanvasElement;
-    const mediaId = canvas.dataset.mediaId;
+    const img = e.currentTarget as HTMLElement;
+    const mediaId = img.dataset.mediaId;
     if (!mediaId) return;
-    inlineActivePointers.set(e.pointerId, e);
+    const state = getInlineState(mediaId);
+    if (e.buttons === 0) {
+      state.activePointers.clear();
+      state.isDragging = false;
+      state.isPinching = false;
+      return;
+    }
+    state.activePointers.set(e.pointerId, e);
 
-    const pinch = inlinePinchState[mediaId];
-    if (pinch?.isPinching) {
-      let touchCount = 0;
-      const pts: PointerEvent[] = [];
-      for (const [, ev] of inlineActivePointers) {
-        const el = ev.currentTarget as HTMLElement;
-        if (el?.dataset?.mediaId === mediaId) { touchCount++; pts.push(ev); }
-      }
-      if (touchCount >= 2 && pts.length >= 2) {
-        const p1 = pts[0]; const p2 = pts[1];
-        const dist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
-        const rect = canvas.getBoundingClientRect();
-        const midX = (p1.clientX + p2.clientX) / 2 - rect.left;
-        const midY = (p1.clientY + p2.clientY) / 2 - rect.top;
-        if (pinch.initialDist > 0) {
-          const factor = dist / pinch.initialDist;
-          const newZoom = Math.max(0.5, Math.min(4, pinch.initialZoom * factor));
-          const worldX = (pinch.initialMidX - pinch.initialPanX) / pinch.initialZoom;
-          const worldY = (pinch.initialMidY - pinch.initialPanY) / pinch.initialZoom;
-          const state = getInlineState(mediaId);
-          state.zoom = newZoom;
-          state.panX = midX - worldX * newZoom;
-          state.panY = midY - worldY * newZoom;
-        }
-        e.preventDefault();
-        drawPreview(mediaId);
+    if (state.isPinching && state.activePointers.size === 2) {
+      e.preventDefault();
+      const pts = Array.from(state.activePointers.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      const currentMidX = (p1.clientX + p2.clientX) / 2;
+      const currentMidY = (p1.clientY + p2.clientY) / 2;
+      if (state.initialPinchDistance > 0) {
+        const factor = currentDistance / state.initialPinchDistance;
+        const newZoom = Math.max(0.5, Math.min(4, state.initialPinchZoom * factor));
+        const rect = img.getBoundingClientRect();
+        const worldX = (state.initialPinchMidpointX - rect.left - state.initialPinchPanX) / state.initialPinchZoom;
+        const worldY = (state.initialPinchMidpointY - rect.top - state.initialPinchPanY) / state.initialPinchZoom;
+        const newPanX = (currentMidX - rect.left) - worldX * newZoom;
+        const newPanY = (currentMidY - rect.top) - worldY * newZoom;
+        state.zoom = newZoom;
+        state.panX = newPanX;
+        state.panY = newPanY;
       }
       return;
     }
 
-    const drag = inlineDragState[mediaId];
-    if (!drag?.isDragging) return;
-    const dx = e.clientX - drag.startX;
-    const dy = e.clientY - drag.startY;
+    if (state.activePointers.size > 1) return;
+
+    if (!state.isDragging) return;
+    const dx = e.clientX - state.dragStartX;
+    const dy = e.clientY - state.dragStartY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      drag.dragged = true;
+      state.dragged = true;
     }
-    const state = getInlineState(mediaId);
-    state.panX = drag.basePanX + dx;
-    state.panY = drag.basePanY + dy;
-    drawPreview(mediaId);
+    const rect = img.getBoundingClientRect();
+    const containerW = rect.width * state.zoom;
+    const clampDX = Math.max(-containerW / 3, Math.min(containerW / 3, dx));
+    const clampDY = Math.max(-rect.height * state.zoom / 3, Math.min(rect.height * state.zoom / 3, dy));
+    state.panX = state.panBaseX + clampDX;
+    state.panY = state.panBaseY + clampDY;
   }
 
   function handleInlinePointerUp(e: PointerEvent) {
-    const canvas = e.currentTarget as HTMLCanvasElement;
-    const mediaId = canvas.dataset.mediaId;
+    const img = e.currentTarget as HTMLElement;
+    const mediaId = img.dataset.mediaId;
     if (!mediaId) return;
-    inlineActivePointers.delete(e.pointerId);
+    const state = inlineStates[mediaId];
+    if (!state) return;
+    state.activePointers.delete(e.pointerId);
+    if (state.activePointers.size < 2) state.isPinching = false;
+    if (state.activePointers.size === 0) state.isDragging = false;
+    try { img.releasePointerCapture(e.pointerId); } catch (_) {}
+  }
 
-    try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
-
-    const pinch = inlinePinchState[mediaId];
-    if (pinch?.isPinching) {
-      let remainingCount = 0;
-      const remaining: PointerEvent[] = [];
-      for (const [, ev] of inlineActivePointers) {
-        const el = ev.currentTarget as HTMLElement;
-        if (el?.dataset?.mediaId === mediaId) { remainingCount++; remaining.push(ev); }
-      }
-      if (remainingCount >= 2) {
-        const p1 = remaining[0]; const p2 = remaining[1];
-        const rect = canvas.getBoundingClientRect();
-        pinch.initialDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
-        pinch.initialZoom = inlineStates[mediaId]?.zoom ?? 1;
-        pinch.initialMidX = (p1.clientX + p2.clientX) / 2 - rect.left;
-        pinch.initialMidY = (p1.clientY + p2.clientY) / 2 - rect.top;
-        pinch.initialPanX = inlineStates[mediaId]?.panX ?? 0;
-        pinch.initialPanY = inlineStates[mediaId]?.panY ?? 0;
-      } else if (remainingCount === 1) {
-        pinch.isPinching = false;
-        if (!inlineDragState[mediaId]) inlineDragState[mediaId] = { startX: 0, startY: 0, basePanX: 0, basePanY: 0, isDragging: false, dragged: false };
-        inlineDragState[mediaId].isDragging = true;
-        inlineDragState[mediaId].dragged = false;
-        inlineDragState[mediaId].startX = remaining[0].clientX;
-        inlineDragState[mediaId].startY = remaining[0].clientY;
-        inlineDragState[mediaId].basePanX = inlineStates[mediaId]?.panX ?? 0;
-        inlineDragState[mediaId].basePanY = inlineStates[mediaId]?.panY ?? 0;
-        try { canvas.setPointerCapture(remaining[0].pointerId); } catch (_) {}
-      } else {
-        pinch.isPinching = false;
-      }
-      return;
-    }
-
-    const drag = inlineDragState[mediaId];
-    if (drag) {
-      drag.isDragging = false;
-    }
+  function handleInlinePointerCancel(e: PointerEvent) {
+    handleInlinePointerUp(e);
   }
 
   function handleInlineClick(e: MouseEvent, file: { name: string; dataUrl?: string; mediaId?: string }, mediaId: string) {
-    const drag = inlineDragState[mediaId];
-    if (!drag || !drag.dragged) {
+    const state = inlineStates[mediaId];
+    if (!state || !state.dragged) {
       openPreview(file);
     }
   }
@@ -369,6 +254,12 @@
   let isModalDragging = $state(false);
   let modalDragStart = { x: 0, y: 0 };
   let modalBasePan = { x: 0, y: 0 };
+  let modalActivePointers = new Map<number, PointerEvent>();
+  let modalIsPinching = false;
+  let modalInitialPinchDistance = 0;
+  let modalInitialPinchZoom = 1;
+  let modalInitialPinchMidpoint = { x: 0, y: 0 };
+  let modalInitialPinchPan = { x: 0, y: 0 };
 
   function decodeBase64Text(dataUrl: string): string {
     if (!dataUrl) return '';
@@ -397,20 +288,79 @@
     const zoomFactor = 0.1;
     const direction = e.deltaY < 0 ? 1 : -1;
     const newZoom = modalZoom + direction * zoomFactor;
-    modalZoom = Math.max(0.5, Math.min(newZoom, 8)); // clamp between 0.5x and 8x
+    modalZoom = Math.max(0.5, Math.min(newZoom, 8));
     if (modalZoom === 1) {
       modalPan = { x: 0, y: 0 };
     }
   }
 
-  function handleModalMouseDown(e: MouseEvent) {
-    if (modalZoom <= 1) return; // Only pan when zoomed in
+  function handleModalPointerDown(e: PointerEvent) {
+    const container = e.currentTarget as HTMLElement;
+    try { container.setPointerCapture(e.pointerId); } catch (_) {}
+    modalActivePointers.set(e.pointerId, e);
+
+    if (modalActivePointers.size === 2) {
+      const pts = Array.from(modalActivePointers.values());
+      const isMultiTouch = pts.every(p => p.pointerType === 'touch');
+      if (isMultiTouch && modalZoom > 0) {
+        const p1 = pts[0];
+        const p2 = pts[1];
+        modalInitialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+        modalInitialPinchZoom = modalZoom;
+        modalInitialPinchMidpoint = { x: (p1.clientX + p2.clientX) / 2, y: (p1.clientY + p2.clientY) / 2 };
+        modalInitialPinchPan = { ...modalPan };
+        modalIsPinching = true;
+        isModalDragging = false;
+        e.preventDefault();
+        return;
+      }
+    }
+
+    if (modalActivePointers.size > 2) {
+      e.preventDefault();
+      return;
+    }
+
+    if (modalZoom <= 1) return;
     isModalDragging = true;
     modalDragStart = { x: e.clientX, y: e.clientY };
     modalBasePan = { ...modalPan };
   }
 
-  function handleModalMouseMove(e: MouseEvent) {
+  function handleModalPointerMove(e: PointerEvent) {
+    if (e.buttons === 0) {
+      modalActivePointers.clear();
+      isModalDragging = false;
+      modalIsPinching = false;
+      return;
+    }
+    modalActivePointers.set(e.pointerId, e);
+
+    if (modalIsPinching && modalActivePointers.size === 2) {
+      e.preventDefault();
+      const pts = Array.from(modalActivePointers.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      const currentMidpoint = { x: (p1.clientX + p2.clientX) / 2, y: (p1.clientY + p2.clientY) / 2 };
+      if (modalInitialPinchDistance > 0) {
+        const factor = currentDistance / modalInitialPinchDistance;
+        const newZoom = Math.max(0.5, Math.min(8, modalInitialPinchZoom * factor));
+        const containerEl = e.currentTarget as HTMLElement;
+        const rect = containerEl.getBoundingClientRect();
+        const worldX = (modalInitialPinchMidpoint.x - rect.left - modalInitialPinchPan.x) / modalInitialPinchZoom;
+        const worldY = (modalInitialPinchMidpoint.y - rect.top - modalInitialPinchPan.y) / modalInitialPinchZoom;
+        modalZoom = newZoom;
+        modalPan = {
+          x: (currentMidpoint.x - rect.left) - worldX * newZoom,
+          y: (currentMidpoint.y - rect.top) - worldY * newZoom
+        };
+      }
+      return;
+    }
+
+    if (modalActivePointers.size > 1) return;
+
     if (!isModalDragging) return;
     const dx = e.clientX - modalDragStart.x;
     const dy = e.clientY - modalDragStart.y;
@@ -420,8 +370,15 @@
     };
   }
 
-  function handleModalMouseUp() {
-    isModalDragging = false;
+  function handleModalPointerUp(e: PointerEvent) {
+    modalActivePointers.delete(e.pointerId);
+    if (modalActivePointers.size < 2) modalIsPinching = false;
+    if (modalActivePointers.size === 0) isModalDragging = false;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch (_) {}
+  }
+
+  function handleModalPointerCancel(e: PointerEvent) {
+    handleModalPointerUp(e);
   }
   let isTaskTextEmpty = $derived(!task.instructions || !task.instructions.trim());
 
@@ -581,117 +538,127 @@
                             </div>
                           {:else if file.name.toLowerCase().endsWith('.txt')}
                             <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
-                            {:else if isAudioFile(file.name)}
-                              {#if fileUrl}
-                                <AudioPlayer dataUrl={fileUrl} compact={true} />
-                              {/if}
-                            {:else}
-                              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                              <canvas
-                                use:canvasAction={{ mediaId, url: fileUrl }}
-                                data-media-id={mediaId}
-                                onclick={(e) => handleInlineClick(e, file, mediaId)}
-                                onwheel={handleInlineWheel}
-                                onpointerdown={handleInlinePointerDown}
-                                onpointermove={handleInlinePointerMove}
-                                onpointerup={handleInlinePointerUp}
-                                class="w-full rounded-lg shadow-sm select-none"
-                                style="height: 400px; cursor: {getCursorStyle(mediaId)}; touch-action: none; will-change: transform;"
-                              ></canvas>
+                          {:else if isAudioFile(file.name)}
+                            {#if fileUrl}
+                              <AudioPlayer dataUrl={fileUrl} compact={true} />
                             {/if}
-                          </div>
-                        {/if}
-                      </div>
-                    {/each}
-                  </div>
-                </div>
-              {/if}
-            {/if}
-
-            {#if panel.id === 'solution'}
-              <!-- Solution Media Files inside Solution Panel -->
-              {#if task.solutionFiles && task.solutionFiles.length > 0}
-                <div class="mt-5 border-t border-outline-variant/30 pt-4">
-                  <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2 select-none font-sans">{t('practice.infoPanels.solutionMedia')}</h3>
-                  <div class="flex flex-col gap-3">
-                    {#each task.solutionFiles as file, idx}
-                      {@const mediaId = `sol-sol-${idx}`}
-                      {@const open = isMediaExpanded(mediaId, isSolutionTextEmpty)}
-                      <div class="bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-sm flex flex-col transition-all">
-                        <!-- svelte-ignore a11y_click_events_have_key_events -->
-                        <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <div 
-                          onclick={() => toggleMedia(mediaId)}
-                          class="w-full px-4 py-3 flex items-center justify-between hover:bg-surface-container-high transition-colors font-sans text-xs font-semibold text-on-surface cursor-pointer select-none text-left"
-                        >
-                          <div class="flex items-center gap-2 min-w-0">
-                            <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
-                              {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : (isAudioFile(file.name) ? 'audio_file' : 'image'))}
-                            </span>
-                            <span class="truncate pr-4">{file.name}</span>
-                          </div>
-                          <div class="flex items-center shrink-0">
-                            {#if !isAudioFile(file.name)}
-                            <button
-                              type="button"
-                              onclick={(e) => {
-                                e.stopPropagation();
-                                openPreview(file);
-                              }}
-                              class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
-                              title={t('practice.infoPanels.openFullScreen')}
-                            >
-                              zoom_in
-                            </button>
-                            {/if}
-                            <span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform shrink-0" style="transform: rotate({open ? '180deg' : '0deg'});">
-                              keyboard_arrow_down
-                            </span>
-                          </div>
+                          {:else}
+                            {@const inlineImgState = inlineStates[mediaId]}
+                            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <img 
+                              src={fileUrl} 
+                              alt={file.name} 
+                              data-media-id={mediaId}
+                              onclick={(e) => handleInlineClick(e, file, mediaId)}
+                              onwheel={handleInlineWheel}
+                              onpointerdown={handleInlinePointerDown}
+                              onpointermove={handleInlinePointerMove}
+                              onpointerup={handleInlinePointerUp}
+                              onpointercancel={handleInlinePointerCancel}
+                              class="max-w-full max-h-125 object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
+                              style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
+                              draggable="false"
+                            />
+                          {/if}
                         </div>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          {/if}
 
-                        {#if open}
-                          {@const fileUrl = resolveMediaUrl(file)}
-                          {@const loading = isMediaLoading(file)}
-                          {@const error = isMediaError(file)}
-                          <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
-                            {#if loading}
-                              <div class="flex items-center justify-center py-4 gap-2 text-on-surface-variant text-[10px]">
-                                <div class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                {t('taskEditor.audio.loading')}
-                              </div>
-                            {:else if error}
-                              <span class="text-[10px] text-error italic">{t('practice.infoPanels.mediaError')}</span>
-                            {:else if file.name.toLowerCase().endsWith('.pdf')}
-                              <iframe 
-                                src={fileUrl} 
-                                title={file.name} 
-                                class="w-full h-100 border-0 rounded-lg"
-                              ></iframe>
-                            {:else if file.name.toLowerCase().endsWith('.md')}
-                              <div class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
-                                {@html parseMarkdown(decodeBase64Text(fileUrl))}
-                              </div>
-                            {:else if file.name.toLowerCase().endsWith('.txt')}
-                              <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
-                            {:else if isAudioFile(file.name)}
-                              {#if fileUrl}
-                                <AudioPlayer dataUrl={fileUrl} compact={true} />
-                              {/if}
-                            {:else}
-                              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                              <canvas
-                                use:canvasAction={{ mediaId, url: fileUrl }}
-                                data-media-id={mediaId}
-                                onclick={(e) => handleInlineClick(e, file, mediaId)}
-                                onwheel={handleInlineWheel}
-                                onpointerdown={handleInlinePointerDown}
-                                onpointermove={handleInlinePointerMove}
-                                onpointerup={handleInlinePointerUp}
-                                class="w-full rounded-lg shadow-sm select-none"
-                                style="height: 400px; cursor: {getCursorStyle(mediaId)}; touch-action: none; will-change: transform;"
-                              ></canvas>
+          {#if panel.id === 'solution'}
+            <!-- Solution Media Files inside Solution Panel -->
+            {#if task.solutionFiles && task.solutionFiles.length > 0}
+              <div class="mt-5 border-t border-outline-variant/30 pt-4">
+                <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2 select-none font-sans">{t('practice.infoPanels.solutionMedia')}</h3>
+                <div class="flex flex-col gap-3">
+                  {#each task.solutionFiles as file, idx}
+                    {@const mediaId = `sol-sol-${idx}`}
+                    {@const open = isMediaExpanded(mediaId, isSolutionTextEmpty)}
+                    <div class="bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-sm flex flex-col transition-all">
+                      <!-- svelte-ignore a11y_click_events_have_key_events -->
+                      <!-- svelte-ignore a11y_no_static_element_interactions -->
+                      <div 
+                        onclick={() => toggleMedia(mediaId)}
+                        class="w-full px-4 py-3 flex items-center justify-between hover:bg-surface-container-high transition-colors font-sans text-xs font-semibold text-on-surface cursor-pointer select-none text-left"
+                      >
+                        <div class="flex items-center gap-2 min-w-0">
+                          <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
+                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : (isAudioFile(file.name) ? 'audio_file' : 'image'))}
+                          </span>
+                          <span class="truncate pr-4">{file.name}</span>
+                        </div>
+                        <div class="flex items-center shrink-0">
+                          {#if !isAudioFile(file.name)}
+                          <button
+                            type="button"
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              openPreview(file);
+                            }}
+                            class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
+                            title={t('practice.infoPanels.openFullScreen')}
+                          >
+                            zoom_in
+                          </button>
+                          {/if}
+                          <span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform shrink-0" style="transform: rotate({open ? '180deg' : '0deg'});">
+                            keyboard_arrow_down
+                          </span>
+                        </div>
+                      </div>
+
+                      {#if open}
+                        {@const fileUrl = resolveMediaUrl(file)}
+                        {@const loading = isMediaLoading(file)}
+                        {@const error = isMediaError(file)}
+                        <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
+                          {#if loading}
+                            <div class="flex items-center justify-center py-4 gap-2 text-on-surface-variant text-[10px]">
+                              <div class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              {t('taskEditor.audio.loading')}
+                            </div>
+                          {:else if error}
+                            <span class="text-[10px] text-error italic">{t('practice.infoPanels.mediaError')}</span>
+                          {:else if file.name.toLowerCase().endsWith('.pdf')}
+                            <iframe 
+                              src={fileUrl} 
+                              title={file.name} 
+                              class="w-full h-100 border-0 rounded-lg"
+                            ></iframe>
+                          {:else if file.name.toLowerCase().endsWith('.md')}
+                            <div class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
+                              {@html parseMarkdown(decodeBase64Text(fileUrl))}
+                            </div>
+                          {:else if file.name.toLowerCase().endsWith('.txt')}
+                            <pre class="w-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text max-h-96 text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
+                          {:else if isAudioFile(file.name)}
+                            {#if fileUrl}
+                              <AudioPlayer dataUrl={fileUrl} compact={true} />
                             {/if}
+                          {:else}
+                            {@const inlineImgState = inlineStates[mediaId]}
+                            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <img 
+                              src={fileUrl} 
+                              alt={file.name} 
+                              data-media-id={mediaId}
+                              onclick={(e) => handleInlineClick(e, file, mediaId)}
+                              onwheel={handleInlineWheel}
+                              onpointerdown={handleInlinePointerDown}
+                              onpointermove={handleInlinePointerMove}
+                              onpointerup={handleInlinePointerUp}
+                              onpointercancel={handleInlinePointerCancel}
+                              class="max-w-full max-h-125 object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
+                              style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
+                              draggable="false"
+                            />
+                          {/if}
                         </div>
                       {/if}
                     </div>
@@ -751,12 +718,12 @@
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <div 
         onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalWheel : null}
-        onmousedown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalMouseDown : null}
-        onmousemove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalMouseMove : null}
-        onmouseup={handleModalMouseUp}
-        onmouseleave={handleModalMouseUp}
+        onpointerdown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerDown : null}
+        onpointermove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerMove : null}
+        onpointerup={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerUp : null}
+        onpointercancel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerCancel : null}
         class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || isAudioFile(previewFile.name) ? 'overflow-auto' : 'overflow-hidden relative'}"
-        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}` : ''}
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;` : ''}
       >
         {#if isAudioFile(previewFile.name)}
           <div class="w-full max-w-md">
@@ -778,7 +745,7 @@
           <img 
             src={previewFile.dataUrl} 
             alt={previewFile.name} 
-            class="max-w-full max-h-full object-contain rounded-lg shadow-md select-none pointer-events-none transition-transform duration-75 ease-out"
+            class="max-w-full max-h-full object-contain rounded-lg shadow-md select-none transition-transform duration-75 ease-out"
             style="transform: translate({modalPan.x}px, {modalPan.y}px) scale({modalZoom}); transform-origin: center center;"
             draggable="false"
           />
