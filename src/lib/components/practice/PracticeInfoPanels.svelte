@@ -30,11 +30,11 @@
   let loadedMedia = $state<Record<string, { url: string; loading: boolean; error: boolean }>>({});
 
   // Inline image zoom/pan state (keyed by mediaId)
-  let inlineStates = $state<Record<string, { zoom: number; panX: number; panY: number; isDragging: boolean; dragStartX: number; dragStartY: number; panBaseX: number; panBaseY: number; dragged: boolean }>>({});
+  let inlineStates = $state<Record<string, { zoom: number; panX: number; panY: number; isDragging: boolean; dragStartX: number; dragStartY: number; panBaseX: number; panBaseY: number; dragged: boolean; activePointers: Map<number, PointerEvent>; isPinching: boolean; initialPinchDistance: number; initialPinchZoom: number; initialPinchMidpointX: number; initialPinchMidpointY: number; initialPinchPanX: number; initialPinchPanY: number }>>({});
 
   function getInlineState(mediaId: string) {
     if (!inlineStates[mediaId]) {
-      inlineStates[mediaId] = { zoom: 1, panX: 0, panY: 0, isDragging: false, dragStartX: 0, dragStartY: 0, panBaseX: 0, panBaseY: 0, dragged: false };
+      inlineStates[mediaId] = { zoom: 1, panX: 0, panY: 0, isDragging: false, dragStartX: 0, dragStartY: 0, panBaseX: 0, panBaseY: 0, dragged: false, activePointers: new Map(), isPinching: false, initialPinchDistance: 0, initialPinchZoom: 1, initialPinchMidpointX: 0, initialPinchMidpointY: 0, initialPinchPanX: 0, initialPinchPanY: 0 };
     }
     return inlineStates[mediaId];
   }
@@ -59,14 +59,40 @@
     const img = e.currentTarget as HTMLElement;
     const mediaId = img.dataset.mediaId;
     if (!mediaId) return;
+    try { img.setPointerCapture(e.pointerId); } catch (_) {}
     const state = getInlineState(mediaId);
+    state.activePointers.set(e.pointerId, e);
+
+    if (state.activePointers.size === 2) {
+      const pts = Array.from(state.activePointers.values());
+      const isMultiTouch = pts.every(p => p.pointerType === 'touch');
+      if (isMultiTouch) {
+        const p1 = pts[0];
+        const p2 = pts[1];
+        state.initialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+        state.initialPinchZoom = state.zoom;
+        state.initialPinchMidpointX = (p1.clientX + p2.clientX) / 2;
+        state.initialPinchMidpointY = (p1.clientY + p2.clientY) / 2;
+        state.initialPinchPanX = state.panX;
+        state.initialPinchPanY = state.panY;
+        state.isPinching = true;
+        state.isDragging = false;
+        e.preventDefault();
+        return;
+      }
+    }
+
+    if (state.activePointers.size > 2) {
+      e.preventDefault();
+      return;
+    }
+
     state.isDragging = true;
     state.dragged = false;
     state.dragStartX = e.clientX;
     state.dragStartY = e.clientY;
     state.panBaseX = state.panX;
     state.panBaseY = state.panY;
-    try { img.setPointerCapture(e.pointerId); } catch (_) {}
   }
 
   function handleInlinePointerMove(e: PointerEvent) {
@@ -74,6 +100,39 @@
     const mediaId = img.dataset.mediaId;
     if (!mediaId) return;
     const state = getInlineState(mediaId);
+    if (e.buttons === 0) {
+      state.activePointers.clear();
+      state.isDragging = false;
+      state.isPinching = false;
+      return;
+    }
+    state.activePointers.set(e.pointerId, e);
+
+    if (state.isPinching && state.activePointers.size === 2) {
+      e.preventDefault();
+      const pts = Array.from(state.activePointers.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      const currentMidX = (p1.clientX + p2.clientX) / 2;
+      const currentMidY = (p1.clientY + p2.clientY) / 2;
+      if (state.initialPinchDistance > 0) {
+        const factor = currentDistance / state.initialPinchDistance;
+        const newZoom = Math.max(0.5, Math.min(4, state.initialPinchZoom * factor));
+        const rect = img.getBoundingClientRect();
+        const worldX = (state.initialPinchMidpointX - rect.left - state.initialPinchPanX) / state.initialPinchZoom;
+        const worldY = (state.initialPinchMidpointY - rect.top - state.initialPinchPanY) / state.initialPinchZoom;
+        const newPanX = (currentMidX - rect.left) - worldX * newZoom;
+        const newPanY = (currentMidY - rect.top) - worldY * newZoom;
+        state.zoom = newZoom;
+        state.panX = newPanX;
+        state.panY = newPanY;
+      }
+      return;
+    }
+
+    if (state.activePointers.size > 1) return;
+
     if (!state.isDragging) return;
     const dx = e.clientX - state.dragStartX;
     const dy = e.clientY - state.dragStartY;
@@ -94,8 +153,14 @@
     if (!mediaId) return;
     const state = inlineStates[mediaId];
     if (!state) return;
-    state.isDragging = false;
+    state.activePointers.delete(e.pointerId);
+    if (state.activePointers.size < 2) state.isPinching = false;
+    if (state.activePointers.size === 0) state.isDragging = false;
     try { img.releasePointerCapture(e.pointerId); } catch (_) {}
+  }
+
+  function handleInlinePointerCancel(e: PointerEvent) {
+    handleInlinePointerUp(e);
   }
 
   function handleInlineClick(e: MouseEvent, file: { name: string; dataUrl?: string; mediaId?: string }, mediaId: string) {
@@ -189,6 +254,12 @@
   let isModalDragging = $state(false);
   let modalDragStart = { x: 0, y: 0 };
   let modalBasePan = { x: 0, y: 0 };
+  let modalActivePointers = new Map<number, PointerEvent>();
+  let modalIsPinching = false;
+  let modalInitialPinchDistance = 0;
+  let modalInitialPinchZoom = 1;
+  let modalInitialPinchMidpoint = { x: 0, y: 0 };
+  let modalInitialPinchPan = { x: 0, y: 0 };
 
   function decodeBase64Text(dataUrl: string): string {
     if (!dataUrl) return '';
@@ -217,20 +288,79 @@
     const zoomFactor = 0.1;
     const direction = e.deltaY < 0 ? 1 : -1;
     const newZoom = modalZoom + direction * zoomFactor;
-    modalZoom = Math.max(0.5, Math.min(newZoom, 8)); // clamp between 0.5x and 8x
+    modalZoom = Math.max(0.5, Math.min(newZoom, 8));
     if (modalZoom === 1) {
       modalPan = { x: 0, y: 0 };
     }
   }
 
-  function handleModalMouseDown(e: MouseEvent) {
-    if (modalZoom <= 1) return; // Only pan when zoomed in
+  function handleModalPointerDown(e: PointerEvent) {
+    const container = e.currentTarget as HTMLElement;
+    try { container.setPointerCapture(e.pointerId); } catch (_) {}
+    modalActivePointers.set(e.pointerId, e);
+
+    if (modalActivePointers.size === 2) {
+      const pts = Array.from(modalActivePointers.values());
+      const isMultiTouch = pts.every(p => p.pointerType === 'touch');
+      if (isMultiTouch && modalZoom > 0) {
+        const p1 = pts[0];
+        const p2 = pts[1];
+        modalInitialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+        modalInitialPinchZoom = modalZoom;
+        modalInitialPinchMidpoint = { x: (p1.clientX + p2.clientX) / 2, y: (p1.clientY + p2.clientY) / 2 };
+        modalInitialPinchPan = { ...modalPan };
+        modalIsPinching = true;
+        isModalDragging = false;
+        e.preventDefault();
+        return;
+      }
+    }
+
+    if (modalActivePointers.size > 2) {
+      e.preventDefault();
+      return;
+    }
+
+    if (modalZoom <= 1) return;
     isModalDragging = true;
     modalDragStart = { x: e.clientX, y: e.clientY };
     modalBasePan = { ...modalPan };
   }
 
-  function handleModalMouseMove(e: MouseEvent) {
+  function handleModalPointerMove(e: PointerEvent) {
+    if (e.buttons === 0) {
+      modalActivePointers.clear();
+      isModalDragging = false;
+      modalIsPinching = false;
+      return;
+    }
+    modalActivePointers.set(e.pointerId, e);
+
+    if (modalIsPinching && modalActivePointers.size === 2) {
+      e.preventDefault();
+      const pts = Array.from(modalActivePointers.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      const currentMidpoint = { x: (p1.clientX + p2.clientX) / 2, y: (p1.clientY + p2.clientY) / 2 };
+      if (modalInitialPinchDistance > 0) {
+        const factor = currentDistance / modalInitialPinchDistance;
+        const newZoom = Math.max(0.5, Math.min(8, modalInitialPinchZoom * factor));
+        const containerEl = e.currentTarget as HTMLElement;
+        const rect = containerEl.getBoundingClientRect();
+        const worldX = (modalInitialPinchMidpoint.x - rect.left - modalInitialPinchPan.x) / modalInitialPinchZoom;
+        const worldY = (modalInitialPinchMidpoint.y - rect.top - modalInitialPinchPan.y) / modalInitialPinchZoom;
+        modalZoom = newZoom;
+        modalPan = {
+          x: (currentMidpoint.x - rect.left) - worldX * newZoom,
+          y: (currentMidpoint.y - rect.top) - worldY * newZoom
+        };
+      }
+      return;
+    }
+
+    if (modalActivePointers.size > 1) return;
+
     if (!isModalDragging) return;
     const dx = e.clientX - modalDragStart.x;
     const dy = e.clientY - modalDragStart.y;
@@ -240,8 +370,15 @@
     };
   }
 
-  function handleModalMouseUp() {
-    isModalDragging = false;
+  function handleModalPointerUp(e: PointerEvent) {
+    modalActivePointers.delete(e.pointerId);
+    if (modalActivePointers.size < 2) modalIsPinching = false;
+    if (modalActivePointers.size === 0) isModalDragging = false;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch (_) {}
+  }
+
+  function handleModalPointerCancel(e: PointerEvent) {
+    handleModalPointerUp(e);
   }
   let isTaskTextEmpty = $derived(!task.instructions || !task.instructions.trim());
 
@@ -418,6 +555,7 @@
                               onpointerdown={handleInlinePointerDown}
                               onpointermove={handleInlinePointerMove}
                               onpointerup={handleInlinePointerUp}
+                              onpointercancel={handleInlinePointerCancel}
                               class="max-w-full max-h-125 object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
                               style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
                               draggable="false"
@@ -515,6 +653,7 @@
                               onpointerdown={handleInlinePointerDown}
                               onpointermove={handleInlinePointerMove}
                               onpointerup={handleInlinePointerUp}
+                              onpointercancel={handleInlinePointerCancel}
                               class="max-w-full max-h-125 object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
                               style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
                               draggable="false"
@@ -579,12 +718,12 @@
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <div 
         onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalWheel : null}
-        onmousedown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalMouseDown : null}
-        onmousemove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalMouseMove : null}
-        onmouseup={handleModalMouseUp}
-        onmouseleave={handleModalMouseUp}
+        onpointerdown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerDown : null}
+        onpointermove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerMove : null}
+        onpointerup={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerUp : null}
+        onpointercancel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerCancel : null}
         class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || isAudioFile(previewFile.name) ? 'overflow-auto' : 'overflow-hidden relative'}"
-        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}` : ''}
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;` : ''}
       >
         {#if isAudioFile(previewFile.name)}
           <div class="w-full max-w-md">
@@ -606,7 +745,7 @@
           <img 
             src={previewFile.dataUrl} 
             alt={previewFile.name} 
-            class="max-w-full max-h-full object-contain rounded-lg shadow-md select-none pointer-events-none transition-transform duration-75 ease-out"
+            class="max-w-full max-h-full object-contain rounded-lg shadow-md select-none transition-transform duration-75 ease-out"
             style="transform: translate({modalPan.x}px, {modalPan.y}px) scale({modalZoom}); transform-origin: center center;"
             draggable="false"
           />
