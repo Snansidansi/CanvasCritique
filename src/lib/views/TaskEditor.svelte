@@ -171,19 +171,11 @@
   // Preview modal states & handlers
   let previewFile = $state<{ name: string; dataUrl: string } | null>(null);
   let previewIsAudio = $state(false);
-  let zoomScale = $state(1);
-  let panOffset = $state({ x: 0, y: 0 });
-  let activePointers = new Map<number, PointerEvent>();
-  let initialPinchDistance = 0;
-  let initialPinchZoom = 1;
-  let initialPinchMidpoint = { x: 0, y: 0 };
-  let initialPinchPanOffset = { x: 0, y: 0 };
-  let isPinching = false;
-  let isPanning = false;
-  let panStart = { x: 0, y: 0 };
-  let panBaseOffset = { x: 0, y: 0 };
-  let canvasElement = $state<HTMLCanvasElement | undefined>(undefined);
-  let previewImage = $state<HTMLImageElement | null>(null);
+  let modalZoom = $state(1);
+  let modalPan = $state({ x: 0, y: 0 });
+  let isModalDragging = $state(false);
+  let modalDragStart = { x: 0, y: 0 };
+  let modalBasePan = { x: 0, y: 0 };
 
   function decodeBase64Text(dataUrl: string): string {
     if (!dataUrl) return '';
@@ -205,141 +197,44 @@
     }
     previewFile = { name: file.name, dataUrl };
     previewIsAudio = isAudioFile(file.name);
-    zoomScale = 1;
-    panOffset = { x: 0, y: 0 };
-    activePointers.clear();
-    isPinching = false;
-    isPanning = false;
-    loadPreviewImage(dataUrl);
+    modalZoom = 1;
+    modalPan = { x: 0, y: 0 };
   }
 
   function closePreview() {
     previewFile = null;
   }
 
-  function renderPreview() {
-    if (!canvasElement || !previewImage) return;
-    const ctx = canvasElement.getContext('2d');
-    if (!ctx) return;
-    const cw = canvasElement.width;
-    const ch = canvasElement.height;
-    ctx.clearRect(0, 0, cw, ch);
-    ctx.save();
-    ctx.translate(panOffset.x, panOffset.y);
-    ctx.scale(zoomScale, zoomScale);
-    ctx.drawImage(previewImage, 0, 0, previewImage.width, previewImage.height);
-    ctx.restore();
-  }
-
-  function loadPreviewImage(dataUrl: string) {
-    const img = new Image();
-    img.onload = () => {
-      previewImage = img;
-      if (canvasElement) {
-        canvasElement.width = canvasElement.clientWidth;
-        canvasElement.height = canvasElement.clientHeight;
-      }
-      renderPreview();
-    };
-    img.src = dataUrl;
-  }
-
-  function handleWheel(e: WheelEvent) {
-    if (isPinching || isPanning) return;
+  function handleModalWheel(e: WheelEvent) {
     e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    zoomScale = Math.max(0.2, Math.min(4.0, zoomScale * factor));
-    renderPreview();
-  }
-
-  function handlePointerDown(e: PointerEvent) {
-    activePointers.set(e.pointerId, e);
-    if (activePointers.size >= 2) {
-      const pts = Array.from(activePointers.values());
-      const p1 = pts[0];
-      const p2 = pts[1];
-      initialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
-      initialPinchZoom = zoomScale;
-      initialPinchMidpoint = {
-        x: (p1.clientX + p2.clientX) / 2,
-        y: (p1.clientY + p2.clientY) / 2
-      };
-      initialPinchPanOffset = { ...panOffset };
-      isPinching = true;
-      isPanning = false;
-      e.preventDefault();
-    } else if (activePointers.size === 1) {
-      isPanning = true;
-      panStart = { x: e.clientX, y: e.clientY };
-      panBaseOffset = { ...panOffset };
+    const zoomFactor = 0.1;
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const newZoom = modalZoom + direction * zoomFactor;
+    modalZoom = Math.max(0.5, Math.min(newZoom, 8)); // clamp between 0.5x and 8x
+    if (modalZoom === 1) {
+      modalPan = { x: 0, y: 0 };
     }
   }
 
-  function handlePointerMove(e: PointerEvent) {
-    if (e.buttons === 0) {
-      activePointers.clear();
-      isPinching = false;
-      isPanning = false;
-      return;
-    }
-    activePointers.set(e.pointerId, e);
-
-    if (isPinching && activePointers.size >= 2) {
-      const pts = Array.from(activePointers.values());
-      const p1 = pts[0];
-      const p2 = pts[1];
-      const dist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
-      const mid = {
-        x: (p1.clientX + p2.clientX) / 2,
-        y: (p1.clientY + p2.clientY) / 2
-      };
-
-      if (initialPinchDistance > 0 && canvasElement) {
-        const factor = dist / initialPinchDistance;
-        const newScale = Math.max(0.2, Math.min(4.0, initialPinchZoom * factor));
-        const rect = canvasElement.getBoundingClientRect();
-        const worldX = (initialPinchMidpoint.x - rect.left - initialPinchPanOffset.x) / initialPinchZoom;
-        const worldY = (initialPinchMidpoint.y - rect.top - initialPinchPanOffset.y) / initialPinchZoom;
-        const newPanX = (mid.x - rect.left) - worldX * newScale;
-        const newPanY = (mid.y - rect.top) - worldY * newScale;
-        zoomScale = newScale;
-        panOffset = { x: newPanX, y: newPanY };
-        renderPreview();
-      }
-      e.preventDefault();
-    } else if (isPanning && activePointers.size === 1) {
-      panOffset = {
-        x: panBaseOffset.x + (e.clientX - panStart.x),
-        y: panBaseOffset.y + (e.clientY - panStart.y)
-      };
-      renderPreview();
-      e.preventDefault();
-    }
+  function handleModalMouseDown(e: MouseEvent) {
+    if (modalZoom <= 1) return; // Only pan when zoomed in
+    isModalDragging = true;
+    modalDragStart = { x: e.clientX, y: e.clientY };
+    modalBasePan = { ...modalPan };
   }
 
-  function handlePointerUp(e: PointerEvent) {
-    activePointers.delete(e.pointerId);
-    if (activePointers.size === 0) {
-      isPinching = false;
-      isPanning = false;
-    } else if (isPinching && activePointers.size >= 2) {
-      const pts = Array.from(activePointers.values());
-      const p1 = pts[0];
-      const p2 = pts[1];
-      initialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
-      initialPinchZoom = zoomScale;
-      initialPinchMidpoint = {
-        x: (p1.clientX + p2.clientX) / 2,
-        y: (p1.clientY + p2.clientY) / 2
-      };
-      initialPinchPanOffset = { ...panOffset };
-    } else if (isPinching && activePointers.size === 1) {
-      isPinching = false;
-      isPanning = true;
-      const remaining = Array.from(activePointers.values())[0];
-      panStart = { x: remaining.clientX, y: remaining.clientY };
-      panBaseOffset = { ...panOffset };
-    }
+  function handleModalMouseMove(e: MouseEvent) {
+    if (!isModalDragging) return;
+    const dx = e.clientX - modalDragStart.x;
+    const dy = e.clientY - modalDragStart.y;
+    modalPan = {
+      x: modalBasePan.x + dx,
+      y: modalBasePan.y + dy
+    };
+  }
+
+  function handleModalMouseUp() {
+    isModalDragging = false;
   }
 
   // Paste from clipboard logic
@@ -918,7 +813,13 @@
 
       <!-- Modal Body (Max size view with Zoom / Pan support for images) -->
       <div 
+        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalWheel : null}
+        onmousedown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalMouseDown : null}
+        onmousemove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalMouseMove : null}
+        onmouseup={handleModalMouseUp}
+        onmouseleave={handleModalMouseUp}
         class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || previewIsAudio ? 'overflow-auto' : 'overflow-hidden relative'}"
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}` : ''}
       >
         {#if previewIsAudio}
           <div class="w-full max-w-md">
@@ -937,18 +838,13 @@
         {:else if previewFile.name.toLowerCase().endsWith('.txt')}
           <pre class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-sm font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant">{decodeBase64Text(previewFile.dataUrl)}</pre>
         {:else}
-          <canvas
-            bind:this={canvasElement}
-            onpointerdown={handlePointerDown}
-            onpointermove={handlePointerMove}
-            onpointerup={handlePointerUp}
-            onpointerleave={handlePointerUp}
-            onpointercancel={handlePointerUp}
-            onwheel={handleWheel}
-            oncontextmenu={(e) => e.preventDefault()}
-            class="max-w-full max-h-full rounded-lg shadow-md select-none"
-            style="touch-action: none;"
-          ></canvas>
+          <img 
+            src={previewFile.dataUrl} 
+            alt={previewFile.name} 
+            class="max-w-full max-h-full object-contain rounded-lg shadow-md select-none pointer-events-none transition-transform duration-75 ease-out"
+            style="transform: translate({modalPan.x}px, {modalPan.y}px) scale({modalZoom}); transform-origin: center center;"
+            draggable="false"
+          />
         {/if}
       </div>
     </div>
