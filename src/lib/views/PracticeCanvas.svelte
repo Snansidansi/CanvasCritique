@@ -1262,6 +1262,7 @@
       offscreenCtx = offscreenCanvas.getContext('2d');
     }
     
+    offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
     offscreenCtx.save();
     if (canvasMode === 'infinite') {
       offscreenCtx.translate(panOffset.x, panOffset.y);
