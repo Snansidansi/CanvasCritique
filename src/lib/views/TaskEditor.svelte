@@ -173,9 +173,16 @@
   let previewIsAudio = $state(false);
   let modalZoom = $state(1);
   let modalPan = $state({ x: 0, y: 0 });
-  let isModalDragging = $state(false);
-  let modalDragStart = { x: 0, y: 0 };
-  let modalBasePan = { x: 0, y: 0 };
+  let modalActivePointers = new Map<number, PointerEvent>();
+  let isModalPinching = $state(false);
+  let modalPinchInitDist = 0;
+  let modalPinchInitZoom = 1;
+  let modalPinchInitMid = { x: 0, y: 0 };
+  let modalPinchInitPan = { x: 0, y: 0 };
+  let isModalPanning = $state(false);
+  let modalPanId = -1;
+  let modalPanStart = { x: 0, y: 0 };
+  let modalPanBase = { x: 0, y: 0 };
 
   function decodeBase64Text(dataUrl: string): string {
     if (!dataUrl) return '';
@@ -199,6 +206,9 @@
     previewIsAudio = isAudioFile(file.name);
     modalZoom = 1;
     modalPan = { x: 0, y: 0 };
+    modalActivePointers.clear();
+    isModalPinching = false;
+    isModalPanning = false;
   }
 
   function closePreview() {
@@ -216,25 +226,113 @@
     }
   }
 
-  function handleModalMouseDown(e: MouseEvent) {
-    if (modalZoom <= 1) return; // Only pan when zoomed in
-    isModalDragging = true;
-    modalDragStart = { x: e.clientX, y: e.clientY };
-    modalBasePan = { ...modalPan };
+  function handleModalPointerDown(e: PointerEvent) {
+    modalActivePointers.set(e.pointerId, e);
+
+    if (modalActivePointers.size >= 2) {
+      const pts = Array.from(modalActivePointers.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      modalPinchInitDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      modalPinchInitZoom = modalZoom;
+      modalPinchInitMid = {
+        x: (p1.clientX + p2.clientX) / 2,
+        y: (p1.clientY + p2.clientY) / 2
+      };
+      modalPinchInitPan = { ...modalPan };
+      isModalPinching = true;
+      isModalPanning = false;
+      e.preventDefault();
+    } else if (modalActivePointers.size === 1 && modalZoom > 1) {
+      isModalPanning = true;
+      modalPanId = e.pointerId;
+      modalPanStart = { x: e.clientX, y: e.clientY };
+      modalPanBase = { ...modalPan };
+      e.preventDefault();
+    }
   }
 
-  function handleModalMouseMove(e: MouseEvent) {
-    if (!isModalDragging) return;
-    const dx = e.clientX - modalDragStart.x;
-    const dy = e.clientY - modalDragStart.y;
-    modalPan = {
-      x: modalBasePan.x + dx,
-      y: modalBasePan.y + dy
-    };
+  function handleModalPointerMove(e: PointerEvent) {
+    if (e.buttons === 0) {
+      modalActivePointers.clear();
+      isModalPinching = false;
+      isModalPanning = false;
+      return;
+    }
+
+    modalActivePointers.set(e.pointerId, e);
+
+    if (isModalPinching && modalActivePointers.size >= 2) {
+      const pts = Array.from(modalActivePointers.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      const currentMidpoint = {
+        x: (p1.clientX + p2.clientX) / 2,
+        y: (p1.clientY + p2.clientY) / 2
+      };
+
+      if (modalPinchInitDist > 0) {
+        const factor = currentDistance / modalPinchInitDist;
+        const newZoom = Math.max(0.5, Math.min(8, modalPinchInitZoom * factor));
+
+        const body = e.currentTarget as HTMLElement;
+        const rect = body.getBoundingClientRect();
+        const worldX = (modalPinchInitMid.x - rect.left - modalPinchInitPan.x) / modalPinchInitZoom;
+        const worldY = (modalPinchInitMid.y - rect.top - modalPinchInitPan.y) / modalPinchInitZoom;
+        const newPanX = (currentMidpoint.x - rect.left) - worldX * newZoom;
+        const newPanY = (currentMidpoint.y - rect.top) - worldY * newZoom;
+
+        modalZoom = newZoom;
+        if (newZoom === 1) {
+          modalPan = { x: 0, y: 0 };
+        } else {
+          modalPan = { x: newPanX, y: newPanY };
+        }
+      }
+      e.preventDefault();
+    } else if (isModalPanning && modalActivePointers.size === 1 && modalZoom > 1) {
+      const dx = e.clientX - modalPanStart.x;
+      const dy = e.clientY - modalPanStart.y;
+      modalPan = {
+        x: modalPanBase.x + dx,
+        y: modalPanBase.y + dy
+      };
+      e.preventDefault();
+    }
   }
 
-  function handleModalMouseUp() {
-    isModalDragging = false;
+  function handleModalPointerUp(e: PointerEvent) {
+    modalActivePointers.delete(e.pointerId);
+
+    if (modalActivePointers.size === 0) {
+      isModalPinching = false;
+      isModalPanning = false;
+    } else if (isModalPinching && modalActivePointers.size >= 2) {
+      const pts = Array.from(modalActivePointers.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      modalPinchInitDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      modalPinchInitZoom = modalZoom;
+      modalPinchInitMid = {
+        x: (p1.clientX + p2.clientX) / 2,
+        y: (p1.clientY + p2.clientY) / 2
+      };
+      modalPinchInitPan = { ...modalPan };
+    } else if (isModalPinching && modalActivePointers.size === 1 && modalZoom > 1) {
+      isModalPinching = false;
+      isModalPanning = true;
+      const remaining = Array.from(modalActivePointers.values())[0];
+      modalPanId = remaining.pointerId;
+      modalPanStart = { x: remaining.clientX, y: remaining.clientY };
+      modalPanBase = { ...modalPan };
+    } else if (modalActivePointers.size === 1 && modalZoom > 1) {
+      isModalPanning = true;
+      const remaining = Array.from(modalActivePointers.values())[0];
+      modalPanId = remaining.pointerId;
+      modalPanStart = { x: remaining.clientX, y: remaining.clientY };
+      modalPanBase = { ...modalPan };
+    }
   }
 
   // Paste from clipboard logic
@@ -812,14 +910,14 @@
       </header>
 
       <!-- Modal Body (Max size view with Zoom / Pan support for images) -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <div 
         onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalWheel : null}
-        onmousedown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalMouseDown : null}
-        onmousemove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalMouseMove : null}
-        onmouseup={handleModalMouseUp}
-        onmouseleave={handleModalMouseUp}
+        onpointerdown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalPointerDown : null}
+        onpointermove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalPointerMove : null}
+        onpointerup={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalPointerUp : null}
         class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || previewIsAudio ? 'overflow-auto' : 'overflow-hidden relative'}"
-        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}` : ''}
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? `cursor: ${modalZoom > 1 ? (isModalPanning ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;` : ''}
       >
         {#if previewIsAudio}
           <div class="w-full max-w-md">
