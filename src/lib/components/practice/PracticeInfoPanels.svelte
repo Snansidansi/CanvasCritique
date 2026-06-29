@@ -31,6 +31,8 @@
 
   // Inline image zoom/pan state (keyed by mediaId)
   let inlineStates = $state<Record<string, { zoom: number; panX: number; panY: number; isDragging: boolean; dragStartX: number; dragStartY: number; panBaseX: number; panBaseY: number; dragged: boolean }>>({});
+  let inlineActivePointers = new Map<number, PointerEvent>();
+  let inlinePinchState: Record<string, { initialDist: number; initialZoom: number; initialMidX: number; initialMidY: number; initialPanX: number; initialPanY: number; isPinching: boolean }> = {};
 
   function getInlineState(mediaId: string) {
     if (!inlineStates[mediaId]) {
@@ -59,20 +61,87 @@
     const img = e.currentTarget as HTMLElement;
     const mediaId = img.dataset.mediaId;
     if (!mediaId) return;
-    const state = getInlineState(mediaId);
-    state.isDragging = true;
-    state.dragged = false;
-    state.dragStartX = e.clientX;
-    state.dragStartY = e.clientY;
-    state.panBaseX = state.panX;
-    state.panBaseY = state.panY;
-    try { img.setPointerCapture(e.pointerId); } catch (_) {}
+    inlineActivePointers.set(e.pointerId, e);
+
+    let sameMediaCount = 0;
+    for (const [, ev] of inlineActivePointers) {
+      const el = ev.currentTarget as HTMLElement;
+      if (el?.dataset?.mediaId === mediaId) sameMediaCount++;
+    }
+
+    if (sameMediaCount >= 2) {
+      const state = getInlineState(mediaId);
+      state.isDragging = false;
+      const pts: PointerEvent[] = [];
+      for (const [, ev] of inlineActivePointers) {
+        const el = ev.currentTarget as HTMLElement;
+        if (el?.dataset?.mediaId === mediaId) pts.push(ev);
+      }
+      if (pts.length >= 2) {
+        const p1 = pts[0]; const p2 = pts[1];
+        inlinePinchState[mediaId] = {
+          initialDist: Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY),
+          initialZoom: state.zoom,
+          initialMidX: (p1.clientX + p2.clientX) / 2,
+          initialMidY: (p1.clientY + p2.clientY) / 2,
+          initialPanX: state.panX,
+          initialPanY: state.panY,
+          isPinching: true
+        };
+        e.preventDefault();
+      }
+    } else {
+      const state = getInlineState(mediaId);
+      state.isDragging = true;
+      state.dragged = false;
+      state.dragStartX = e.clientX;
+      state.dragStartY = e.clientY;
+      state.panBaseX = state.panX;
+      state.panBaseY = state.panY;
+      try { img.setPointerCapture(e.pointerId); } catch (_) {}
+    }
   }
 
   function handleInlinePointerMove(e: PointerEvent) {
     const img = e.currentTarget as HTMLElement;
     const mediaId = img.dataset.mediaId;
     if (!mediaId) return;
+    inlineActivePointers.set(e.pointerId, e);
+
+    const pinch = inlinePinchState[mediaId];
+    if (pinch?.isPinching) {
+      let sameMediaCount = 0;
+      const pts: PointerEvent[] = [];
+      for (const [, ev] of inlineActivePointers) {
+        const el = ev.currentTarget as HTMLElement;
+        if (el?.dataset?.mediaId === mediaId) { sameMediaCount++; pts.push(ev); }
+      }
+      if (sameMediaCount >= 2 && pts.length >= 2) {
+        const p1 = pts[0]; const p2 = pts[1];
+        const dist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+        const midX = (p1.clientX + p2.clientX) / 2;
+        const midY = (p1.clientY + p2.clientY) / 2;
+        if (pinch.initialDist > 0) {
+          const factor = dist / pinch.initialDist;
+          const newZoom = Math.max(0.5, Math.min(4, pinch.initialZoom * factor));
+          const state = getInlineState(mediaId);
+          const rect = img.getBoundingClientRect();
+          const worldX = (pinch.initialMidX - rect.left - pinch.initialPanX) / pinch.initialZoom;
+          const worldY = (pinch.initialMidY - rect.top - pinch.initialPanY) / pinch.initialZoom;
+          state.zoom = newZoom;
+          if (newZoom === 1) {
+            state.panX = 0;
+            state.panY = 0;
+          } else {
+            state.panX = (midX - rect.left) - worldX * newZoom;
+            state.panY = (midY - rect.top) - worldY * newZoom;
+          }
+        }
+        e.preventDefault();
+      }
+      return;
+    }
+
     const state = getInlineState(mediaId);
     if (!state.isDragging) return;
     const dx = e.clientX - state.dragStartX;
@@ -92,6 +161,41 @@
     const img = e.currentTarget as HTMLElement;
     const mediaId = img.dataset.mediaId;
     if (!mediaId) return;
+    inlineActivePointers.delete(e.pointerId);
+
+    const pinch = inlinePinchState[mediaId];
+    if (pinch?.isPinching) {
+      let remainingCount = 0;
+      const remaining: PointerEvent[] = [];
+      for (const [, ev] of inlineActivePointers) {
+        const el = ev.currentTarget as HTMLElement;
+        if (el?.dataset?.mediaId === mediaId) { remainingCount++; remaining.push(ev); }
+      }
+      if (remainingCount >= 2) {
+        const p1 = remaining[0]; const p2 = remaining[1];
+        pinch.initialDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+        pinch.initialZoom = inlineStates[mediaId]?.zoom ?? 1;
+        pinch.initialMidX = (p1.clientX + p2.clientX) / 2;
+        pinch.initialMidY = (p1.clientY + p2.clientY) / 2;
+        pinch.initialPanX = inlineStates[mediaId]?.panX ?? 0;
+        pinch.initialPanY = inlineStates[mediaId]?.panY ?? 0;
+      } else if (remainingCount === 1) {
+        pinch.isPinching = false;
+        const state = inlineStates[mediaId];
+        if (state && state.zoom > 1) {
+          state.isDragging = true;
+          state.dragStartX = remaining[0].clientX;
+          state.dragStartY = remaining[0].clientY;
+          state.panBaseX = state.panX;
+          state.panBaseY = state.panY;
+          try { img.setPointerCapture(remaining[0].pointerId); } catch (_) {}
+        }
+      } else {
+        pinch.isPinching = false;
+      }
+      return;
+    }
+
     const state = inlineStates[mediaId];
     if (!state) return;
     state.isDragging = false;
