@@ -102,6 +102,7 @@
     "deleteSelectedTasksTitle": "Ausgewählte Aufgaben löschen",
     "deleteSelectedTasksMsg": "Möchtest du {count} ausgewählte Aufgaben wirklich löschen?",
     "exportBtn": "Exportieren",
+    "importBtn": "Importieren",
     "createSectionBtn": "Bereich erstellen",
     "addTopicModalTitle": "Neues Thema hinzufügen",
     "topicNameLabel": "Themenname",

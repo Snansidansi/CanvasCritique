@@ -102,6 +102,7 @@
     "deleteSelectedTasksTitle": "Delete Selected Tasks",
     "deleteSelectedTasksMsg": "Are you sure you want to delete {count} selected tasks?",
     "exportBtn": "Export",
+    "importBtn": "Import",
     "createSectionBtn": "Create Section",
     "addTopicModalTitle": "Add New Topic",
     "topicNameLabel": "Topic Name",

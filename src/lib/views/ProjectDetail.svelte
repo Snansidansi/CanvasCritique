@@ -55,21 +55,23 @@
 
   // Task Import (Step 5)
   let taskFileInput: HTMLInputElement | null = $state(null);
+  let importSectionCategory = $state<string | null>(null);
 
   function handleImportTasksFile(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
     const reader = new FileReader();
+    const targetSection = importSectionCategory;
+    importSectionCategory = null;
     reader.onload = () => {
       try {
         const imported = JSON.parse(reader.result as string);
-        store.importProject(imported, project.id);
+        store.importProject(imported, project.id, targetSection || undefined);
       } catch (err) {
         alert(t('dashboard.notifications.parseFailed'));
       }
     };
     reader.readAsText(file);
-    (e.target as HTMLInputElement).value = "";
     (e.target as HTMLInputElement).value = "";
   }
 
@@ -166,7 +168,7 @@
     reader.onload = () => {
       try {
         const imported = JSON.parse(reader.result as string);
-        store.importProject(imported, project.id);
+        store.importProject(imported, project.id, category);
       } catch (err) {
         alert(t('dashboard.notifications.parseFailed'));
       }
@@ -601,14 +603,21 @@
       </label>
     {/if}
 
-    <!-- Export Lesson Button -->
+    <!-- Import Tasks Button -->
+    <input
+      type="file"
+      accept="application/json"
+      bind:this={taskFileInput}
+      onchange={handleImportTasksFile}
+      class="hidden"
+    />
     <button 
-      onclick={() => store.exportProject(project)}
+      onclick={() => taskFileInput?.click()}
       class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-2.5 md:px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
-      title={t('projectDetail.exportLesson')}
+      title={t('projectDetail.importTasksTooltip')}
     >
-      <span class="material-symbols-outlined text-[18px]">file_download</span>
-      <span class="hidden xl:inline">{t('projectDetail.exportLesson')}</span>
+      <span class="material-symbols-outlined text-[18px]">file_upload</span>
+      <span class="hidden xl:inline">{t('projectDetail.importTasks')}</span>
     </button>
 
     <!-- Lesson Settings Override Button -->
@@ -718,14 +727,6 @@
     <div class="flex justify-between items-center border-b border-outline-variant pb-2">
       <h3 class="font-bold text-sm text-on-surface uppercase tracking-wider">{t('projectDetail.roadmapTitle')}</h3>
       <div class="flex items-center gap-4">
-        <!-- Hidden file input for importing tasks directly -->
-        <input
-          type="file"
-          accept="application/json"
-          bind:this={taskFileInput}
-          onchange={handleImportTasksFile}
-          class="hidden"
-        />
         <button 
           onclick={() => taskFileInput?.click()}
           class="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer focus:outline-none"
@@ -801,6 +802,14 @@
                   {t('projectDetail.taskCount', { count: catTasks.length })}
                 {/if}
               </span>
+              <button
+                type="button"
+                onclick={(e) => { e.preventDefault(); e.stopPropagation(); importSectionCategory = category; taskFileInput?.click(); }}
+                class="flex items-center gap-1 px-2 py-1 text-outline hover:text-primary text-[11px] font-bold rounded-lg hover:bg-surface-container cursor-pointer focus:outline-none"
+                title={t('projectDetail.importBtn')}
+              >
+                <span class="material-symbols-outlined text-[14px]">file_upload</span>
+              </button>
               <button
                 type="button"
                 onclick={(e) => { e.preventDefault(); e.stopPropagation(); handleExportSection(category); }}
