@@ -267,7 +267,6 @@
   let isPointerSelect = $state(false);
   let isPointerPan = $state(false);
   let isPointerPen = $state(false);
-  let isSelectToolOneShot = $state(false);
   let lastPointerType = $state('mouse');
   let hoverPos = $state(null);
 
@@ -803,20 +802,13 @@
       }, 600);
     }
 
-    if (isPointerSelect) {
-      activeTool = 'select';
-      isSelectToolOneShot = true;
-      selectedStrokes = [];
-      selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
-      isMovingSelection = false;
-    } else if (activeTool === 'shape') {
+    if (activeTool === 'shape') {
       isShapeDrawing = true;
       shapeAnchorX = coords.x;
       shapeAnchorY = coords.y;
       shapePreviewX = coords.x;
       shapePreviewY = coords.y;
-    } else if (activeTool === 'select') {
-      // Check if clicking inside current selection bounding box
+    } else if (activeTool === 'select' || isPointerSelect) {
       if (isClickInSelection) {
         isMovingSelection = true;
         selectionDragStart = { x: coords.x, y: coords.y };
@@ -826,30 +818,9 @@
           longPressTimer = null;
         }
       } else {
-        if (isSelectToolOneShot) {
-          // Revert tool if it was a temporary stylus shortcut
-          activeTool = previousTool || 'pen';
-          isSelectToolOneShot = false;
-          selectedStrokes = [];
-          selectionBox = null;
-
-          const isPanAction = canvasMode === 'infinite' && 
-            (e.button === 1 || activeTool === 'pan' || isPointerPan || (store.settings.stylusMode && isFingerOrMouse));
-
-          if (isPanAction) {
-            isPanning = true;
-            panStart = { x: e.clientX, y: e.clientY };
-            panBaseOffset = { ...panOffset };
-          } else {
-            isDrawing = true;
-            currentStroke = [coords];
-          }
-        } else {
-          // Keep select tool active, just start a new marquee selection
-          selectedStrokes = [];
-          selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
-          isMovingSelection = false;
-        }
+        selectedStrokes = [];
+        selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
+        isMovingSelection = false;
       }
     } else {
       isDrawing = true;
@@ -1031,7 +1002,6 @@
         saveToStore();
       }
       isMovingSelection = false;
-      isSelectToolOneShot = false;
     } else if (isShapeDrawing) {
       isShapeDrawing = false;
 
@@ -1106,7 +1076,6 @@
     isPointerSelect = false;
     isPointerPan = false;
     isPointerPen = false;
-    isSelectToolOneShot = false;
   }
 
   function handlePointerCancel(e) {
@@ -1121,7 +1090,6 @@
     isDrawing = false;
     currentStroke = [];
     isPanning = false;
-    isSelectToolOneShot = false;
   }
 
   function handleWheel(e) {
