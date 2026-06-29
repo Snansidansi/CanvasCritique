@@ -309,7 +309,17 @@
       "autoCompleteOnSuccess": "Automatisch abschließen bei Erfolg",
       "autoCompleteOnSuccessDesc": "Aufgabe automatisch als abgeschlossen markieren, wenn Punktzahl 100% beträgt",
       "textFontSize": "Text-Schriftgröße",
-      "textFontSizeDesc": "Schriftgröße für Aufgabenstellung, Lösung und KI-Kritik im Canvas-Bildschirm"
+      "textFontSizeDesc": "Schriftgröße für Aufgabenstellung, Lösung und KI-Kritik im Canvas-Bildschirm",
+      "eraser": {
+        "title": "Radierer-Modus",
+        "desc": "Wähle, wie sich der Radierer bei Berührung verhält.",
+        "normal": "Normal",
+        "normalDesc": "Nur dort radieren, wo du zeichnest – wie beim Stift.",
+        "stroke": "Strich",
+        "strokeDesc": "Löscht den gesamten berührten Strich (wie bei OneNote).",
+        "normalSize": "Normaler Radierer-Radius",
+        "strokeRadius": "Strich-Radierer-Radius"
+      }
     },
     "taskNumbering": {
       "title": "Aufgabennummerierung",

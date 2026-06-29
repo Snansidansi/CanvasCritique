@@ -287,6 +287,7 @@
   let isPointerSelect = $state(false);
   let isPointerPan = $state(false);
   let isPointerPen = $state(false);
+  let isStrokeErasing = $state(false);
   let isSelectToolOneShot = $state(false);
   let lastPointerType = $state('mouse');
   let hoverPos = $state(null);
@@ -466,6 +467,7 @@
     activeTooltipMarker = null;
     isPanning = false;
     isDrawing = false;
+    isStrokeErasing = false;
     currentStroke = [];
     isShapeDrawing = false;
 
@@ -802,19 +804,23 @@
     const bounds = selectionBoundingBox;
     const isClickInSelection = activeTool === 'select' && bounds && isPointInBounds(coords.x, coords.y, bounds);
 
-    // Stroke-erase mode: delete entire stroke under pointer
+    // Stroke-erase mode: delete entire stroke under pointer (drag-support)
     if ((activeTool === 'eraser' || isPointerEraser) && effectiveEraserSettings.eraserMode === 'stroke') {
       const hitRadius = effectiveEraserSettings.eraserRadiusStroke ?? 24;
       const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+      const currentRedo = canvasMode === 'a4' ? pages[activePageIndex].redoStack : infiniteRedo;
       for (let i = currentHistory.length - 1; i >= 0; i--) {
         const stroke = currentHistory[i];
         if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
         if (stroke.points.some(p => Math.abs(p.x - coords.x) < hitRadius && Math.abs(p.y - coords.y) < hitRadius)) {
+          currentRedo.push(stroke);
           currentHistory.splice(i, 1);
-          saveToStore();
-          return;
+          break;
         }
       }
+      isStrokeErasing = true;
+      saveToStore();
+      e.preventDefault();
       return;
     }
 
@@ -976,6 +982,25 @@
       return;
     }
 
+    if (isStrokeErasing) {
+      e.preventDefault();
+      const hitRadius = effectiveEraserSettings.eraserRadiusStroke ?? 24;
+      const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+      const currentRedo = canvasMode === 'a4' ? pages[activePageIndex].redoStack : infiniteRedo;
+      const coords = getCoords(e);
+      for (let i = currentHistory.length - 1; i >= 0; i--) {
+        const stroke = currentHistory[i];
+        if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
+        if (stroke.points.some(p => Math.abs(p.x - coords.x) < hitRadius && Math.abs(p.y - coords.y) < hitRadius)) {
+          currentRedo.push(stroke);
+          currentHistory.splice(i, 1);
+          break;
+        }
+      }
+      saveToStore();
+      return;
+    }
+
     // If long-press is active, cancel it if cursor moves > 5px
     if (longPressTimer) {
       const dist = Math.hypot(e.clientX - longPressStartPos.x, e.clientY - longPressStartPos.y);
@@ -1055,6 +1080,13 @@
       }
       saveToStore();
       e.preventDefault();
+      return;
+    }
+
+    if (isStrokeErasing) {
+      isStrokeErasing = false;
+      saveToStore();
+      if (e) e.preventDefault();
       return;
     }
 
@@ -1165,6 +1197,7 @@
       isPanning = false;
       saveToStore();
     }
+    isStrokeErasing = false;
     isPointerEraser = false;
     isPointerSelect = false;
     isPointerPan = false;
@@ -1183,6 +1216,7 @@
     isDrawing = false;
     currentStroke = [];
     isPanning = false;
+    isStrokeErasing = false;
   }
 
   function handleWheel(e) {
