@@ -36,7 +36,7 @@ import {
   deleteCustomBackground as dbDeleteCustomBackground,
 } from '../db';
 
-import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs, deleteMediaForTask, collectMediaIds } from '../db/media';
+import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs, migrateMediaHashes, deleteMediaForTask, collectMediaIds } from '../db/media';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { downloadDir } from '@tauri-apps/api/path';
@@ -188,6 +188,7 @@ class CanvasCritiqueStore {
   async init() {
     const db = await initDb();
     await migrateMediaFromFs();
+    await migrateMediaHashes();
     await this.loadState(db);
     this._dbReady = true;
   }

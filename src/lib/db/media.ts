@@ -14,16 +14,38 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+async function computeSha256(base64: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(base64);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function findMediaByHash(hash: string): Promise<string | null> {
+  const db = getDb();
+  const rows: any[] = await db.select(
+    'SELECT id FROM media WHERE sha256_hash = ? LIMIT 1',
+    [hash]
+  );
+  return rows.length > 0 ? rows[0].id : null;
+}
+
 export async function saveMediaToDb(dataUrl: string): Promise<string> {
   const parsed = getMimeAndBase64(dataUrl);
   if (!parsed) throw new Error('Invalid data URL');
+
+  const hash = await computeSha256(parsed.base64);
+
+  const existingId = await findMediaByHash(hash);
+  if (existingId) return existingId;
 
   const db = getDb();
   const id = uuidv4();
 
   await db.execute(
-    'INSERT INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-    [id, parsed.base64, parsed.mimeType]
+    'INSERT INTO media (id, data, mime_type, sha256_hash) VALUES (?, ?, ?, ?)',
+    [id, parsed.base64, parsed.mimeType, hash]
   );
 
   return id;
@@ -47,6 +69,25 @@ export async function deleteMediaFromDb(mediaId: string): Promise<void> {
     await db.execute('DELETE FROM media WHERE id = ?', [mediaId]);
   } catch {
     // Ignore if doesn't exist
+  }
+}
+
+export async function migrateMediaHashes(): Promise<void> {
+  try {
+    const db = getDb();
+    const rows: any[] = await db.select(
+      'SELECT id, data FROM media WHERE sha256_hash IS NULL'
+    );
+    for (const row of rows) {
+      if (!row.data) continue;
+      const hash = await computeSha256(row.data);
+      await db.execute(
+        'UPDATE media SET sha256_hash = ? WHERE id = ?',
+        [hash, row.id]
+      );
+    }
+  } catch (e) {
+    console.warn('Media hash migration skipped:', e);
   }
 }
 
