@@ -189,6 +189,13 @@
   let isModalDragging = $state(false);
   let modalDragStart = { x: 0, y: 0 };
   let modalBasePan = { x: 0, y: 0 };
+  let modalPinchInitialDistance = 0;
+  let modalPinchInitialZoom = 1;
+  let modalPinchMidpoint = { x: 0, y: 0 };
+  let modalPinchPanOffset = { x: 0, y: 0 };
+  let isModalPinching = false;
+  let touchPanStart = { x: 0, y: 0 };
+  let touchPanBaseOffset = { x: 0, y: 0 };
 
   function decodeBase64Text(dataUrl: string): string {
     if (!dataUrl) return '';
@@ -242,6 +249,93 @@
 
   function handleModalMouseUp() {
     isModalDragging = false;
+  }
+
+  function handleModalTouchStart(e: TouchEvent) {
+    if (e.touches.length === 1 && modalZoom > 1) {
+      const t = e.touches[0];
+      touchPanStart = { x: t.clientX, y: t.clientY };
+      touchPanBaseOffset = { ...modalPan };
+      e.preventDefault();
+    } else if (e.touches.length >= 2) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      modalPinchInitialDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      modalPinchInitialZoom = modalZoom;
+      modalPinchMidpoint = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2
+      };
+      modalPinchPanOffset = { ...modalPan };
+      isModalPinching = true;
+      e.preventDefault();
+    }
+  }
+
+  function handleModalTouchMove(e: TouchEvent) {
+    if (isModalPinching && e.touches.length >= 2) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const currentDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const currentMidpoint = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2
+      };
+
+      if (modalPinchInitialDistance > 0) {
+        const factor = currentDistance / modalPinchInitialDistance;
+        const newZoom = Math.max(0.5, Math.min(8, modalPinchInitialZoom * factor));
+
+        const body = document.querySelector('.info-modal-preview-body') as HTMLElement | null;
+        if (body) {
+          const rect = body.getBoundingClientRect();
+          const worldX = (modalPinchMidpoint.x - rect.left - modalPinchPanOffset.x) / modalPinchInitialZoom;
+          const worldY = (modalPinchMidpoint.y - rect.top - modalPinchPanOffset.y) / modalPinchInitialZoom;
+          const newPanX = (currentMidpoint.x - rect.left) - worldX * newZoom;
+          const newPanY = (currentMidpoint.y - rect.top) - worldY * newZoom;
+
+          modalZoom = newZoom;
+          modalPan = { x: newPanX, y: newPanY };
+          if (newZoom === 1) {
+            modalPan = { x: 0, y: 0 };
+          }
+        }
+      }
+      e.preventDefault();
+    } else if (e.touches.length === 1 && modalZoom > 1 && touchPanStart.x !== 0) {
+      const t = e.touches[0];
+      modalPan = {
+        x: touchPanBaseOffset.x + (t.clientX - touchPanStart.x),
+        y: touchPanBaseOffset.y + (t.clientY - touchPanStart.y)
+      };
+      e.preventDefault();
+    }
+  }
+
+  function handleModalTouchEnd(e: TouchEvent) {
+    if (e.touches.length === 0) {
+      isModalPinching = false;
+      touchPanStart = { x: 0, y: 0 };
+    } else if (e.touches.length >= 2) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      modalPinchInitialDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      modalPinchInitialZoom = modalZoom;
+      modalPinchMidpoint = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2
+      };
+      modalPinchPanOffset = { ...modalPan };
+    } else if (e.touches.length === 1 && modalZoom > 1) {
+      const t = e.touches[0];
+      touchPanStart = { x: t.clientX, y: t.clientY };
+      touchPanBaseOffset = { ...modalPan };
+    }
+  }
+
+  function handleModalTouchCancel() {
+    isModalPinching = false;
+    touchPanStart = { x: 0, y: 0 };
   }
   let isTaskTextEmpty = $derived(!task.instructions || !task.instructions.trim());
 
@@ -583,8 +677,12 @@
         onmousemove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalMouseMove : null}
         onmouseup={handleModalMouseUp}
         onmouseleave={handleModalMouseUp}
-        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || isAudioFile(previewFile.name) ? 'overflow-auto' : 'overflow-hidden relative'}"
-        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}` : ''}
+        ontouchstart={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalTouchStart : null}
+        ontouchmove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalTouchMove : null}
+        ontouchend={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalTouchEnd : null}
+        ontouchcancel={handleModalTouchCancel}
+        class="info-modal-preview-body grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || isAudioFile(previewFile.name) ? 'overflow-auto' : 'overflow-hidden relative'}"
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;` : ''}
       >
         {#if isAudioFile(previewFile.name)}
           <div class="w-full max-w-md">
