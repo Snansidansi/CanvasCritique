@@ -223,6 +223,7 @@
   }
 
   function handleModalWheel(e: WheelEvent) {
+    if (isModalPinching || isModalPanning) return;
     e.preventDefault();
     const zoomFactor = 0.1;
     const direction = e.deltaY < 0 ? 1 : -1;
