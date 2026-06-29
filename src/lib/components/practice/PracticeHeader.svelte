@@ -9,6 +9,7 @@
     activePageIndex = $bindable(),
     strokeHistory,
     redoStack,
+    eraserUndoStack,
     zoomScale = $bindable(),
     panOffset = $bindable(),
     showTask = $bindable(),
@@ -164,7 +165,8 @@
             pages.push({
               id: 'page-' + Date.now(),
               strokeHistory: [],
-              redoStack: []
+              redoStack: [],
+              eraserUndoStack: []
             });
             activePageIndex = pages.length - 1;
             activeTooltipMarker = null;
@@ -259,7 +261,7 @@
     <div class="flex items-center gap-1 border-r border-outline-variant/30 pr-3">
       <button 
         onclick={handleUndo} 
-        disabled={strokeHistory.length === 0}
+        disabled={strokeHistory.length === 0 && eraserUndoStack.length === 0}
         class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
         title={t('practice.undo')}
       >

@@ -11,6 +11,7 @@
     canvasMode,
     strokeHistory,
     redoStack,
+    eraserUndoStack,
     handleUndo,
     handleRedo
   } = $props();
@@ -25,9 +26,6 @@
   let rightX = $state<number | null>(null);
   let bottomY = $state<number | null>(null);
   let isDragging = $state(false);
-  let dragMoved = false;
-  let pointerDownTime = 0;
-
   let dragStartMouseX = 0;
   let dragStartMouseY = 0;
   let dragStartRight = 0;
@@ -109,17 +107,14 @@
   function onPointerDown(e: PointerEvent) {
     const target = e.target as HTMLElement;
     const dragHandle = target.closest('.drag-handle-area');
-    const isCollapsedDrag = isCollapsed;
+    const wasCollapsed = isCollapsed;
 
-    if (!dragHandle && !isCollapsedDrag) return;
+    if (!dragHandle && !wasCollapsed) return;
 
     // Prevent text selection and browser default touch handling
     e.preventDefault();
 
     isDragging = true;
-    dragMoved = false;
-    pointerDownTime = Date.now();
-
     dragStartMouseX = e.clientX;
     dragStartMouseY = e.clientY;
 
@@ -137,6 +132,13 @@
     dragStartRight = rightX;
     dragStartBottom = bottomY;
 
+    // Expand immediately when a collapsed palette is tapped. We still record a
+    // drag start so that holding or sliding the pointer afterwards switches
+    // into reposition mode.
+    if (wasCollapsed) {
+      toggleCollapse();
+    }
+
     // Use pointer capture on the element itself — the browser will route all
     // pointermove / pointerup events to this element regardless of where the
     // pointer physically is, making touch and stylus perfectly smooth.
@@ -150,11 +152,6 @@
 
     const deltaX = e.clientX - dragStartMouseX;
     const deltaY = e.clientY - dragStartMouseY;
-
-    const dragThreshold = isCollapsed ? 15 : 5;
-    if (Math.abs(deltaX) > dragThreshold || Math.abs(deltaY) > dragThreshold) {
-      dragMoved = true;
-    }
 
     let newRight = dragStartRight - deltaX;
     let newBottom = dragStartBottom - deltaY;
@@ -180,14 +177,6 @@
 
     if (rightX !== null && bottomY !== null) {
       localStorage.setItem('canvascritique_palette_pos', JSON.stringify({ right: rightX, bottom: bottomY }));
-    }
-
-    // Toggle collapse state on quick tap when collapsed (press-and-hold or drag goes into move mode)
-    if (isCollapsed && !dragMoved) {
-      const elapsed = Date.now() - pointerDownTime;
-      if (elapsed < 200) {
-        toggleCollapse();
-      }
     }
   }
 
@@ -361,7 +350,7 @@
         
         <button 
           onclick={handleUndo}
-          disabled={strokeHistory.length === 0}
+          disabled={strokeHistory.length === 0 && eraserUndoStack.length === 0}
           class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer border-0 bg-transparent"
           title={t('practice.palette.undo')}
         >

@@ -37,6 +37,9 @@
         language: store.settings.language,
         customSystemPrompt: store.settings.customSystemPrompt || '',
         canvasMode: store.settings.canvasMode,
+        eraserMode: store.settings.eraserMode,
+        eraserRadiusNormal: store.settings.eraserRadiusNormal,
+        eraserRadiusStroke: store.settings.eraserRadiusStroke,
         overrideTaskNumbering: false,
         autoNumberTasks: store.settings.autoNumberTasks,
         taskNumberingTemplate: store.settings.taskNumberingTemplate
@@ -82,6 +85,15 @@
       }
       if (project.settingsOverride.taskNumberingTemplate === undefined) {
         project.settingsOverride.taskNumberingTemplate = store.settings.taskNumberingTemplate;
+      }
+      if (project.settingsOverride.eraserMode === undefined) {
+        project.settingsOverride.eraserMode = store.settings.eraserMode || 'normal';
+      }
+      if (project.settingsOverride.eraserRadiusNormal === undefined) {
+        project.settingsOverride.eraserRadiusNormal = store.settings.eraserRadiusNormal ?? 24;
+      }
+      if (project.settingsOverride.eraserRadiusStroke === undefined) {
+        project.settingsOverride.eraserRadiusStroke = store.settings.eraserRadiusStroke ?? 24;
       }
       hasCustomSystemPrompt = !!project.settingsOverride.customSystemPrompt;
     }
@@ -232,11 +244,81 @@
             </div>
 
             {#if project.settingsOverride?.overrideCanvas}
-              <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+              <div class="border-t border-outline-variant/30 pt-4 animate-fade-in flex flex-col gap-4">
                 <CanvasModeSelector 
                   settings={project.settingsOverride} 
                   onchange={() => store.saveProjects()} 
                 />
+
+                <!-- Eraser Mode (per-lesson override) -->
+                <div class="border-t border-outline-variant/30 pt-4">
+                  <div class="mb-3">
+                    <h4 class="font-bold text-sm text-on-surface mb-0.5">{t('settings.canvas.eraser.title')}</h4>
+                    <p class="text-xs text-on-surface-variant">{t('settings.canvas.eraser.desc')}</p>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onclick={() => { if (project.settingsOverride) { project.settingsOverride.eraserMode = 'normal'; store.saveProjects(); } }}
+                      class="cursor-pointer text-left focus:outline-none bg-transparent border-0 p-0 w-full"
+                    >
+                      <div class="border rounded-lg p-3 bg-surface-container-low transition-all
+                             {project.settingsOverride.eraserMode === 'normal' ? 'border-primary border-2 bg-primary/5' : 'border-outline-variant hover:border-primary'}">
+                        <div class="flex items-center gap-2">
+                          <span class="material-symbols-outlined text-lg text-primary">brush</span>
+                          <span class="font-bold text-xs text-on-surface">{t('settings.canvas.eraser.normal')}</span>
+                        </div>
+                        <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">{t('settings.canvas.eraser.normalDesc')}</p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => { if (project.settingsOverride) { project.settingsOverride.eraserMode = 'stroke'; store.saveProjects(); } }}
+                      class="cursor-pointer text-left focus:outline-none bg-transparent border-0 p-0 w-full"
+                    >
+                      <div class="border rounded-lg p-3 bg-surface-container-low transition-all
+                             {project.settingsOverride.eraserMode === 'stroke' ? 'border-primary border-2 bg-primary/5' : 'border-outline-variant hover:border-primary'}">
+                        <div class="flex items-center gap-2">
+                          <span class="material-symbols-outlined text-lg text-primary">auto_fix_high</span>
+                          <span class="font-bold text-xs text-on-surface">{t('settings.canvas.eraser.stroke')}</span>
+                        </div>
+                        <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">{t('settings.canvas.eraser.strokeDesc')}</p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {#if project.settingsOverride.eraserMode === 'normal'}
+                    <div class="flex flex-col gap-2 mt-3">
+                      <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.eraser.normalSize')}</span>
+                        <span class="text-[10px] font-bold text-primary">{project.settingsOverride.eraserRadiusNormal ?? 24}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="4"
+                        max="80"
+                        value={project.settingsOverride.eraserRadiusNormal ?? 24}
+                        oninput={(e) => { if (project.settingsOverride) { project.settingsOverride.eraserRadiusNormal = parseInt(e.currentTarget.value); store.saveProjects(); } }}
+                        class="w-full h-1 accent-primary cursor-pointer border-0"
+                      />
+                    </div>
+                  {:else}
+                    <div class="flex flex-col gap-2 mt-3">
+                      <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.eraser.strokeRadius')}</span>
+                        <span class="text-[10px] font-bold text-primary">{project.settingsOverride.eraserRadiusStroke ?? 24}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="4"
+                        max="80"
+                        value={project.settingsOverride.eraserRadiusStroke ?? 24}
+                        oninput={(e) => { if (project.settingsOverride) { project.settingsOverride.eraserRadiusStroke = parseInt(e.currentTarget.value); store.saveProjects(); } }}
+                        class="w-full h-1 accent-primary cursor-pointer border-0"
+                      />
+                    </div>
+                  {/if}
+                </div>
               </div>
             {:else}
               <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">

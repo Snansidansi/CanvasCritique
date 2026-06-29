@@ -52,7 +52,6 @@
   // Brush configuration
   let strokeColor = $state('#000000');
   let brushWidth = $state(2);
-  let eraserWidth = $state(24);
   let activeTool = $state('pen'); // 'pen' | 'eraser' | 'pan' | 'select' | 'shape'
   let shapeType = $state('rectangle'); // 'circle' | 'ellipse' | 'line' | 'square' | 'rectangle' | 'triangle'
 
@@ -107,12 +106,34 @@
       : store.settings
   );
 
+  let eraserWidth = $state(
+    ((store.activeProject
+      ? store.getEffectiveSettings(store.activeProject.id)
+      : store.settings).eraserMode === 'stroke'
+      ? (store.activeProject
+          ? store.getEffectiveSettings(store.activeProject.id)
+          : store.settings).eraserRadiusStroke
+      : (store.activeProject
+          ? store.getEffectiveSettings(store.activeProject.id)
+          : store.settings).eraserRadiusNormal) ?? 24
+  );
+
+  $effect(() => {
+    const mode = effectiveEraserSettings.eraserMode;
+    if (mode === 'stroke') {
+      eraserWidth = effectiveEraserSettings.eraserRadiusStroke ?? 24;
+    } else {
+      eraserWidth = effectiveEraserSettings.eraserRadiusNormal ?? 24;
+    }
+  });
+
   // A4 Pages state
   let pages = $state([
     {
       id: 'page-' + Date.now(),
       strokeHistory: [],
-      redoStack: []
+      redoStack: [],
+      eraserUndoStack: []
     }
   ]);
   let activePageIndex = $state(0);
@@ -120,6 +141,7 @@
   // Infinite Canvas state
   let infiniteStrokes = $state([]);
   let infiniteRedo = $state([]);
+  let infiniteEraserUndo = $state([]);
   let panOffset = $state({ x: 0, y: 0 });
   let isPanning = $state(false);
   let panStart = { x: 0, y: 0 };
@@ -253,6 +275,11 @@
       ? (pages[activePageIndex]?.redoStack || [])
       : infiniteRedo
   );
+  let eraserUndoStack = $derived(
+    canvasMode === 'a4'
+      ? (pages[activePageIndex]?.eraserUndoStack || [])
+      : infiniteEraserUndo
+  );
 
   // Stroke history state
   let isDrawing = false;
@@ -267,6 +294,7 @@
   let isPointerSelect = $state(false);
   let isPointerPan = $state(false);
   let isPointerPen = $state(false);
+  let isStrokeErasing = $state(false);
   let isSelectToolOneShot = $state(false);
   let lastPointerType = $state('mouse');
   let hoverPos = $state(null);
@@ -446,6 +474,7 @@
     activeTooltipMarker = null;
     isPanning = false;
     isDrawing = false;
+    isStrokeErasing = false;
     currentStroke = [];
     isShapeDrawing = false;
 
@@ -460,9 +489,6 @@
     
     // Reset selection states
     selectionBox = null;
-    if (activeTool !== 'select') {
-      selectedStrokes = [];
-    }
     isMovingSelection = false;
     contextMenu = null;
   });
@@ -483,6 +509,7 @@
       pages: JSON.parse(JSON.stringify(pages)),
       infiniteStrokes: JSON.parse(JSON.stringify(infiniteStrokes)),
       infiniteRedo: JSON.parse(JSON.stringify(infiniteRedo)),
+      infiniteEraserUndo: JSON.parse(JSON.stringify(infiniteEraserUndo)),
       panOffset: { ...panOffset },
       zoomScale,
       activePageIndex
@@ -501,11 +528,16 @@
           {
             id: 'page-' + Date.now(),
             strokeHistory: [],
-            redoStack: []
+            redoStack: [],
+            eraserUndoStack: []
           }
         ];
+        for (const page of pages) {
+          if (!page.eraserUndoStack) page.eraserUndoStack = [];
+        }
         infiniteStrokes = saved.infiniteStrokes || [];
         infiniteRedo = saved.infiniteRedo || [];
+        infiniteEraserUndo = saved.infiniteEraserUndo || [];
         panOffset = saved.panOffset || { x: 0, y: 0 };
         zoomScale = saved.zoomScale || 1;
         activePageIndex = saved.activePageIndex || 0;
@@ -515,11 +547,13 @@
           {
             id: 'page-' + Date.now(),
             strokeHistory: [],
-            redoStack: []
+            redoStack: [],
+            eraserUndoStack: []
           }
         ];
         infiniteStrokes = [];
         infiniteRedo = [];
+        infiniteEraserUndo = [];
         panOffset = { x: 0, y: 0 };
         zoomScale = 1;
         activePageIndex = 0;
@@ -566,6 +600,33 @@
     });
   }
 
+  function removeFullyErasedStrokes(eraserStroke) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of eraserStroke.points) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    const margin = eraserStroke.width;
+    minX -= margin;
+    minY -= margin;
+    maxX += margin;
+    maxY += margin;
+
+    if (canvasMode === 'a4') {
+      pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(s => {
+        if (s.color === 'eraser' || s.color === '#FFFFFF') return true;
+        return !s.points.every(p => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
+      });
+    } else {
+      infiniteStrokes = infiniteStrokes.filter(s => {
+        if (s.color === 'eraser' || s.color === '#FFFFFF') return true;
+        return !s.points.every(p => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
+      });
+    }
+  }
+
   function generateShapePoints(shape: string, x1: number, y1: number, x2: number, y2: number): Point[] {
     switch (shape) {
       case 'line':
@@ -578,14 +639,14 @@
       case 'square': {
         const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
         const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
-        const size = Math.max(Math.abs(maxX - minX), Math.abs(maxY - minY));
-        const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
-        const half = size / 2;
-        return [{ x: cx - half, y: cy - half }, { x: cx + half, y: cy - half }, { x: cx + half, y: cy + half }, { x: cx - half, y: cy + half }, { x: cx - half, y: cy - half }];
+        const size = Math.max(maxX - minX, maxY - minY);
+        return [{ x: minX, y: minY }, { x: minX + size, y: minY }, { x: minX + size, y: minY + size }, { x: minX, y: minY + size }, { x: minX, y: minY }];
       }
       case 'circle': {
-        const cx = x1, cy = y1;
-        const radius = Math.hypot(x2 - x1, y2 - y1);
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        const radius = Math.min(maxX - minX, maxY - minY) / 2;
         const steps = 64;
         const pts: Point[] = [];
         for (let i = 0; i <= steps; i++) {
@@ -595,8 +656,10 @@
         return pts;
       }
       case 'ellipse': {
-        const cx = x1, cy = y1;
-        const rx = Math.abs(x2 - x1), ry = Math.abs(y2 - y1);
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        const rx = (maxX - minX) / 2, ry = (maxY - minY) / 2;
         const steps = 64;
         const pts: Point[] = [];
         for (let i = 0; i <= steps; i++) {
@@ -706,7 +769,7 @@
       }
     }
 
-    if (store.settings.stylusMode && isPen && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen) {
+    if (store.settings.stylusMode && isPen && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen && activeTool !== 'eraser' && activeTool !== 'select' && activeTool !== 'pan') {
       if (keyboardToolSwitch) {
         keyboardToolSwitch = false;
         if (keyboardToolSwitchTimeout) clearTimeout(keyboardToolSwitchTimeout);
@@ -751,21 +814,25 @@
 
     const coords = getCoords(e);
     const bounds = selectionBoundingBox;
-    const isClickInSelection = activeTool === 'select' && bounds && isPointInBounds(coords.x, coords.y, bounds);
+    const isClickInSelection = (activeTool === 'select' || isPointerSelect) && bounds && isPointInBounds(coords.x, coords.y, bounds);
 
-    // Stroke-erase mode: delete entire stroke under pointer
+    // Stroke-erase mode: delete entire stroke under pointer (drag-support)
     if ((activeTool === 'eraser' || isPointerEraser) && effectiveEraserSettings.eraserMode === 'stroke') {
       const hitRadius = effectiveEraserSettings.eraserRadiusStroke ?? 24;
       const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+      const currentEraserUndo = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
       for (let i = currentHistory.length - 1; i >= 0; i--) {
         const stroke = currentHistory[i];
         if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
         if (stroke.points.some(p => Math.abs(p.x - coords.x) < hitRadius && Math.abs(p.y - coords.y) < hitRadius)) {
+          currentEraserUndo.push(stroke);
           currentHistory.splice(i, 1);
-          saveToStore();
-          return;
+          break;
         }
       }
+      isStrokeErasing = true;
+      saveToStore();
+      e.preventDefault();
       return;
     }
 
@@ -801,20 +868,14 @@
       }, 600);
     }
 
-    if (isPointerSelect) {
-      activeTool = 'select';
-      isSelectToolOneShot = true;
-      selectedStrokes = [];
-      selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
-      isMovingSelection = false;
-    } else if (activeTool === 'shape') {
+    if (activeTool === 'shape') {
+      if (selectedStrokes.length > 0) selectedStrokes = [];
       isShapeDrawing = true;
       shapeAnchorX = coords.x;
       shapeAnchorY = coords.y;
       shapePreviewX = coords.x;
       shapePreviewY = coords.y;
-    } else if (activeTool === 'select') {
-      // Check if clicking inside current selection bounding box
+    } else if (activeTool === 'select' || isPointerSelect) {
       if (isClickInSelection) {
         isMovingSelection = true;
         selectionDragStart = { x: coords.x, y: coords.y };
@@ -824,32 +885,12 @@
           longPressTimer = null;
         }
       } else {
-        if (isSelectToolOneShot) {
-          // Revert tool if it was a temporary stylus shortcut
-          activeTool = previousTool || 'pen';
-          isSelectToolOneShot = false;
-          selectedStrokes = [];
-          selectionBox = null;
-
-          const isPanAction = canvasMode === 'infinite' && 
-            (e.button === 1 || activeTool === 'pan' || isPointerPan || (store.settings.stylusMode && isFingerOrMouse));
-
-          if (isPanAction) {
-            isPanning = true;
-            panStart = { x: e.clientX, y: e.clientY };
-            panBaseOffset = { ...panOffset };
-          } else {
-            isDrawing = true;
-            currentStroke = [coords];
-          }
-        } else {
-          // Keep select tool active, just start a new marquee selection
-          selectedStrokes = [];
-          selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
-          isMovingSelection = false;
-        }
+        selectedStrokes = [];
+        selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
+        isMovingSelection = false;
       }
     } else {
+      if (selectedStrokes.length > 0) selectedStrokes = [];
       isDrawing = true;
       currentStroke = [coords];
     }
@@ -924,6 +965,25 @@
     }
 
     if (activePointers.size > 1) {
+      return;
+    }
+
+    if (isStrokeErasing) {
+      e.preventDefault();
+      const hitRadius = effectiveEraserSettings.eraserRadiusStroke ?? 24;
+      const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+      const currentEraserUndo = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+      const coords = getCoords(e);
+      for (let i = currentHistory.length - 1; i >= 0; i--) {
+        const stroke = currentHistory[i];
+        if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
+        if (stroke.points.some(p => Math.abs(p.x - coords.x) < hitRadius && Math.abs(p.y - coords.y) < hitRadius)) {
+          currentEraserUndo.push(stroke);
+          currentHistory.splice(i, 1);
+          break;
+        }
+      }
+      saveToStore();
       return;
     }
 
@@ -1009,6 +1069,13 @@
       return;
     }
 
+    if (isStrokeErasing) {
+      isStrokeErasing = false;
+      saveToStore();
+      if (e) e.preventDefault();
+      return;
+    }
+
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       longPressTimer = null;
@@ -1043,9 +1110,11 @@
         if (canvasMode === 'a4') {
           pages[activePageIndex].strokeHistory.push(newStroke);
           pages[activePageIndex].redoStack = [];
+          pages[activePageIndex].eraserUndoStack = [];
         } else {
           infiniteStrokes.push(newStroke);
           infiniteRedo = [];
+          infiniteEraserUndo = [];
         }
         saveToStore();
       }
@@ -1053,19 +1122,38 @@
       isDrawing = false;
       
       if (currentStroke.length > 0) {
+        const isEraser = (activeTool === 'eraser' || isPointerEraser);
         const newStroke = {
-          color: (activeTool === 'eraser' || isPointerEraser) ? 'eraser' : strokeColor,
-          width: (activeTool === 'eraser' || isPointerEraser) ? eraserWidth : brushWidth,
+          color: isEraser ? 'eraser' : strokeColor,
+          width: isEraser ? eraserWidth : brushWidth,
           points: [...currentStroke]
         };
         
         if (canvasMode === 'a4') {
           pages[activePageIndex].strokeHistory.push(newStroke);
           pages[activePageIndex].redoStack = [];
+          pages[activePageIndex].eraserUndoStack = [];
+          if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
+            removeFullyErasedStrokes(newStroke);
+          }
         } else {
           infiniteStrokes.push(newStroke);
           infiniteRedo = [];
+          infiniteEraserUndo = [];
+          if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
+            removeFullyErasedStrokes(newStroke);
+          }
         }
+
+        if (isEraser) {
+          const mode = effectiveEraserSettings.eraserMode;
+          if (mode === 'stroke') {
+            store.settings.eraserRadiusStroke = eraserWidth;
+          } else {
+            store.settings.eraserRadiusNormal = eraserWidth;
+          }
+        }
+
         saveToStore();
       }
       currentStroke = [];
@@ -1099,6 +1187,7 @@
       isPanning = false;
       saveToStore();
     }
+    isStrokeErasing = false;
     isPointerEraser = false;
     isPointerSelect = false;
     isPointerPan = false;
@@ -1117,6 +1206,7 @@
     isDrawing = false;
     currentStroke = [];
     isPanning = false;
+    isStrokeErasing = false;
   }
 
   function handleWheel(e) {
@@ -1262,6 +1352,7 @@
       offscreenCtx = offscreenCanvas.getContext('2d');
     }
     
+    offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
     offscreenCtx.save();
     if (canvasMode === 'infinite') {
       offscreenCtx.translate(panOffset.x, panOffset.y);
@@ -1288,7 +1379,7 @@
     ctx.drawImage(offscreenCanvas, 0, 0);
     
     // Draw selection tools marquee box (if actively selecting)
-    if ((activeTool === 'select' || isPointerSelect) && selectionBox) {
+    if (selectionBox) {
       ctx.save();
       if (canvasMode === 'infinite') {
         ctx.translate(panOffset.x, panOffset.y);
@@ -1308,7 +1399,7 @@
     }
     
     // Draw selection bounding box (if strokes are selected)
-    if ((activeTool === 'select' || isPointerSelect) && selectionBoundingBox) {
+    if (selectionBoundingBox) {
       const bounds = selectionBoundingBox;
       ctx.save();
       if (canvasMode === 'infinite') {
@@ -1351,13 +1442,21 @@
 
   function handleUndo() {
     if (canvasMode === 'a4') {
-      if (pages[activePageIndex]?.strokeHistory.length > 0) {
-        const last = pages[activePageIndex].strokeHistory.pop();
-        pages[activePageIndex].redoStack.push(last);
+      const page = pages[activePageIndex];
+      if (!page) return;
+      if (page.eraserUndoStack.length > 0) {
+        const restored = page.eraserUndoStack.pop()!;
+        page.strokeHistory.push(restored);
+      } else if (page.strokeHistory.length > 0) {
+        const last = page.strokeHistory.pop()!;
+        page.redoStack.push(last);
       }
     } else {
-      if (infiniteStrokes.length > 0) {
-        const last = infiniteStrokes.pop();
+      if (infiniteEraserUndo.length > 0) {
+        const restored = infiniteEraserUndo.pop()!;
+        infiniteStrokes.push(restored);
+      } else if (infiniteStrokes.length > 0) {
+        const last = infiniteStrokes.pop()!;
         infiniteRedo.push(last);
       }
     }
@@ -1390,10 +1489,12 @@
           if (pages[activePageIndex]) {
             pages[activePageIndex].strokeHistory = [];
             pages[activePageIndex].redoStack = [];
+            pages[activePageIndex].eraserUndoStack = [];
           }
         } else {
           infiniteStrokes = [];
           infiniteRedo = [];
+          infiniteEraserUndo = [];
         }
         
         feedbackText = '';
@@ -1428,11 +1529,13 @@
         s => !selectedStrokes.includes(s)
       );
       pages[activePageIndex].redoStack = [];
+      pages[activePageIndex].eraserUndoStack = [];
     } else {
       infiniteStrokes = infiniteStrokes.filter(
         s => !selectedStrokes.includes(s)
       );
       infiniteRedo = [];
+      infiniteEraserUndo = [];
     }
     
     selectedStrokes = [];
@@ -1473,10 +1576,12 @@
     if (canvasMode === 'a4') {
       pages[activePageIndex].strokeHistory.push(...strokesToPaste);
       pages[activePageIndex].redoStack = [];
+      pages[activePageIndex].eraserUndoStack = [];
       pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
     } else {
       infiniteStrokes.push(...strokesToPaste);
       infiniteRedo = [];
+      infiniteEraserUndo = [];
       infiniteStrokes = [...infiniteStrokes];
     }
     
@@ -1713,6 +1818,7 @@
     bind:activePageIndex
     {strokeHistory}
     {redoStack}
+    {eraserUndoStack}
     bind:zoomScale
     bind:panOffset
     bind:showTask
@@ -1904,7 +2010,7 @@
       {/if}
 
       <!-- Selection Bounding Box Floating Options -->
-      {#if (activeTool === 'select' || isPointerSelect) && selectionBoundingBox}
+      {#if selectionBoundingBox}
         {@const bounds = selectionBoundingBox}
         {@const leftOffset = canvasMode === 'a4' ? (containerWidth - 800 * a4Scale) / 2 + panOffset.x : panOffset.x}
         {@const topOffset = canvasMode === 'a4' ? (containerHeight - 1130 * a4Scale) / 2 + panOffset.y : panOffset.y}
@@ -2014,6 +2120,7 @@
         {canvasMode}
         {strokeHistory}
         {redoStack}
+        {eraserUndoStack}
         {handleUndo}
         {handleRedo}
       />
