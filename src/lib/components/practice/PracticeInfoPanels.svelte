@@ -184,18 +184,19 @@
   }
 
   let previewFile = $state<{ name: string; dataUrl: string } | null>(null);
-  let modalZoom = $state(1);
-  let modalPan = $state({ x: 0, y: 0 });
-  let modalActivePointers = new Map<number, PointerEvent>();
-  let isModalPinching = $state(false);
-  let modalPinchInitDist = 0;
-  let modalPinchInitZoom = 1;
-  let modalPinchInitMid = { x: 0, y: 0 };
-  let modalPinchInitPan = { x: 0, y: 0 };
-  let isModalPanning = $state(false);
-  let modalPanId = -1;
-  let modalPanStart = { x: 0, y: 0 };
-  let modalPanBase = { x: 0, y: 0 };
+  let zoomScale = $state(1);
+  let panOffset = $state({ x: 0, y: 0 });
+  let activePointers = new Map<number, PointerEvent>();
+  let initialPinchDistance = 0;
+  let initialPinchZoom = 1;
+  let initialPinchMidpoint = { x: 0, y: 0 };
+  let initialPinchPanOffset = { x: 0, y: 0 };
+  let isPinching = false;
+  let isPanning = false;
+  let panStart = { x: 0, y: 0 };
+  let panBaseOffset = { x: 0, y: 0 };
+  let canvasElement = $state<HTMLCanvasElement | undefined>(undefined);
+  let previewImage = $state<HTMLImageElement | null>(null);
 
   function decodeBase64Text(dataUrl: string): string {
     if (!dataUrl) return '';
@@ -211,135 +212,140 @@
   async function openPreview(file: { name: string; dataUrl?: string; mediaId?: string }) {
     const url = await getMediaUrl(file);
     previewFile = { name: file.name, dataUrl: url };
-    modalZoom = 1;
-    modalPan = { x: 0, y: 0 };
-    modalActivePointers.clear();
-    isModalPinching = false;
-    isModalPanning = false;
+    zoomScale = 1;
+    panOffset = { x: 0, y: 0 };
+    activePointers.clear();
+    isPinching = false;
+    isPanning = false;
+    loadPreviewImage(url);
   }
 
   function closePreview() {
     previewFile = null;
   }
 
-  function handleModalWheel(e: WheelEvent) {
-    if (isModalPinching || isModalPanning) return;
-    e.preventDefault();
-    const zoomFactor = 0.1;
-    const direction = e.deltaY < 0 ? 1 : -1;
-    const newZoom = modalZoom + direction * zoomFactor;
-    modalZoom = Math.max(0.5, Math.min(newZoom, 8)); // clamp between 0.5x and 8x
-    if (modalZoom === 1) {
-      modalPan = { x: 0, y: 0 };
-    }
+  function renderPreview() {
+    if (!canvasElement || !previewImage) return;
+    const ctx = canvasElement.getContext('2d');
+    if (!ctx) return;
+    const cw = canvasElement.width;
+    const ch = canvasElement.height;
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.save();
+    ctx.translate(panOffset.x, panOffset.y);
+    ctx.scale(zoomScale, zoomScale);
+    ctx.drawImage(previewImage, 0, 0, previewImage.width, previewImage.height);
+    ctx.restore();
   }
 
-  function handleModalPointerDown(e: PointerEvent) {
-    modalActivePointers.set(e.pointerId, e);
+  function loadPreviewImage(dataUrl: string) {
+    const img = new Image();
+    img.onload = () => {
+      previewImage = img;
+      if (canvasElement) {
+        canvasElement.width = canvasElement.clientWidth;
+        canvasElement.height = canvasElement.clientHeight;
+      }
+      renderPreview();
+    };
+    img.src = dataUrl;
+  }
 
-    if (modalActivePointers.size >= 2) {
-      const pts = Array.from(modalActivePointers.values());
+  function handleWheel(e: WheelEvent) {
+    if (isPinching || isPanning) return;
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    zoomScale = Math.max(0.2, Math.min(4.0, zoomScale * factor));
+    renderPreview();
+  }
+
+  function handlePointerDown(e: PointerEvent) {
+    activePointers.set(e.pointerId, e);
+    if (activePointers.size >= 2) {
+      const pts = Array.from(activePointers.values());
       const p1 = pts[0];
       const p2 = pts[1];
-      modalPinchInitDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
-      modalPinchInitZoom = modalZoom;
-      modalPinchInitMid = {
+      initialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      initialPinchZoom = zoomScale;
+      initialPinchMidpoint = {
         x: (p1.clientX + p2.clientX) / 2,
         y: (p1.clientY + p2.clientY) / 2
       };
-      modalPinchInitPan = { ...modalPan };
-      isModalPinching = true;
-      isModalPanning = false;
+      initialPinchPanOffset = { ...panOffset };
+      isPinching = true;
+      isPanning = false;
       e.preventDefault();
-    } else if (modalActivePointers.size === 1 && modalZoom > 1) {
-      isModalPanning = true;
-      modalPanId = e.pointerId;
-      modalPanStart = { x: e.clientX, y: e.clientY };
-      modalPanBase = { ...modalPan };
-      e.preventDefault();
+    } else if (activePointers.size === 1) {
+      isPanning = true;
+      panStart = { x: e.clientX, y: e.clientY };
+      panBaseOffset = { ...panOffset };
     }
   }
 
-  function handleModalPointerMove(e: PointerEvent) {
+  function handlePointerMove(e: PointerEvent) {
     if (e.buttons === 0) {
-      modalActivePointers.clear();
-      isModalPinching = false;
-      isModalPanning = false;
+      activePointers.clear();
+      isPinching = false;
+      isPanning = false;
       return;
     }
+    activePointers.set(e.pointerId, e);
 
-    modalActivePointers.set(e.pointerId, e);
-
-    if (isModalPinching && modalActivePointers.size >= 2) {
-      const pts = Array.from(modalActivePointers.values());
+    if (isPinching && activePointers.size >= 2) {
+      const pts = Array.from(activePointers.values());
       const p1 = pts[0];
       const p2 = pts[1];
-      const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
-      const currentMidpoint = {
+      const dist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      const mid = {
         x: (p1.clientX + p2.clientX) / 2,
         y: (p1.clientY + p2.clientY) / 2
       };
 
-      if (modalPinchInitDist > 0) {
-        const factor = currentDistance / modalPinchInitDist;
-        const newZoom = Math.max(0.5, Math.min(8, modalPinchInitZoom * factor));
-
-        const body = e.currentTarget as HTMLElement;
-        const rect = body.getBoundingClientRect();
-        const worldX = (modalPinchInitMid.x - rect.left - modalPinchInitPan.x) / modalPinchInitZoom;
-        const worldY = (modalPinchInitMid.y - rect.top - modalPinchInitPan.y) / modalPinchInitZoom;
-        const newPanX = (currentMidpoint.x - rect.left) - worldX * newZoom;
-        const newPanY = (currentMidpoint.y - rect.top) - worldY * newZoom;
-
-        modalZoom = newZoom;
-        if (newZoom === 1) {
-          modalPan = { x: 0, y: 0 };
-        } else {
-          modalPan = { x: newPanX, y: newPanY };
-        }
+      if (initialPinchDistance > 0 && canvasElement) {
+        const factor = dist / initialPinchDistance;
+        const newScale = Math.max(0.2, Math.min(4.0, initialPinchZoom * factor));
+        const rect = canvasElement.getBoundingClientRect();
+        const worldX = (initialPinchMidpoint.x - rect.left - initialPinchPanOffset.x) / initialPinchZoom;
+        const worldY = (initialPinchMidpoint.y - rect.top - initialPinchPanOffset.y) / initialPinchZoom;
+        const newPanX = (mid.x - rect.left) - worldX * newScale;
+        const newPanY = (mid.y - rect.top) - worldY * newScale;
+        zoomScale = newScale;
+        panOffset = { x: newPanX, y: newPanY };
+        renderPreview();
       }
       e.preventDefault();
-    } else if (isModalPanning && modalActivePointers.size === 1 && modalZoom > 1) {
-      const dx = e.clientX - modalPanStart.x;
-      const dy = e.clientY - modalPanStart.y;
-      modalPan = {
-        x: modalPanBase.x + dx,
-        y: modalPanBase.y + dy
+    } else if (isPanning && activePointers.size === 1) {
+      panOffset = {
+        x: panBaseOffset.x + (e.clientX - panStart.x),
+        y: panBaseOffset.y + (e.clientY - panStart.y)
       };
+      renderPreview();
       e.preventDefault();
     }
   }
 
-  function handleModalPointerUp(e: PointerEvent) {
-    modalActivePointers.delete(e.pointerId);
-
-    if (modalActivePointers.size === 0) {
-      isModalPinching = false;
-      isModalPanning = false;
-    } else if (isModalPinching && modalActivePointers.size >= 2) {
-      const pts = Array.from(modalActivePointers.values());
+  function handlePointerUp(e: PointerEvent) {
+    activePointers.delete(e.pointerId);
+    if (activePointers.size === 0) {
+      isPinching = false;
+      isPanning = false;
+    } else if (isPinching && activePointers.size >= 2) {
+      const pts = Array.from(activePointers.values());
       const p1 = pts[0];
       const p2 = pts[1];
-      modalPinchInitDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
-      modalPinchInitZoom = modalZoom;
-      modalPinchInitMid = {
+      initialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      initialPinchZoom = zoomScale;
+      initialPinchMidpoint = {
         x: (p1.clientX + p2.clientX) / 2,
         y: (p1.clientY + p2.clientY) / 2
       };
-      modalPinchInitPan = { ...modalPan };
-    } else if (isModalPinching && modalActivePointers.size === 1 && modalZoom > 1) {
-      isModalPinching = false;
-      isModalPanning = true;
-      const remaining = Array.from(modalActivePointers.values())[0];
-      modalPanId = remaining.pointerId;
-      modalPanStart = { x: remaining.clientX, y: remaining.clientY };
-      modalPanBase = { ...modalPan };
-    } else if (modalActivePointers.size === 1 && modalZoom > 1) {
-      isModalPanning = true;
-      const remaining = Array.from(modalActivePointers.values())[0];
-      modalPanId = remaining.pointerId;
-      modalPanStart = { x: remaining.clientX, y: remaining.clientY };
-      modalPanBase = { ...modalPan };
+      initialPinchPanOffset = { ...panOffset };
+    } else if (isPinching && activePointers.size === 1) {
+      isPinching = false;
+      isPanning = true;
+      const remaining = Array.from(activePointers.values())[0];
+      panStart = { x: remaining.clientX, y: remaining.clientY };
+      panBaseOffset = { ...panOffset };
     }
   }
 
@@ -676,14 +682,8 @@
       </header>
 
       <!-- Modal Body (Max size view with Zoom / Pan support for images) -->
-      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <div 
-        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalWheel : null}
-        onpointerdown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerDown : null}
-        onpointermove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerMove : null}
-        onpointerup={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerUp : null}
         class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || isAudioFile(previewFile.name) ? 'overflow-auto' : 'overflow-hidden relative'}"
-        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? `cursor: ${modalZoom > 1 ? (isModalPanning ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;` : ''}
       >
         {#if isAudioFile(previewFile.name)}
           <div class="w-full max-w-md">
@@ -702,13 +702,18 @@
         {:else if previewFile.name.toLowerCase().endsWith('.txt')}
           <pre class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-sm font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant">{decodeBase64Text(previewFile.dataUrl)}</pre>
         {:else}
-          <img 
-            src={previewFile.dataUrl} 
-            alt={previewFile.name} 
-            class="max-w-full max-h-full object-contain rounded-lg shadow-md select-none pointer-events-none transition-transform duration-75 ease-out"
-            style="transform: translate({modalPan.x}px, {modalPan.y}px) scale({modalZoom}); transform-origin: center center;"
-            draggable="false"
-          />
+          <canvas
+            bind:this={canvasElement}
+            onpointerdown={handlePointerDown}
+            onpointermove={handlePointerMove}
+            onpointerup={handlePointerUp}
+            onpointerleave={handlePointerUp}
+            onpointercancel={handlePointerUp}
+            onwheel={handleWheel}
+            oncontextmenu={(e) => e.preventDefault()}
+            class="max-w-full max-h-full rounded-lg shadow-md select-none"
+            style="touch-action: none;"
+          ></canvas>
         {/if}
       </div>
     </div>
