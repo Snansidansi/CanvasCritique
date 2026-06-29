@@ -578,14 +578,14 @@
       case 'square': {
         const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
         const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
-        const size = Math.max(Math.abs(maxX - minX), Math.abs(maxY - minY));
-        const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
-        const half = size / 2;
-        return [{ x: cx - half, y: cy - half }, { x: cx + half, y: cy - half }, { x: cx + half, y: cy + half }, { x: cx - half, y: cy + half }, { x: cx - half, y: cy - half }];
+        const size = Math.max(maxX - minX, maxY - minY);
+        return [{ x: minX, y: minY }, { x: minX + size, y: minY }, { x: minX + size, y: minY + size }, { x: minX, y: minY + size }, { x: minX, y: minY }];
       }
       case 'circle': {
-        const cx = x1, cy = y1;
-        const radius = Math.hypot(x2 - x1, y2 - y1);
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        const radius = Math.min(maxX - minX, maxY - minY) / 2;
         const steps = 64;
         const pts: Point[] = [];
         for (let i = 0; i <= steps; i++) {
@@ -595,8 +595,10 @@
         return pts;
       }
       case 'ellipse': {
-        const cx = x1, cy = y1;
-        const rx = Math.abs(x2 - x1), ry = Math.abs(y2 - y1);
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        const rx = (maxX - minX) / 2, ry = (maxY - minY) / 2;
         const steps = 64;
         const pts: Point[] = [];
         for (let i = 0; i <= steps; i++) {
