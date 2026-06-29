@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { parseMarkdown } from '../../utils/markdown';
+
   let {
     activeTooltipMarker = $bindable(),
     left,
@@ -66,7 +68,7 @@
       </button>
     </div>
     <p class="text-xs text-on-surface-variant leading-relaxed">
-      {activeTooltipMarker.feedback}
+      {@html parseMarkdown(activeTooltipMarker.feedback)}
     </p>
   </div>
 {/if}

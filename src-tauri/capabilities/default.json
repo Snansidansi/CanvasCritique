@@ -12,6 +12,8 @@
     "core:window:default",
     "dialog:default",
     "fs:default",
+    "fs:allow-write-text-file",
+    "fs:allow-write-file",
     "sql:default",
     "sql:allow-load",
     "sql:allow-execute",

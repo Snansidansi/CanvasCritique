@@ -102,6 +102,7 @@
     "deleteSelectedTasksTitle": "Delete Selected Tasks",
     "deleteSelectedTasksMsg": "Are you sure you want to delete {count} selected tasks?",
     "exportBtn": "Export",
+    "importBtn": "Import",
     "createSectionBtn": "Create Section",
     "addTopicModalTitle": "Add New Topic",
     "topicNameLabel": "Topic Name",
@@ -310,7 +311,17 @@
       "autoCompleteOnSuccess": "Auto-complete on Success",
       "autoCompleteOnSuccessDesc": "Automatically mark task as completed when score is 100%",
       "textFontSize": "Text Font Size",
-      "textFontSizeDesc": "Font size for task instructions, solution, and AI critique on the canvas screen"
+      "textFontSizeDesc": "Font size for task instructions, solution, and AI critique on the canvas screen",
+      "eraser": {
+        "title": "Eraser Mode",
+        "desc": "Choose how the eraser behaves when you touch the canvas.",
+        "normal": "Normal",
+        "normalDesc": "Erase only where you draw, just like the pen.",
+        "stroke": "Stroke",
+        "strokeDesc": "Delete the entire stroke you touch (like OneNote).",
+        "normalSize": "Normal Eraser Size",
+        "strokeRadius": "Stroke Eraser Radius"
+      }
     },
     "taskNumbering": {
       "title": "Task Numbering",

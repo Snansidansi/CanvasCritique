@@ -1,7 +1,6 @@
 import Database from '@tauri-apps/plugin-sql';
 import type { Profile, Settings, Project, Task, CustomBackground, ProjectSettingsOverride } from './state/types';
 import { defaultSettings, defaultProjects } from './state/defaults';
-import { encrypt, decrypt } from './db/crypto';
 
 let dbInstance: Database | null = null;
 
@@ -17,9 +16,16 @@ export async function initDb(): Promise<Database> {
     CREATE TABLE IF NOT EXISTS media (
       id TEXT PRIMARY KEY,
       data TEXT NOT NULL,
-      mime_type TEXT NOT NULL
+      mime_type TEXT NOT NULL,
+      sha256_hash TEXT
     )
   `);
+
+  try {
+    await db.execute('ALTER TABLE media ADD COLUMN sha256_hash TEXT');
+  } catch (_) {
+    // Column already exists
+  }
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS profiles (
@@ -171,24 +177,11 @@ export async function getSettings(db: Database): Promise<Settings | null> {
   const rows: any[] = await db.select('SELECT data_json FROM settings WHERE id = 1');
   if (rows.length === 0) return null;
   const settings: Settings = JSON.parse(rows[0].data_json);
-  if (settings.geminiApiKey) {
-    try { settings.geminiApiKey = await decrypt(settings.geminiApiKey); } catch (_) {}
-  }
-  if (settings.openRouterApiKey) {
-    try { settings.openRouterApiKey = await decrypt(settings.openRouterApiKey); } catch (_) {}
-  }
   return { ...defaultSettings, ...settings };
 }
 
 export async function saveSettings(db: Database, settings: Settings): Promise<void> {
-  const toSave = { ...settings };
-  if (toSave.geminiApiKey) {
-    toSave.geminiApiKey = await encrypt(toSave.geminiApiKey);
-  }
-  if (toSave.openRouterApiKey) {
-    toSave.openRouterApiKey = await encrypt(toSave.openRouterApiKey);
-  }
-  const json = JSON.stringify(toSave);
+  const json = JSON.stringify(settings);
   await db.execute(
     'INSERT OR REPLACE INTO settings (id, data_json) VALUES (1, ?)',
     [json]

@@ -167,6 +167,7 @@ export interface ImportDialog {
   hasCritique: boolean;
   hasCanvas: boolean;
   targetProjectId?: string;
+  targetCategory?: string;
   onConfirm: (options: {
     importCritique: boolean;
     importCanvas: boolean;
