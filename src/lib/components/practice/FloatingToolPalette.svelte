@@ -11,6 +11,7 @@
     canvasMode,
     strokeHistory,
     redoStack,
+    eraserUndoStack,
     handleUndo,
     handleRedo
   } = $props();
@@ -349,7 +350,7 @@
         
         <button 
           onclick={handleUndo}
-          disabled={strokeHistory.length === 0}
+          disabled={strokeHistory.length === 0 && eraserUndoStack.length === 0}
           class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer border-0 bg-transparent"
           title={t('practice.palette.undo')}
         >

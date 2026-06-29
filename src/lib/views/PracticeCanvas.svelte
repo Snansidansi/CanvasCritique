@@ -132,7 +132,8 @@
     {
       id: 'page-' + Date.now(),
       strokeHistory: [],
-      redoStack: []
+      redoStack: [],
+      eraserUndoStack: []
     }
   ]);
   let activePageIndex = $state(0);
@@ -140,6 +141,7 @@
   // Infinite Canvas state
   let infiniteStrokes = $state([]);
   let infiniteRedo = $state([]);
+  let infiniteEraserUndo = $state([]);
   let panOffset = $state({ x: 0, y: 0 });
   let isPanning = $state(false);
   let panStart = { x: 0, y: 0 };
@@ -272,6 +274,11 @@
     canvasMode === 'a4'
       ? (pages[activePageIndex]?.redoStack || [])
       : infiniteRedo
+  );
+  let eraserUndoStack = $derived(
+    canvasMode === 'a4'
+      ? (pages[activePageIndex]?.eraserUndoStack || [])
+      : infiniteEraserUndo
   );
 
   // Stroke history state
@@ -502,6 +509,7 @@
       pages: JSON.parse(JSON.stringify(pages)),
       infiniteStrokes: JSON.parse(JSON.stringify(infiniteStrokes)),
       infiniteRedo: JSON.parse(JSON.stringify(infiniteRedo)),
+      infiniteEraserUndo: JSON.parse(JSON.stringify(infiniteEraserUndo)),
       panOffset: { ...panOffset },
       zoomScale,
       activePageIndex
@@ -520,11 +528,16 @@
           {
             id: 'page-' + Date.now(),
             strokeHistory: [],
-            redoStack: []
+            redoStack: [],
+            eraserUndoStack: []
           }
         ];
+        for (const page of pages) {
+          if (!page.eraserUndoStack) page.eraserUndoStack = [];
+        }
         infiniteStrokes = saved.infiniteStrokes || [];
         infiniteRedo = saved.infiniteRedo || [];
+        infiniteEraserUndo = saved.infiniteEraserUndo || [];
         panOffset = saved.panOffset || { x: 0, y: 0 };
         zoomScale = saved.zoomScale || 1;
         activePageIndex = saved.activePageIndex || 0;
@@ -534,11 +547,13 @@
           {
             id: 'page-' + Date.now(),
             strokeHistory: [],
-            redoStack: []
+            redoStack: [],
+            eraserUndoStack: []
           }
         ];
         infiniteStrokes = [];
         infiniteRedo = [];
+        infiniteEraserUndo = [];
         panOffset = { x: 0, y: 0 };
         zoomScale = 1;
         activePageIndex = 0;
@@ -805,12 +820,12 @@
     if ((activeTool === 'eraser' || isPointerEraser) && effectiveEraserSettings.eraserMode === 'stroke') {
       const hitRadius = effectiveEraserSettings.eraserRadiusStroke ?? 24;
       const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
-      const currentRedo = canvasMode === 'a4' ? pages[activePageIndex].redoStack : infiniteRedo;
+      const currentEraserUndo = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
       for (let i = currentHistory.length - 1; i >= 0; i--) {
         const stroke = currentHistory[i];
         if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
         if (stroke.points.some(p => Math.abs(p.x - coords.x) < hitRadius && Math.abs(p.y - coords.y) < hitRadius)) {
-          currentRedo.push(stroke);
+          currentEraserUndo.push(stroke);
           currentHistory.splice(i, 1);
           break;
         }
@@ -957,13 +972,13 @@
       e.preventDefault();
       const hitRadius = effectiveEraserSettings.eraserRadiusStroke ?? 24;
       const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
-      const currentRedo = canvasMode === 'a4' ? pages[activePageIndex].redoStack : infiniteRedo;
+      const currentEraserUndo = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
       const coords = getCoords(e);
       for (let i = currentHistory.length - 1; i >= 0; i--) {
         const stroke = currentHistory[i];
         if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
         if (stroke.points.some(p => Math.abs(p.x - coords.x) < hitRadius && Math.abs(p.y - coords.y) < hitRadius)) {
-          currentRedo.push(stroke);
+          currentEraserUndo.push(stroke);
           currentHistory.splice(i, 1);
           break;
         }
@@ -1095,9 +1110,11 @@
         if (canvasMode === 'a4') {
           pages[activePageIndex].strokeHistory.push(newStroke);
           pages[activePageIndex].redoStack = [];
+          pages[activePageIndex].eraserUndoStack = [];
         } else {
           infiniteStrokes.push(newStroke);
           infiniteRedo = [];
+          infiniteEraserUndo = [];
         }
         saveToStore();
       }
@@ -1115,12 +1132,14 @@
         if (canvasMode === 'a4') {
           pages[activePageIndex].strokeHistory.push(newStroke);
           pages[activePageIndex].redoStack = [];
+          pages[activePageIndex].eraserUndoStack = [];
           if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
             removeFullyErasedStrokes(newStroke);
           }
         } else {
           infiniteStrokes.push(newStroke);
           infiniteRedo = [];
+          infiniteEraserUndo = [];
           if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
             removeFullyErasedStrokes(newStroke);
           }
@@ -1423,13 +1442,21 @@
 
   function handleUndo() {
     if (canvasMode === 'a4') {
-      if (pages[activePageIndex]?.strokeHistory.length > 0) {
-        const last = pages[activePageIndex].strokeHistory.pop();
-        pages[activePageIndex].redoStack.push(last);
+      const page = pages[activePageIndex];
+      if (!page) return;
+      if (page.eraserUndoStack.length > 0) {
+        const restored = page.eraserUndoStack.pop()!;
+        page.strokeHistory.push(restored);
+      } else if (page.strokeHistory.length > 0) {
+        const last = page.strokeHistory.pop()!;
+        page.redoStack.push(last);
       }
     } else {
-      if (infiniteStrokes.length > 0) {
-        const last = infiniteStrokes.pop();
+      if (infiniteEraserUndo.length > 0) {
+        const restored = infiniteEraserUndo.pop()!;
+        infiniteStrokes.push(restored);
+      } else if (infiniteStrokes.length > 0) {
+        const last = infiniteStrokes.pop()!;
         infiniteRedo.push(last);
       }
     }
@@ -1462,10 +1489,12 @@
           if (pages[activePageIndex]) {
             pages[activePageIndex].strokeHistory = [];
             pages[activePageIndex].redoStack = [];
+            pages[activePageIndex].eraserUndoStack = [];
           }
         } else {
           infiniteStrokes = [];
           infiniteRedo = [];
+          infiniteEraserUndo = [];
         }
         
         feedbackText = '';
@@ -1500,11 +1529,13 @@
         s => !selectedStrokes.includes(s)
       );
       pages[activePageIndex].redoStack = [];
+      pages[activePageIndex].eraserUndoStack = [];
     } else {
       infiniteStrokes = infiniteStrokes.filter(
         s => !selectedStrokes.includes(s)
       );
       infiniteRedo = [];
+      infiniteEraserUndo = [];
     }
     
     selectedStrokes = [];
@@ -1545,10 +1576,12 @@
     if (canvasMode === 'a4') {
       pages[activePageIndex].strokeHistory.push(...strokesToPaste);
       pages[activePageIndex].redoStack = [];
+      pages[activePageIndex].eraserUndoStack = [];
       pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
     } else {
       infiniteStrokes.push(...strokesToPaste);
       infiniteRedo = [];
+      infiniteEraserUndo = [];
       infiniteStrokes = [...infiniteStrokes];
     }
     
@@ -1785,6 +1818,7 @@
     bind:activePageIndex
     {strokeHistory}
     {redoStack}
+    {eraserUndoStack}
     bind:zoomScale
     bind:panOffset
     bind:showTask
@@ -2086,6 +2120,7 @@
         {canvasMode}
         {strokeHistory}
         {redoStack}
+        {eraserUndoStack}
         {handleUndo}
         {handleRedo}
       />
