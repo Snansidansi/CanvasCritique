@@ -762,15 +762,18 @@
                 <input
                   type="text"
                   bind:value={editCategoryValue}
+                  onclick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onpointerdown={(e) => e.stopPropagation()}
                   onblur={() => saveCategoryEdit(category)}
-                  onkeydown={(e) => handleCategoryKeydown(e, category)}
+                  onkeydown={(e) => { e.stopPropagation(); handleCategoryKeydown(e, category); }}
                   class="font-bold text-xs text-primary bg-surface-container border-b border-primary px-1 py-0.5 rounded focus:outline-none w-48 max-w-full uppercase tracking-widest"
                   use:selectAndFocus
                 />
               {:else}
                 <button
                   type="button"
-                  onclick={() => startCategoryEdit(category)}
+                  onclick={(e) => { e.preventDefault(); e.stopPropagation(); startCategoryEdit(category); }}
+                  onpointerdown={(e) => e.stopPropagation()}
                   class="group flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-widest hover:underline cursor-pointer border-0 bg-transparent p-0 text-left focus:outline-none"
                   title={t('projectDetail.renameTopicTooltip')}
                 >
@@ -781,13 +784,16 @@
 
               <button
                 type="button"
-                onclick={() => {
+                onclick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   store.confirm(
                     t('projectDetail.deleteTopicConfirmTitle'),
                     t('projectDetail.deleteTopicConfirmMsg', { category }),
                     () => store.deleteCategory(project.id, category)
                   );
                 }}
+                onpointerdown={(e) => e.stopPropagation()}
                 class="text-outline hover:text-error transition-colors cursor-pointer border-0 bg-transparent p-0 flex items-center justify-center focus:outline-none"
                 title={t('projectDetail.deleteTopicTooltip')}
               >
