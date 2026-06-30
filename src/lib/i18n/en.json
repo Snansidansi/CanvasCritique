@@ -357,6 +357,7 @@
       "sendSolutionMedia": "Send Solution Media",
       "sendSolutionText": "Send Solution Text",
       "sendCanvasBg": "Send Canvas Background",
+      "alwaysSendBoth": "Always Send Canvas and Text Editor",
       "aiFeedbackLang": "AI Feedback Language",
       "aiFeedbackLangPlaceholder": "e.g. English",
       "testConnectionBtn": "Test Connection",

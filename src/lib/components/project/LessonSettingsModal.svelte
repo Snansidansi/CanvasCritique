@@ -34,6 +34,7 @@
         sendCanvasBackground: store.settings.sendCanvasBackground,
         sendTaskText: store.settings.sendTaskText,
         sendSolutionText: store.settings.sendSolutionText,
+        alwaysSendBothCanvasAndText: store.settings.alwaysSendBothCanvasAndText,
         language: store.settings.language,
         customSystemPrompt: store.settings.customSystemPrompt || '',
         canvasMode: store.settings.canvasMode,

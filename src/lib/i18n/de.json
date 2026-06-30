@@ -356,6 +356,7 @@
       "sendSolutionMedia": "Lösungsmedien senden",
       "sendSolutionText": "Lösungstext senden",
       "sendCanvasBg": "Leinwandhintergrund senden",
+      "alwaysSendBoth": "Immer Canvas und Text-Editor senden",
       "aiFeedbackLang": "KI-Feedback-Sprache",
       "aiFeedbackLangPlaceholder": "z.B. Deutsch",
       "testConnectionBtn": "Verbindung testen",
