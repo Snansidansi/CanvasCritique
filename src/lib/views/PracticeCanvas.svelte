@@ -637,49 +637,92 @@
     }
   }
 
-  function getLineHtml(line: string, lineIndex: number): string {
-    let html = parseMarkdown(line);
-    
-    // Check if we should show feedback
+  let activeTextTooltip = $state<{ type: string; feedback: string } | null>(null);
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
+  let tooltipColor = $state('');
+  let tooltipPosition = $state<'top' | 'bottom'>('top');
+
+  function handlePreviewPointerOver(e: PointerEvent) {
+    const target = e.target as HTMLElement;
+    const highlight = target.closest('.text-error-highlight') as HTMLElement;
+    if (highlight) {
+      const type = highlight.getAttribute('data-type') || 'partial';
+      const feedback = highlight.getAttribute('data-feedback') || '';
+      const correctness = highlight.getAttribute('data-correctness') || 'partial';
+
+      activeTextTooltip = { type: correctness, feedback };
+      
+      const rect = highlight.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      
+      const tooltipHalfWidth = 128;
+      tooltipX = Math.max(tooltipHalfWidth + 12, Math.min(window.innerWidth - (tooltipHalfWidth + 12), x));
+      
+      // Position above or below depending on vertical space
+      if (rect.top < 80) {
+        tooltipPosition = 'bottom';
+        tooltipY = rect.bottom;
+      } else {
+        tooltipPosition = 'top';
+        tooltipY = rect.top;
+      }
+
+      if (correctness === 'correct') {
+        tooltipColor = 'text-emerald-500';
+      } else if (correctness === 'partial') {
+        tooltipColor = 'text-amber-500';
+      } else {
+        tooltipColor = 'text-red-500';
+      }
+    }
+  }
+
+  function handlePreviewPointerOut(e: PointerEvent) {
+    activeTextTooltip = null;
+  }
+
+  function getParsedPreviewHtml(text: string): string {
+    const rawHtml = parseMarkdown(text);
     if (!showFeedback || !hasCheckedWork || isChecking) {
-      return html;
+      return rawHtml;
     }
     
-    // Find text markers for this line
     const textCritique = task?.critique?.textCritique;
-    if (!textCritique || !textCritique.feedbackMarkers) {
-      return html;
+    if (!textCritique || !textCritique.feedbackMarkers || textCritique.feedbackMarkers.length === 0) {
+      return rawHtml;
     }
     
-    const markers = textCritique.feedbackMarkers.filter((m: any) => m.lineIndex === lineIndex);
+    const htmlLines = rawHtml.split('<br>');
+    
+    const markers = textCritique.feedbackMarkers;
     for (const marker of markers) {
       if (!marker.substring) continue;
+      const lineIdx = marker.lineIndex;
+      if (lineIdx < 0 || lineIdx >= htmlLines.length) continue;
       
-      // Escape the substring to match how it looks in HTML after parseMarkdown escapes it
+      const lineHtml = htmlLines[lineIdx];
       const escapedSub = marker.substring
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
-      
-      // Only replace if the word actually exists in the html
-      if (!html.includes(escapedSub)) continue;
+        
+      if (!lineHtml.includes(escapedSub)) continue;
       
       let colorClass = 'border-red-500 bg-red-500/10 hover:bg-red-500/20';
-      let iconColor = 'text-red-500';
       if (marker.type === 'correct') {
         colorClass = 'border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20';
-        iconColor = 'text-emerald-500';
       } else if (marker.type === 'partial') {
         colorClass = 'border-amber-500 bg-amber-500/10 hover:bg-amber-500/20';
-        iconColor = 'text-amber-500';
       }
       
-      const highlightHtml = `<span class="border-b-2 ${colorClass} cursor-help relative group/tooltip inline-block" style="text-decoration: none;">${escapedSub}<span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tooltip:block bg-surface border border-outline-variant py-1.5 px-2.5 rounded-lg shadow-lg text-[11px] leading-snug text-on-surface z-50 pointer-events-none whitespace-normal min-w-40 max-w-64 font-sans font-medium"><span class="font-bold ${iconColor} block mb-0.5 uppercase tracking-wider text-[9px]">${marker.type}</span>${marker.feedback}</span></span>`;
+      const escapedFeedback = marker.feedback.replace(/"/g, '&quot;');
+      const highlightHtml = `<span class="text-error-highlight border-b-2 ${colorClass} cursor-help inline-block" style="text-decoration: none;" data-type="${marker.type}" data-feedback="${escapedFeedback}" data-correctness="${marker.type}">${escapedSub}</span>`;
       
-      html = html.replace(escapedSub, highlightHtml);
+      htmlLines[lineIdx] = lineHtml.replace(escapedSub, highlightHtml);
     }
     
-    return html;
+    return htmlLines.join('<br>');
   }
 
   $effect(() => {
@@ -2029,6 +2072,11 @@
       feedbackScore = result.feedbackScore;
       feedbackMarkers = result.feedbackMarkers;
 
+      // Auto-toggle to Preview mode when feedback is received
+      store.settings.editorShowAllRaw = false;
+      store.saveSettings();
+      activeLineIndex = null;
+
       if (store.activeProject && store.activeTask) {
         const updatedData: any = {
           critique: {
@@ -2426,10 +2474,19 @@
               <span class="material-symbols-outlined text-[16px]">edit_note</span>
               {store.settings.editorShowAllRaw ? t('practice.textEditor.writeTitle') : t('practice.textEditor.previewTitle')}
             </h3>
-            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant flex items-center gap-1">
+            <button 
+              type="button"
+              onclick={() => {
+                store.settings.editorShowAllRaw = !store.settings.editorShowAllRaw;
+                store.saveSettings();
+                activeLineIndex = null;
+              }}
+              class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
+              title="Toggle editor mode"
+            >
               <span class="w-1.5 h-1.5 rounded-full {store.settings.editorShowAllRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
-              {store.settings.editorShowAllRaw ? 'Raw Mode' : 'Live Preview'}
-            </span>
+              {store.settings.editorShowAllRaw ? 'Raw Mode' : t('practice.textEditor.previewTitle')}
+            </button>
           </div>
 
           <!-- Main Editor Space -->
@@ -2442,67 +2499,15 @@
               style="font-size: {store.settings.editorFontSize || 16}px;"
             ></textarea>
           {:else}
-            <!-- Obsidian-style Live Preview Editor -->
+            <!-- Preview Mode: non-editable rendered HTML -->
             <div 
-              role="textbox"
-              tabindex="-1"
-              aria-label="Text Editor Workspace"
+              role="document"
               class="grow w-full h-full overflow-y-auto bg-surface-container-low/20 border border-outline-variant/30 rounded-xl p-6 select-text text-left leading-relaxed max-w-none prose dark:prose-invert animate-fade-in custom-scrollbar"
               style="font-size: {store.settings.editorFontSize || 16}px;"
-              onclick={(e) => {
-                const target = e.target as HTMLElement;
-                if (!target.closest('.editor-line-item') && lines.length > 0) {
-                  activeLineIndex = lines.length - 1;
-                  cursorPositionToSet = lines[lines.length - 1].length;
-                }
-              }}
-              onkeydown={() => {}}
+              onpointerover={handlePreviewPointerOver}
+              onpointerout={handlePreviewPointerOut}
             >
-              <div class="flex flex-col min-h-full gap-0.5">
-                {#each lines as line, i}
-                  <div class="editor-line-item relative w-full min-h-[1.5rem] py-0.5 transition-all rounded hover:bg-surface-container-low/40">
-                    {#if activeLineIndex === i}
-                      <textarea
-                        data-line-index={i}
-                        use:autoSize
-                        value={line}
-                        oninput={(e) => {
-                          lines[i] = e.currentTarget.value;
-                          editorText = lines.join('\n');
-                          handleEditorInput();
-                        }}
-                        onkeydown={(e) => handleLineKeyDown(e, i)}
-                        placeholder=""
-                        class="w-full resize-none bg-transparent text-on-surface focus:outline-none font-mono border-0 p-0 m-0 leading-relaxed block focus:ring-0"
-                        style="font-size: {store.settings.editorFontSize || 16}px; outline: none; border: none; box-shadow: none;"
-                      ></textarea>
-                    {:else}
-                      <!-- Click on line to edit -->
-                      <div 
-                        role="button"
-                        tabindex="0"
-                        onclick={() => {
-                          activeLineIndex = i;
-                          cursorPositionToSet = lines[i].length;
-                        }}
-                        onkeydown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            activeLineIndex = i;
-                            cursorPositionToSet = lines[i].length;
-                          }
-                        }}
-                        class="w-full text-on-surface leading-relaxed cursor-text min-h-[1.5rem]"
-                      >
-                        {#if line.trim() === ''}
-                          <div class="opacity-15 select-none text-[11px] font-mono italic">(empty line)</div>
-                        {:else}
-                          {@html getLineHtml(line, i)}
-                        {/if}
-                      </div>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
+              {@html getParsedPreviewHtml(editorText)}
             </div>
           {/if}
 
@@ -2735,5 +2740,15 @@
         </button>
       </div>
     </div>
+  </div>
+{/if}
+
+{#if activeTextTooltip}
+  <div 
+    class="fixed bg-surface text-on-surface border border-outline-variant py-2 px-3 rounded-lg shadow-xl text-[11px] leading-snug z-9999 pointer-events-none whitespace-normal min-w-40 max-w-64 font-sans font-medium"
+    style="left: {tooltipX}px; top: {tooltipY}px; transform: {tooltipPosition === 'top' ? 'translate(-50%, -100%) translateY(-8px)' : 'translate(-50%, 8px)'};"
+  >
+    <span class="font-bold {tooltipColor} block mb-0.5 uppercase tracking-wider text-[9px]">{activeTextTooltip.type}</span>
+    {activeTextTooltip.feedback}
   </div>
 {/if}

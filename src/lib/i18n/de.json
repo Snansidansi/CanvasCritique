@@ -233,7 +233,7 @@
     "modeTextLabel": "Texteditor",
     "textEditor": {
       "writeTitle": "Texteditor",
-      "previewTitle": "Live-Vorschau",
+      "previewTitle": "Vorschau",
       "placeholder": ""
     },
     "evaluationGoal": "Bewertungsziel / Lösung",

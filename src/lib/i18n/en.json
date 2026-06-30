@@ -234,7 +234,7 @@
     "modeTextLabel": "Text Editor",
     "textEditor": {
       "writeTitle": "Text Editor",
-      "previewTitle": "Live Preview",
+      "previewTitle": "Preview",
       "placeholder": ""
     },
     "evaluationGoal": "Evaluation Goal / Solution",
