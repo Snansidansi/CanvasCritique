@@ -22,6 +22,16 @@ export interface Task {
     feedbackText: string;
     feedbackScore: number | null;
     feedbackMarkers: any[];
+    canvasCritique?: {
+      feedbackText: string;
+      feedbackScore: number | null;
+      feedbackMarkers: any[];
+    } | null;
+    textCritique?: {
+      feedbackText: string;
+      feedbackScore: number | null;
+      feedbackMarkers: any[];
+    } | null;
   } | null;
   background?: string | null;
   editorText?: string;

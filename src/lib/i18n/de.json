@@ -230,9 +230,9 @@
     "modeCanvas": "Zur Zeichenleinwand wechseln",
     "modeCanvasLabel": "Leinwand",
     "modeText": "Zum Markdown/LaTeX Texteditor wechseln",
-    "modeTextLabel": "Text-Editor",
+    "modeTextLabel": "Texteditor",
     "textEditor": {
-      "writeTitle": "Schreiben (Markdown & LaTeX)",
+      "writeTitle": "Texteditor",
       "previewTitle": "Live-Vorschau",
       "placeholder": ""
     },

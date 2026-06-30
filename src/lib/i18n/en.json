@@ -233,7 +233,7 @@
     "modeText": "Switch to Markdown/LaTeX Text Editor",
     "modeTextLabel": "Text Editor",
     "textEditor": {
-      "writeTitle": "Write (Markdown & LaTeX)",
+      "writeTitle": "Text Editor",
       "previewTitle": "Live Preview",
       "placeholder": ""
     },

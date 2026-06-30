@@ -109,6 +109,16 @@ export interface CheckWorkResult {
   feedbackText: string;
   feedbackScore: number | null;
   feedbackMarkers: CheckWorkMarker[];
+  canvasCritique?: {
+    feedbackText: string;
+    feedbackScore: number | null;
+    feedbackMarkers: any[];
+  } | null;
+  textCritique?: {
+    feedbackText: string;
+    feedbackScore: number | null;
+    feedbackMarkers: any[];
+  } | null;
 }
 
 export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWorkResult> {
@@ -439,14 +449,14 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
 
   let canvasInstructions = "";
   if (!sendCanvas) {
-    canvasInstructions = "\n\n**CRITICAL (No Canvas Sent):**\nNo canvas images were sent because the student is working in the text-editor only or canvas submission is disabled. Therefore, you MUST return an EMPTY array for the 'markers' field (i.e. \"markers\": []). Do not try to place any coordinates. Provide all corrections, edits, and helpful feedback in the 'generalCritique' Markdown string, clearly referencing the text being corrected.\n";
+    canvasInstructions = "\n\n**CRITICAL (No Canvas Sent):**\nNo canvas drawings were sent because the student is working in the text-editor only. Therefore, you MUST return an EMPTY array for the 'markers' field (i.e. \"markers\": []). Do not try to place any coordinates. Provide all corrections and helpful feedback in the text editor section.\n";
   } else {
     canvasInstructions = "\n\nThe student's canvas drawings are sent as image(s). Please place feedback markers at their corresponding coordinates relative to the canvas drawing.\n";
   }
 
   let textInstructions = "";
   if (sendText && editorText && editorText.trim()) {
-    textInstructions = `\n\n**CRITICAL (Text Editor Evaluation):**\nThe student has submitted text in the Text Editor (provided below under [STUDENT TEXT EDITOR WORK]). Read it carefully, check its correctness, and provide helpful LaTeX/Markdown feedback and corrections in the 'generalCritique'. Under [STUDENT TEXT EDITOR WORK], you see exactly what they typed.\n`;
+    textInstructions = `\n\n**CRITICAL (Text Editor Evaluation):**\nThe student has submitted text in the Text Editor (provided below under [STUDENT TEXT EDITOR WORK]). Read it carefully, check its correctness, and provide helpful LaTeX/Markdown feedback and corrections.\n`;
   }
 
   let studentWorkContent = "";
@@ -457,7 +467,83 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     studentWorkContent += `\n\n[STUDENT CANVAS WORK]:\nThe student's canvas drawings are provided as the page image(s) attached to this message.\n\n`;
   }
 
-  prompt += canvasInstructions + textInstructions + studentWorkContent;
+  let responseFormatInstructions = "";
+  if (sendCanvas && sendText && editorText.trim()) {
+    responseFormatInstructions = `
+\n**CRITICAL JSON SCHEMA REQUIREMENT (BOTH CANVAS AND TEXT EVALUATION):**
+Since you are checking BOTH the student's handwritten canvas drawing AND their typed text-editor work, you MUST return a JSON object with the following nested schema:
+{
+  "generalCritique": "Brief overall critique of both parts.",
+  "grade": number (0-100 overall grade representing the combined average of canvas and text),
+  
+  "canvasCritique": "Critique text specifically evaluating their canvas drawings.",
+  "canvasGrade": number (0-100 grade for the canvas part),
+  "canvasMarkers": [
+    {
+      "pageIndex": number (0-based index of the page in the sent sequence),
+      "x": number (X coordinate relative to cropped page width, 0 to 1000),
+      "y": number (Y coordinate relative to cropped page height, 0 to 1000),
+      "type": "correct" | "incorrect" | "partial",
+      "feedback": "Specific feedback for this canvas mistake (1 sentence max).",
+      "underlinePoints": [{"x": number, "y": number}, ...]
+    }
+  ],
+  
+  "textCritique": "Critique text specifically evaluating their text editor work.",
+  "textGrade": number (0-100 grade for the text editor part),
+  "textMarkers": [
+    {
+      "lineIndex": number (0-based index of the line in the student's [STUDENT TEXT EDITOR WORK] that has the error),
+      "substring": "The exact word/phrase/substring in that line that is wrong",
+      "type": "correct" | "incorrect" | "partial",
+      "feedback": "Brief feedback explaining what is wrong with this word/phrase (1 sentence max)."
+    }
+  ]
+}
+`;
+  } else if (sendText && editorText.trim()) {
+    responseFormatInstructions = `
+\n**CRITICAL JSON SCHEMA REQUIREMENT (TEXT EDITOR ONLY):**
+Since you are checking ONLY the student's typed text-editor work, you MUST return a JSON object with the following schema:
+{
+  "generalCritique": "Critique text evaluating their text editor work.",
+  "grade": number (0-100 grade),
+  "textCritique": "Critique text evaluating their text editor work.",
+  "textGrade": number (0-100 grade),
+  "textMarkers": [
+    {
+      "lineIndex": number (0-based index of the line in the student's [STUDENT TEXT EDITOR WORK] that has the error),
+      "substring": "The exact word/phrase/substring in that line that is wrong",
+      "type": "correct" | "incorrect" | "partial",
+      "feedback": "Brief feedback explaining what is wrong with this word/phrase (1 sentence max)."
+    }
+  ]
+}
+`;
+  } else {
+    responseFormatInstructions = `
+\n**CRITICAL JSON SCHEMA REQUIREMENT (CANVAS ONLY):**
+Since you are checking ONLY the student's handwritten drawings on the canvas images, you MUST return a JSON object with the following schema:
+{
+  "generalCritique": "Overall critique evaluating their canvas drawings.",
+  "grade": number (0-100 grade),
+  "canvasCritique": "Critique text evaluating their canvas drawings.",
+  "canvasGrade": number (0-100 grade),
+  "markers": [
+    {
+      "pageIndex": number (0-based index of the page in the sent sequence),
+      "x": number (X coordinate relative to cropped page width, 0 to 1000),
+      "y": number (Y coordinate relative to cropped page height, 0 to 1000),
+      "type": "correct" | "incorrect" | "partial",
+      "feedback": "Specific feedback for this canvas mistake (1 sentence max).",
+      "underlinePoints": [{"x": number, "y": number}, ...]
+    }
+  ]
+}
+`;
+  }
+
+  prompt += canvasInstructions + textInstructions + studentWorkContent + responseFormatInstructions;
 
   // Language Requirement mapping
   const languageMap: Record<string, string> = {
@@ -690,8 +776,13 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   const feedbackText = parsed.generalCritique || 'No written critique provided.';
   const feedbackScore = typeof parsed.grade === 'number' ? parsed.grade : 75;
   
-  const rawMarkers = parsed.markers || [];
-  const feedbackMarkers = rawMarkers.map((m: any, index: number) => {
+  // Parse canvas critique if present
+  let canvasCritique = null;
+  const canvasFeedbackText = parsed.canvasCritique || (sendCanvas && !sendText ? parsed.generalCritique : null);
+  const canvasGrade = typeof parsed.canvasGrade === 'number' ? parsed.canvasGrade : (sendCanvas && !sendText ? feedbackScore : null);
+  const rawCanvasMarkers = parsed.canvasMarkers || parsed.markers || [];
+  
+  const canvasMarkers = rawCanvasMarkers.map((m: any, index: number) => {
     const pageIdx = typeof m.pageIndex === 'number' ? m.pageIndex : 0;
     const mappedItem = activePagesWithIndex[pageIdx] || { originalIndex: 0 };
     const offset = pageBoxes[pageIdx] || { x: 0, y: 0, width: 800, height: 1130 };
@@ -720,9 +811,42 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     };
   });
 
+  if (sendCanvas || canvasFeedbackText !== null) {
+    canvasCritique = {
+      feedbackText: canvasFeedbackText || '',
+      feedbackScore: canvasGrade,
+      feedbackMarkers: canvasMarkers
+    };
+  }
+
+  // Parse text critique if present
+  let textCritique = null;
+  const textFeedbackText = parsed.textCritique || (sendText && !sendCanvas ? parsed.generalCritique : null);
+  const textGrade = typeof parsed.textGrade === 'number' ? parsed.textGrade : (sendText && !sendCanvas ? feedbackScore : null);
+  const rawTextMarkers = parsed.textMarkers || [];
+  const textMarkers = rawTextMarkers.map((m: any, index: number) => {
+    return {
+      id: `text-marker-${Date.now()}-${index}`,
+      lineIndex: typeof m.lineIndex === 'number' ? m.lineIndex : 0,
+      substring: m.substring || '',
+      type: m.type || 'partial',
+      feedback: m.feedback || ''
+    };
+  });
+
+  if (sendText || textFeedbackText !== null) {
+    textCritique = {
+      feedbackText: textFeedbackText || '',
+      feedbackScore: textGrade,
+      feedbackMarkers: textMarkers
+    };
+  }
+
   return {
     feedbackText,
     feedbackScore,
-    feedbackMarkers
+    feedbackMarkers: canvasMarkers,
+    canvasCritique,
+    textCritique
   };
 }

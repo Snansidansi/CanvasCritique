@@ -598,27 +598,105 @@
     }
   });
 
+  function loadCritiqueForActiveMode() {
+    if (!task || !task.id) return;
+    
+    const critique = task.critique;
+    if (critique) {
+      if (activeMode === 'text') {
+        const textCritique = critique.textCritique;
+        if (textCritique) {
+          feedbackText = textCritique.feedbackText || '';
+          feedbackScore = textCritique.feedbackScore ?? null;
+          feedbackMarkers = [];
+          hasCheckedWork = true;
+          showFeedback = true;
+        } else {
+          feedbackText = '';
+          feedbackScore = null;
+          feedbackMarkers = [];
+          hasCheckedWork = false;
+          showFeedback = false;
+        }
+      } else {
+        const canvasCritique = critique.canvasCritique || critique;
+        feedbackText = canvasCritique.feedbackText || '';
+        feedbackScore = canvasCritique.feedbackScore ?? null;
+        feedbackMarkers = canvasCritique.feedbackMarkers || [];
+        hasCheckedWork = !!canvasCritique.feedbackText;
+        showFeedback = hasCheckedWork;
+      }
+      showCritiqueBanner = false;
+    } else {
+      feedbackText = '';
+      feedbackScore = null;
+      feedbackMarkers = [];
+      hasCheckedWork = false;
+      showFeedback = false;
+      showCritiqueBanner = false;
+    }
+  }
+
+  function getLineHtml(line: string, lineIndex: number): string {
+    let html = parseMarkdown(line);
+    
+    // Check if we should show feedback
+    if (!showFeedback || !hasCheckedWork || isChecking) {
+      return html;
+    }
+    
+    // Find text markers for this line
+    const textCritique = task?.critique?.textCritique;
+    if (!textCritique || !textCritique.feedbackMarkers) {
+      return html;
+    }
+    
+    const markers = textCritique.feedbackMarkers.filter((m: any) => m.lineIndex === lineIndex);
+    for (const marker of markers) {
+      if (!marker.substring) continue;
+      
+      // Escape the substring to match how it looks in HTML after parseMarkdown escapes it
+      const escapedSub = marker.substring
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      
+      // Only replace if the word actually exists in the html
+      if (!html.includes(escapedSub)) continue;
+      
+      let colorClass = 'border-red-500 bg-red-500/10 hover:bg-red-500/20';
+      let iconColor = 'text-red-500';
+      if (marker.type === 'correct') {
+        colorClass = 'border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20';
+        iconColor = 'text-emerald-500';
+      } else if (marker.type === 'partial') {
+        colorClass = 'border-amber-500 bg-amber-500/10 hover:bg-amber-500/20';
+        iconColor = 'text-amber-500';
+      }
+      
+      const highlightHtml = `<span class="border-b-2 ${colorClass} cursor-help relative group/tooltip inline-block" style="text-decoration: none;">${escapedSub}<span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tooltip:block bg-surface border border-outline-variant py-1.5 px-2.5 rounded-lg shadow-lg text-[11px] leading-snug text-on-surface z-50 pointer-events-none whitespace-normal min-w-40 max-w-64 font-sans font-medium"><span class="font-bold ${iconColor} block mb-0.5 uppercase tracking-wider text-[9px]">${marker.type}</span>${marker.feedback}</span></span>`;
+      
+      html = html.replace(escapedSub, highlightHtml);
+    }
+    
+    return html;
+  }
+
+  $effect(() => {
+    // Reload critique when switching editor activeMode
+    const mode = activeMode;
+    if (task && task.id) {
+      loadCritiqueForActiveMode();
+    }
+  });
+
   let isInitializingTask = false;
   let lastTaskId = $state(null);
   $effect(() => {
     if (task && task.id && task.id !== lastTaskId) {
       isInitializingTask = true;
       lastTaskId = task.id;
-      if (task.critique) {
-        feedbackText = task.critique.feedbackText || '';
-        feedbackScore = task.critique.feedbackScore || null;
-        feedbackMarkers = task.critique.feedbackMarkers || [];
-        hasCheckedWork = true;
-        showFeedback = true;
-        showCritiqueBanner = false;
-      } else {
-        feedbackText = '';
-        feedbackScore = null;
-        feedbackMarkers = [];
-        hasCheckedWork = false;
-        showFeedback = false;
-        showCritiqueBanner = false;
-      }
+      loadCritiqueForActiveMode();
       
       const targetBg = task.background || store.activeProject?.default_background || 'grid';
       activeBg = targetBg;
@@ -1956,7 +2034,9 @@
           critique: {
             feedbackText,
             feedbackScore,
-            feedbackMarkers
+            feedbackMarkers,
+            canvasCritique: result.canvasCritique || null,
+            textCritique: result.textCritique || null
           }
         };
         if (feedbackScore === 100 && store.settings.autoCompleteOnSuccess) {
@@ -2416,7 +2496,7 @@
                         {#if line.trim() === ''}
                           <div class="opacity-15 select-none text-[11px] font-mono italic">(empty line)</div>
                         {:else}
-                          {@html parseMarkdown(line)}
+                          {@html getLineHtml(line, i)}
                         {/if}
                       </div>
                     {/if}
