@@ -228,6 +228,15 @@
     "solutionLabel": "Solution",
     "critiqueLabel": "Critique",
     "stylusMode": "Stylus Mode",
+    "modeCanvas": "Switch to Drawing Canvas",
+    "modeCanvasLabel": "Canvas",
+    "modeText": "Switch to Markdown/LaTeX Text Editor",
+    "modeTextLabel": "Text Editor",
+    "textEditor": {
+      "writeTitle": "Write (Markdown & LaTeX)",
+      "previewTitle": "Live Preview",
+      "placeholder": "Type markdown or LaTeX equations here... e.g. **bold** or $$e = mc^2$$"
+    },
     "evaluationGoal": "Evaluation Goal / Solution",
     "aiCritiqueFeedback": "AI Critique & Feedback",
     "noInstructions": "No instructions provided",
@@ -288,7 +297,8 @@
       "deleteBgConfirm": "Are you sure you want to delete the background template \"{name}\"?",
       "addCustomBg": "Add Custom Background",
       "opacity": "Template Opacity",
-      "clearCanvas": "Clear Canvas"
+      "clearCanvas": "Clear Canvas",
+      "editorFontSize": "Text Editor Font Size"
     }
   },
   "settings": {

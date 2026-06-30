@@ -227,6 +227,15 @@
     "solutionLabel": "Lösung",
     "critiqueLabel": "Bewertung",
     "stylusMode": "Stift-Modus",
+    "modeCanvas": "Zur Zeichenleinwand wechseln",
+    "modeCanvasLabel": "Leinwand",
+    "modeText": "Zum Markdown/LaTeX Texteditor wechseln",
+    "modeTextLabel": "Text-Editor",
+    "textEditor": {
+      "writeTitle": "Schreiben (Markdown & LaTeX)",
+      "previewTitle": "Live-Vorschau",
+      "placeholder": "Schreibe Markdown oder LaTeX Gleichungen hier... z.B. **fett** oder $$e = mc^2$$"
+    },
     "evaluationGoal": "Bewertungsziel / Lösung",
     "aiCritiqueFeedback": "KI Kritik & Feedback",
     "noInstructions": "Keine Aufgabenstellung vorhanden",
@@ -287,7 +296,8 @@
       "deleteBgConfirm": "Möchtest du die Hintergrundvorlage \"{name}\" wirklich löschen?",
       "addCustomBg": "Hintergrund hinzufügen",
       "opacity": "Vorlagen-Deckkraft",
-      "clearCanvas": "Leinwand leeren"
+      "clearCanvas": "Leinwand leeren",
+      "editorFontSize": "Texteditor-Schriftgröße"
     }
   },
   "settings": {

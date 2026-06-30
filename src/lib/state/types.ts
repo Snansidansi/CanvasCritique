@@ -117,6 +117,7 @@ export interface Settings {
   alwaysSendBothCanvasAndText: boolean;
   canvasMode: string;
   canvasFontSize: number;
+  editorFontSize?: number;
   customSystemPrompt: string;
   systemPromptEditingEnabled: boolean;
   language: string;

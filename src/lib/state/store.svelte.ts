@@ -271,6 +271,9 @@ class CanvasCritiqueStore {
       if (!this.settings.canvasFontSize || typeof this.settings.canvasFontSize !== 'number') {
         this.settings.canvasFontSize = 13;
       }
+      if (!this.settings.editorFontSize || typeof this.settings.editorFontSize !== 'number') {
+        this.settings.editorFontSize = 16;
+      }
       if (!this.settings.eraserMode || (this.settings.eraserMode !== 'normal' && this.settings.eraserMode !== 'stroke')) {
         this.settings.eraserMode = 'normal';
       }
