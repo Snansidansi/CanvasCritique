@@ -80,7 +80,7 @@ export async function saveMediaToDb(dataUrl: string): Promise<string> {
   // Store in DB, with empty string for data column
   await db.execute(
     'INSERT INTO media (id, data, mime_type, sha256_hash) VALUES (?, ?, ?, ?)',
-    [id, '', parsed.mimeType, hash]
+    [id, `media/${id}`, parsed.mimeType, hash]
   );
 
   return id;
@@ -136,7 +136,7 @@ export async function migrateMediaHashes(): Promise<void> {
           const filePath = await join(mediaDir, row.id);
           const bytes = base64ToBytes(row.data);
           await writeFile(filePath, bytes);
-          await db.execute('UPDATE media SET data = "" WHERE id = ?', [row.id]);
+          await db.execute('UPDATE media SET data = ? WHERE id = ?', [`media/${row.id}`, row.id]);
         } catch (err) {
           console.error(`Failed to migrate media item ${row.id} to disk:`, err);
         }
@@ -223,7 +223,7 @@ export async function migrateMediaFromFs(): Promise<void> {
           await writeFile(filePath, bytes);
           await db.execute(
             'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-            [mediaId, '', parsed.mimeType]
+            [mediaId, `media/${mediaId}`, parsed.mimeType]
           );
           await db.execute('UPDATE profiles SET icon = ? WHERE id = ?', [mediaId, p.id]);
         } else {
@@ -254,7 +254,7 @@ export async function migrateMediaFromFs(): Promise<void> {
           
           await db.execute(
             'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-            [mediaId, '', mimeType]
+            [mediaId, `media/${mediaId}`, mimeType]
           );
           await db.execute('UPDATE projects SET icon_media_path = ? WHERE id = ?', [mediaId, proj.id]);
         } catch {
@@ -289,7 +289,7 @@ export async function migrateMediaFromFs(): Promise<void> {
 
             await db.execute(
               'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-              [mediaId, '', mimeType]
+              [mediaId, `media/${mediaId}`, mimeType]
             );
             file.mediaId = mediaId;
             delete file.relativePath;
@@ -320,7 +320,7 @@ export async function migrateMediaFromFs(): Promise<void> {
 
             await db.execute(
               'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-              [mediaId, '', mimeType]
+              [mediaId, `media/${mediaId}`, mimeType]
             );
             file.mediaId = mediaId;
             delete file.relativePath;
@@ -361,7 +361,7 @@ export async function migrateMediaFromFs(): Promise<void> {
 
           await db.execute(
             'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-            [mediaId, '', mimeType]
+            [mediaId, `media/${mediaId}`, mimeType]
           );
           await db.execute('UPDATE custom_backgrounds SET relative_path = ? WHERE id = ?', [mediaId, bg.id]);
         } catch {}
@@ -384,7 +384,7 @@ export async function migrateMediaFromFs(): Promise<void> {
 
           await db.execute(
             'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-            [iconMediaId, '', mimeType]
+            [iconMediaId, `media/${iconMediaId}`, mimeType]
           );
           await db.execute('UPDATE custom_backgrounds SET icon = ? WHERE id = ?', [iconMediaId, bg.id]);
         } catch {}

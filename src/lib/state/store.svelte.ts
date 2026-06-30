@@ -1086,7 +1086,7 @@ class CanvasCritiqueStore {
 
   private stripDataUrls(files: any[]): any[] {
     return files.map(f => {
-      if (f.mediaId && f.dataUrl) {
+      if ('dataUrl' in f) {
         const { dataUrl, ...rest } = f;
         return rest;
       }

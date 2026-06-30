@@ -344,9 +344,12 @@
           const blob = await item.getType(textType);
           const text = await blob.text();
           const base64Data = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
+          let mediaId = '';
+          try { mediaId = await saveMediaToDb(base64Data); } catch (_) {}
           const newFile = {
             name: `clipboard_text_${Date.now()}.txt`,
-            dataUrl: base64Data
+            dataUrl: base64Data,
+            mediaId: mediaId || undefined
           };
           if (type === 'instruction') {
             instructionFiles = [...instructionFiles, newFile];
@@ -369,9 +372,12 @@
         const text = await navigator.clipboard.readText();
         if (text && text.trim()) {
           const base64Data = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
+          let mediaId = '';
+          try { mediaId = await saveMediaToDb(base64Data); } catch (_) {}
           const newFile = {
             name: `clipboard_text_${Date.now()}.txt`,
-            dataUrl: base64Data
+            dataUrl: base64Data,
+            mediaId: mediaId || undefined
           };
           if (type === 'instruction') {
             instructionFiles = [...instructionFiles, newFile];
