@@ -151,18 +151,18 @@
     <div class="flex flex-col gap-4 mb-6">
       <div class="flex flex-col sm:flex-row gap-3">
         <button 
-          onclick={handleImport}
-          class="flex-1 bg-surface-container-low border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <span class="material-symbols-outlined text-[20px]">upload</span> 
-          {t('settings.data.importSettings')}
-        </button>
-        <button 
           onclick={handleExport}
           class="flex-1 bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container transition-colors py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer"
         >
           <span class="material-symbols-outlined text-[20px]">download</span> 
           {t('settings.data.exportSettings')}
+        </button>
+        <button 
+          onclick={handleImport}
+          class="flex-1 bg-surface-container-low border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <span class="material-symbols-outlined text-[20px]">upload</span> 
+          {t('settings.data.importSettings')}
         </button>
       </div>
     </div>
@@ -173,18 +173,18 @@
     <div class="flex flex-col gap-4 mb-6">
       <div class="flex flex-col sm:flex-row gap-3">
         <button 
-          onclick={handleImportData}
-          class="flex-1 bg-surface-container-low border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <span class="material-symbols-outlined text-[20px]">upload</span> 
-          {t('settings.data.importDb')}
-        </button>
-        <button 
           onclick={handleExportData}
           class="flex-1 bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container transition-colors py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer"
         >
           <span class="material-symbols-outlined text-[20px]">download</span> 
           {t('settings.data.exportDb')}
+        </button>
+        <button 
+          onclick={handleImportData}
+          class="flex-1 bg-surface-container-low border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <span class="material-symbols-outlined text-[20px]">upload</span> 
+          {t('settings.data.importDb')}
         </button>
       </div>
     </div>
