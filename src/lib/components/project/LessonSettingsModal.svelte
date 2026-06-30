@@ -95,6 +95,9 @@
       if (project.settingsOverride.eraserRadiusStroke === undefined) {
         project.settingsOverride.eraserRadiusStroke = store.settings.eraserRadiusStroke ?? 24;
       }
+      if (project.settingsOverride.openRouterReasoning === undefined) {
+        project.settingsOverride.openRouterReasoning = store.settings.openRouterReasoning !== false;
+      }
       hasCustomSystemPrompt = !!project.settingsOverride.customSystemPrompt;
     }
   });

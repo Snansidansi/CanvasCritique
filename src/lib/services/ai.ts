@@ -8,6 +8,7 @@ import {
 } from '../utils/canvas';
 import { store } from '../state/store.svelte';
 import { getMediaDataUrl } from '../db/media';
+import { OpenRouter, HTTPClient } from '@openrouter/sdk';
 
 export function estimateCost(provider: 'gemini' | 'openrouter', model: string, inputTokens: number, outputTokens: number, overrides?: { geminiInputCostPerMillion?: number; geminiOutputCostPerMillion?: number }): number {
   const modelLower = model.toLowerCase();
@@ -498,10 +499,10 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     }
   }
 
-  let response: Response;
+  let textResult = '';
   if (provider === 'gemini') {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    response = await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -526,76 +527,103 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
         }
       })
     });
+
+    if (!response.ok) {
+      throw new Error(`API returned error status: ${response.status}`);
+    }
+
+    const resData = await response.json();
+    
+    // Extract and record LLM usage statistics
+    try {
+      const inputTokens = resData.usageMetadata?.promptTokenCount || 0;
+      const outputTokens = resData.usageMetadata?.candidatesTokenCount || 0;
+      const reasoningTokens = 0;
+      const cost = estimateCost('gemini', model, inputTokens, outputTokens, {
+        geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
+        geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
+      });
+      store.recordRequest('gemini', model, inputTokens, outputTokens, reasoningTokens, cost);
+    } catch (err) {
+      console.error('Failed to log LLM statistics:', err);
+    }
+
+    textResult = resData.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from AI.';
   } else {
-    const url = 'https://openrouter.ai/api/v1/chat/completions';
-    const requestBody: any = {
+    // OpenRouter SDK integration
+    const httpClient = new HTTPClient();
+    httpClient.addHook('beforeRequest', async (req) => {
+      if (req.url.includes('/chat/completions')) {
+        try {
+          const cloned = req.clone();
+          const bodyText = await cloned.text();
+          const bodyJson = JSON.parse(bodyText);
+          
+          bodyJson.reasoning = {
+            exclude: !settings.openRouterReasoning
+          };
+          
+          return new Request(req.url, {
+            method: req.method,
+            headers: req.headers,
+            body: JSON.stringify(bodyJson)
+          });
+        } catch (err) {
+          console.error('Error modifying OpenRouter request body in hook:', err);
+        }
+      }
+    });
+
+    const client = new OpenRouter({
+      apiKey: apiKey,
+      httpClient: httpClient
+    });
+
+    const contentParts: any[] = [
+      { type: 'text', text: prompt },
+      ...additionalOpenRouterParts,
+      ...pageImages.map(imgData => ({
+        type: 'image_url',
+        image_url: { url: `data:image/png;base64,${imgData}` }
+      }))
+    ];
+
+    const chatRequest: any = {
       model: model,
       messages: [
         {
           role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            ...additionalOpenRouterParts,
-            ...pageImages.map(imgData => ({
-              type: 'image_url',
-              image_url: { url: `data:image/png;base64,${imgData}` }
-            }))
-          ]
+          content: contentParts
         }
-      ],
-      reasoning: {
-        exclude: !settings.openRouterReasoning
-      }
+      ]
     };
+
     const selectedProviders = settings.openRouterProvider || [];
     if (selectedProviders.length > 0) {
-      requestBody.provider = {
+      chatRequest.provider = {
         order: selectedProviders
       };
     }
-    response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(requestBody)
+
+    const chatResult = await client.chat.send({
+      chatRequest: chatRequest
     });
-  }
 
-  if (!response.ok) {
-    throw new Error(`API returned error status: ${response.status}`);
-  }
-
-  const resData = await response.json();
-  
-  // Extract and record LLM usage statistics
-  try {
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let reasoningTokens = 0;
-    if (provider === 'gemini') {
-      inputTokens = resData.usageMetadata?.promptTokenCount || 0;
-      outputTokens = resData.usageMetadata?.candidatesTokenCount || 0;
-    } else {
-      inputTokens = resData.usage?.prompt_tokens || 0;
-      outputTokens = resData.usage?.completion_tokens || 0;
-      reasoningTokens = resData.usage?.reasoning_tokens || 0;
+    // Extract and record LLM usage statistics
+    try {
+      const inputTokens = chatResult.usage?.promptTokens || 0;
+      const outputTokens = chatResult.usage?.completionTokens || 0;
+      const reasoningTokens = chatResult.usage?.completionTokensDetails?.reasoningTokens || 0;
+      const cost = estimateCost('openrouter', model, inputTokens, outputTokens, {
+        geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
+        geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
+      });
+      store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost);
+    } catch (err) {
+      console.error('Failed to log LLM statistics:', err);
     }
-    const cost = estimateCost(provider as 'gemini' | 'openrouter', model, inputTokens, outputTokens, {
-      geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
-      geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
-    });
-    store.recordRequest(provider as 'gemini' | 'openrouter', model, inputTokens, outputTokens, reasoningTokens, cost);
-  } catch (err) {
-    console.error('Failed to log LLM statistics:', err);
-  }
-  
-  let textResult = '';
-  if (provider === 'gemini') {
-    textResult = resData.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from AI.';
-  } else {
-    textResult = resData.choices?.[0]?.message?.content || 'No response from AI.';
+
+    textResult = chatResult.choices?.[0]?.message?.content || 'No response from AI.';
   }
 
   let parsed: any;
