@@ -99,6 +99,8 @@ export const defaultSettings: Settings = {
   exportPathData: '',
   autoExportData: false,
   exportFrequencyData: { days: 7, hours: 0, minutes: 30 },
+  lastExportSettingsTime: 0,
+  lastExportDataTime: 0,
   sendTaskMedia: true,
   sendSolutionMedia: true,
   sendCanvasBackground: true,

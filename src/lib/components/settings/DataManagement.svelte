@@ -36,7 +36,8 @@
   // Settings export/import
   async function handleExport() {
     try {
-      await store.saveFileWithDialog('canvascritique_settings.json', JSON.stringify(store.settings, null, 2));
+      const content = await store.getSettingsExportPayload();
+      await store.saveFileWithDialog('canvascritique_settings.json', content);
     } catch (e) {
       console.error('Settings export failed:', e);
       store.showNotification(t('settings.data.notifications.exportSettingsError'), 'error');
@@ -69,48 +70,8 @@
   // Data export/import
   async function handleExportData() {
     try {
-      const exportProjects = JSON.parse(JSON.stringify(store.projects));
-      
-      for (const proj of exportProjects) {
-        proj.canvasSaves = {};
-        if (proj.tasks) {
-          for (const task of proj.tasks) {
-            const save = store.getCanvasState(task.id);
-            if (save) {
-              proj.canvasSaves[task.id] = save;
-            }
-            if (task.instructionFiles) {
-              for (const file of task.instructionFiles) {
-                if (file.mediaId && !file.dataUrl) {
-                  try {
-                    file.dataUrl = await getMediaDataUrl(file.mediaId);
-                    delete file.mediaId;
-                  } catch (_) {}
-                }
-              }
-            }
-            if (task.solutionFiles) {
-              for (const file of task.solutionFiles) {
-                if (file.mediaId && !file.dataUrl) {
-                  try {
-                    file.dataUrl = await getMediaDataUrl(file.mediaId);
-                    delete file.mediaId;
-                  } catch (_) {}
-                }
-              }
-            }
-          }
-        }
-      }
-
-      const payload = {
-        version: '1.0',
-        projects: exportProjects,
-        profiles: store.profiles,
-        activeProfileId: store.activeProfileId
-      };
-
-      await store.saveFileWithDialog('canvascritique_workspace.json', JSON.stringify(payload, null, 2));
+      const content = await store.getDataExportPayload();
+      await store.saveFileWithDialog('canvascritique_workspace.json', content);
     } catch (e) {
       console.error('Data export failed:', e);
       store.showNotification(t('settings.data.notifications.exportDbError'), 'error');

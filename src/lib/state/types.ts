@@ -104,6 +104,8 @@ export interface Settings {
   exportPathData: string;
   autoExportData: boolean;
   exportFrequencyData: { days: number; hours: number; minutes: number };
+  lastExportSettingsTime?: number;
+  lastExportDataTime?: number;
   sendTaskMedia: boolean;
   sendSolutionMedia: boolean;
   sendCanvasBackground: boolean;

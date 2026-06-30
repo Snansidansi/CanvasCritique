@@ -192,6 +192,7 @@ class CanvasCritiqueStore {
     await migrateMediaHashes();
     await this.loadState(db);
     this._dbReady = true;
+    this.startAutoExportTimer();
   }
 
   private getDb() {
@@ -1475,6 +1476,112 @@ class CanvasCritiqueStore {
         this.notification = null;
       }
     }, duration);
+  }
+
+  async getSettingsExportPayload(): Promise<string> {
+    return JSON.stringify(this.settings, null, 2);
+  }
+
+  async getDataExportPayload(): Promise<string> {
+    const exportProjects = JSON.parse(JSON.stringify(this.projects));
+    for (const proj of exportProjects) {
+      proj.canvasSaves = {};
+      if (proj.tasks) {
+        for (const task of proj.tasks) {
+          const save = this.getCanvasState(task.id);
+          if (save) {
+            proj.canvasSaves[task.id] = save;
+          }
+          if (task.instructionFiles) {
+            for (const file of task.instructionFiles) {
+              if (file.mediaId && !file.dataUrl) {
+                try {
+                  file.dataUrl = await getMediaDataUrl(file.mediaId);
+                  delete file.mediaId;
+                } catch (_) {}
+              }
+            }
+          }
+          if (task.solutionFiles) {
+            for (const file of task.solutionFiles) {
+              if (file.mediaId && !file.dataUrl) {
+                try {
+                  file.dataUrl = await getMediaDataUrl(file.mediaId);
+                  delete file.mediaId;
+                } catch (_) {}
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const payload = {
+      version: '1.0',
+      projects: exportProjects,
+      profiles: this.profiles,
+      activeProfileId: this.activeProfileId
+    };
+
+    return JSON.stringify(payload, null, 2);
+  }
+
+  private autoExportTimer: any = null;
+
+  startAutoExportTimer() {
+    if (this.autoExportTimer) return;
+    this.autoExportTimer = setInterval(() => {
+      this.checkAndExecuteAutoExports();
+    }, 60000);
+
+    setTimeout(() => {
+      this.checkAndExecuteAutoExports();
+    }, 5000);
+  }
+
+  private async checkAndExecuteAutoExports() {
+    const settings = this.settings;
+    if (!settings) return;
+
+    if (settings.autoExport && settings.exportPathSettings) {
+      const days = settings.exportFrequency?.days ?? 7;
+      const hours = settings.exportFrequency?.hours ?? 0;
+      const minutes = settings.exportFrequency?.minutes ?? 30;
+      const freqMs = ((days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60)) * 1000;
+      
+      const lastExport = settings.lastExportSettingsTime ?? 0;
+      if (freqMs > 0 && Date.now() - lastExport >= freqMs) {
+        try {
+          const content = await this.getSettingsExportPayload();
+          await writeTextFile(settings.exportPathSettings, content);
+          this.settings.lastExportSettingsTime = Date.now();
+          await this.saveSettings();
+          console.log('Auto-exported settings successfully to:', settings.exportPathSettings);
+        } catch (err) {
+          console.error('Auto-export settings failed:', err);
+        }
+      }
+    }
+
+    if (settings.autoExportData && settings.exportPathData) {
+      const days = settings.exportFrequencyData?.days ?? 7;
+      const hours = settings.exportFrequencyData?.hours ?? 0;
+      const minutes = settings.exportFrequencyData?.minutes ?? 30;
+      const freqMs = ((days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60)) * 1000;
+
+      const lastExport = settings.lastExportDataTime ?? 0;
+      if (freqMs > 0 && Date.now() - lastExport >= freqMs) {
+        try {
+          const content = await this.getDataExportPayload();
+          await writeTextFile(settings.exportPathData, content);
+          this.settings.lastExportDataTime = Date.now();
+          await this.saveSettings();
+          console.log('Auto-exported workspace data successfully to:', settings.exportPathData);
+        } catch (err) {
+          console.error('Auto-export data failed:', err);
+        }
+      }
+    }
   }
 }
 
