@@ -471,13 +471,11 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   if (sendCanvas && sendText && editorText.trim()) {
     responseFormatInstructions = `
 \n**CRITICAL JSON SCHEMA REQUIREMENT (BOTH CANVAS AND TEXT EVALUATION):**
-Since you are checking BOTH the student's handwritten canvas drawing AND their typed text-editor work, you MUST return a JSON object with the following nested schema:
+Since you are checking BOTH the student's handwritten canvas drawing AND their typed text-editor work, you MUST evaluate them TOGETHER as a single, combined submission. For example, if a student solves some exercises in the text editor and others on the canvas, they are all part of the same submission. Do NOT mark any exercise as missing if it is present in either the canvas or the text editor.
+Return a SINGLE unified JSON object with the following schema:
 {
-  "generalCritique": "Brief overall critique of both parts.",
-  "grade": number (0-100 overall grade representing the combined average of canvas and text),
-  
-  "canvasCritique": "Critique text specifically evaluating their canvas drawings.",
-  "canvasGrade": number (0-100 grade for the canvas part),
+  "generalCritique": "Critique text evaluating the combined submission (handwritten drawings and text editor work).",
+  "grade": number (0-100 overall grade representing the combined evaluation),
   "canvasMarkers": [
     {
       "pageIndex": number (0-based index of the page in the sent sequence),
@@ -488,9 +486,6 @@ Since you are checking BOTH the student's handwritten canvas drawing AND their t
       "underlinePoints": [{"x": number, "y": number}, ...]
     }
   ],
-  
-  "textCritique": "Critique text specifically evaluating their text editor work.",
-  "textGrade": number (0-100 grade for the text editor part),
   "textMarkers": [
     {
       "lineIndex": number (0-based index of the line in the student's [STUDENT TEXT EDITOR WORK] that has the error),
@@ -508,8 +503,6 @@ Since you are checking ONLY the student's typed text-editor work, you MUST retur
 {
   "generalCritique": "Critique text evaluating their text editor work.",
   "grade": number (0-100 grade),
-  "textCritique": "Critique text evaluating their text editor work.",
-  "textGrade": number (0-100 grade),
   "textMarkers": [
     {
       "lineIndex": number (0-based index of the line in the student's [STUDENT TEXT EDITOR WORK] that has the error),
@@ -527,8 +520,6 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
 {
   "generalCritique": "Overall critique evaluating their canvas drawings.",
   "grade": number (0-100 grade),
-  "canvasCritique": "Critique text evaluating their canvas drawings.",
-  "canvasGrade": number (0-100 grade),
   "markers": [
     {
       "pageIndex": number (0-based index of the page in the sent sequence),
@@ -777,11 +768,8 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
   const feedbackScore = typeof parsed.grade === 'number' ? parsed.grade : 75;
   
   // Parse canvas critique if present
-  let canvasCritique = null;
-  const canvasFeedbackText = parsed.canvasCritique || (sendCanvas && !sendText ? parsed.generalCritique : null);
-  const canvasGrade = typeof parsed.canvasGrade === 'number' ? parsed.canvasGrade : (sendCanvas && !sendText ? feedbackScore : null);
+  // Parse canvas markers
   const rawCanvasMarkers = parsed.canvasMarkers || parsed.markers || [];
-  
   const canvasMarkers = rawCanvasMarkers.map((m: any, index: number) => {
     const pageIdx = typeof m.pageIndex === 'number' ? m.pageIndex : 0;
     const mappedItem = activePagesWithIndex[pageIdx] || { originalIndex: 0 };
@@ -811,18 +799,7 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
     };
   });
 
-  if (sendCanvas || canvasFeedbackText !== null) {
-    canvasCritique = {
-      feedbackText: canvasFeedbackText || '',
-      feedbackScore: canvasGrade,
-      feedbackMarkers: canvasMarkers
-    };
-  }
-
-  // Parse text critique if present
-  let textCritique = null;
-  const textFeedbackText = parsed.textCritique || (sendText && !sendCanvas ? parsed.generalCritique : null);
-  const textGrade = typeof parsed.textGrade === 'number' ? parsed.textGrade : (sendText && !sendCanvas ? feedbackScore : null);
+  // Parse text markers
   const rawTextMarkers = parsed.textMarkers || [];
   const textMarkers = rawTextMarkers.map((m: any, index: number) => {
     return {
@@ -834,11 +811,27 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
     };
   });
 
-  if (sendText || textFeedbackText !== null) {
+  let canvasCritique = null;
+  let textCritique = null;
+
+  if (sendCanvas && sendText) {
+    // Combined critique structure: only the inline highlights are mapped separately
     textCritique = {
-      feedbackText: textFeedbackText || '',
-      feedbackScore: textGrade,
+      feedbackText: '',
+      feedbackScore: null,
       feedbackMarkers: textMarkers
+    };
+  } else if (sendText) {
+    textCritique = {
+      feedbackText,
+      feedbackScore,
+      feedbackMarkers: textMarkers
+    };
+  } else if (sendCanvas) {
+    canvasCritique = {
+      feedbackText,
+      feedbackScore,
+      feedbackMarkers: canvasMarkers
     };
   }
 

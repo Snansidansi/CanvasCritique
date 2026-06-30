@@ -603,27 +603,44 @@
     
     const critique = task.critique;
     if (critique) {
-      if (activeMode === 'text') {
-        const textCritique = critique.textCritique;
-        if (textCritique) {
-          feedbackText = textCritique.feedbackText || '';
-          feedbackScore = textCritique.feedbackScore ?? null;
-          feedbackMarkers = [];
-          hasCheckedWork = true;
-          showFeedback = true;
+      // Check if this is a split critique (e.g. text/canvas was evaluated separately)
+      const hasSplitCanvas = critique.canvasCritique && critique.canvasCritique.feedbackText;
+      const hasSplitText = critique.textCritique && critique.textCritique.feedbackText;
+      
+      if (hasSplitCanvas || hasSplitText) {
+        if (activeMode === 'text') {
+          const textCritique = critique.textCritique;
+          if (textCritique) {
+            feedbackText = textCritique.feedbackText || '';
+            feedbackScore = textCritique.feedbackScore ?? null;
+            feedbackMarkers = [];
+            hasCheckedWork = true;
+            showFeedback = true;
+          } else {
+            feedbackText = '';
+            feedbackScore = null;
+            feedbackMarkers = [];
+            hasCheckedWork = false;
+            showFeedback = false;
+          }
         } else {
-          feedbackText = '';
-          feedbackScore = null;
-          feedbackMarkers = [];
-          hasCheckedWork = false;
-          showFeedback = false;
+          const canvasCritique = critique.canvasCritique || critique;
+          feedbackText = canvasCritique.feedbackText || '';
+          feedbackScore = canvasCritique.feedbackScore ?? null;
+          feedbackMarkers = canvasCritique.feedbackMarkers || [];
+          hasCheckedWork = !!canvasCritique.feedbackText;
+          showFeedback = hasCheckedWork;
         }
       } else {
-        const canvasCritique = critique.canvasCritique || critique;
-        feedbackText = canvasCritique.feedbackText || '';
-        feedbackScore = canvasCritique.feedbackScore ?? null;
-        feedbackMarkers = canvasCritique.feedbackMarkers || [];
-        hasCheckedWork = !!canvasCritique.feedbackText;
+        // Unified critique mode (both active, or legacy format without split critiques)
+        feedbackText = critique.feedbackText || '';
+        feedbackScore = critique.feedbackScore ?? null;
+        if (activeMode === 'text') {
+          feedbackMarkers = [];
+        } else {
+          feedbackMarkers = critique.feedbackMarkers || [];
+        }
+        hasCheckedWork = !!critique.feedbackText;
         showFeedback = hasCheckedWork;
       }
       showCritiqueBanner = false;
