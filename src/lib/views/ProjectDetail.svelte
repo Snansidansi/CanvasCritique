@@ -616,7 +616,7 @@
       class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-2.5 md:px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
       title={t('projectDetail.importTasksTooltip')}
     >
-      <span class="material-symbols-outlined text-[18px]">file_upload</span>
+      <span class="material-symbols-outlined text-[18px]">file_download</span>
       <span class="hidden xl:inline">{t('projectDetail.importTasks')}</span>
     </button>
 
@@ -732,7 +732,7 @@
           class="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer focus:outline-none"
           title={t('projectDetail.importTasksTooltip')}
         >
-          <span class="material-symbols-outlined text-[16px]">file_upload</span>
+          <span class="material-symbols-outlined text-[16px]">file_download</span>
           {t('projectDetail.importTasks')}
         </button>
 
@@ -814,7 +814,7 @@
                 class="flex items-center gap-1 px-2 py-1 text-outline hover:text-primary text-[11px] font-bold rounded-lg hover:bg-surface-container cursor-pointer focus:outline-none"
                 title={t('projectDetail.importBtn')}
               >
-                <span class="material-symbols-outlined text-[14px]">file_upload</span>
+                <span class="material-symbols-outlined text-[14px]">file_download</span>
               </button>
               <button
                 type="button"
@@ -822,7 +822,7 @@
                 class="flex items-center gap-1 px-2 py-1 text-outline hover:text-primary text-[11px] font-bold rounded-lg hover:bg-surface-container cursor-pointer focus:outline-none"
                 title={t('projectDetail.exportBtn')}
               >
-                <span class="material-symbols-outlined text-[14px]">file_download</span>
+                <span class="material-symbols-outlined text-[14px]">file_upload</span>
               </button>
               <button
                 type="button"
@@ -942,7 +942,7 @@
                         class="text-outline hover:text-primary transition-all px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container flex items-center gap-1.5 text-xs font-semibold focus:outline-none cursor-pointer duration-100 bg-surface shadow-sm" 
                         title={t('projectDetail.exportTaskTooltip')}
                       >
-                        <span class="material-symbols-outlined text-[16px]">file_download</span>
+                        <span class="material-symbols-outlined text-[16px]">file_upload</span>
                         {t('projectDetail.exportBtn')}
                       </button>
                       <!-- Task Delete Icon -->

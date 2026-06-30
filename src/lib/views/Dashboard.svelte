@@ -338,7 +338,7 @@
       class="bg-surface-container-low text-on-surface p-2 rounded-lg border border-outline-variant hover:bg-surface-container-high transition-colors flex items-center justify-center shrink-0 cursor-pointer"
       title={t('dashboard.importLesson')}
     >
-      <span class="material-symbols-outlined text-[20px]">file_upload</span>
+      <span class="material-symbols-outlined text-[20px]">file_download</span>
     </button>
 
     <!-- Create lesson button -->
@@ -509,7 +509,7 @@
                 title={t('dashboard.exportLesson')}
               >
                 <span class="material-symbols-outlined text-[20px]"
-                  >file_download</span
+                  >file_upload</span
                 >
               </button>
               <button
@@ -735,7 +735,7 @@
   {#if isDragging}
     <div class="absolute inset-0 bg-primary/10 border-4 border-dashed border-primary backdrop-blur-xs z-50 flex flex-col items-center justify-center pointer-events-none">
       <div class="bg-surface border border-outline-variant shadow-2xl rounded-2xl p-8 flex flex-col items-center gap-4 text-center max-w-sm pointer-events-auto">
-        <span class="material-symbols-outlined text-5xl text-primary">file_upload</span>
+        <span class="material-symbols-outlined text-5xl text-primary">file_download</span>
         <h3 class="font-bold text-lg text-on-surface">{t('dashboard.dragDropTitle')}</h3>
         <p class="text-xs text-on-surface-variant leading-relaxed">{t('dashboard.dragDropDesc')}</p>
       </div>

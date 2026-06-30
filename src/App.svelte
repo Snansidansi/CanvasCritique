@@ -147,7 +147,7 @@
       class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-105 max-w-[90vw] shadow-2xl flex flex-col gap-4"
     >
       <div class="flex items-center gap-3 text-primary">
-        <span class="material-symbols-outlined text-2xl">file_download</span>
+        <span class="material-symbols-outlined text-2xl">file_upload</span>
         <h3 class="font-bold text-base text-on-surface">
           {t('dialogs.exportTitle')}
         </h3>
@@ -242,7 +242,7 @@
       class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-105 max-w-[90vw] shadow-2xl flex flex-col gap-4"
     >
       <div class="flex items-center gap-3 text-primary">
-        <span class="material-symbols-outlined text-2xl">file_upload</span>
+        <span class="material-symbols-outlined text-2xl">file_download</span>
         <h3 class="font-bold text-base text-on-surface">
           {t('dialogs.importTitle')}
         </h3>

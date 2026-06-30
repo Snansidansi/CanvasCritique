@@ -26,7 +26,7 @@
       class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2 px-3.5 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface-container-low shadow-sm focus:outline-none"
       title={t('taskSelection.exportSelected')}
     >
-      <span class="material-symbols-outlined text-[16px]">file_download</span>
+      <span class="material-symbols-outlined text-[16px]">file_upload</span>
       {t('taskSelection.export')}
     </button>
 
