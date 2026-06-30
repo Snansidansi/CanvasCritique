@@ -235,7 +235,7 @@
     "textEditor": {
       "writeTitle": "Write (Markdown & LaTeX)",
       "previewTitle": "Live Preview",
-      "placeholder": "Type markdown or LaTeX equations here... e.g. **bold** or $$e = mc^2$$"
+      "placeholder": ""
     },
     "evaluationGoal": "Evaluation Goal / Solution",
     "aiCritiqueFeedback": "AI Critique & Feedback",

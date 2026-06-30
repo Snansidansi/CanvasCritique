@@ -234,7 +234,7 @@
     "textEditor": {
       "writeTitle": "Schreiben (Markdown & LaTeX)",
       "previewTitle": "Live-Vorschau",
-      "placeholder": "Schreibe Markdown oder LaTeX Gleichungen hier... z.B. **fett** oder $$e = mc^2$$"
+      "placeholder": ""
     },
     "evaluationGoal": "Bewertungsziel / Lösung",
     "aiCritiqueFeedback": "KI Kritik & Feedback",
