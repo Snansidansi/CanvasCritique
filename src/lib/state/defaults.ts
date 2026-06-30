@@ -106,6 +106,7 @@ export const defaultSettings: Settings = {
   sendCanvasBackground: true,
   sendTaskText: true,
   sendSolutionText: true,
+  alwaysSendBothCanvasAndText: false,
   canvasMode: 'infinite',
   canvasFontSize: 13,
   customSystemPrompt: '',

@@ -62,6 +62,7 @@ class CanvasCritiqueStore {
   exportDialog = $state<ExportDialog | null>(null);
   importDialog = $state<ImportDialog | null>(null);
   canvasSaves = $state<Record<string, any>>({});
+  editorTexts = $state<Record<string, string>>({});
   canvasSettingsOpen = $state(false);
   lastDetectedButton = $state<{ button: number; buttons: number; pointerType: string } | null>(null);
   profiles = $state<Profile[]>([]);
@@ -157,7 +158,8 @@ class CanvasCritiqueStore {
       const isOverrideEvaluation = override.overrideEvaluation ?? override.overrideSettings ?? false;
       const isOverrideSystemPrompt = override.overrideSystemPrompt ?? override.overrideSettings ?? false;
       const isOverrideTaskNumbering = override.overrideTaskNumbering ?? override.overrideSettings ?? false;
-      const isAnyOverride = isOverrideModel || isOverrideCanvas || isOverrideEraser || isOverrideEvaluation || isOverrideSystemPrompt || isOverrideTaskNumbering;
+      const isOverrideAlwaysSendBoth = override.overrideAlwaysSendBoth ?? override.overrideSettings ?? false;
+      const isAnyOverride = isOverrideModel || isOverrideCanvas || isOverrideEraser || isOverrideEvaluation || isOverrideSystemPrompt || isOverrideTaskNumbering || isOverrideAlwaysSendBoth;
 
       return {
         ...globalSettings,
@@ -171,6 +173,7 @@ class CanvasCritiqueStore {
         sendCanvasBackground: isOverrideEvaluation ? (override.sendCanvasBackground ?? globalSettings.sendCanvasBackground) : globalSettings.sendCanvasBackground,
         sendTaskText: isOverrideEvaluation ? (override.sendTaskText ?? globalSettings.sendTaskText) : globalSettings.sendTaskText,
         sendSolutionText: isOverrideEvaluation ? (override.sendSolutionText ?? globalSettings.sendSolutionText) : globalSettings.sendSolutionText,
+        alwaysSendBothCanvasAndText: isOverrideAlwaysSendBoth ? (override.alwaysSendBothCanvasAndText ?? globalSettings.alwaysSendBothCanvasAndText) : globalSettings.alwaysSendBothCanvasAndText,
         customSystemPrompt: isOverrideSystemPrompt ? (override.customSystemPrompt !== undefined && override.customSystemPrompt !== null ? override.customSystemPrompt : globalSettings.customSystemPrompt) : globalSettings.customSystemPrompt,
         language: isAnyOverride ? (override.language ?? globalSettings.language) : globalSettings.language,
         canvasMode: isOverrideCanvas ? (override.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode,
@@ -309,14 +312,18 @@ class CanvasCritiqueStore {
 
       this.customBackgrounds = data.backgrounds;
 
-      // Build canvas saves from tasks
+      // Build canvas and editor saves from tasks
       this.canvasSaves = {};
+      this.editorTexts = {};
       for (const project of this.projects) {
         for (const task of (project.tasks || [])) {
           const canvasData = (task as any).canvasData;
           if (canvasData) {
             this.canvasSaves[task.id] = canvasData;
             delete (task as any).canvasData;
+          }
+          if (task.editorText) {
+            this.editorTexts[task.id] = task.editorText;
           }
         }
       }
@@ -1007,6 +1014,23 @@ class CanvasCritiqueStore {
     return this.canvasSaves[taskId] || null;
   }
 
+  async saveEditorText(taskId: string, text: string): Promise<void> {
+    this.editorTexts[taskId] = text;
+    const db = this.getDb();
+    await dbUpdateTask(db, taskId, { editorText: text });
+    for (const project of this.projects) {
+      const t = project.tasks?.find(task => task.id === taskId);
+      if (t) {
+        t.editorText = text;
+        break;
+      }
+    }
+  }
+
+  getEditorText(taskId: string): string {
+    return this.editorTexts[taskId] || '';
+  }
+
   importProject(projectData: any, targetProjectId?: string, targetCategory?: string): void {
     const data = Array.isArray(projectData) ? projectData : [projectData];
 
@@ -1176,8 +1200,12 @@ class CanvasCritiqueStore {
                 solution: t.solution || '',
                 category: taskCategory,
                 instructionFiles,
-                solutionFiles
+                solutionFiles,
+                editorText: t.editorText || ''
               };
+              if (t.editorText) {
+                this.editorTexts[taskId] = t.editorText;
+              }
               if (options.importCritique && t.critique) newTask.critique = t.critique;
 
               mergeProject.tasks.push(newTask);
@@ -1234,8 +1262,12 @@ class CanvasCritiqueStore {
             solution: t.solution || '',
             category: taskCategory,
             instructionFiles,
-            solutionFiles
+            solutionFiles,
+            editorText: t.editorText || ''
           };
+          if (t.editorText) {
+            this.editorTexts[taskId] = t.editorText;
+          }
           if (options.importCritique && t.critique) newTask.critique = t.critique;
 
           tasks.push(newTask);

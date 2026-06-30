@@ -72,6 +72,7 @@ export async function initDb(): Promise<Database> {
       canvas_data_json TEXT,
       project_id TEXT NOT NULL,
       background TEXT,
+      editor_text TEXT DEFAULT '',
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
   `);
@@ -81,7 +82,8 @@ export async function initDb(): Promise<Database> {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       relative_path TEXT NOT NULL,
-      icon TEXT
+      icon TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -91,6 +93,10 @@ export async function initDb(): Promise<Database> {
 
   try {
     await db.execute('ALTER TABLE tasks ADD COLUMN background TEXT');
+  } catch (_) {}
+
+  try {
+    await db.execute('ALTER TABLE tasks ADD COLUMN editor_text TEXT DEFAULT ""');
   } catch (_) {}
 
   // Seed defaults if database is fresh (no profiles)
@@ -280,7 +286,7 @@ export async function deleteProject(db: Database, id: string): Promise<void> {
 
 export async function getTasks(db: Database): Promise<Task[]> {
   const rows: any[] = await db.select(
-    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background FROM tasks'
+    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text FROM tasks'
   );
   return rows.map(r => {
     const task: Task = {
@@ -293,7 +299,8 @@ export async function getTasks(db: Database): Promise<Task[]> {
       instructionFiles: JSON.parse(r.instruction_files_json || '[]'),
       solutionFiles: JSON.parse(r.solution_files_json || '[]'),
       projectId: r.project_id,
-      background: r.background || null
+      background: r.background || null,
+      editorText: r.editor_text || ''
     };
     if (r.critique_json) {
       try { task.critique = JSON.parse(r.critique_json); } catch (_) {}
@@ -308,8 +315,8 @@ export async function getTasks(db: Database): Promise<Task[]> {
 export async function insertTask(db: Database, task: Task, projectId: string): Promise<void> {
   const canvasData = (task as any).canvasData;
   await db.execute(
-    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       task.id,
       task.name,
@@ -322,7 +329,8 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
       task.critique ? JSON.stringify(task.critique) : null,
       canvasData ? JSON.stringify(canvasData) : null,
       projectId,
-      task.background || null
+      task.background || null,
+      task.editorText || ''
     ]
   );
 }
@@ -341,6 +349,7 @@ export async function updateTask(db: Database, id: string, updates: Partial<any>
   if (updates.canvasData !== undefined) { fields.push('canvas_data_json = ?'); values.push(updates.canvasData ? JSON.stringify(updates.canvasData) : null); }
   if (updates.projectId !== undefined) { fields.push('project_id = ?'); values.push(updates.projectId); }
   if (updates.background !== undefined) { fields.push('background = ?'); values.push(updates.background); }
+  if (updates.editorText !== undefined) { fields.push('editor_text = ?'); values.push(updates.editorText); }
   if (fields.length === 0) return;
   values.push(id);
   await db.execute(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ?`, values);

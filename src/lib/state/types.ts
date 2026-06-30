@@ -24,6 +24,7 @@ export interface Task {
     feedbackMarkers: any[];
   } | null;
   background?: string | null;
+  editorText?: string;
 }
 
 export interface ProjectSettingsOverride {
@@ -34,6 +35,7 @@ export interface ProjectSettingsOverride {
   overrideEvaluation?: boolean;
   overrideSystemPrompt?: boolean;
   overrideTaskNumbering?: boolean;
+  overrideAlwaysSendBoth?: boolean;
   apiProvider?: string;
   geminiModel?: string;
   openRouterModel?: string;
@@ -44,6 +46,7 @@ export interface ProjectSettingsOverride {
   sendCanvasBackground?: boolean;
   sendTaskText?: boolean;
   sendSolutionText?: boolean;
+  alwaysSendBothCanvasAndText?: boolean;
   customSystemPrompt?: string;
   language?: string;
   canvasMode?: string;
@@ -111,6 +114,7 @@ export interface Settings {
   sendCanvasBackground: boolean;
   sendTaskText: boolean;
   sendSolutionText: boolean;
+  alwaysSendBothCanvasAndText: boolean;
   canvasMode: string;
   canvasFontSize: number;
   customSystemPrompt: string;
