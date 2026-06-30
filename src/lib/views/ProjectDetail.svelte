@@ -755,7 +755,7 @@
         {@const catTasks = getCategoryTasks(category)}
         {@const sectionKey = `section-collapsed-${project.id}-${category}`}
         <details class="group/section" open={getSectionOpenState(sectionKey)} data-section-key={sectionKey} data-section-category={category} ontoggle={handleSectionToggle}>
-          <summary class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-6 flex flex-col gap-4 cursor-pointer list-none" onpointerdown={(e) => handleSectionPointerDown(e, category)}>
+          <summary class="bg-surface-container-low border border-outline-variant/60 rounded-xl group-open/section:rounded-b-none p-6 flex flex-col gap-4 cursor-pointer list-none" onpointerdown={(e) => handleSectionPointerDown(e, category)}>
           <div class="flex items-center justify-between border-b border-outline-variant/20 pb-3">
             <div class="flex items-center gap-2">
               {#if editingCategory === category}
