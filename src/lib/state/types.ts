@@ -23,6 +23,7 @@ export interface Task {
     feedbackScore: number | null;
     feedbackMarkers: any[];
   } | null;
+  background?: string | null;
 }
 
 export interface ProjectSettingsOverride {
@@ -63,6 +64,7 @@ export interface Project {
   profileId: string;
   hideCompleted?: boolean;
   settingsOverride?: ProjectSettingsOverride;
+  default_background?: string | null;
 }
 
 export interface StylusButton {

@@ -281,6 +281,8 @@
       "blank": "Blank",
       "customTemplates": "Custom Templates",
       "deleteBg": "Delete Background",
+      "deleteBgConfirm": "Are you sure you want to delete the background template \"{name}\"?",
+      "addCustomBg": "Add Custom Background",
       "opacity": "Template Opacity",
       "clearCanvas": "Clear Canvas"
     }

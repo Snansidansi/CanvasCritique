@@ -280,6 +280,8 @@
       "blank": "Leer",
       "customTemplates": "Benutzerdefinierte Vorlagen",
       "deleteBg": "Hintergrund löschen",
+      "deleteBgConfirm": "Möchtest du die Hintergrundvorlage \"{name}\" wirklich löschen?",
+      "addCustomBg": "Hintergrund hinzufügen",
       "opacity": "Vorlagen-Deckkraft",
       "clearCanvas": "Leinwand leeren"
     }

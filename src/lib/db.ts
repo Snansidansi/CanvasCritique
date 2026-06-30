@@ -53,6 +53,7 @@ export async function initDb(): Promise<Database> {
       profile_id TEXT NOT NULL,
       hide_completed INTEGER NOT NULL DEFAULT 0,
       settings_override_json TEXT,
+      default_background TEXT,
       FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
     )
   `);
@@ -70,6 +71,7 @@ export async function initDb(): Promise<Database> {
       critique_json TEXT,
       canvas_data_json TEXT,
       project_id TEXT NOT NULL,
+      background TEXT,
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
   `);
@@ -82,6 +84,14 @@ export async function initDb(): Promise<Database> {
       icon TEXT
     )
   `);
+
+  try {
+    await db.execute('ALTER TABLE projects ADD COLUMN default_background TEXT');
+  } catch (_) {}
+
+  try {
+    await db.execute('ALTER TABLE tasks ADD COLUMN background TEXT');
+  } catch (_) {}
 
   // Seed defaults if database is fresh (no profiles)
   const profileCount = await db.select('SELECT COUNT(*) as count FROM profiles');
@@ -192,7 +202,7 @@ export async function saveSettings(db: Database, settings: Settings): Promise<vo
 
 export async function getProjects(db: Database): Promise<Project[]> {
   const rows: any[] = await db.select(
-    'SELECT id, name, icon_media_path, guidelines, categories_json, profile_id, hide_completed, settings_override_json FROM projects'
+    'SELECT id, name, icon_media_path, guidelines, categories_json, profile_id, hide_completed, settings_override_json, default_background FROM projects'
   );
   return rows.map(r => {
     const project: Project = {
@@ -203,7 +213,8 @@ export async function getProjects(db: Database): Promise<Project[]> {
       categories: JSON.parse(r.categories_json || '[]'),
       tasks: [],
       profileId: r.profile_id,
-      hideCompleted: !!r.hide_completed
+      hideCompleted: !!r.hide_completed,
+      default_background: r.default_background || null
     };
     if (r.settings_override_json) {
       try { project.settingsOverride = JSON.parse(r.settings_override_json); } catch (_) {}
@@ -214,8 +225,8 @@ export async function getProjects(db: Database): Promise<Project[]> {
 
 export async function insertProject(db: Database, project: Project): Promise<void> {
   await db.execute(
-    `INSERT INTO projects (id, name, icon_media_path, guidelines, categories_json, profile_id, hide_completed, settings_override_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO projects (id, name, icon_media_path, guidelines, categories_json, profile_id, hide_completed, settings_override_json, default_background)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       project.id,
       project.name,
@@ -224,12 +235,22 @@ export async function insertProject(db: Database, project: Project): Promise<voi
       JSON.stringify(project.categories || []),
       project.profileId,
       project.hideCompleted ? 1 : 0,
-      project.settingsOverride ? JSON.stringify(project.settingsOverride) : null
+      project.settingsOverride ? JSON.stringify(project.settingsOverride) : null,
+      project.default_background || null
     ]
   );
 }
 
-export async function updateProject(db: Database, id: string, updates: { name?: string; icon?: string; icon_media_path?: string; guidelines?: string; categories?: string[]; hideCompleted?: boolean; settingsOverride?: ProjectSettingsOverride }): Promise<void> {
+export async function updateProject(db: Database, id: string, updates: {
+  name?: string;
+  icon?: string;
+  icon_media_path?: string;
+  guidelines?: string;
+  categories?: string[];
+  hideCompleted?: boolean;
+  settingsOverride?: ProjectSettingsOverride;
+  default_background?: string | null;
+}): Promise<void> {
   const fields: string[] = [];
   const values: any[] = [];
   if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
@@ -245,6 +266,7 @@ export async function updateProject(db: Database, id: string, updates: { name?: 
     fields.push('settings_override_json = ?');
     values.push(JSON.stringify(updates.settingsOverride));
   }
+  if (updates.default_background !== undefined) { fields.push('default_background = ?'); values.push(updates.default_background); }
   if (fields.length === 0) return;
   values.push(id);
   await db.execute(`UPDATE projects SET ${fields.join(', ')} WHERE id = ?`, values);
@@ -258,7 +280,7 @@ export async function deleteProject(db: Database, id: string): Promise<void> {
 
 export async function getTasks(db: Database): Promise<Task[]> {
   const rows: any[] = await db.select(
-    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id FROM tasks'
+    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background FROM tasks'
   );
   return rows.map(r => {
     const task: Task = {
@@ -270,7 +292,8 @@ export async function getTasks(db: Database): Promise<Task[]> {
       category: r.category || 'Basics',
       instructionFiles: JSON.parse(r.instruction_files_json || '[]'),
       solutionFiles: JSON.parse(r.solution_files_json || '[]'),
-      projectId: r.project_id
+      projectId: r.project_id,
+      background: r.background || null
     };
     if (r.critique_json) {
       try { task.critique = JSON.parse(r.critique_json); } catch (_) {}
@@ -285,8 +308,8 @@ export async function getTasks(db: Database): Promise<Task[]> {
 export async function insertTask(db: Database, task: Task, projectId: string): Promise<void> {
   const canvasData = (task as any).canvasData;
   await db.execute(
-    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       task.id,
       task.name,
@@ -298,7 +321,8 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
       JSON.stringify(task.solutionFiles || []),
       task.critique ? JSON.stringify(task.critique) : null,
       canvasData ? JSON.stringify(canvasData) : null,
-      projectId
+      projectId,
+      task.background || null
     ]
   );
 }
@@ -316,6 +340,7 @@ export async function updateTask(db: Database, id: string, updates: Partial<any>
   if (updates.critique !== undefined) { fields.push('critique_json = ?'); values.push(updates.critique ? JSON.stringify(updates.critique) : null); }
   if (updates.canvasData !== undefined) { fields.push('canvas_data_json = ?'); values.push(updates.canvasData ? JSON.stringify(updates.canvasData) : null); }
   if (updates.projectId !== undefined) { fields.push('project_id = ?'); values.push(updates.projectId); }
+  if (updates.background !== undefined) { fields.push('background = ?'); values.push(updates.background); }
   if (fields.length === 0) return;
   values.push(id);
   await db.execute(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ?`, values);

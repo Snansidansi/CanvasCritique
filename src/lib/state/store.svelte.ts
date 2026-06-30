@@ -358,7 +358,8 @@ class CanvasCritiqueStore {
           guidelines: project.guidelines,
           categories: project.categories,
           hideCompleted: project.hideCompleted,
-          settingsOverride: project.settingsOverride
+          settingsOverride: project.settingsOverride,
+          default_background: project.default_background
         });
       } else {
         const projToInsert = { ...project, icon: icon };
@@ -377,7 +378,8 @@ class CanvasCritiqueStore {
             instructionFiles: this.stripDataUrls(task.instructionFiles || []),
             solutionFiles: this.stripDataUrls(task.solutionFiles || []),
             critique: task.critique || null,
-            canvasData: this.canvasSaves[task.id] || null
+            canvasData: this.canvasSaves[task.id] || null,
+            background: task.background || null
           });
         } else {
           const t = { ...task, canvasData: this.canvasSaves[task.id] || null };
@@ -713,6 +715,7 @@ class CanvasCritiqueStore {
     if (updatedData.solutionFile !== undefined) (task as any).solutionFile = updatedData.solutionFile;
     if (updatedData.completed !== undefined) task.completed = updatedData.completed;
     if (updatedData.critique !== undefined) task.critique = updatedData.critique;
+    if (updatedData.background !== undefined) task.background = updatedData.background;
 
     // Auto-add category if it isn't listed
     if (task.category && project.categories && !project.categories.includes(task.category)) {
@@ -729,8 +732,34 @@ class CanvasCritiqueStore {
       category: task.category,
       instructionFiles: task.instructionFiles || [],
       solutionFiles: task.solutionFiles || [],
-      critique: task.critique || null
+      critique: task.critique || null,
+      background: task.background || null
     });
+    await this.saveProjects();
+
+    if (this.activeProject && this.activeProject.id === projectId) {
+      this.activeProject = project;
+    }
+    if (this.activeTask && this.activeTask.id === taskId) {
+      this.activeTask = task;
+    }
+  }
+
+  async updateTaskBackground(projectId: string, taskId: string, background: string): Promise<void> {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    const task = project.tasks.find(t => t.id === taskId);
+    if (task) {
+      task.background = background;
+    }
+
+    project.default_background = background;
+
+    const db = this.getDb();
+    await dbUpdateTask(db, taskId, { background });
+    await dbUpdateProject(db, projectId, { default_background: background });
+
     await this.saveProjects();
 
     if (this.activeProject && this.activeProject.id === projectId) {

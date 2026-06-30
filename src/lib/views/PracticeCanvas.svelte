@@ -435,9 +435,11 @@
     }
   });
 
+  let isInitializingTask = false;
   let lastTaskId = $state(null);
   $effect(() => {
     if (task && task.id && task.id !== lastTaskId) {
+      isInitializingTask = true;
       lastTaskId = task.id;
       if (task.critique) {
         feedbackText = task.critique.feedbackText || '';
@@ -454,6 +456,22 @@
         showFeedback = false;
         showCritiqueBanner = false;
       }
+      
+      const targetBg = task.background || store.activeProject?.default_background || 'grid';
+      activeBg = targetBg;
+      
+      tick().then(() => {
+        isInitializingTask = false;
+      });
+    }
+  });
+
+  $effect(() => {
+    const bg = activeBg;
+    if (isInitializingTask) return;
+    if (!task || !task.id) return;
+    if (store.activeProject) {
+      store.updateTaskBackground(store.activeProject.id, task.id, bg);
     }
   });
 
@@ -2223,7 +2241,7 @@
                     onclick={() => {
                       store.confirm(
                         t('practice.canvas.deleteBg'),
-                        `Are you sure you want to delete the background template "${customBg.name}"?`,
+                        t('practice.canvas.deleteBgConfirm', { name: customBg.name }),
                         () => {
                           if (activeBg === customBg.id) activeBg = 'grid';
                           store.deleteCustomBackground(customBg.id);
@@ -2246,7 +2264,7 @@
           class="mt-2 w-full py-2 border border-dashed border-primary/50 text-primary hover:bg-primary/10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none bg-transparent"
         >
           <span class="material-symbols-outlined text-base">add_box</span>
-          <span>Add Custom Background</span>
+          <span>{t('practice.canvas.addCustomBg')}</span>
         </button>
       </div>
 
