@@ -489,7 +489,8 @@
       "english": "Englisch",
       "german": "Deutsch"
     },
-    "github": "Github: https://github.com/Snansidansi/CanvasCritique"
+    "githubRepository": "Github Repository",
+    "githubCopied": "GitHub-Link in die Zwischenablage kopiert"
   },
   "dialogs": {
     "confirmTitleDefault": "Aktion bestätigen",
