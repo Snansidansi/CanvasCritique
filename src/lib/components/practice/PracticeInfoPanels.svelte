@@ -400,7 +400,9 @@
     if (!isDraggingSplitter) return;
     const deltaX = e.clientX - startX;
     const newWidth = startWidth + deltaX;
-    if (newWidth >= 180 && newWidth <= 800) {
+    const minWidth = 10;
+    const maxWidth = window.innerWidth - 20;
+    if (newWidth >= minWidth && newWidth <= maxWidth) {
       splitWidth = newWidth;
     }
   }
@@ -556,7 +558,7 @@
                               onpointermove={handleInlinePointerMove}
                               onpointerup={handleInlinePointerUp}
                               onpointercancel={handleInlinePointerCancel}
-                              class="max-w-full max-h-125 object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
+                              class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
                               style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
                               draggable="false"
                             />
@@ -654,7 +656,7 @@
                               onpointermove={handleInlinePointerMove}
                               onpointerup={handleInlinePointerUp}
                               onpointercancel={handleInlinePointerCancel}
-                              class="max-w-full max-h-125 object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
+                              class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
                               style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
                               draggable="false"
                             />
