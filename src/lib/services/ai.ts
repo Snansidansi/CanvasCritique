@@ -87,6 +87,9 @@ export interface CheckWorkOptions {
   projectGuidelines?: string;
   settings: CheckWorkSettings;
   defaultSystemPrompt: string;
+  activeMode?: 'canvas' | 'text';
+  editorText?: string;
+  alwaysSendBothCanvasAndText?: boolean;
 }
 
 export interface CheckWorkMarker {
@@ -119,7 +122,10 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     task: initialTask,
     projectGuidelines,
     settings,
-    defaultSystemPrompt
+    defaultSystemPrompt,
+    activeMode = 'canvas',
+    editorText = '',
+    alwaysSendBothCanvasAndText = false
   } = options;
 
   // Resolve media files from filesystem to data URLs
@@ -176,127 +182,138 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     }
   }
 
-  if (activePagesWithIndex.length === 0) {
-    throw new Error("Canvas is empty. Please draw some calligraphy before checking your work.");
+  const sendCanvas = alwaysSendBothCanvasAndText || activeMode === 'canvas';
+  const sendText = alwaysSendBothCanvasAndText || activeMode === 'text';
+  const hasTextContent = !!(editorText && editorText.trim());
+
+  if (sendCanvas && activePagesWithIndex.length === 0 && !hasTextContent) {
+    throw new Error(
+      settings.language === 'Deutsch' 
+        ? "Die Leinwand ist leer. Bitte zeichnen Sie etwas, bevor Sie Ihre Arbeit überprüfen."
+        : "Canvas is empty. Please draw some calligraphy before checking your work."
+    );
+  }
+  if (sendText && !hasTextContent && (!sendCanvas || activePagesWithIndex.length === 0)) {
+    throw new Error(
+      settings.language === 'Deutsch'
+        ? "Der Text-Editor ist leer. Bitte schreiben Sie etwas, bevor Sie Ihre Arbeit überprüfen."
+        : "Text Editor is empty. Please write some text before checking your work."
+    );
   }
 
-  // 2. Generate cropped bounding-box images for each page
+  // 2. Generate cropped bounding-box images for each page (only if sendCanvas is true)
   const pageImages: string[] = [];
   const pageBoxes: BoundingBox[] = [];
   
-  for (const item of activePagesWithIndex) {
-    const box = getStrokesBoundingBox(item.strokeHistory, canvasMode);
-    let base64Data = '';
-    let widthVal = 800;
-    let heightVal = 1130;
-    let boxOffset = { x: 0, y: 0 };
-    
-    if (!box) {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = 800;
-      tempCanvas.height = 1130;
-      widthVal = tempCanvas.width;
-      heightVal = tempCanvas.height;
-      const tempCtx = tempCanvas.getContext('2d');
-      if (tempCtx) {
-        tempCtx.fillStyle = '#FFFFFF';
-        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-      }
-      base64Data = tempCanvas.toDataURL('image/png').split(',')[1];
-      boxOffset = { x: 0, y: 0 };
-    } else {
-      widthVal = box.width;
-      heightVal = box.height;
-      boxOffset = { x: box.x, y: box.y };
+  if (sendCanvas) {
+    for (const item of activePagesWithIndex) {
+      const box = getStrokesBoundingBox(item.strokeHistory, canvasMode);
+      let base64Data = '';
+      let widthVal = 800;
+      let heightVal = 1130;
+      let boxOffset = { x: 0, y: 0 };
       
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = box.width;
-      tempCanvas.height = box.height;
-      const tempCtx = tempCanvas.getContext('2d');
-      
-      if (tempCtx) {
-        // Draw solid white background
-        tempCtx.fillStyle = '#FFFFFF';
-        tempCtx.fillRect(0, 0, box.width, box.height);
+      if (!box) {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = 800;
+        tempCanvas.height = 1130;
+        widthVal = tempCanvas.width;
+        heightVal = tempCanvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        if (tempCtx) {
+          tempCtx.fillStyle = '#FFFFFF';
+          tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        }
+        base64Data = tempCanvas.toDataURL('image/png').split(',')[1];
+        boxOffset = { x: 0, y: 0 };
+      } else {
+        widthVal = box.width;
+        heightVal = box.height;
+        boxOffset = { x: box.x, y: box.y };
         
-         tempCtx.save();
-        tempCtx.translate(-box.x, -box.y);
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = box.width;
+        tempCanvas.height = box.height;
+        const tempCtx = tempCanvas.getContext('2d');
         
-        const drawBackground = settings.sendCanvasBackground ?? true;
-        if (drawBackground) {
-          // Draw custom background pattern image if present
-          if (currentBgUrl) {
-            try {
-              const img = await loadImage(currentBgUrl);
-              tempCtx.save();
-              tempCtx.globalAlpha = bgOpacity / 100;
-              const pattern = tempCtx.createPattern(img, 'repeat');
-              if (pattern) {
-                tempCtx.fillStyle = pattern;
-                tempCtx.fillRect(box.x, box.y, box.width, box.height);
+        if (tempCtx) {
+          // Draw solid white background
+          tempCtx.fillStyle = '#FFFFFF';
+          tempCtx.fillRect(0, 0, box.width, box.height);
+          
+          tempCtx.save();
+          tempCtx.translate(-box.x, -box.y);
+          
+          const drawBackground = settings.sendCanvasBackground ?? true;
+          if (drawBackground) {
+            if (currentBgUrl) {
+              try {
+                const img = await loadImage(currentBgUrl);
+                tempCtx.save();
+                tempCtx.globalAlpha = bgOpacity / 100;
+                const pattern = tempCtx.createPattern(img, 'repeat');
+                if (pattern) {
+                  tempCtx.fillStyle = pattern;
+                  tempCtx.fillRect(box.x, box.y, box.width, box.height);
+                }
+                tempCtx.restore();
+              } catch (err) {
+                console.error('Error drawing custom background pattern on crop:', err);
               }
-              tempCtx.restore();
-            } catch (err) {
-              console.error('Error drawing custom background pattern on crop:', err);
             }
+            drawGuidelinesInWorld(tempCtx, box.x, box.y, box.width, box.height, activeBg, bgOpacity);
           }
-
-          // Draw active guidelines background template offset relative to bounding box
-          drawGuidelinesInWorld(tempCtx, box.x, box.y, box.width, box.height, activeBg, bgOpacity);
+          tempCtx.restore();
         }
         
-        tempCtx.restore();
-      }
-      
-      // Draw drawing stroke lines offset by bounding box coordinates on a separate transparent canvas
-      const strokesCanvas = document.createElement('canvas');
-      strokesCanvas.width = box.width;
-      strokesCanvas.height = box.height;
-      const strokesCtx = strokesCanvas.getContext('2d');
-      
-      if (strokesCtx) {
-        strokesCtx.save();
-        strokesCtx.translate(-box.x, -box.y);
-        for (const stroke of item.strokeHistory) {
+        const strokesCanvas = document.createElement('canvas');
+        strokesCanvas.width = box.width;
+        strokesCanvas.height = box.height;
+        const strokesCtx = strokesCanvas.getContext('2d');
+        
+        if (strokesCtx) {
           strokesCtx.save();
-          strokesCtx.beginPath();
-          if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') {
-            strokesCtx.globalCompositeOperation = 'destination-out';
-            strokesCtx.strokeStyle = 'rgba(0,0,0,1)';
-          } else {
-            strokesCtx.globalCompositeOperation = 'source-over';
-            strokesCtx.strokeStyle = stroke.color;
-          }
-          strokesCtx.lineWidth = stroke.width;
-          strokesCtx.lineCap = 'round';
-          strokesCtx.lineJoin = 'round';
-          
-          if (stroke.points.length > 0) {
-            strokesCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-            if (stroke.points.length === 1) {
-              strokesCtx.lineTo(stroke.points[0].x, stroke.points[0].y);
+          strokesCtx.translate(-box.x, -box.y);
+          for (const stroke of item.strokeHistory) {
+            strokesCtx.save();
+            strokesCtx.beginPath();
+            if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') {
+              strokesCtx.globalCompositeOperation = 'destination-out';
+              strokesCtx.strokeStyle = 'rgba(0,0,0,1)';
             } else {
-              for (let i = 1; i < stroke.points.length; i++) {
-                strokesCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-              }
+              strokesCtx.globalCompositeOperation = 'source-over';
+              strokesCtx.strokeStyle = stroke.color;
             }
-            strokesCtx.stroke();
+            strokesCtx.lineWidth = stroke.width;
+            strokesCtx.lineCap = 'round';
+            strokesCtx.lineJoin = 'round';
+            
+            if (stroke.points.length > 0) {
+              strokesCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+              if (stroke.points.length === 1) {
+                strokesCtx.lineTo(stroke.points[0].x, stroke.points[0].y);
+              } else {
+                for (let i = 1; i < stroke.points.length; i++) {
+                  strokesCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                }
+              }
+              strokesCtx.stroke();
+            }
+            strokesCtx.restore();
           }
           strokesCtx.restore();
         }
-        strokesCtx.restore();
+        
+        if (tempCtx) {
+          tempCtx.drawImage(strokesCanvas, 0, 0);
+        }
+        
+        base64Data = tempCanvas.toDataURL('image/png').split(',')[1];
       }
       
-      // Draw the composited strokes layer on top of guidelines
-      if (tempCtx) {
-        tempCtx.drawImage(strokesCanvas, 0, 0);
-      }
-      
-      base64Data = tempCanvas.toDataURL('image/png').split(',')[1];
+      pageImages.push(base64Data);
+      pageBoxes.push({ ...boxOffset, width: widthVal, height: heightVal });
     }
-    
-    pageImages.push(base64Data);
-    pageBoxes.push({ ...boxOffset, width: widthVal, height: heightVal });
   }
 
   const apiKey = settings.apiProvider === 'gemini' ? settings.geminiApiKey : settings.openRouterApiKey;
@@ -419,6 +436,28 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     .replace(/\{\{guidelines\}\}/g, guidelinesPrompt)
     .replace(/\{\{page_info\}\}/g, pageInfoPrompt)
     .replace(/\{\{image_dimensions\}\}/g, imageDimensionsInfo);
+
+  let canvasInstructions = "";
+  if (!sendCanvas) {
+    canvasInstructions = "\n\n**CRITICAL (No Canvas Sent):**\nNo canvas images were sent because the student is working in the text-editor only or canvas submission is disabled. Therefore, you MUST return an EMPTY array for the 'markers' field (i.e. \"markers\": []). Do not try to place any coordinates. Provide all corrections, edits, and helpful feedback in the 'generalCritique' Markdown string, clearly referencing the text being corrected.\n";
+  } else {
+    canvasInstructions = "\n\nThe student's canvas drawings are sent as image(s). Please place feedback markers at their corresponding coordinates relative to the canvas drawing.\n";
+  }
+
+  let textInstructions = "";
+  if (sendText && editorText && editorText.trim()) {
+    textInstructions = `\n\n**CRITICAL (Text Editor Evaluation):**\nThe student has submitted text in the Text Editor (provided below under [STUDENT TEXT EDITOR WORK]). Read it carefully, check its correctness, and provide helpful LaTeX/Markdown feedback and corrections in the 'generalCritique'. Under [STUDENT TEXT EDITOR WORK], you see exactly what they typed.\n`;
+  }
+
+  let studentWorkContent = "";
+  if (sendText && editorText && editorText.trim()) {
+    studentWorkContent += `\n\n[STUDENT TEXT EDITOR WORK]:\n${editorText.trim()}\n\n`;
+  }
+  if (sendCanvas) {
+    studentWorkContent += `\n\n[STUDENT CANVAS WORK]:\nThe student's canvas drawings are provided as the page image(s) attached to this message.\n\n`;
+  }
+
+  prompt += canvasInstructions + textInstructions + studentWorkContent;
 
   // Language Requirement mapping
   const languageMap: Record<string, string> = {

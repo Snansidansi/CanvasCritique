@@ -1840,7 +1840,10 @@
           language: effectiveSettings.language,
           customSystemPrompt: effectiveSettings.customSystemPrompt
         },
-        defaultSystemPrompt: DEFAULT_SYSTEM_PROMPT
+        defaultSystemPrompt: DEFAULT_SYSTEM_PROMPT,
+        activeMode,
+        editorText,
+        alwaysSendBothCanvasAndText: effectiveSettings.alwaysSendBothCanvasAndText
       });
 
       feedbackText = result.feedbackText;
