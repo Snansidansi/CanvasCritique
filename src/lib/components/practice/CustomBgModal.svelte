@@ -5,7 +5,12 @@
 
   let {
     isCustomBgModalOpen = $bindable(),
-    activeBg = $bindable()
+    activeBg = $bindable(),
+    onclose
+  }: {
+    isCustomBgModalOpen: boolean;
+    activeBg: string;
+    onclose?: () => void;
   } = $props();
 
   let newBgName = $state('');
@@ -32,16 +37,14 @@
       if (useBgAsIcon || !newBgIconFile) {
         const bg = await store.addCustomBackground(newBgName.trim(), bgUrl, bgUrl);
         activeBg = bg.id;
-        isCustomBgModalOpen = false;
-        resetCustomBgModal();
+        close();
       } else {
         const iconReader = new FileReader();
         iconReader.onload = async (iconEvent) => {
           const iconUrl = iconEvent.target?.result as string;
           const bg = await store.addCustomBackground(newBgName.trim(), bgUrl, iconUrl);
           activeBg = bg.id;
-          isCustomBgModalOpen = false;
-          resetCustomBgModal();
+          close();
         };
         iconReader.readAsDataURL(newBgIconFile);
       }
@@ -54,6 +57,12 @@
     newBgFile = null;
     newBgIconFile = null;
     useBgAsIcon = true;
+  }
+
+  function close() {
+    isCustomBgModalOpen = false;
+    resetCustomBgModal();
+    onclose?.();
   }
 </script>
 
@@ -111,7 +120,7 @@
         <div class="flex justify-end gap-3 mt-2">
           <button 
             type="button" 
-            onclick={() => { isCustomBgModalOpen = false; resetCustomBgModal(); }}
+            onclick={close}
             class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer"
           >
             {t('common.cancel')}
