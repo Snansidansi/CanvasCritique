@@ -125,7 +125,7 @@ export async function deleteMediaFromDb(mediaId: string): Promise<void> {
   const db = getDb();
   try {
     await db.execute('DELETE FROM media WHERE id = ?', [mediaId]);
-    
+
     // Also delete file from disk
     const mediaDir = await getMediaDir();
     const filePath = await join(mediaDir, mediaId);
@@ -197,7 +197,7 @@ export async function deleteMediaForTask(mediaIds: string[]): Promise<void> {
   const placeholders = mediaIds.map(() => '?').join(',');
   try {
     await db.execute(`DELETE FROM media WHERE id IN (${placeholders})`, mediaIds);
-    
+
     // Also delete files from disk
     const mediaDir = await getMediaDir();
     for (const mediaId of mediaIds) {
@@ -265,10 +265,10 @@ export async function migrateMediaFromFs(): Promise<void> {
           };
           const mimeType = mimeMap[ext] || 'application/octet-stream';
           const mediaId = uuidv4();
-          
+
           const filePath = await join(targetMediaDir, mediaId);
           await writeFile(filePath, new Uint8Array(bytes));
-          
+
           await db.execute(
             'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
             [mediaId, `media/${mediaId}`, mimeType]
@@ -300,7 +300,7 @@ export async function migrateMediaFromFs(): Promise<void> {
             };
             const mimeType = mimeMap[ext] || 'application/octet-stream';
             const mediaId = uuidv4();
-            
+
             const filePath = await join(targetMediaDir, mediaId);
             await writeFile(filePath, new Uint8Array(bytes));
 
@@ -331,7 +331,7 @@ export async function migrateMediaFromFs(): Promise<void> {
             };
             const mimeType = mimeMap[ext] || 'application/octet-stream';
             const mediaId = uuidv4();
-            
+
             const filePath = await join(targetMediaDir, mediaId);
             await writeFile(filePath, new Uint8Array(bytes));
 
@@ -372,7 +372,7 @@ export async function migrateMediaFromFs(): Promise<void> {
           };
           const mimeType = mimeMap[ext] || 'application/octet-stream';
           const mediaId = uuidv4();
-          
+
           const filePath = await join(targetMediaDir, mediaId);
           await writeFile(filePath, new Uint8Array(bytes));
 
@@ -395,7 +395,7 @@ export async function migrateMediaFromFs(): Promise<void> {
           };
           const mimeType = mimeMap[ext] || 'application/octet-stream';
           const iconMediaId = uuidv4();
-          
+
           const filePath = await join(targetMediaDir, iconMediaId);
           await writeFile(filePath, new Uint8Array(bytes));
 

@@ -487,7 +487,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     if (!mediaFile || !mediaFile.dataUrl) return null;
     return {
       type: 'image_url',
-      image_url: { url: mediaFile.dataUrl }
+      imageUrl: { url: mediaFile.dataUrl }
     };
   }
 
@@ -623,7 +623,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
       ...additionalOpenRouterParts,
       ...pageImages.map(imgData => ({
         type: 'image_url',
-        image_url: { url: `data:image/png;base64,${imgData}` }
+        imageUrl: { url: `data:image/png;base64,${imgData}` }
       }))
     ];
 
