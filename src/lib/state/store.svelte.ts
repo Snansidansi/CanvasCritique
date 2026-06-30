@@ -217,7 +217,7 @@ class CanvasCritiqueStore {
             try {
               const url = await getMediaDataUrl(p.icon);
               p.icon = url;
-            } catch (_) {}
+            } catch (err) { console.error('[store] Failed to load profile icon for', p.id, err); }
           }
         }
       }
@@ -301,7 +301,7 @@ class CanvasCritiqueStore {
             try {
               const url = await getMediaDataUrl(p.icon);
               p.icon = url;
-            } catch (_) {}
+            } catch (err) { console.error('[store] Failed to load project icon for', p.id, err); }
           }
         }
         // Ensure all projects have profileId set
@@ -357,7 +357,7 @@ class CanvasCritiqueStore {
             const mediaId = await saveMediaToDb(icon);
             this._projectIconMediaIds[project.id] = mediaId;
             icon = mediaId;
-          } catch (_) {}
+          } catch (err) { console.error('[store] Failed to save project icon media:', err); }
         }
       }
       // Upsert project metadata
@@ -418,7 +418,7 @@ class CanvasCritiqueStore {
             const mediaId = await saveMediaToDb(profile.icon);
             this._iconMediaIds[profile.id] = mediaId;
             profile.icon = mediaId;
-          } catch (_) {}
+          } catch (err) { console.error('[store] Failed to save profile icon media:', err); }
         }
       }
       const existing: any[] = await db.select('SELECT id FROM profiles WHERE id = ?', [profile.id]);
@@ -1076,7 +1076,7 @@ class CanvasCritiqueStore {
       if (file.dataUrl && !file.mediaId) {
         try {
           file.mediaId = await saveMediaToDb(file.dataUrl);
-        } catch (_) {}
+        } catch (err) { console.error('[store] Failed to save imported file to media:', err); }
       }
       result.push(file);
     }
@@ -1339,7 +1339,7 @@ class CanvasCritiqueStore {
                   try {
                     file.dataUrl = await getMediaDataUrl(file.mediaId);
                     delete file.mediaId;
-                  } catch (_) {}
+                  } catch (err) { console.error('[store] Failed to inline instruction file for export:', err); }
                 }
               }
             }
@@ -1349,7 +1349,7 @@ class CanvasCritiqueStore {
                   try {
                     file.dataUrl = await getMediaDataUrl(file.mediaId);
                     delete file.mediaId;
-                  } catch (_) {}
+                  } catch (err) { console.error('[store] Failed to inline solution file for export:', err); }
                 }
               }
             }
@@ -1532,7 +1532,7 @@ class CanvasCritiqueStore {
                 try {
                   file.dataUrl = await getMediaDataUrl(file.mediaId);
                   delete file.mediaId;
-                } catch (_) {}
+                } catch (err) { console.error('[store] Failed to inline instruction file for full export:', err); }
               }
             }
           }
@@ -1542,7 +1542,7 @@ class CanvasCritiqueStore {
                 try {
                   file.dataUrl = await getMediaDataUrl(file.mediaId);
                   delete file.mediaId;
-                } catch (_) {}
+                } catch (err) { console.error('[store] Failed to inline solution file for full export:', err); }
               }
             }
           }

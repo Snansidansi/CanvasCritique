@@ -47,43 +47,60 @@ let cachedMediaDir: string | null = null;
 
 async function getMediaDir(): Promise<string> {
   if (cachedMediaDir) return cachedMediaDir;
-  const appData = await appLocalDataDir();
-  const mediaPath = await join(appData, 'media');
-  
-  const folderExists = await exists(mediaPath);
-  if (!folderExists) {
-    await mkdir(mediaPath, { recursive: true });
+
+  try {
+    const appData = await appLocalDataDir();
+    console.log('[media] appLocalDataDir:', appData);
+
+    const mediaPath = await join(appData, 'media');
+    console.log('[media] mediaPath:', mediaPath);
+
+    const folderExists = await exists(mediaPath);
+    console.log('[media] folderExists:', folderExists);
+
+    if (!folderExists) {
+      await mkdir(mediaPath, { recursive: true });
+      console.log('[media] created folder:', mediaPath);
+    }
+
+    cachedMediaDir = mediaPath;
+    return mediaPath;
+  } catch (err) {
+    console.error('[media] getMediaDir failed:', err);
+    throw err;
   }
-  
-  cachedMediaDir = mediaPath;
-  return mediaPath;
 }
 
 export async function saveMediaToDb(dataUrl: string): Promise<string> {
   const parsed = getMimeAndBase64(dataUrl);
   if (!parsed) throw new Error('Invalid data URL');
 
-  const hash = await computeSha256(parsed.base64);
+  try {
+    const hash = await computeSha256(parsed.base64);
 
-  const existingId = await findMediaByHash(hash);
-  if (existingId) return existingId;
+    const existingId = await findMediaByHash(hash);
+    if (existingId) return existingId;
 
-  const db = getDb();
-  const id = uuidv4();
+    const db = getDb();
+    const id = uuidv4();
 
-  // Save base64 data to disk as binary file
-  const mediaDir = await getMediaDir();
-  const filePath = await join(mediaDir, id);
-  const bytes = base64ToBytes(parsed.base64);
-  await writeFile(filePath, bytes);
+    const mediaDir = await getMediaDir();
+    const filePath = await join(mediaDir, id);
+    const bytes = base64ToBytes(parsed.base64);
+    await writeFile(filePath, bytes);
+    console.log('[media] wrote file:', filePath, 'bytes:', bytes.length);
 
-  // Store in DB, with empty string for data column
-  await db.execute(
-    'INSERT INTO media (id, data, mime_type, sha256_hash) VALUES (?, ?, ?, ?)',
-    [id, `media/${id}`, parsed.mimeType, hash]
-  );
+    await db.execute(
+      'INSERT INTO media (id, data, mime_type, sha256_hash) VALUES (?, ?, ?, ?)',
+      [id, `media/${id}`, parsed.mimeType, hash]
+    );
+    console.log('[media] inserted DB entry for:', id);
 
-  return id;
+    return id;
+  } catch (err) {
+    console.error('[media] saveMediaToDb failed:', err);
+    throw err;
+  }
 }
 
 export async function getMediaDataUrl(mediaId: string): Promise<string> {
@@ -160,7 +177,7 @@ export async function migrateMediaHashes(): Promise<void> {
           const filePath = await join(mediaDir, row.id);
           const bytes = await readFile(filePath);
           base64Data = bytesToBase64(new Uint8Array(bytes));
-        } catch (_) {}
+        } catch (err) { console.warn('[media] Could not read disk file for hash migration, row id:', row.id, err); }
       }
       if (!base64Data) continue;
       const hash = await computeSha256(base64Data);
@@ -364,7 +381,7 @@ export async function migrateMediaFromFs(): Promise<void> {
             [mediaId, `media/${mediaId}`, mimeType]
           );
           await db.execute('UPDATE custom_backgrounds SET relative_path = ? WHERE id = ?', [mediaId, bg.id]);
-        } catch {}
+        } catch (err) { console.warn('[media] Migration: failed to migrate background file:', err); }
       }
       if (bg.icon && bg.icon !== bg.relative_path && bg.icon.startsWith('media/')) {
         const iconFilename = bg.icon.replace(/^media\//, '');
@@ -387,7 +404,7 @@ export async function migrateMediaFromFs(): Promise<void> {
             [iconMediaId, `media/${iconMediaId}`, mimeType]
           );
           await db.execute('UPDATE custom_backgrounds SET icon = ? WHERE id = ?', [iconMediaId, bg.id]);
-        } catch {}
+        } catch (err) { console.warn('[media] Migration: failed to migrate background icon:', err); }
       }
     }
   } catch (e) {
