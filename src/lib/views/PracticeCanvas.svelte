@@ -2766,6 +2766,6 @@
     style="left: {tooltipX}px; top: {tooltipY}px; transform: {tooltipPosition === 'top' ? 'translate(-50%, -100%) translateY(-8px)' : 'translate(-50%, 8px)'};"
   >
     <span class="font-bold {tooltipColor} block mb-0.5 uppercase tracking-wider text-[9px]">{activeTextTooltip.type}</span>
-    {activeTextTooltip.feedback}
+    {@html parseMarkdown(activeTextTooltip.feedback)}
   </div>
 {/if}
