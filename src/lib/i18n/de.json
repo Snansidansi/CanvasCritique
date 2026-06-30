@@ -195,7 +195,11 @@
     "saveSuccess": "Lektionseinstellungen erfolgreich gespeichert",
     "overrideTaskNumberingLabel": "Aufgabennummerierung überschreiben",
     "overrideTaskNumberingDesc": "Verwende für diese Lektion eigene Einstellungen zur Aufgabennummerierung statt der globalen Einstellungen",
-    "taskNumberingTitle": "Aufgabennummerierung"
+    "taskNumberingTitle": "Aufgabennummerierung",
+    "overrideEraserLabel": "Radiergummi-Einstellungen überschreiben",
+    "overrideEraserDesc": "Verwende für diese Lektion eigene Radiergummi-Einstellungen statt der globalen Einstellungen",
+    "eraserTitle": "Radiergummi-Einstellungen",
+    "usingGlobalEraserDesc": "Diese Lektion verwendet die globalen Radiergummi-Einstellungen."
   },
   "practice": {
     "backToProject": "Zurück zum Projekt",

@@ -30,6 +30,7 @@ export interface ProjectSettingsOverride {
   overrideSettings: boolean;
   overrideModel?: boolean;
   overrideCanvas?: boolean;
+  overrideEraser?: boolean;
   overrideEvaluation?: boolean;
   overrideSystemPrompt?: boolean;
   overrideTaskNumbering?: boolean;

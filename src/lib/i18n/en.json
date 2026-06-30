@@ -196,7 +196,11 @@
     "saveSuccess": "Lesson settings saved successfully",
     "overrideTaskNumberingLabel": "Override Task Numbering",
     "overrideTaskNumberingDesc": "Use custom task numbering settings for this lesson instead of global settings",
-    "taskNumberingTitle": "Task Numbering"
+    "taskNumberingTitle": "Task Numbering",
+    "overrideEraserLabel": "Override Eraser Settings",
+    "overrideEraserDesc": "Use custom eraser mode and size settings for this lesson instead of global settings",
+    "eraserTitle": "Eraser Settings",
+    "usingGlobalEraserDesc": "This lesson is using the global eraser settings."
   },
   "practice": {
     "backToProject": "Back to Project",

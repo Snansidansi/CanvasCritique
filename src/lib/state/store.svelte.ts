@@ -153,10 +153,11 @@ class CanvasCritiqueStore {
       const override = project.settingsOverride;
       const isOverrideModel = override.overrideModel ?? override.overrideSettings ?? false;
       const isOverrideCanvas = override.overrideCanvas ?? override.overrideSettings ?? false;
+      const isOverrideEraser = override.overrideEraser ?? override.overrideSettings ?? false;
       const isOverrideEvaluation = override.overrideEvaluation ?? override.overrideSettings ?? false;
       const isOverrideSystemPrompt = override.overrideSystemPrompt ?? override.overrideSettings ?? false;
       const isOverrideTaskNumbering = override.overrideTaskNumbering ?? override.overrideSettings ?? false;
-      const isAnyOverride = isOverrideModel || isOverrideCanvas || isOverrideEvaluation || isOverrideSystemPrompt || isOverrideTaskNumbering;
+      const isAnyOverride = isOverrideModel || isOverrideCanvas || isOverrideEraser || isOverrideEvaluation || isOverrideSystemPrompt || isOverrideTaskNumbering;
 
       return {
         ...globalSettings,
@@ -174,9 +175,9 @@ class CanvasCritiqueStore {
         language: isAnyOverride ? (override.language ?? globalSettings.language) : globalSettings.language,
         canvasMode: isOverrideCanvas ? (override.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode,
         canvasFontSize: isOverrideCanvas ? (override.canvasFontSize ?? globalSettings.canvasFontSize) : globalSettings.canvasFontSize,
-        eraserMode: isOverrideCanvas ? (override.eraserMode ?? globalSettings.eraserMode) : globalSettings.eraserMode,
-        eraserRadiusNormal: isOverrideCanvas ? (override.eraserRadiusNormal ?? globalSettings.eraserRadiusNormal) : globalSettings.eraserRadiusNormal,
-        eraserRadiusStroke: isOverrideCanvas ? (override.eraserRadiusStroke ?? globalSettings.eraserRadiusStroke) : globalSettings.eraserRadiusStroke,
+        eraserMode: isOverrideEraser ? (override.eraserMode ?? globalSettings.eraserMode) : globalSettings.eraserMode,
+        eraserRadiusNormal: isOverrideEraser ? (override.eraserRadiusNormal ?? globalSettings.eraserRadiusNormal) : globalSettings.eraserRadiusNormal,
+        eraserRadiusStroke: isOverrideEraser ? (override.eraserRadiusStroke ?? globalSettings.eraserRadiusStroke) : globalSettings.eraserRadiusStroke,
         autoNumberTasks: isOverrideTaskNumbering ? (override.autoNumberTasks ?? globalSettings.autoNumberTasks) : globalSettings.autoNumberTasks,
         taskNumberingTemplate: isOverrideTaskNumbering ? (override.taskNumberingTemplate ?? globalSettings.taskNumberingTemplate) : globalSettings.taskNumberingTemplate
       };

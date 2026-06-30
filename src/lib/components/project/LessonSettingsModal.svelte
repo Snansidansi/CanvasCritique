@@ -51,12 +51,13 @@
   let hasCustomSystemPrompt = $state(false);
 
   // Tab navigation state
-  type TabId = 'model' | 'canvas' | 'evaluation' | 'prompt' | 'numbering';
+  type TabId = 'model' | 'canvas' | 'eraser' | 'evaluation' | 'prompt' | 'numbering';
   let activeTab = $state<TabId>('model');
 
   const tabs = [
     { id: 'model', labelKey: 'lessonSettings.modelConfigTitle', icon: 'smart_toy' },
     { id: 'canvas', labelKey: 'lessonSettings.canvasLayoutTitle', icon: 'aspect_ratio' },
+    { id: 'eraser', labelKey: 'lessonSettings.eraserTitle', icon: 'ink_eraser' },
     { id: 'evaluation', labelKey: 'lessonSettings.evaluationDetailsTitle', icon: 'fact_check' },
     { id: 'prompt', labelKey: 'lessonSettings.systemPromptTitle', icon: 'terminal' },
     { id: 'numbering', labelKey: 'lessonSettings.taskNumberingTitle', icon: 'format_list_numbered' }
@@ -70,6 +71,9 @@
       }
       if (project.settingsOverride.overrideCanvas === undefined) {
         project.settingsOverride.overrideCanvas = project.settingsOverride.overrideSettings || false;
+      }
+      if (project.settingsOverride.overrideEraser === undefined) {
+        project.settingsOverride.overrideEraser = project.settingsOverride.overrideSettings || false;
       }
       if (project.settingsOverride.overrideEvaluation === undefined) {
         project.settingsOverride.overrideEvaluation = project.settingsOverride.overrideSettings || false;
@@ -112,7 +116,7 @@
     isOpen = false;
   }
 
-  function handleToggleOverride(category: 'overrideModel' | 'overrideCanvas' | 'overrideEvaluation' | 'overrideSystemPrompt' | 'overrideTaskNumbering', e: Event & { currentTarget: HTMLInputElement }) {
+  function handleToggleOverride(category: 'overrideModel' | 'overrideCanvas' | 'overrideEraser' | 'overrideEvaluation' | 'overrideSystemPrompt' | 'overrideTaskNumbering', e: Event & { currentTarget: HTMLInputElement }) {
     if (!project.settingsOverride) return;
     const checked = e.currentTarget.checked;
     project.settingsOverride[category] = checked;
@@ -121,6 +125,7 @@
     project.settingsOverride.overrideSettings = !!(
       project.settingsOverride.overrideModel ||
       project.settingsOverride.overrideCanvas ||
+      project.settingsOverride.overrideEraser ||
       project.settingsOverride.overrideEvaluation ||
       project.settingsOverride.overrideSystemPrompt ||
       project.settingsOverride.overrideTaskNumbering
@@ -252,9 +257,38 @@
                   settings={project.settingsOverride} 
                   onchange={() => store.saveProjects()} 
                 />
+              </div>
+            {:else}
+              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">aspect_ratio</span>
+                <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
+                  {t('lessonSettings.canvasLayoutTitle')}: {store.settings.canvasMode === 'side-by-side' ? 'Side by Side' : 'Split Screen'}
+                </p>
+              </div>
+            {/if}
 
-                <!-- Eraser Mode (per-lesson override) -->
-                <div class="border-t border-outline-variant/30 pt-4">
+          {:else if activeTab === 'eraser'}
+            <!-- Eraser Override Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideEraserLabel')}</span>
+                <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideEraserDesc')}</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={project.settingsOverride?.overrideEraser || false} 
+                  onchange={(e) => handleToggleOverride('overrideEraser', e)}
+                  class="sr-only peer"
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+
+            {#if project.settingsOverride?.overrideEraser}
+              <div class="border-t border-outline-variant/30 pt-4 animate-fade-in flex flex-col gap-4">
+                <div>
                   <div class="mb-3">
                     <h4 class="font-bold text-sm text-on-surface mb-0.5">{t('settings.canvas.eraser.title')}</h4>
                     <p class="text-xs text-on-surface-variant">{t('settings.canvas.eraser.desc')}</p>
@@ -325,10 +359,10 @@
               </div>
             {:else}
               <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
-                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">aspect_ratio</span>
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">backspace</span>
                 <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
                 <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
-                  {t('lessonSettings.canvasLayoutTitle')}: {store.settings.canvasMode === 'side-by-side' ? 'Side by Side' : 'Split Screen'}
+                  {t('lessonSettings.usingGlobalEraserDesc')}
                 </p>
               </div>
             {/if}
