@@ -45,6 +45,22 @@
   let bgOpacity = $state(15); // Background template opacity range 1-100
   let customBgUrl = $state(null);
   
+  // Active editing mode ('canvas' or 'text')
+  let activeMode = $state<'canvas' | 'text'>('canvas');
+  let editorText = $state('');
+
+  $effect(() => {
+    if (task && task.id) {
+      editorText = store.getEditorText(task.id) || '';
+    }
+  });
+
+  function handleEditorInput() {
+    if (task && task.id) {
+      store.saveEditorText(task.id, editorText);
+    }
+  }
+
   // Resizable left panel splitter state
   let splitWidth = $state(400); // Default instructions panel width
   let isCustomBgModalOpen = $state(false);
@@ -1882,6 +1898,7 @@
   <PracticeHeader
     {task}
     {canvasMode}
+    bind:activeMode
     bind:pages
     bind:activePageIndex
     {strokeHistory}
@@ -1917,7 +1934,8 @@
     />
 
     <!-- Right side: Drawing Workspace (Infinite or A4 Centered) -->
-    <section 
+    {#if activeMode === 'canvas'}
+      <section 
       bind:this={canvasContainer} 
       bind:clientWidth={containerWidth}
       bind:clientHeight={containerHeight}
@@ -2210,6 +2228,50 @@
       {/if}
 
     </section>
+    {:else}
+      <!-- Right side: Text Editor Workspace (LaTeX / Markdown split-screen view) -->
+      <section class="grow flex flex-col h-full w-full bg-surface-container-lowest overflow-hidden select-text font-sans relative">
+        <div class="flex grow divide-x divide-outline-variant/20 h-full w-full overflow-hidden">
+          
+          <!-- Edit Pane (Left/Top) -->
+          <div class="w-1/2 h-full flex flex-col p-6 overflow-hidden">
+            <h3 class="text-xs font-bold text-primary mb-3 select-none flex items-center gap-1.5 uppercase tracking-wider">
+              <span class="material-symbols-outlined text-[16px]">edit_note</span>
+              {t('practice.textEditor.writeTitle')}
+            </h3>
+            <textarea
+              bind:value={editorText}
+              oninput={handleEditorInput}
+              placeholder={t('practice.textEditor.placeholder')}
+              class="grow w-full h-full resize-none bg-transparent text-on-surface focus:outline-none leading-relaxed border border-outline-variant/30 rounded-xl p-4 font-mono shadow-inner bg-surface-container-low/20 animate-fade-in"
+              style="font-size: {store.settings.editorFontSize || 16}px;"
+            ></textarea>
+          </div>
+
+          <!-- Live Preview Pane (Right/Bottom) -->
+          <div class="w-1/2 h-full flex flex-col p-6 overflow-hidden">
+            <h3 class="text-xs font-bold text-emerald-600 mb-3 select-none flex items-center gap-1.5 uppercase tracking-wider">
+              <span class="material-symbols-outlined text-[16px]">visibility</span>
+              {t('practice.textEditor.previewTitle')}
+            </h3>
+            <div class="grow w-full h-full overflow-y-auto bg-surface-container-low/20 border border-outline-variant/30 rounded-xl p-6 select-text text-left leading-relaxed max-w-none prose dark:prose-invert animate-fade-in">
+              <div style="font-size: {store.settings.editorFontSize || 16}px;">
+                {@html parseMarkdown(editorText)}
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- AI Grading / Critique Overlay inside editor -->
+        <CritiqueOverlay
+          bind:showCritiqueBanner
+          {isChecking}
+          {feedbackText}
+          {feedbackScore}
+        />
+      </section>
+    {/if}
   </div>
 </div>
 
@@ -2338,6 +2400,56 @@
           </div>
         </div>
       {/if}
+
+      <!-- Text Editor Font Size (Spinbox) -->
+      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+        <div class="flex justify-between items-center">
+          <label for="editor-font-size-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+            {t('practice.canvas.editorFontSize')}
+          </label>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-base text-outline">format_size</span>
+          <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
+            <button 
+              type="button"
+              onclick={() => {
+                store.settings.editorFontSize = Math.max(10, (store.settings.editorFontSize || 16) - 1);
+                store.saveSettings();
+              }}
+              class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+            >
+              <span class="material-symbols-outlined text-sm">remove</span>
+            </button>
+            <input 
+              id="editor-font-size-spinbox"
+              type="number"
+              min="10"
+              max="40"
+              bind:value={store.settings.editorFontSize}
+              onchange={() => {
+                if (typeof store.settings.editorFontSize !== 'number' || isNaN(store.settings.editorFontSize)) {
+                  store.settings.editorFontSize = 16;
+                }
+                store.settings.editorFontSize = Math.max(10, Math.min(store.settings.editorFontSize, 40));
+                store.saveSettings();
+              }}
+              class="w-16 bg-transparent text-center text-xs font-bold text-on-surface focus:outline-none border-0 p-0"
+            />
+            <button 
+              type="button"
+              onclick={() => {
+                store.settings.editorFontSize = Math.min(40, (store.settings.editorFontSize || 16) + 1);
+                store.saveSettings();
+              }}
+              class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+            >
+              <span class="material-symbols-outlined text-sm">add</span>
+            </button>
+          </div>
+          <span class="text-xs font-bold text-on-surface-variant select-none w-6 text-right">px</span>
+        </div>
+      </div>
 
       <!-- Actions -->
       <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4 mt-1">
