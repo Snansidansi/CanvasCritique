@@ -102,6 +102,7 @@ export const defaultSettings: Settings = {
   canvasMode: 'infinite',
   canvasFontSize: 13,
   editorFontSize: 16,
+  editorShowAllRaw: false,
   customSystemPrompt: '',
   systemPromptEditingEnabled: false,
   language: getSystemLanguage(),

@@ -298,7 +298,8 @@
       "addCustomBg": "Add Custom Background",
       "opacity": "Template Opacity",
       "clearCanvas": "Clear Canvas",
-      "editorFontSize": "Text Editor Font Size"
+      "editorFontSize": "Text Editor Font Size",
+      "editorShowAllRaw": "Always Show Raw Markdown"
     }
   },
   "settings": {

@@ -110,6 +110,7 @@ export interface Settings {
   canvasMode: string;
   canvasFontSize: number;
   editorFontSize?: number;
+  editorShowAllRaw?: boolean;
   customSystemPrompt: string;
   systemPromptEditingEnabled: boolean;
   language: string;

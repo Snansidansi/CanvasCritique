@@ -297,7 +297,8 @@
       "addCustomBg": "Hintergrund hinzufügen",
       "opacity": "Vorlagen-Deckkraft",
       "clearCanvas": "Leinwand leeren",
-      "editorFontSize": "Texteditor-Schriftgröße"
+      "editorFontSize": "Texteditor-Schriftgröße",
+      "editorShowAllRaw": "Immer Raw-Markdown anzeigen"
     }
   },
   "settings": {

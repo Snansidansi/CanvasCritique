@@ -48,6 +48,10 @@
   // Active editing mode ('canvas' or 'text')
   let activeMode = $state<'canvas' | 'text'>('canvas');
   let editorText = $state('');
+  
+  let lines = $state<string[]>([]);
+  let activeLineIndex = $state<number | null>(null);
+  let cursorPositionToSet = $state<number | null>(null);
 
   $effect(() => {
     if (task && task.id) {
@@ -55,9 +59,106 @@
     }
   });
 
+  $effect(() => {
+    if (editorText !== lines.join('\n')) {
+      lines = editorText.split('\n');
+    }
+  });
+
+  $effect(() => {
+    if (activeLineIndex !== null) {
+      // Use requestAnimationFrame to make sure the DOM node is rendered
+      requestAnimationFrame(() => {
+        const textarea = document.querySelector(`textarea[data-line-index="${activeLineIndex}"]`) as HTMLTextAreaElement;
+        if (textarea) {
+          if (document.activeElement !== textarea) {
+            textarea.focus();
+          }
+          if (cursorPositionToSet !== null) {
+            textarea.setSelectionRange(cursorPositionToSet, cursorPositionToSet);
+            cursorPositionToSet = null; // Reset
+          }
+        }
+      });
+    }
+  });
+
   function handleEditorInput() {
     if (task && task.id) {
       store.saveEditorText(task.id, editorText);
+    }
+  }
+
+  function autoSize(node: HTMLTextAreaElement) {
+    const resize = () => {
+      node.style.height = 'auto';
+      node.style.height = `${node.scrollHeight}px`;
+    };
+    // Svelte 5 needs a brief timeout or requestAnimationFrame to get correct scrollHeight on mount
+    requestAnimationFrame(resize);
+    node.addEventListener('input', resize);
+    return {
+      destroy() {
+        node.removeEventListener('input', resize);
+      }
+    };
+  }
+
+  function handleLineKeyDown(e: KeyboardEvent & { currentTarget: HTMLTextAreaElement }, i: number) {
+    const target = e.currentTarget;
+    const val = target.value;
+    const start = target.selectionStart;
+    const end = target.selectionEnd;
+
+    if (e.key === 'ArrowUp') {
+      if (start === 0 && i > 0) {
+        e.preventDefault();
+        activeLineIndex = i - 1;
+        cursorPositionToSet = lines[i - 1].length;
+      }
+    } else if (e.key === 'ArrowDown') {
+      if (start === val.length && i < lines.length - 1) {
+        e.preventDefault();
+        activeLineIndex = i + 1;
+        cursorPositionToSet = 0;
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const left = val.slice(0, start);
+      const right = val.slice(start);
+      lines[i] = left;
+      lines.splice(i + 1, 0, right);
+      editorText = lines.join('\n');
+      handleEditorInput();
+      activeLineIndex = i + 1;
+      cursorPositionToSet = 0;
+    } else if (e.key === 'Backspace') {
+      if (start === 0 && end === 0 && i > 0) {
+        e.preventDefault();
+        const prevLineLength = lines[i - 1].length;
+        lines[i - 1] += val;
+        lines.splice(i, 1);
+        editorText = lines.join('\n');
+        handleEditorInput();
+        activeLineIndex = i - 1;
+        cursorPositionToSet = prevLineLength;
+      }
+    } else if (e.key === 'Delete') {
+      if (start === val.length && end === val.length && i < lines.length - 1) {
+        e.preventDefault();
+        lines[i] += lines[i + 1];
+        lines.splice(i + 1, 1);
+        editorText = lines.join('\n');
+        handleEditorInput();
+        cursorPositionToSet = val.length;
+      }
+    }
+  }
+
+  function handleWindowClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.text-editor-workspace')) {
+      activeLineIndex = null;
     }
   }
 
@@ -1887,6 +1988,8 @@
   }
 </script>
 
+<svelte:window onclick={handleWindowClick} />
+
 <div class="grow flex flex-col min-w-0 h-full overflow-hidden relative">
   {#if showSuccessNotification}
     <div 
@@ -2232,37 +2335,96 @@
 
     </section>
     {:else}
-      <!-- Right side: Text Editor Workspace (LaTeX / Markdown split-screen view) -->
-      <section class="grow flex flex-col h-full w-full bg-surface-container-lowest overflow-hidden select-text font-sans relative">
-        <div class="flex grow divide-x divide-outline-variant/20 h-full w-full overflow-hidden">
+      <!-- Right side: Text Editor Workspace (LaTeX / Markdown Live Preview / Raw Editor) -->
+      <section class="text-editor-workspace grow flex flex-col h-full w-full bg-surface-container-lowest overflow-hidden select-text font-sans relative">
+        
+        <div class="flex flex-col grow h-full w-full overflow-hidden p-6">
           
-          <!-- Edit Pane (Left/Top) -->
-          <div class="w-1/2 h-full flex flex-col p-6 overflow-hidden">
-            <h3 class="text-xs font-bold text-primary mb-3 select-none flex items-center gap-1.5 uppercase tracking-wider">
+          <!-- Editor Title & Status Bar -->
+          <div class="flex justify-between items-center mb-3 select-none">
+            <h3 class="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
               <span class="material-symbols-outlined text-[16px]">edit_note</span>
-              {t('practice.textEditor.writeTitle')}
+              {store.settings.editorShowAllRaw ? t('practice.textEditor.writeTitle') : t('practice.textEditor.previewTitle')}
             </h3>
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full {store.settings.editorShowAllRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
+              {store.settings.editorShowAllRaw ? 'Raw Mode' : 'Live Preview'}
+            </span>
+          </div>
+
+          <!-- Main Editor Space -->
+          {#if store.settings.editorShowAllRaw}
             <textarea
               bind:value={editorText}
               oninput={handleEditorInput}
-              placeholder={t('practice.textEditor.placeholder')}
-              class="grow w-full h-full resize-none bg-transparent text-on-surface focus:outline-none leading-relaxed border border-outline-variant/30 rounded-xl p-4 font-mono shadow-inner bg-surface-container-low/20 animate-fade-in"
+              placeholder=""
+              class="grow w-full h-full resize-none bg-transparent text-on-surface focus:outline-none leading-relaxed border border-outline-variant/30 rounded-xl p-6 font-mono shadow-inner bg-surface-container-low/20 animate-fade-in"
               style="font-size: {store.settings.editorFontSize || 16}px;"
             ></textarea>
-          </div>
-
-          <!-- Live Preview Pane (Right/Bottom) -->
-          <div class="w-1/2 h-full flex flex-col p-6 overflow-hidden">
-            <h3 class="text-xs font-bold text-emerald-600 mb-3 select-none flex items-center gap-1.5 uppercase tracking-wider">
-              <span class="material-symbols-outlined text-[16px]">visibility</span>
-              {t('practice.textEditor.previewTitle')}
-            </h3>
-            <div class="grow w-full h-full overflow-y-auto bg-surface-container-low/20 border border-outline-variant/30 rounded-xl p-6 select-text text-left leading-relaxed max-w-none prose dark:prose-invert animate-fade-in">
-              <div style="font-size: {store.settings.editorFontSize || 16}px;">
-                {@html parseMarkdown(editorText)}
+          {:else}
+            <!-- Obsidian-style Live Preview Editor -->
+            <div 
+              role="textbox"
+              tabindex="-1"
+              aria-label="Text Editor Workspace"
+              class="grow w-full h-full overflow-y-auto bg-surface-container-low/20 border border-outline-variant/30 rounded-xl p-6 select-text text-left leading-relaxed max-w-none prose dark:prose-invert animate-fade-in custom-scrollbar"
+              style="font-size: {store.settings.editorFontSize || 16}px;"
+              onclick={(e) => {
+                const target = e.target as HTMLElement;
+                if (!target.closest('.editor-line-item') && lines.length > 0) {
+                  activeLineIndex = lines.length - 1;
+                  cursorPositionToSet = lines[lines.length - 1].length;
+                }
+              }}
+              onkeydown={() => {}}
+            >
+              <div class="flex flex-col min-h-full gap-0.5">
+                {#each lines as line, i}
+                  <div class="editor-line-item relative w-full min-h-[1.5rem] py-0.5 transition-all rounded hover:bg-surface-container-low/40">
+                    {#if activeLineIndex === i}
+                      <textarea
+                        data-line-index={i}
+                        use:autoSize
+                        value={line}
+                        oninput={(e) => {
+                          lines[i] = e.currentTarget.value;
+                          editorText = lines.join('\n');
+                          handleEditorInput();
+                        }}
+                        onkeydown={(e) => handleLineKeyDown(e, i)}
+                        placeholder=""
+                        class="w-full resize-none bg-transparent text-on-surface focus:outline-none font-mono border-0 p-0 m-0 leading-relaxed block focus:ring-0"
+                        style="font-size: {store.settings.editorFontSize || 16}px; outline: none; border: none; box-shadow: none;"
+                      ></textarea>
+                    {:else}
+                      <!-- Click on line to edit -->
+                      <div 
+                        role="button"
+                        tabindex="0"
+                        onclick={() => {
+                          activeLineIndex = i;
+                          cursorPositionToSet = lines[i].length;
+                        }}
+                        onkeydown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            activeLineIndex = i;
+                            cursorPositionToSet = lines[i].length;
+                          }
+                        }}
+                        class="w-full text-on-surface leading-relaxed cursor-text min-h-[1.5rem]"
+                      >
+                        {#if line.trim() === ''}
+                          <div class="opacity-15 select-none text-[11px] font-mono italic">(empty line)</div>
+                        {:else}
+                          {@html parseMarkdown(line)}
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
               </div>
             </div>
-          </div>
+          {/if}
 
         </div>
 
@@ -2451,6 +2613,25 @@
             </button>
           </div>
           <span class="text-xs font-bold text-on-surface-variant select-none w-6 text-right">px</span>
+        </div>
+      </div>
+
+      <!-- Obsidian Show All Raw Toggle -->
+      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+        <div class="flex items-center justify-between gap-4">
+          <label for="editor-show-raw-toggle" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider cursor-pointer">
+            {t('practice.canvas.editorShowAllRaw')}
+          </label>
+          <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
+            <input 
+              id="editor-show-raw-toggle"
+              type="checkbox" 
+              bind:checked={store.settings.editorShowAllRaw}
+              onchange={() => store.saveSettings()}
+              class="sr-only peer" 
+            />
+            <div class="w-11 h-6 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </label>
         </div>
       </div>
 
