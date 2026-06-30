@@ -1,17 +1,29 @@
 import { getDb } from '../db';
 import { v4 as uuidv4 } from './uuid';
+import { appLocalDataDir, join } from '@tauri-apps/api/path';
+import { exists, mkdir, readFile, writeFile, remove } from '@tauri-apps/plugin-fs';
 
 function getMimeAndBase64(dataUrl: string): { mimeType: string; base64: string } | null {
   const match = dataUrl.match(/^data:(.*?);base64,(.*)$/);
   if (!match) return null;
   return { mimeType: match[1], base64: match[2] };
 }
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
 }
 
 async function computeSha256(base64: string): Promise<string> {
@@ -31,6 +43,22 @@ async function findMediaByHash(hash: string): Promise<string | null> {
   return rows.length > 0 ? rows[0].id : null;
 }
 
+let cachedMediaDir: string | null = null;
+
+async function getMediaDir(): Promise<string> {
+  if (cachedMediaDir) return cachedMediaDir;
+  const appData = await appLocalDataDir();
+  const mediaPath = await join(appData, 'media');
+  
+  const folderExists = await exists(mediaPath);
+  if (!folderExists) {
+    await mkdir(mediaPath, { recursive: true });
+  }
+  
+  cachedMediaDir = mediaPath;
+  return mediaPath;
+}
+
 export async function saveMediaToDb(dataUrl: string): Promise<string> {
   const parsed = getMimeAndBase64(dataUrl);
   if (!parsed) throw new Error('Invalid data URL');
@@ -43,9 +71,16 @@ export async function saveMediaToDb(dataUrl: string): Promise<string> {
   const db = getDb();
   const id = uuidv4();
 
+  // Save base64 data to disk as binary file
+  const mediaDir = await getMediaDir();
+  const filePath = await join(mediaDir, id);
+  const bytes = base64ToBytes(parsed.base64);
+  await writeFile(filePath, bytes);
+
+  // Store in DB, with empty string for data column
   await db.execute(
     'INSERT INTO media (id, data, mime_type, sha256_hash) VALUES (?, ?, ?, ?)',
-    [id, parsed.base64, parsed.mimeType, hash]
+    [id, '', parsed.mimeType, hash]
   );
 
   return id;
@@ -54,33 +89,81 @@ export async function saveMediaToDb(dataUrl: string): Promise<string> {
 export async function getMediaDataUrl(mediaId: string): Promise<string> {
   const db = getDb();
   const rows: any[] = await db.select(
-    'SELECT data, mime_type FROM media WHERE id = ?',
+    'SELECT mime_type FROM media WHERE id = ?',
     [mediaId]
   );
   if (rows.length === 0) throw new Error(`Media ${mediaId} not found`);
 
-  const { data, mime_type } = rows[0];
-  return `data:${mime_type};base64,${data}`;
+  const { mime_type } = rows[0];
+
+  // Read binary file from disk
+  const mediaDir = await getMediaDir();
+  const filePath = await join(mediaDir, mediaId);
+  const bytes = await readFile(filePath);
+  const base64 = bytesToBase64(new Uint8Array(bytes));
+  return `data:${mime_type};base64,${base64}`;
 }
 
 export async function deleteMediaFromDb(mediaId: string): Promise<void> {
   const db = getDb();
   try {
     await db.execute('DELETE FROM media WHERE id = ?', [mediaId]);
-  } catch {
-    // Ignore if doesn't exist
+    
+    // Also delete file from disk
+    const mediaDir = await getMediaDir();
+    const filePath = await join(mediaDir, mediaId);
+    if (await exists(filePath)) {
+      await remove(filePath);
+    }
+  } catch (err) {
+    console.error(`Error deleting media ${mediaId}:`, err);
   }
 }
 
 export async function migrateMediaHashes(): Promise<void> {
+  const db = getDb();
+
+  // 1. First migrate existing SQLite base64 records to disk
   try {
-    const db = getDb();
+    const rows: any[] = await db.select(
+      'SELECT id, data, mime_type FROM media WHERE data IS NOT NULL AND data != ""'
+    );
+    if (rows.length > 0) {
+      console.log(`Migrating ${rows.length} media items from SQLite to disk...`);
+      const mediaDir = await getMediaDir();
+      for (const row of rows) {
+        try {
+          const filePath = await join(mediaDir, row.id);
+          const bytes = base64ToBytes(row.data);
+          await writeFile(filePath, bytes);
+          await db.execute('UPDATE media SET data = "" WHERE id = ?', [row.id]);
+        } catch (err) {
+          console.error(`Failed to migrate media item ${row.id} to disk:`, err);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Media database to disk migration failed:', e);
+  }
+
+  // 2. Perform original media hash migration
+  try {
     const rows: any[] = await db.select(
       'SELECT id, data FROM media WHERE sha256_hash IS NULL'
     );
     for (const row of rows) {
-      if (!row.data) continue;
-      const hash = await computeSha256(row.data);
+      let base64Data = row.data;
+      if (!base64Data) {
+        // Try reading from disk
+        try {
+          const mediaDir = await getMediaDir();
+          const filePath = await join(mediaDir, row.id);
+          const bytes = await readFile(filePath);
+          base64Data = bytesToBase64(new Uint8Array(bytes));
+        } catch (_) {}
+      }
+      if (!base64Data) continue;
+      const hash = await computeSha256(base64Data);
       await db.execute(
         'UPDATE media SET sha256_hash = ? WHERE id = ?',
         [hash, row.id]
@@ -97,8 +180,17 @@ export async function deleteMediaForTask(mediaIds: string[]): Promise<void> {
   const placeholders = mediaIds.map(() => '?').join(',');
   try {
     await db.execute(`DELETE FROM media WHERE id IN (${placeholders})`, mediaIds);
-  } catch {
-    // Ignore if doesn't exist
+    
+    // Also delete files from disk
+    const mediaDir = await getMediaDir();
+    for (const mediaId of mediaIds) {
+      const filePath = await join(mediaDir, mediaId);
+      if (await exists(filePath)) {
+        await remove(filePath);
+      }
+    }
+  } catch (err) {
+    console.error('Error deleting media for task:', err);
   }
 }
 
@@ -116,6 +208,7 @@ export async function migrateMediaFromFs(): Promise<void> {
     const mediaDir = `${appData}media/`;
 
     const db = getDb();
+    const targetMediaDir = await getMediaDir();
 
     // Migrate profiles with dataURL icons
     const profiles: any[] = await db.select('SELECT id, icon FROM profiles');
@@ -125,9 +218,12 @@ export async function migrateMediaFromFs(): Promise<void> {
         const parsed = getMimeAndBase64(p.icon);
         if (parsed) {
           const mediaId = uuidv4();
+          const bytes = base64ToBytes(parsed.base64);
+          const filePath = await join(targetMediaDir, mediaId);
+          await writeFile(filePath, bytes);
           await db.execute(
             'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-            [mediaId, parsed.base64, parsed.mimeType]
+            [mediaId, '', parsed.mimeType]
           );
           await db.execute('UPDATE profiles SET icon = ? WHERE id = ?', [mediaId, p.id]);
         } else {
@@ -152,10 +248,13 @@ export async function migrateMediaFromFs(): Promise<void> {
           };
           const mimeType = mimeMap[ext] || 'application/octet-stream';
           const mediaId = uuidv4();
-          const b64 = bytesToBase64(new Uint8Array(bytes));
+          
+          const filePath = await join(targetMediaDir, mediaId);
+          await writeFile(filePath, new Uint8Array(bytes));
+          
           await db.execute(
             'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-            [mediaId, b64, mimeType]
+            [mediaId, '', mimeType]
           );
           await db.execute('UPDATE projects SET icon_media_path = ? WHERE id = ?', [mediaId, proj.id]);
         } catch {
@@ -184,10 +283,13 @@ export async function migrateMediaFromFs(): Promise<void> {
             };
             const mimeType = mimeMap[ext] || 'application/octet-stream';
             const mediaId = uuidv4();
-            const b64 = bytesToBase64(new Uint8Array(bytes));
+            
+            const filePath = await join(targetMediaDir, mediaId);
+            await writeFile(filePath, new Uint8Array(bytes));
+
             await db.execute(
               'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-              [mediaId, b64, mimeType]
+              [mediaId, '', mimeType]
             );
             file.mediaId = mediaId;
             delete file.relativePath;
@@ -212,10 +314,13 @@ export async function migrateMediaFromFs(): Promise<void> {
             };
             const mimeType = mimeMap[ext] || 'application/octet-stream';
             const mediaId = uuidv4();
-            const b64 = bytesToBase64(new Uint8Array(bytes));
+            
+            const filePath = await join(targetMediaDir, mediaId);
+            await writeFile(filePath, new Uint8Array(bytes));
+
             await db.execute(
               'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-              [mediaId, b64, mimeType]
+              [mediaId, '', mimeType]
             );
             file.mediaId = mediaId;
             delete file.relativePath;
@@ -250,15 +355,16 @@ export async function migrateMediaFromFs(): Promise<void> {
           };
           const mimeType = mimeMap[ext] || 'application/octet-stream';
           const mediaId = uuidv4();
-          const b64 = bytesToBase64(new Uint8Array(bytes));
+          
+          const filePath = await join(targetMediaDir, mediaId);
+          await writeFile(filePath, new Uint8Array(bytes));
+
           await db.execute(
             'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-            [mediaId, b64, mimeType]
+            [mediaId, '', mimeType]
           );
           await db.execute('UPDATE custom_backgrounds SET relative_path = ? WHERE id = ?', [mediaId, bg.id]);
         } catch {}
-      } else {
-        // Not a media/ path - might already be migrated or a UUID
       }
       if (bg.icon && bg.icon !== bg.relative_path && bg.icon.startsWith('media/')) {
         const iconFilename = bg.icon.replace(/^media\//, '');
@@ -272,10 +378,13 @@ export async function migrateMediaFromFs(): Promise<void> {
           };
           const mimeType = mimeMap[ext] || 'application/octet-stream';
           const iconMediaId = uuidv4();
-          const b64 = bytesToBase64(new Uint8Array(bytes));
+          
+          const filePath = await join(targetMediaDir, iconMediaId);
+          await writeFile(filePath, new Uint8Array(bytes));
+
           await db.execute(
             'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-            [iconMediaId, b64, mimeType]
+            [iconMediaId, '', mimeType]
           );
           await db.execute('UPDATE custom_backgrounds SET icon = ? WHERE id = ?', [iconMediaId, bg.id]);
         } catch {}
