@@ -101,14 +101,6 @@ export interface Settings {
   openRouterModel: string;
   openRouterProvider: string[];
   openRouterReasoning: boolean;
-  autoExport: boolean;
-  exportFrequency: { days: number; hours: number; minutes: number };
-  exportPathSettings: string;
-  exportPathData: string;
-  autoExportData: boolean;
-  exportFrequencyData: { days: number; hours: number; minutes: number };
-  lastExportSettingsTime?: number;
-  lastExportDataTime?: number;
   sendTaskMedia: boolean;
   sendSolutionMedia: boolean;
   sendCanvasBackground: boolean;
