@@ -333,9 +333,15 @@
                   onclick={() => { shapeType = shape; shapePopupOpen = false; }}
                   class="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-primary/10 hover:text-primary cursor-pointer font-semibold border-0 bg-transparent flex items-center gap-2"
                 >
-                  <span class="material-symbols-outlined text-[16px]">
-                    {shape === 'circle' ? 'circle' : shape === 'ellipse' ? 'shape_line' : shape === 'line' ? 'show_chart' : shape === 'square' ? 'crop_square' : shape === 'rectangle' ? 'crop_5_4' : 'change_history'}
-                  </span>
+                  {#if shape === 'ellipse'}
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <ellipse cx="12" cy="12" rx="9" ry="5" />
+                    </svg>
+                  {:else}
+                    <span class="material-symbols-outlined text-[16px]">
+                      {shape === 'circle' ? 'circle' : shape === 'line' ? 'show_chart' : shape === 'square' ? 'crop_square' : shape === 'rectangle' ? 'crop_5_4' : 'change_history'}
+                    </span>
+                  {/if}
                   <span>{t(`practice.shapes.${shape}`)}</span>
                 </button>
               {/each}
