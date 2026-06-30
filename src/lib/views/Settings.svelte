@@ -9,6 +9,7 @@
   import SystemPromptSettings from '../components/settings/SystemPromptSettings.svelte';
   import StatisticsSettings from '../components/settings/StatisticsSettings.svelte';
   import { t } from '../services/i18n';
+  import pkg from '../../../package.json';
 
   type TabId = 'general' | 'stylus' | 'ai' | 'data' | 'stats';
 
@@ -73,6 +74,12 @@
       {:else if activeTab === 'stats'}
         <StatisticsSettings />
       {/if}
+
+      <!-- App Version -->
+      <div class="mt-12 flex items-center justify-center gap-1 opacity-35 select-none text-[9px] font-bold uppercase tracking-wider text-on-surface-variant border-t border-outline-variant/30 pt-6">
+        <span class="material-symbols-outlined text-[10px]">info</span>
+        <span>Version {pkg.version}</span>
+      </div>
 
     </div>
   </div>
