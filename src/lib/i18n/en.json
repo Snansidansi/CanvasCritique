@@ -489,7 +489,8 @@
       "selectDesc": "Choose the language for the user interface",
       "english": "English",
       "german": "German"
-    }
+    },
+    "github": "Github: https://github.com/Snansidansi/CanvasCritique"
   },
   "dialogs": {
     "confirmTitleDefault": "Confirm Action",

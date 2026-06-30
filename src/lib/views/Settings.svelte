@@ -75,10 +75,20 @@
         <StatisticsSettings />
       {/if}
 
-      <!-- App Version -->
-      <div class="mt-12 flex items-center justify-center gap-1 opacity-35 select-none text-[9px] font-bold uppercase tracking-wider text-on-surface-variant border-t border-outline-variant/30 pt-6">
-        <span class="material-symbols-outlined text-[10px]">info</span>
-        <span>Version {pkg.version}</span>
+      <!-- App Version & GitHub Link -->
+      <div class="mt-12 flex flex-col items-center justify-center gap-2 border-t border-outline-variant/30 pt-6">
+        <div class="flex items-center gap-1 opacity-35 select-none text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">
+          <span class="material-symbols-outlined text-[10px]">info</span>
+          <span>Version {pkg.version}</span>
+        </div>
+        <a 
+          href="https://github.com/Snansidansi/CanvasCritique" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          class="text-xs text-primary hover:underline transition-colors flex items-center gap-1 font-medium cursor-pointer"
+        >
+          {t('settings.github')}
+        </a>
       </div>
 
     </div>
