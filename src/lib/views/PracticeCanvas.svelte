@@ -171,6 +171,52 @@
   let offscreenCanvas: HTMLCanvasElement | null = null;
   let offscreenCtx: CanvasRenderingContext2D | null = null;
 
+  // Cache for historical strokes to avoid drawing all strokes every frame
+  let cachedStrokesCanvas: HTMLCanvasElement | null = null;
+  let cachedStrokesCtx: CanvasRenderingContext2D | null = null;
+  let cacheIsValid = false;
+
+  function invalidateCache() {
+    cacheIsValid = false;
+  }
+
+  // Auto-invalidate strokes cache when relevant inputs change
+  $effect(() => {
+    const _sh = strokeHistory.length;
+    const _panX = panOffset.x;
+    const _panY = panOffset.y;
+    const _zoom = zoomScale;
+    const _w = canvasWidth;
+    const _h = canvasHeight;
+    const _mode = canvasMode;
+    invalidateCache();
+  });
+
+  function updateStrokesCache() {
+    if (cacheIsValid && cachedStrokesCanvas) return;
+    if (!cachedStrokesCanvas) {
+      cachedStrokesCanvas = document.createElement('canvas');
+    }
+    if (cachedStrokesCanvas.width !== canvasWidth || cachedStrokesCanvas.height !== canvasHeight) {
+      cachedStrokesCanvas.width = canvasWidth;
+      cachedStrokesCanvas.height = canvasHeight;
+      cachedStrokesCtx = cachedStrokesCanvas.getContext('2d');
+    }
+    if (cachedStrokesCtx) {
+      cachedStrokesCtx.clearRect(0, 0, cachedStrokesCanvas.width, cachedStrokesCanvas.height);
+      cachedStrokesCtx.save();
+      if (canvasMode === 'infinite') {
+        cachedStrokesCtx.translate(panOffset.x, panOffset.y);
+        cachedStrokesCtx.scale(zoomScale, zoomScale);
+      }
+      for (const stroke of strokeHistory) {
+        drawStroke(cachedStrokesCtx, stroke);
+      }
+      cachedStrokesCtx.restore();
+    }
+    cacheIsValid = true;
+  }
+
   // Performance: rAF-based redraw scheduling
   let rafPending = false;
 
@@ -1370,28 +1416,32 @@
       offscreenCtx = offscreenCanvas.getContext('2d');
     }
     
-    offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-    offscreenCtx.save();
-    if (canvasMode === 'infinite') {
-      offscreenCtx.translate(panOffset.x, panOffset.y);
-      offscreenCtx.scale(zoomScale, zoomScale);
-    }
+    // Update historical strokes cache
+    updateStrokesCache();
     
-    // Draw historical strokes
-    for (const stroke of strokeHistory) {
-      drawStroke(offscreenCtx, stroke);
+    if (offscreenCtx) {
+      offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+      
+      // Composite historical strokes cache first
+      if (cachedStrokesCanvas) {
+        offscreenCtx.drawImage(cachedStrokesCanvas, 0, 0);
+      }
+      
+      // Draw active drawing stroke on top of historical strokes
+      if (currentStroke.length > 0) {
+        offscreenCtx.save();
+        if (canvasMode === 'infinite') {
+          offscreenCtx.translate(panOffset.x, panOffset.y);
+          offscreenCtx.scale(zoomScale, zoomScale);
+        }
+        drawStroke(offscreenCtx, {
+          color: (activeTool === 'eraser' || isPointerEraser) ? 'eraser' : strokeColor,
+          width: (activeTool === 'eraser' || isPointerEraser) ? eraserWidth : brushWidth,
+          points: currentStroke
+        });
+        offscreenCtx.restore();
+      }
     }
-    
-    // Draw active drawing stroke
-    if (currentStroke.length > 0) {
-      drawStroke(offscreenCtx, {
-        color: (activeTool === 'eraser' || isPointerEraser) ? 'eraser' : strokeColor,
-        width: (activeTool === 'eraser' || isPointerEraser) ? eraserWidth : brushWidth,
-        points: currentStroke
-      });
-    }
-    
-    offscreenCtx.restore();
     
     // Composite offscreen strokes canvas back onto the main canvas
     ctx.drawImage(offscreenCanvas, 0, 0);
