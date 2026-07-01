@@ -119,6 +119,8 @@
     "settings": "Einstellungen"
   },
   "taskEditor": {
+    "editMode": "Bearbeiten",
+    "previewMode": "Vorschau",
     "createTitle": "Aufgabe erstellen",
     "editTitle": "Aufgabe bearbeiten",
     "createSubtitle": "Füge eine neue Aufgabe zu deiner Lektion hinzu",

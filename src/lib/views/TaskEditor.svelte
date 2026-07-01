@@ -13,6 +13,8 @@
   let instructions = $state('');
   let solution = $state('');
   let category = $state('Basics');
+  let showInstructionsRaw = $state(true);
+  let showSolutionRaw = $state(true);
 
   // Derived edit state
   let isEditMode = $derived(store.editingTask !== null);
@@ -640,15 +642,37 @@
       </div>
 
       <!-- Instructions -->
-      <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-on-surface" for="instructions">{t('taskEditor.instructionsLabel')}</label>
-        <textarea 
-          id="instructions" 
-          bind:value={instructions}
-          placeholder={t('taskEditor.instructionsPlaceholder')} 
-          rows="5"
-          class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y shadow-sm focus:outline-none"
-        ></textarea>
+      <div class="flex flex-col gap-2 relative">
+        <div class="flex justify-between items-center select-none">
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-semibold text-on-surface" for="instructions">{t('taskEditor.instructionsLabel')}</label>
+            <button 
+              type="button"
+              onclick={() => showInstructionsRaw = !showInstructionsRaw}
+              class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
+              title="Toggle preview/edit mode"
+            >
+              <span class="w-1.5 h-1.5 rounded-full {showInstructionsRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
+              {showInstructionsRaw ? t('taskEditor.editMode') : t('taskEditor.previewMode')}
+            </button>
+          </div>
+        </div>
+        
+        {#if showInstructionsRaw}
+          <textarea 
+            id="instructions" 
+            bind:value={instructions}
+            placeholder={t('taskEditor.instructionsPlaceholder')} 
+            rows="5"
+            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y shadow-sm focus:outline-none"
+          ></textarea>
+        {:else}
+          <div 
+            class="w-full border border-outline-variant rounded-lg p-4 text-sm text-on-surface bg-surface-container-low/20 overflow-y-auto min-h-[120px] max-h-[300px] text-left leading-relaxed max-w-none prose dark:prose-invert custom-scrollbar"
+          >
+            {@html parseMarkdown(instructions)}
+          </div>
+        {/if}
       </div>
 
       <!-- Warning Note about API context size and cost -->
@@ -745,15 +769,37 @@
       </div>
 
       <!-- Expected Solution -->
-      <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-on-surface" for="solution">{t('taskEditor.solutionLabel')}</label>
-        <textarea 
-          id="solution" 
-          bind:value={solution}
-          placeholder={t('taskEditor.solutionPlaceholder')} 
-          rows="4"
-          class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y shadow-sm focus:outline-none"
-        ></textarea>
+      <div class="flex flex-col gap-2 relative">
+        <div class="flex justify-between items-center select-none">
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-semibold text-on-surface" for="solution">{t('taskEditor.solutionLabel')}</label>
+            <button 
+              type="button"
+              onclick={() => showSolutionRaw = !showSolutionRaw}
+              class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
+              title="Toggle preview/edit mode"
+            >
+              <span class="w-1.5 h-1.5 rounded-full {showSolutionRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
+              {showSolutionRaw ? t('taskEditor.editMode') : t('taskEditor.previewMode')}
+            </button>
+          </div>
+        </div>
+
+        {#if showSolutionRaw}
+          <textarea 
+            id="solution" 
+            bind:value={solution}
+            placeholder={t('taskEditor.solutionPlaceholder')} 
+            rows="4"
+            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y shadow-sm focus:outline-none"
+          ></textarea>
+        {:else}
+          <div 
+            class="w-full border border-outline-variant rounded-lg p-4 text-sm text-on-surface bg-surface-container-low/20 overflow-y-auto min-h-[100px] max-h-[250px] text-left leading-relaxed max-w-none prose dark:prose-invert custom-scrollbar"
+          >
+            {@html parseMarkdown(solution)}
+          </div>
+        {/if}
       </div>
 
       <!-- Expected Solution Material Upload -->

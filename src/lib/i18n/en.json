@@ -120,6 +120,8 @@
     "settings": "Settings"
   },
   "taskEditor": {
+    "editMode": "Edit",
+    "previewMode": "Preview",
     "createTitle": "Create Task",
     "editTitle": "Edit Task",
     "createSubtitle": "Add a new task to your lesson",
