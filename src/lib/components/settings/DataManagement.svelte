@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
+  import { getDb } from '../../db';
   import { getMediaDataUrl, saveMediaToDb } from '../../db/media';
 
   // Local state for settings view tabs
@@ -80,6 +81,36 @@
                         try { f.mediaId = await saveMediaToDb(f.dataUrl); } catch (_) {}
                       }
                     }
+                  }
+                }
+              }
+            }
+
+            // Validate and resolve imported project/profile UUID icons
+            const db = getDb();
+            for (const proj of imported.projects) {
+              if (proj.icon && !proj.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(proj.icon)) {
+                try {
+                  const rows = (await db.select('SELECT id FROM media WHERE id = ?', [proj.icon])) as any[];
+                  if (rows.length === 0) {
+                    proj.icon = 'history_edu';
+                  }
+                } catch (_) {
+                  proj.icon = 'history_edu';
+                }
+              }
+            }
+
+            if (imported.profiles && Array.isArray(imported.profiles)) {
+              for (const p of imported.profiles) {
+                if (p.icon && !p.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(p.icon)) {
+                  try {
+                    const rows = (await db.select('SELECT id FROM media WHERE id = ?', [p.icon])) as any[];
+                    if (rows.length === 0) {
+                      p.icon = null;
+                    }
+                  } catch (_) {
+                    p.icon = null;
                   }
                 }
               }

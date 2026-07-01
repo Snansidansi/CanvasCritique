@@ -174,7 +174,13 @@ export async function getProfiles(db: Database): Promise<Profile[]> {
 export async function insertProfile(db: Database, profile: Profile): Promise<void> {
   await db.execute(
     'INSERT INTO profiles (id, name, icon, color, sort_order) VALUES (?, ?, ?, ?, ?)',
-    [profile.id, profile.name, profile.icon || null, profile.color || '#3b82f6', profile.sortOrder || 0]
+    [
+      profile.id,
+      profile.name,
+      profile.icon && profile.icon.startsWith('data:') ? null : profile.icon,
+      profile.color || '#3b82f6',
+      profile.sortOrder || 0
+    ]
   );
 }
 
@@ -182,7 +188,10 @@ export async function updateProfile(db: Database, id: string, updates: Partial<P
   const fields: string[] = [];
   const values: any[] = [];
   if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
-  if (updates.icon !== undefined) { fields.push('icon = ?'); values.push(updates.icon); }
+  if (updates.icon !== undefined) {
+    fields.push('icon = ?');
+    values.push(updates.icon && updates.icon.startsWith('data:') ? null : updates.icon);
+  }
   if (updates.color !== undefined) { fields.push('color = ?'); values.push(updates.color); }
   if (updates.sortOrder !== undefined) { fields.push('sort_order = ?'); values.push(updates.sortOrder); }
   if (fields.length === 0) return;
