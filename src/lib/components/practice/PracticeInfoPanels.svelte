@@ -30,11 +30,11 @@
   let loadedMedia = $state<Record<string, { url: string; loading: boolean; error: boolean }>>({});
 
   // Inline image zoom/pan state (keyed by mediaId)
-  let inlineStates = $state<Record<string, { zoom: number; panX: number; panY: number; isDragging: boolean; dragStartX: number; dragStartY: number; panBaseX: number; panBaseY: number; dragged: boolean; activePointers: Map<number, PointerEvent>; isPinching: boolean; initialPinchDistance: number; initialPinchZoom: number; initialPinchMidpointX: number; initialPinchMidpointY: number; initialPinchPanX: number; initialPinchPanY: number }>>({});
+  let inlineStates = $state<Record<string, { zoom: number; panX: number; panY: number; isDragging: boolean; dragStartX: number; dragStartY: number; panBaseX: number; panBaseY: number; dragged: boolean; activePointers: Map<number, PointerEvent>; isPinching: boolean; initialPinchDistance: number; initialPinchZoom: number; initialPinchMidpointX: number; initialPinchMidpointY: number; initialPinchPanX: number; initialPinchPanY: number; initialPinchCenterX: number; initialPinchCenterY: number }>>({});
 
   function getInlineState(mediaId: string) {
     if (!inlineStates[mediaId]) {
-      inlineStates[mediaId] = { zoom: 1, panX: 0, panY: 0, isDragging: false, dragStartX: 0, dragStartY: 0, panBaseX: 0, panBaseY: 0, dragged: false, activePointers: new Map(), isPinching: false, initialPinchDistance: 0, initialPinchZoom: 1, initialPinchMidpointX: 0, initialPinchMidpointY: 0, initialPinchPanX: 0, initialPinchPanY: 0 };
+      inlineStates[mediaId] = { zoom: 1, panX: 0, panY: 0, isDragging: false, dragStartX: 0, dragStartY: 0, panBaseX: 0, panBaseY: 0, dragged: false, activePointers: new Map(), isPinching: false, initialPinchDistance: 0, initialPinchZoom: 1, initialPinchMidpointX: 0, initialPinchMidpointY: 0, initialPinchPanX: 0, initialPinchPanY: 0, initialPinchCenterX: 0, initialPinchCenterY: 0 };
     }
     return inlineStates[mediaId];
   }
@@ -75,6 +75,15 @@
         state.initialPinchMidpointY = (p1.clientY + p2.clientY) / 2;
         state.initialPinchPanX = state.panX;
         state.initialPinchPanY = state.panY;
+        const container = img.parentElement;
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          state.initialPinchCenterX = rect.left + rect.width / 2;
+          state.initialPinchCenterY = rect.top + rect.height / 2;
+        } else {
+          state.initialPinchCenterX = 0;
+          state.initialPinchCenterY = 0;
+        }
         state.isPinching = true;
         state.isDragging = false;
         e.preventDefault();
@@ -119,14 +128,13 @@
       if (state.initialPinchDistance > 0) {
         const factor = currentDistance / state.initialPinchDistance;
         const newZoom = Math.max(0.5, Math.min(4, state.initialPinchZoom * factor));
-        const rect = img.getBoundingClientRect();
-        const worldX = (state.initialPinchMidpointX - rect.left - state.initialPinchPanX) / state.initialPinchZoom;
-        const worldY = (state.initialPinchMidpointY - rect.top - state.initialPinchPanY) / state.initialPinchZoom;
-        const newPanX = (currentMidX - rect.left) - worldX * newZoom;
-        const newPanY = (currentMidY - rect.top) - worldY * newZoom;
+        const cx = state.initialPinchCenterX;
+        const cy = state.initialPinchCenterY;
+        const worldX = (state.initialPinchMidpointX - cx - state.initialPinchPanX) / state.initialPinchZoom;
+        const worldY = (state.initialPinchMidpointY - cy - state.initialPinchPanY) / state.initialPinchZoom;
         state.zoom = newZoom;
-        state.panX = newPanX;
-        state.panY = newPanY;
+        state.panX = (currentMidX - cx) - worldX * newZoom;
+        state.panY = (currentMidY - cy) - worldY * newZoom;
       }
       return;
     }
@@ -139,12 +147,19 @@
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
       state.dragged = true;
     }
-    const rect = img.getBoundingClientRect();
-    const containerW = rect.width * state.zoom;
-    const clampDX = Math.max(-containerW / 3, Math.min(containerW / 3, dx));
-    const clampDY = Math.max(-rect.height * state.zoom / 3, Math.min(rect.height * state.zoom / 3, dy));
-    state.panX = state.panBaseX + clampDX;
-    state.panY = state.panBaseY + clampDY;
+    const container = img.parentElement;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      const scaledW = rect.width * state.zoom;
+      const scaledH = rect.height * state.zoom;
+      const clampDX = Math.max(-scaledW / 3, Math.min(scaledW / 3, dx));
+      const clampDY = Math.max(-scaledH / 3, Math.min(scaledH / 3, dy));
+      state.panX = state.panBaseX + clampDX;
+      state.panY = state.panBaseY + clampDY;
+    } else {
+      state.panX = state.panBaseX + dx;
+      state.panY = state.panBaseY + dy;
+    }
   }
 
   function handleInlinePointerUp(e: PointerEvent) {
@@ -260,6 +275,7 @@
   let modalInitialPinchZoom = 1;
   let modalInitialPinchMidpoint = { x: 0, y: 0 };
   let modalInitialPinchPan = { x: 0, y: 0 };
+  let modalInitialPinchCenter = { x: 0, y: 0 };
 
   function decodeBase64Text(dataUrl: string): string {
     if (!dataUrl) return '';
@@ -309,6 +325,11 @@
         modalInitialPinchZoom = modalZoom;
         modalInitialPinchMidpoint = { x: (p1.clientX + p2.clientX) / 2, y: (p1.clientY + p2.clientY) / 2 };
         modalInitialPinchPan = { ...modalPan };
+        const rect = container.getBoundingClientRect();
+        modalInitialPinchCenter = {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2
+        };
         modalIsPinching = true;
         isModalDragging = false;
         e.preventDefault();
@@ -346,14 +367,14 @@
       if (modalInitialPinchDistance > 0) {
         const factor = currentDistance / modalInitialPinchDistance;
         const newZoom = Math.max(0.5, Math.min(8, modalInitialPinchZoom * factor));
-        const containerEl = e.currentTarget as HTMLElement;
-        const rect = containerEl.getBoundingClientRect();
-        const worldX = (modalInitialPinchMidpoint.x - rect.left - modalInitialPinchPan.x) / modalInitialPinchZoom;
-        const worldY = (modalInitialPinchMidpoint.y - rect.top - modalInitialPinchPan.y) / modalInitialPinchZoom;
+        const cx = modalInitialPinchCenter.x;
+        const cy = modalInitialPinchCenter.y;
+        const worldX = (modalInitialPinchMidpoint.x - cx - modalInitialPinchPan.x) / modalInitialPinchZoom;
+        const worldY = (modalInitialPinchMidpoint.y - cy - modalInitialPinchPan.y) / modalInitialPinchZoom;
         modalZoom = newZoom;
         modalPan = {
-          x: (currentMidpoint.x - rect.left) - worldX * newZoom,
-          y: (currentMidpoint.y - rect.top) - worldY * newZoom
+          x: (currentMidpoint.x - cx) - worldX * newZoom,
+          y: (currentMidpoint.y - cy) - worldY * newZoom
         };
       }
       return;
