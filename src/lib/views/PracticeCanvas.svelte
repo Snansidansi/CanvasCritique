@@ -3,6 +3,10 @@
   import { onMount, tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import { t } from '../services/i18n';
+  import { jsPDF } from 'jspdf';
+  import html2canvas from 'html2canvas';
+  import { save } from '@tauri-apps/plugin-dialog';
+  import { writeFile } from '@tauri-apps/plugin-fs';
 
   // Subcomponents
   import PracticeHeader from '../components/practice/PracticeHeader.svelte';
@@ -1801,6 +1805,205 @@
     saveToStore();
   }
 
+  async function handleExportPdf() {
+    try {
+      let pdf: jsPDF;
+
+      if (activeMode === 'canvas') {
+        if (canvasMode === 'infinite') {
+          // Bounding Box of all drawing strokes
+          let box = getStrokesBoundingBox(infiniteStrokes, 'infinite');
+          if (!box) {
+            box = { x: 0, y: 0, width: containerWidth || 800, height: containerHeight || 1130 };
+          }
+          
+          const exportCanvas = document.createElement('canvas');
+          exportCanvas.width = box.width;
+          exportCanvas.height = box.height;
+          const exportCtx = exportCanvas.getContext('2d');
+          if (!exportCtx) throw new Error('Could not create canvas context');
+
+          // White background
+          exportCtx.fillStyle = '#FFFFFF';
+          exportCtx.fillRect(0, 0, box.width, box.height);
+
+          // Background Image
+          if (currentBgImage) {
+            exportCtx.save();
+            exportCtx.globalAlpha = bgOpacity / 100;
+            const pattern = exportCtx.createPattern(currentBgImage, 'repeat');
+            if (pattern) {
+              exportCtx.fillStyle = pattern;
+              exportCtx.fillRect(0, 0, box.width, box.height);
+            }
+            exportCtx.restore();
+          }
+
+          // Guidelines
+          drawGuidelinesInWorld(exportCtx, box.x, box.y, box.width, box.height, activeBg, bgOpacity);
+
+          // Strokes (offset by bounding box x and y)
+          exportCtx.save();
+          exportCtx.translate(-box.x, -box.y);
+          for (const stroke of infiniteStrokes) {
+            drawStroke(exportCtx, stroke);
+          }
+          exportCtx.restore();
+
+          const imgData = exportCanvas.toDataURL('image/png');
+          pdf = new jsPDF({
+            orientation: box.width > box.height ? 'l' : 'p',
+            unit: 'px',
+            format: [box.width, box.height]
+          });
+          pdf.addImage(imgData, 'PNG', 0, 0, box.width, box.height);
+        } else {
+          // A4 Mode
+          pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'px',
+            format: [800, 1130]
+          });
+
+          for (let i = 0; i < pages.length; i++) {
+            if (i > 0) {
+              pdf.addPage([800, 1130], 'p');
+            }
+            const page = pages[i];
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = 800;
+            exportCanvas.height = 1130;
+            const exportCtx = exportCanvas.getContext('2d');
+            if (!exportCtx) throw new Error('Could not create canvas context');
+
+            // White background
+            exportCtx.fillStyle = '#FFFFFF';
+            exportCtx.fillRect(0, 0, 800, 1130);
+
+            // Background Image
+            if (currentBgImage) {
+              exportCtx.save();
+              exportCtx.globalAlpha = bgOpacity / 100;
+              const pattern = exportCtx.createPattern(currentBgImage, 'repeat');
+              if (pattern) {
+                exportCtx.fillStyle = pattern;
+                exportCtx.fillRect(0, 0, 800, 1130);
+              }
+              exportCtx.restore();
+            }
+
+            // Guidelines
+            drawGuidelinesInWorld(exportCtx, 0, 0, 800, 1130, activeBg, bgOpacity);
+
+            // Strokes
+            for (const stroke of page.strokeHistory || []) {
+              drawStroke(exportCtx, stroke);
+            }
+
+            const imgData = exportCanvas.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', 0, 0, 800, 1130);
+          }
+        }
+      } else {
+        // Markdown/Text Mode
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.top = '-9999px';
+        tempDiv.style.width = '800px';
+        tempDiv.style.background = '#FFFFFF';
+        tempDiv.style.color = '#000000';
+        tempDiv.style.padding = '40px';
+        tempDiv.style.boxSizing = 'border-box';
+        tempDiv.className = 'prose max-w-none';
+        
+        const style = document.createElement('style');
+        style.innerHTML = `
+          .prose {
+            color: #1a1a1a !important;
+            background-color: #ffffff !important;
+            font-family: system-ui, -apple-system, sans-serif !important;
+          }
+          .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+            color: #0040e0 !important;
+            margin-top: 1.5em !important;
+            margin-bottom: 0.5em !important;
+          }
+          .prose a {
+            color: #0040e0 !important;
+          }
+          .prose code {
+            color: #0040e0 !important;
+            background-color: #f3f4f6 !important;
+          }
+          .prose blockquote {
+            border-left-color: #d1d5db !important;
+            background-color: #f9fafb !important;
+            color: #4b5563 !important;
+          }
+          .prose hr {
+            border-top: 1px solid #e5e7eb !important;
+            margin: 2em 0 !important;
+          }
+        `;
+        tempDiv.appendChild(style);
+
+        const contentSpan = document.createElement('div');
+        contentSpan.innerHTML = getParsedPreviewHtml(editorText);
+        tempDiv.appendChild(contentSpan);
+
+        document.body.appendChild(tempDiv);
+        const canvas = await html2canvas(tempDiv, {
+          backgroundColor: '#FFFFFF',
+          scale: 2,
+          logging: false
+        });
+        document.body.removeChild(tempDiv);
+
+        const imgWidth = 800;
+        const pageHeight = 1130;
+        const canvasHeight = canvas.height * (imgWidth / canvas.width);
+
+        pdf = new jsPDF('p', 'px', [imgWidth, pageHeight]);
+
+        let heightLeft = canvasHeight;
+        let position = 0;
+
+        pdf.addImage(canvas, 'PNG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width));
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+          position = position - pageHeight;
+          pdf.addPage([imgWidth, pageHeight]);
+          pdf.addImage(canvas, 'PNG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width));
+          heightLeft -= pageHeight;
+        }
+      }
+
+      // Dialog to save file
+      const defaultName = activeMode === 'canvas'
+        ? `canvas_${task.name.toLowerCase().replace(/\\s+/g, '_')}.pdf`
+        : `text_${task.name.toLowerCase().replace(/\\s+/g, '_')}.pdf`;
+
+      const filePath = await save({
+        filters: [{
+          name: 'PDF Document',
+          extensions: ['pdf']
+        }],
+        defaultPath: defaultName
+      });
+
+      if (!filePath) return; // User cancelled
+
+      const pdfArrayBuffer = pdf.output('arraybuffer');
+      await writeFile(filePath, new Uint8Array(pdfArrayBuffer));
+      store.showNotification(t('practice.exportPdfSuccess'), 'success');
+    } catch (err) {
+      console.error('[PDF Export] Failed:', err);
+      store.showNotification(t('practice.exportPdfError'), 'error');
+    }
+  }
+
   function clearCanvas() {
     if (strokeHistory.length === 0 && !hasCheckedWork) return;
     
@@ -2166,6 +2369,7 @@
     {handleUndo}
     {handleRedo}
     {checkWork}
+    {handleExportPdf}
   />
 
   <!-- Interactive practice screen split layout -->
