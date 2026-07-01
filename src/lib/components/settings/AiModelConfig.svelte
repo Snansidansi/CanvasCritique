@@ -463,22 +463,7 @@
         {/if}
       </div>
 
-      <!-- OpenRouter Reasoning Toggle -->
-      <div class="flex items-center justify-between p-3 rounded-lg bg-surface-container-low border border-outline-variant/30 mt-2">
-        <div class="flex flex-col gap-0.5">
-          <span class="text-xs font-bold text-on-surface">{t('settings.api.enableReasoning')}</span>
-          <span class="text-[10.5px] text-outline leading-tight">{t('settings.api.reasoningDesc')}</span>
-        </div>
-        <label class="relative inline-flex items-center cursor-pointer select-none">
-          <input 
-            type="checkbox" 
-            bind:checked={settings.openRouterReasoning} 
-            onchange={handleInputChange}
-            class="sr-only peer"
-          />
-          <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-        </label>
-      </div>
+
     </div>
   {/if}
 </div>
