@@ -432,10 +432,20 @@ class CanvasCritiqueStore {
   }
 
   async addProfile(name: string, icon: string | null = null, color: string = '#3b82f6') {
+    const id = 'profile-' + Date.now();
+    let resolvedIcon = icon;
+    if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(icon)) {
+      this._iconMediaIds[id] = icon;
+      try {
+        resolvedIcon = await getMediaDataUrl(icon);
+      } catch (err) {
+        console.error('[store] Failed to load profile icon for new profile:', id, err);
+      }
+    }
     const newProfile: Profile = {
-      id: 'profile-' + Date.now(),
+      id,
       name,
-      icon,
+      icon: resolvedIcon,
       color
     };
     this.profiles.push(newProfile);
@@ -447,7 +457,19 @@ class CanvasCritiqueStore {
     const profile = this.profiles.find(p => p.id === id);
     if (!profile) return;
     if (updated.name !== undefined) profile.name = updated.name;
-    if (updated.icon !== undefined) profile.icon = updated.icon;
+    if (updated.icon !== undefined) {
+      if (updated.icon && !updated.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(updated.icon)) {
+        this._iconMediaIds[id] = updated.icon;
+        try {
+          profile.icon = await getMediaDataUrl(updated.icon);
+        } catch (err) {
+          console.error('[store] Failed to load profile icon for', id, err);
+          profile.icon = updated.icon;
+        }
+      } else {
+        profile.icon = updated.icon;
+      }
+    }
     if (updated.color !== undefined) profile.color = updated.color;
     await this.saveProfiles();
   }
@@ -938,7 +960,19 @@ class CanvasCritiqueStore {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
     if (updates.name !== undefined) project.name = updates.name;
-    if (updates.icon !== undefined) project.icon = updates.icon;
+    if (updates.icon !== undefined) {
+      if (updates.icon && !updates.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(updates.icon)) {
+        this._projectIconMediaIds[projectId] = updates.icon;
+        try {
+          project.icon = await getMediaDataUrl(updates.icon);
+        } catch (err) {
+          console.error('[store] Failed to load project icon for', projectId, err);
+          project.icon = updates.icon;
+        }
+      } else {
+        project.icon = updates.icon;
+      }
+    }
     await this.saveProjects();
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
@@ -1279,10 +1313,20 @@ class CanvasCritiqueStore {
           ? (categories.includes(options.targetCategory) ? categories : [...categories, options.targetCategory])
           : categories;
 
+        let resolvedIcon = proj.icon || 'history_edu';
+        if (resolvedIcon && !resolvedIcon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(resolvedIcon)) {
+          this._projectIconMediaIds[newId] = resolvedIcon;
+          try {
+            resolvedIcon = await getMediaDataUrl(resolvedIcon);
+          } catch (err) {
+            console.error('[store] Failed to load project icon during import for', newId, err);
+          }
+        }
+
         const newProj: Project = {
           id: newId,
           name: proj.name,
-          icon: proj.icon || 'history_edu',
+          icon: resolvedIcon,
           guidelines: proj.guidelines || '',
           categories: effectiveCategories,
           tasks,
