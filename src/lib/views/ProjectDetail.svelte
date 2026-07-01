@@ -748,6 +748,24 @@
 
     <!-- Dynamic Category Sections -->
     <div class="grid grid-cols-1 gap-6">
+      {#if categories.length === 0}
+        <div class="flex flex-col items-center justify-center p-12 border border-dashed border-outline-variant/60 rounded-xl bg-surface-container-low/20 text-center gap-3 animate-fade-in">
+          <span class="material-symbols-outlined text-[36px] text-outline">folder_off</span>
+          <div>
+            <p class="text-sm font-bold text-on-surface">{t('projectDetail.noTopicsTitle')}</p>
+            <p class="text-xs text-on-surface-variant mt-1">{t('projectDetail.noTopicsDesc')}</p>
+          </div>
+          <button 
+            type="button"
+            onclick={() => isAddCategoryOpen = true}
+            class="mt-2 flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary font-bold text-xs rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer focus:outline-none"
+          >
+            <span class="material-symbols-outlined text-[16px]">add</span>
+            {t('projectDetail.addTopicBtn')}
+          </button>
+        </div>
+      {/if}
+
       {#each categories as category, secIdx}
         {#if isSectionDragActive && sectionDropTargetIndex === secIdx && draggedSectionCategory && draggedSectionCategory !== category}
           <div class="h-1 bg-primary rounded-full mx-2 animate-pulse"></div>

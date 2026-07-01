@@ -60,6 +60,8 @@
     "createNewProfile": "Neues Profil erstellen"
   },
   "projectDetail": {
+    "noTopicsTitle": "Noch keine Themen in dieser Lektion",
+    "noTopicsDesc": "Füge deinen ersten Themenbereich hinzu, um mit dem Erstellen von Aufgaben zu beginnen.",
     "noLessonSelected": "Keine Lektion ausgewählt",
     "backToDashboard": "Zurück zur Übersicht",
     "changeImageTooltip": "Bild ändern",

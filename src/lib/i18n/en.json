@@ -61,6 +61,8 @@
     "createNewProfile": "Create New Profile"
   },
   "projectDetail": {
+    "noTopicsTitle": "No topics in this lesson yet",
+    "noTopicsDesc": "Add your first topic section to start creating tasks.",
     "noLessonSelected": "No Lesson Selected",
     "backToDashboard": "Back to Dashboard",
     "changeImageTooltip": "Change Image",

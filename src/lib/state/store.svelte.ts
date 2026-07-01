@@ -667,20 +667,36 @@ class CanvasCritiqueStore {
       project.categories = project.categories.filter(c => c !== categoryName);
     }
 
-    const fallbackCategory = (project.categories && project.categories.includes('Basics'))
-      ? 'Basics'
-      : ((project.categories && project.categories[0]) || 'Basics');
+    if (project.categories && project.categories.length > 0) {
+      const fallbackCategory = project.categories.includes('Basics')
+        ? 'Basics'
+        : project.categories[0];
 
-    if (project.tasks) {
-      project.tasks.forEach(t => {
-        if ((t.category || 'Basics') === categoryName) {
-          t.category = fallbackCategory;
+      if (project.tasks) {
+        project.tasks.forEach(t => {
+          if ((t.category || 'Basics') === categoryName) {
+            t.category = fallbackCategory;
+          }
+        });
+      }
+    } else {
+      // No sections remaining! Remove all tasks in this project
+      if (project.tasks) {
+        for (const t of project.tasks) {
+          const taskMediaIds: string[] = [];
+          taskMediaIds.push(...collectMediaIds(t.instructionFiles || []));
+          taskMediaIds.push(...collectMediaIds(t.solutionFiles || []));
+          try {
+            await deleteMediaForTask(taskMediaIds);
+          } catch (err) {
+            console.error('[store] Failed to delete media for task', t.id, err);
+          }
+          delete this.canvasSaves[t.id];
+          delete this.editorTexts[t.id];
         }
-      });
-    }
-
-    if (project.categories && !project.categories.includes(fallbackCategory)) {
-      project.categories.push(fallbackCategory);
+        project.tasks = [];
+      }
+      project.categories = [];
     }
 
     await this.saveProjects();
