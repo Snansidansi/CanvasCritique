@@ -629,10 +629,22 @@ class CanvasCritiqueStore {
 
   // Mutation actions
   async addProject(name: string, icon: string = 'history_edu'): Promise<Project> {
+    const projectId = 'proj-' + Date.now();
+    let resolvedIcon = icon;
+    if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(icon)) {
+      this._projectIconMediaIds[projectId] = icon;
+      try {
+        resolvedIcon = await getMediaDataUrl(icon);
+      } catch (err) {
+        console.error('[store] Failed to load project icon for new project', projectId, err);
+        resolvedIcon = 'history_edu';
+      }
+    }
+
     const newProj: Project = {
-      id: 'proj-' + Date.now(),
+      id: projectId,
       name,
-      icon,
+      icon: resolvedIcon,
       guidelines: '',
       categories: [],
       tasks: [],
