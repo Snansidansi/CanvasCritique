@@ -1139,9 +1139,12 @@ class CanvasCritiqueStore {
       hasCanvas,
       targetProjectId,
       targetCategory,
-      onConfirm: (options) => {
-        this.executeImportProject(projectData, { ...options, targetCategory });
+      onConfirm: async (options) => {
+        await this.executeImportProject(projectData, { ...options, targetCategory });
         this.importDialog = null;
+        setTimeout(() => {
+          window.location.reload();
+        }, 50);
       },
       onCancel: () => {
         this.importDialog = null;

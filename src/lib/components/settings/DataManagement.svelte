@@ -86,24 +86,26 @@
             }
 
             store.projects = imported.projects;
-            store.saveProjects();
+            await store.saveProjects();
 
             if (imported.profiles && Array.isArray(imported.profiles)) {
               store.profiles = imported.profiles;
               store.activeProfileId = imported.activeProfileId || imported.profiles[0]?.id || 'default-profile';
-              store.saveProfiles();
+              await store.saveProfiles();
             }
 
             for (const proj of imported.projects) {
               if (proj.canvasSaves) {
                 for (const [taskId, canvasState] of Object.entries(proj.canvasSaves)) {
-                  store.saveCanvasState(taskId, canvasState);
+                  await store.saveCanvasState(taskId, canvasState);
                 }
               }
             }
 
             store.showNotification(t('settings.data.notifications.importDbSuccess'), 'success');
-            store.setView('dashboard');
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
           } else {
             store.showNotification(t('settings.data.notifications.importDbError'), 'error');
           }
