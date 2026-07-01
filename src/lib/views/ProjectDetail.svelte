@@ -111,7 +111,16 @@
   function autoResize(node, _val) {
     const update = () => {
       node.style.height = 'auto';
-      node.style.height = `${node.scrollHeight}px`;
+      node.style.overflowY = 'hidden';
+      const style = window.getComputedStyle(node);
+      const isBorderBox = style.boxSizing === 'border-box';
+      let height = node.scrollHeight;
+      if (isBorderBox) {
+        const borderTop = parseFloat(style.borderTopWidth) || 0;
+        const borderBottom = parseFloat(style.borderBottomWidth) || 0;
+        height += borderTop + borderBottom;
+      }
+      node.style.height = `${height}px`;
     };
     const timer = setTimeout(update, 0);
     node.addEventListener('input', update);
@@ -711,7 +720,7 @@
           oninput={handleGuidelinesChange}
           placeholder={t('projectDetail.guidelinesPlaceholder')}
           rows="4"
-          class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-y min-h-20"
+          class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-none min-h-20"
         ></textarea>
         <p class="text-[10px] text-on-surface-variant mt-2 flex items-center gap-1">
           <span class="material-symbols-outlined text-[12px]">info</span>
