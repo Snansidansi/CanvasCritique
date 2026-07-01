@@ -150,6 +150,7 @@ export interface Profile {
   name: string;
   icon: string | null;
   color: string;
+  sortOrder?: number;
 }
 
 export interface CustomBackground {

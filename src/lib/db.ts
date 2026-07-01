@@ -32,7 +32,8 @@ export async function initDb(): Promise<Database> {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       icon TEXT,
-      color TEXT NOT NULL DEFAULT '#3b82f6'
+      color TEXT NOT NULL DEFAULT '#3b82f6',
+      sort_order INTEGER DEFAULT 0
     )
   `);
 
@@ -99,6 +100,10 @@ export async function initDb(): Promise<Database> {
     await db.execute('ALTER TABLE tasks ADD COLUMN editor_text TEXT DEFAULT ""');
   } catch (_) {}
 
+  try {
+    await db.execute('ALTER TABLE profiles ADD COLUMN sort_order INTEGER DEFAULT 0');
+  } catch (_) {}
+
   // Seed defaults if database is fresh (no profiles)
   const profileCount = await db.select('SELECT COUNT(*) as count FROM profiles');
   if ((profileCount[0] as any).count === 0) {
@@ -156,19 +161,20 @@ export function getDb(): Database {
 // ── Profiles ──
 
 export async function getProfiles(db: Database): Promise<Profile[]> {
-  const rows: any[] = await db.select('SELECT id, name, icon, color FROM profiles');
+  const rows: any[] = await db.select('SELECT id, name, icon, color, sort_order FROM profiles ORDER BY sort_order ASC, id ASC');
   return rows.map(r => ({
     id: r.id,
     name: r.name,
     icon: r.icon || null,
-    color: r.color || '#3b82f6'
+    color: r.color || '#3b82f6',
+    sortOrder: r.sort_order || 0
   }));
 }
 
 export async function insertProfile(db: Database, profile: Profile): Promise<void> {
   await db.execute(
-    'INSERT INTO profiles (id, name, icon, color) VALUES (?, ?, ?, ?)',
-    [profile.id, profile.name, profile.icon || null, profile.color || '#3b82f6']
+    'INSERT INTO profiles (id, name, icon, color, sort_order) VALUES (?, ?, ?, ?, ?)',
+    [profile.id, profile.name, profile.icon || null, profile.color || '#3b82f6', profile.sortOrder || 0]
   );
 }
 
@@ -178,6 +184,7 @@ export async function updateProfile(db: Database, id: string, updates: Partial<P
   if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
   if (updates.icon !== undefined) { fields.push('icon = ?'); values.push(updates.icon); }
   if (updates.color !== undefined) { fields.push('color = ?'); values.push(updates.color); }
+  if (updates.sortOrder !== undefined) { fields.push('sort_order = ?'); values.push(updates.sortOrder); }
   if (fields.length === 0) return;
   values.push(id);
   await db.execute(`UPDATE profiles SET ${fields.join(', ')} WHERE id = ?`, values);

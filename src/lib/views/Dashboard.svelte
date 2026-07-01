@@ -293,6 +293,133 @@
     target.addEventListener('pointerup', onUp);
     target.addEventListener('pointercancel', onUp);
   }
+
+  // Profile drag-and-drop state
+  let isProfileDragActive = $state(false);
+  let draggedProfileId = $state<string | null>(null);
+  let dragProfileStartX = 0;
+  let dragProfileStartY = 0;
+  let dragProfileSourceEl = $state<HTMLElement | null>(null);
+  let dragProfileGhostEl = $state<HTMLElement | null>(null);
+  let dragProfileGhostOffsetX = 0;
+  let dragProfileGhostOffsetY = 0;
+  let dropProfileIndicatorIndex = $state<number | null>(null);
+
+  function handleProfilePointerDown(e: PointerEvent, profileId: string, index: number) {
+    if (e.button !== 0 && e.button !== -1) return;
+    const target = e.currentTarget as HTMLElement;
+    // Ignore drags starting on interactive controls (edit button)
+    if ((e.target as HTMLElement).closest('button')) return;
+
+    dragProfileStartX = e.clientX;
+    dragProfileStartY = e.clientY;
+    dragProfileSourceEl = target;
+
+    try { target.setPointerCapture(e.pointerId); } catch (_) {}
+
+    function onMove(me: PointerEvent) {
+      const dx = me.clientX - dragProfileStartX;
+      const dy = me.clientY - dragProfileStartY;
+
+      if (!isProfileDragActive && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+        isProfileDragActive = true;
+        draggedProfileId = profileId;
+
+        const ghost = target.cloneNode(true) as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        ghost.style.cssText = `
+          position: fixed;
+          pointer-events: none;
+          z-index: 9999;
+          width: ${rect.width}px;
+          opacity: 0.85;
+          left: ${rect.left}px;
+          top: ${rect.top}px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+          border-radius: 0.5rem;
+          transition: none;
+          background-color: var(--color-surface, #1e1e24);
+          border: 1px solid var(--color-outline-variant, #3a3a44);
+        `;
+        dragProfileGhostOffsetX = me.clientX - rect.left;
+        dragProfileGhostOffsetY = me.clientY - rect.top;
+        document.body.appendChild(ghost);
+        dragProfileGhostEl = ghost;
+      }
+
+      if (!isProfileDragActive) return;
+
+      if (dragProfileGhostEl) {
+        dragProfileGhostEl.style.left = `${me.clientX - dragProfileGhostOffsetX}px`;
+        dragProfileGhostEl.style.top  = `${me.clientY - dragProfileGhostOffsetY}px`;
+      }
+
+      if (dragProfileGhostEl) dragProfileGhostEl.style.display = 'none';
+      const el = document.elementFromPoint(me.clientX, me.clientY);
+      if (dragProfileGhostEl) dragProfileGhostEl.style.display = '';
+
+      const row = el?.closest('[data-profile-id]') as HTMLElement | null;
+      const listContainer = el?.closest('.overflow-y-auto') as HTMLElement | null;
+
+      if (row) {
+        const rowIndex = parseInt(row.dataset.profileIndex || '0', 10);
+        const rect = row.getBoundingClientRect();
+        const relativeY = me.clientY - rect.top;
+        if (relativeY < rect.height / 2) {
+          dropProfileIndicatorIndex = rowIndex;
+        } else {
+          dropProfileIndicatorIndex = rowIndex + 1;
+        }
+      } else if (listContainer) {
+        const rect = listContainer.getBoundingClientRect();
+        if (me.clientY < rect.top + 20) {
+          dropProfileIndicatorIndex = 0;
+        } else {
+          dropProfileIndicatorIndex = store.profiles.length;
+        }
+      } else {
+        dropProfileIndicatorIndex = null;
+      }
+    }
+
+    function onUp(ue: PointerEvent) {
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
+      try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
+
+      if (dragProfileGhostEl) {
+        dragProfileGhostEl.remove();
+        dragProfileGhostEl = null;
+      }
+
+      if (isProfileDragActive) {
+        if (draggedProfileId && dropProfileIndicatorIndex !== null) {
+          const currentIndex = store.profiles.findIndex(p => p.id === draggedProfileId);
+          let targetIndex = dropProfileIndicatorIndex;
+          if (currentIndex !== -1) {
+            if (targetIndex > currentIndex) {
+              targetIndex--;
+            }
+            if (targetIndex !== currentIndex && targetIndex >= 0 && targetIndex < store.profiles.length) {
+              store.reorderProfiles(currentIndex, targetIndex);
+            }
+          }
+        }
+      } else {
+        store.selectProfile(profileId);
+        isProfileMenuOpen = false;
+      }
+
+      isProfileDragActive = false;
+      draggedProfileId = null;
+      dropProfileIndicatorIndex = null;
+    }
+
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -381,16 +508,20 @@
           <div class="px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">
             {t('profile.profilesTitle')}
           </div>
-          <div class="flex flex-col gap-0.5 max-h-60 overflow-y-auto custom-scrollbar my-1">
-            {#each store.profiles as p}
-              <div class="flex items-center justify-between hover:bg-surface-container rounded-lg p-1.5 transition-colors">
-                <button
-                  onclick={() => {
-                    store.selectProfile(p.id);
-                    isProfileMenuOpen = false;
-                  }}
-                  class="flex items-center gap-2.5 grow text-left font-bold text-xs text-on-surface hover:text-primary transition-colors cursor-pointer focus:outline-none min-w-0"
-                >
+          <div class="flex flex-col gap-0.5 max-h-60 overflow-y-auto custom-scrollbar my-1 relative">
+            {#each store.profiles as p, index (p.id)}
+              {#if isProfileDragActive && dropProfileIndicatorIndex === index}
+                <div class="h-1 rounded-full bg-primary/70 mx-1.5 my-0.5 transition-all"></div>
+              {/if}
+              <div 
+                data-profile-id={p.id}
+                data-profile-index={index}
+                onpointerdown={(e) => handleProfilePointerDown(e, p.id, index)}
+                style="touch-action: none;"
+                class="flex items-center justify-between hover:bg-surface-container rounded-lg p-1.5 transition-colors relative cursor-pointer
+                       {isProfileDragActive && draggedProfileId === p.id ? 'opacity-40 scale-95' : ''}"
+              >
+                <div class="flex items-center gap-2.5 grow text-left font-bold text-xs text-on-surface hover:text-primary transition-colors min-w-0 select-none">
                   {#if p.icon}
                     <img src={p.icon} class="w-7 h-7 rounded-full object-cover border border-outline-variant shrink-0" alt="" />
                   {:else}
@@ -405,7 +536,7 @@
                   {#if p.id === store.activeProfileId}
                     <span class="material-symbols-outlined text-[16px] text-primary shrink-0 ml-auto">check</span>
                   {/if}
-                </button>
+                </div>
                 
                 <button
                   onclick={(e) => {
@@ -420,6 +551,9 @@
                 </button>
               </div>
             {/each}
+            {#if isProfileDragActive && dropProfileIndicatorIndex === store.profiles.length}
+              <div class="h-1 rounded-full bg-primary/70 mx-1.5 my-0.5 transition-all"></div>
+            {/if}
           </div>
           <div class="h-px bg-outline-variant/30 my-1"></div>
           <button

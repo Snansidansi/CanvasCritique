@@ -500,6 +500,23 @@ class CanvasCritiqueStore {
     }
   }
 
+  async reorderProfiles(fromIndex: number, toIndex: number) {
+    if (fromIndex < 0 || fromIndex >= this.profiles.length || toIndex < 0 || toIndex >= this.profiles.length) {
+      return;
+    }
+    const moved = this.profiles[fromIndex];
+    const newProfiles = [...this.profiles];
+    newProfiles.splice(fromIndex, 1);
+    newProfiles.splice(toIndex, 0, moved);
+    
+    newProfiles.forEach((p, idx) => {
+      p.sortOrder = idx;
+    });
+    
+    this.profiles = newProfiles;
+    await this.saveProfiles();
+  }
+
   async saveCustomBackgrounds() {
     const db = this.getDb();
     // Delete all existing and re-insert (simplest approach)
