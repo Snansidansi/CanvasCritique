@@ -89,11 +89,6 @@
             store.saveProjects();
 
             if (imported.profiles && Array.isArray(imported.profiles)) {
-              for (const p of imported.profiles) {
-                if (p.icon && p.icon.startsWith('data:')) {
-                  try { p.icon = await saveMediaToDb(p.icon); } catch (_) {}
-                }
-              }
               store.profiles = imported.profiles;
               store.activeProfileId = imported.activeProfileId || imported.profiles[0]?.id || 'default-profile';
               store.saveProfiles();

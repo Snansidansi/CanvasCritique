@@ -217,7 +217,10 @@ class CanvasCritiqueStore {
             try {
               const url = await getMediaDataUrl(p.icon);
               p.icon = url;
-            } catch (err) { console.error('[store] Failed to load profile icon for', p.id, err); }
+            } catch (err) {
+              console.error('[store] Failed to load profile icon for', p.id, err);
+              p.icon = null; // Fallback
+            }
           }
         }
       }
@@ -301,7 +304,10 @@ class CanvasCritiqueStore {
             try {
               const url = await getMediaDataUrl(p.icon);
               p.icon = url;
-            } catch (err) { console.error('[store] Failed to load project icon for', p.id, err); }
+            } catch (err) {
+              console.error('[store] Failed to load project icon for', p.id, err);
+              p.icon = 'history_edu'; // Fallback
+            }
           }
         }
         // Ensure all projects have profileId set
@@ -410,22 +416,28 @@ class CanvasCritiqueStore {
     const db = this.getDb();
     for (const profile of this.profiles) {
       // Convert dataUrl icon back to mediaId for storage
-      if (profile.icon && profile.icon.startsWith('data:')) {
+      let icon = profile.icon;
+      if (icon && icon.startsWith('data:')) {
         if (this._iconMediaIds[profile.id]) {
-          profile.icon = this._iconMediaIds[profile.id];
+          icon = this._iconMediaIds[profile.id];
         } else {
           try {
-            const mediaId = await saveMediaToDb(profile.icon);
+            const mediaId = await saveMediaToDb(icon);
             this._iconMediaIds[profile.id] = mediaId;
-            profile.icon = mediaId;
+            icon = mediaId;
           } catch (err) { console.error('[store] Failed to save profile icon media:', err); }
         }
       }
       const existing: any[] = await db.select('SELECT id FROM profiles WHERE id = ?', [profile.id]);
       if (existing.length > 0) {
-        await dbUpdateProfile(db, profile.id, profile);
+        await dbUpdateProfile(db, profile.id, {
+          name: profile.name,
+          icon: icon,
+          color: profile.color,
+          sortOrder: profile.sortOrder
+        });
       } else {
-        await insertProfile(db, profile);
+        await insertProfile(db, { ...profile, icon: icon });
       }
     }
     localStorage.setItem('canvascritique_active_profile_id', this.activeProfileId);
@@ -440,6 +452,7 @@ class CanvasCritiqueStore {
         resolvedIcon = await getMediaDataUrl(icon);
       } catch (err) {
         console.error('[store] Failed to load profile icon for new profile:', id, err);
+        resolvedIcon = null;
       }
     }
     const newProfile: Profile = {
@@ -464,7 +477,7 @@ class CanvasCritiqueStore {
           profile.icon = await getMediaDataUrl(updated.icon);
         } catch (err) {
           console.error('[store] Failed to load profile icon for', id, err);
-          profile.icon = updated.icon;
+          profile.icon = null;
         }
       } else {
         profile.icon = updated.icon;
@@ -1000,7 +1013,7 @@ class CanvasCritiqueStore {
           project.icon = await getMediaDataUrl(updates.icon);
         } catch (err) {
           console.error('[store] Failed to load project icon for', projectId, err);
-          project.icon = updates.icon;
+          project.icon = 'history_edu';
         }
       } else {
         project.icon = updates.icon;
@@ -1353,6 +1366,7 @@ class CanvasCritiqueStore {
             resolvedIcon = await getMediaDataUrl(resolvedIcon);
           } catch (err) {
             console.error('[store] Failed to load project icon during import for', newId, err);
+            resolvedIcon = 'history_edu';
           }
         }
 
@@ -1432,10 +1446,19 @@ class CanvasCritiqueStore {
             }
           }
 
+          let icon = project.icon;
+          if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(icon)) {
+            try {
+              icon = await getMediaDataUrl(icon);
+            } catch (_) {
+              icon = 'history_edu';
+            }
+          }
+
           const exportData: any = {
             id: project.id,
             name: project.name,
-            icon: project.icon,
+            icon: icon,
             guidelines: project.guidelines,
             categories: project.categories,
             tasks: clonedTasks
@@ -1597,6 +1620,13 @@ class CanvasCritiqueStore {
     const exportProjects = JSON.parse(JSON.stringify(this.projects));
     for (const proj of exportProjects) {
       proj.canvasSaves = {};
+      if (proj.icon && !proj.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(proj.icon)) {
+        try {
+          proj.icon = await getMediaDataUrl(proj.icon);
+        } catch (_) {
+          proj.icon = 'history_edu';
+        }
+      }
       if (proj.tasks) {
         for (const task of proj.tasks) {
           const save = this.getCanvasState(task.id);
@@ -1630,7 +1660,19 @@ class CanvasCritiqueStore {
     const payload = {
       version: '1.0',
       projects: exportProjects,
-      profiles: this.profiles,
+      profiles: await (async () => {
+        const exportProfiles = JSON.parse(JSON.stringify(this.profiles));
+        for (const prof of exportProfiles) {
+          if (prof.icon && !prof.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(prof.icon)) {
+            try {
+              prof.icon = await getMediaDataUrl(prof.icon);
+            } catch (_) {
+              prof.icon = null;
+            }
+          }
+        }
+        return exportProfiles;
+      })(),
       activeProfileId: this.activeProfileId
     };
 
