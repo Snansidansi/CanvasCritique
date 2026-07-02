@@ -1,6 +1,6 @@
 {
   "productName": "Canvas Critique",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "com.canvascritique.app",
   "build": {
     "beforeDevCommand": "npm run dev",
