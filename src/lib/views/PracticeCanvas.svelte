@@ -50,7 +50,15 @@
   let customBgUrl = $state(null);
   
   // Active editing mode ('canvas' or 'text')
-  let activeMode = $state<'canvas' | 'text'>('canvas');
+  let showCanvas = $state(true);
+  let showText = $state(false);
+
+  let activeMode = $derived.by<'canvas' | 'text' | 'both' | 'none'>(() => {
+    if (showCanvas && showText) return 'both';
+    if (showCanvas) return 'canvas';
+    if (showText) return 'text';
+    return 'none';
+  });
   let editorText = $state('');
   
   let lines = $state<string[]>([]);
@@ -168,6 +176,44 @@
 
   // Resizable left panel splitter state
   let splitWidth = $state(400); // Default instructions panel width
+
+  // Resizable editor panel splitter state
+  let editorSplitWidth = $state(500); // Default editor panel width when side-by-side
+  let isDraggingEditorSplitter = $state(false);
+  let editorSplitStartX = 0;
+  let editorSplitStartWidth = 0;
+  let editorSplitDragPointerId = -1;
+
+  function startEditorSplitDrag(e: PointerEvent) {
+    isDraggingEditorSplitter = true;
+    editorSplitDragPointerId = e.pointerId;
+    editorSplitStartX = e.clientX;
+    editorSplitStartWidth = editorSplitWidth;
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch (_) {}
+  }
+
+  function handleEditorSplitDrag(e: PointerEvent) {
+    if (!isDraggingEditorSplitter) return;
+    const deltaX = e.clientX - editorSplitStartX;
+    const newWidth = editorSplitStartWidth - deltaX; // drag right to shrink editor, left to expand
+    const minWidth = 150;
+    const maxWidth = window.innerWidth - splitWidth - 150;
+    if (newWidth >= minWidth && newWidth <= maxWidth) {
+      editorSplitWidth = newWidth;
+    }
+  }
+
+  function stopEditorSplitDrag(e: PointerEvent) {
+    if (!isDraggingEditorSplitter) return;
+    isDraggingEditorSplitter = false;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(editorSplitDragPointerId);
+    } catch (_) {}
+    editorSplitDragPointerId = -1;
+  }
+
   let isCustomBgModalOpen = $state(false);
 
   // Brush configuration
@@ -1809,7 +1855,7 @@
     try {
       let pdf: jsPDF;
 
-      if (activeMode === 'canvas') {
+      if (showCanvas) {
         if (canvasMode === 'infinite') {
           // Bounding Box of all drawing strokes
           let box = getStrokesBoundingBox(infiniteStrokes, 'infinite');
@@ -1981,9 +2027,9 @@
       }
 
       // Dialog to save file
-      const defaultName = activeMode === 'canvas'
-        ? `canvas_${task.name.toLowerCase().replace(/\\s+/g, '_')}.pdf`
-        : `text_${task.name.toLowerCase().replace(/\\s+/g, '_')}.pdf`;
+      const defaultName = showCanvas
+        ? `canvas_${task.name.toLowerCase().replace(/\s+/g, '_')}.pdf`
+        : `text_${task.name.toLowerCase().replace(/\s+/g, '_')}.pdf`;
 
       const filePath = await save({
         filters: [{
@@ -2352,7 +2398,8 @@
   <PracticeHeader
     {task}
     {canvasMode}
-    bind:activeMode
+    bind:showCanvas
+    bind:showText
     bind:pages
     bind:activePageIndex
     {strokeHistory}
@@ -2388,7 +2435,7 @@
     />
 
     <!-- Right side: Drawing Workspace (Infinite or A4 Centered) -->
-    {#if activeMode === 'canvas'}
+    {#if showCanvas}
       <section 
       bind:this={canvasContainer} 
       bind:clientWidth={containerWidth}
@@ -2682,9 +2729,28 @@
       {/if}
 
     </section>
-    {:else}
+    {/if}
+
+    {#if showCanvas && showText}
+      <!-- Adjustable Split Separator -->
+      <div 
+        role="separator"
+        aria-valuenow={editorSplitWidth}
+        class="w-1.5 hover:w-2 bg-outline-variant/60 hover:bg-primary cursor-col-resize select-none h-full z-20 transition-all active:bg-primary shrink-0"
+        style="touch-action: none;"
+        onpointerdown={startEditorSplitDrag}
+        onpointermove={handleEditorSplitDrag}
+        onpointerup={stopEditorSplitDrag}
+        onpointercancel={stopEditorSplitDrag}
+      ></div>
+    {/if}
+
+    {#if showText}
       <!-- Right side: Text Editor Workspace (LaTeX / Markdown Live Preview / Raw Editor) -->
-      <section class="text-editor-workspace grow flex flex-col h-full w-full bg-surface-container-lowest overflow-hidden select-text font-sans relative">
+      <section 
+        class="text-editor-workspace flex flex-col h-full bg-surface-container-lowest overflow-hidden select-text font-sans relative {showCanvas ? 'shrink-0' : 'grow w-full'}"
+        style={showCanvas ? `width: ${editorSplitWidth}px;` : ''}
+      >
         
         <div class="flex flex-col grow h-full w-full overflow-hidden p-6">
           
@@ -2954,7 +3020,7 @@
             handleExportPdf();
           }}
           class="w-full flex items-center justify-center gap-1.5 border border-outline-variant text-on-surface hover:bg-surface-container py-2.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none bg-transparent transition-colors"
-          title={activeMode === 'canvas' ? t('practice.exportCanvasPdf') : t('practice.exportTextPdf')}
+          title={showCanvas ? t('practice.exportCanvasPdf') : t('practice.exportTextPdf')}
         >
           <span class="material-symbols-outlined text-base text-primary">picture_as_pdf</span>
           <span>{t('practice.exportPdfLabel')}</span>

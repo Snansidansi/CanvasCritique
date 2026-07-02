@@ -87,7 +87,7 @@ export interface CheckWorkOptions {
   projectGuidelines?: string;
   settings: CheckWorkSettings;
   defaultSystemPrompt: string;
-  activeMode?: 'canvas' | 'text';
+  activeMode?: 'canvas' | 'text' | 'both' | 'none';
   editorText?: string;
   alwaysSendBothCanvasAndText?: boolean;
 }
@@ -192,9 +192,17 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     }
   }
 
-  const sendCanvas = alwaysSendBothCanvasAndText || activeMode === 'canvas';
-  const sendText = alwaysSendBothCanvasAndText || activeMode === 'text';
+  const sendCanvas = alwaysSendBothCanvasAndText || activeMode === 'canvas' || activeMode === 'both';
+  const sendText = alwaysSendBothCanvasAndText || activeMode === 'text' || activeMode === 'both';
   const hasTextContent = !!(editorText && editorText.trim());
+
+  if (!sendCanvas && !sendText) {
+    throw new Error(
+      settings.language === 'Deutsch'
+        ? "Bitte aktivieren Sie mindestens eine Ansicht (Leinwand oder Texteditor), um Ihre Arbeit zu überprüfen."
+        : "Please activate at least one view (Canvas or Text Editor) to check your work."
+    );
+  }
 
   if (sendCanvas && activePagesWithIndex.length === 0 && !hasTextContent) {
     throw new Error(

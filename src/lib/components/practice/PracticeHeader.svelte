@@ -5,7 +5,8 @@
   let {
     task,
     canvasMode,
-    activeMode = $bindable('canvas'),
+    showCanvas = $bindable(true),
+    showText = $bindable(false),
     pages = $bindable(),
     activePageIndex = $bindable(),
     strokeHistory,
@@ -88,18 +89,18 @@
     <div class="flex items-center gap-1 border-r border-outline-variant/30 pr-4">
       <div class="flex bg-surface-container rounded-lg p-0.5 border border-outline-variant">
         <button 
-          onclick={() => activeMode = 'canvas'}
+          onclick={() => showCanvas = !showCanvas}
           class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer focus:outline-none border-0
-                 {activeMode === 'canvas' ? 'bg-primary text-white shadow-sm font-bold' : 'text-on-surface-variant hover:text-on-surface bg-transparent'}"
+                 {showCanvas ? 'bg-primary text-white shadow-sm font-bold' : 'text-on-surface-variant hover:text-on-surface bg-transparent'}"
           title={t('practice.modeCanvas')}
         >
           <span class="material-symbols-outlined text-sm">brush</span>
           <span>{t('practice.modeCanvasLabel')}</span>
         </button>
         <button 
-          onclick={() => activeMode = 'text'}
+          onclick={() => showText = !showText}
           class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer focus:outline-none border-0
-                 {activeMode === 'text' ? 'bg-primary text-white shadow-sm font-bold' : 'text-on-surface-variant hover:text-on-surface bg-transparent'}"
+                 {showText ? 'bg-primary text-white shadow-sm font-bold' : 'text-on-surface-variant hover:text-on-surface bg-transparent'}"
           title={t('practice.modeText')}
         >
           <span class="material-symbols-outlined text-sm">edit_note</span>
@@ -108,7 +109,7 @@
       </div>
     </div>
 
-    {#if activeMode === 'canvas'}
+    {#if showCanvas}
       <!-- Zoom Controls -->
       <div class="flex items-center gap-1 border-r border-outline-variant/30 pr-4">
         <button 
@@ -285,7 +286,7 @@
 
   <!-- Right side: Undo / Redo & Check Work Actions -->
   <div class="flex items-center gap-3 shrink-0">
-    {#if activeMode === 'canvas'}
+    {#if showCanvas}
       <div class="flex items-center gap-1 border-r border-outline-variant/30 pr-3">
         <button 
           onclick={handleUndo} 
