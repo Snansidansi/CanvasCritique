@@ -257,8 +257,6 @@
     },
     "evaluationGoal": "Bewertungsziel / Lösung",
     "aiCritiqueFeedback": "KI Kritik & Feedback",
-    "noInstructions": "Keine Aufgabenstellung vorhanden",
-    "noSolution": "Keine Lösung vorhanden",
     "infoPanels": {
       "taskMedia": "Aufgabenmedien",
       "solutionMedia": "Lösungsmedien",

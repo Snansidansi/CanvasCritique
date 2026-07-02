@@ -483,17 +483,11 @@
             </div>
           {/if}
         {:else}
-          <div class="text-xs text-on-surface-variant leading-relaxed prose prose-sm dark:prose-invert select-text" style="font-size: {textFontSize}px;">
-            {#if panel.content && panel.content.trim()}
+          {#if panel.content && panel.content.trim()}
+            <div class="text-xs text-on-surface-variant leading-relaxed prose prose-sm dark:prose-invert select-text" style="font-size: {textFontSize}px;">
               {@html parseMarkdown(panel.content)}
-            {:else}
-              {#if panel.id === 'task' && (!task.instructionFiles || task.instructionFiles.length === 0)}
-                <p class="italic opacity-60">{t('practice.noInstructions')}</p>
-              {:else if panel.id === 'solution' && (!task.solutionFiles || task.solutionFiles.length === 0)}
-                <p class="italic opacity-60">{t('practice.noSolution')}</p>
-              {/if}
-            {/if}
-          </div>
+            </div>
+          {/if}
 
           {#if panel.id === 'task'}
             <!-- Instruction Media Files -->
