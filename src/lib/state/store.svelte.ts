@@ -1164,11 +1164,36 @@ class CanvasCritiqueStore {
       targetProjectId,
       targetCategory,
       onConfirm: async (options) => {
+        const prevView = this.currentView;
+        const prevProjectId = this.activeProject?.id;
+
         await this.executeImportProject(projectData, { ...options, targetCategory });
         this.importDialog = null;
-        setTimeout(() => {
-          window.location.reload();
-        }, 50);
+        
+        await this.loadState();
+        
+        if (prevView === 'project-detail' && prevProjectId) {
+          const updatedProj = this.projects.find(p => p.id === prevProjectId);
+          if (updatedProj) {
+            this.activeProject = updatedProj;
+            this.currentView = 'project-detail';
+          } else {
+            this.currentView = 'dashboard';
+          }
+        } else {
+          const importedProjId = this.activeProject?.id;
+          if (importedProjId) {
+            const updatedProj = this.projects.find(p => p.id === importedProjId);
+            if (updatedProj) {
+              this.activeProject = updatedProj;
+              this.currentView = 'project-detail';
+            } else {
+              this.currentView = 'dashboard';
+            }
+          } else {
+            this.currentView = 'dashboard';
+          }
+        }
       },
       onCancel: () => {
         this.importDialog = null;
