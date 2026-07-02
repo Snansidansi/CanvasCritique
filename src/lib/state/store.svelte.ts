@@ -64,6 +64,7 @@ class CanvasCritiqueStore {
   importDialog = $state<ImportDialog | null>(null);
   isLoading = $state(false);
   loadingText = $state("");
+  deletingProjectIds = $state<string[]>([]);
   canvasSaves = $state<Record<string, any>>({});
   editorTexts = $state<Record<string, string>>({});
   canvasSettingsOpen = $state(false);
@@ -1095,37 +1096,43 @@ class CanvasCritiqueStore {
   }
 
   async deleteProject(projectId: string): Promise<void> {
-    const project = this.projects.find(p => p.id === projectId);
-    const mediaIds: string[] = [];
-    if (project && project.tasks) {
-      for (const t of project.tasks) {
-        mediaIds.push(...collectMediaIds(t.instructionFiles || []));
-        mediaIds.push(...collectMediaIds(t.solutionFiles || []));
-        if (this.canvasSaves[t.id]) {
-          delete this.canvasSaves[t.id];
+    if (this.deletingProjectIds.includes(projectId)) return;
+    this.deletingProjectIds.push(projectId);
+    try {
+      const project = this.projects.find(p => p.id === projectId);
+      const mediaIds: string[] = [];
+      if (project && project.tasks) {
+        for (const t of project.tasks) {
+          mediaIds.push(...collectMediaIds(t.instructionFiles || []));
+          mediaIds.push(...collectMediaIds(t.solutionFiles || []));
+          if (this.canvasSaves[t.id]) {
+            delete this.canvasSaves[t.id];
+          }
         }
       }
-    }
 
-    const oldIconMediaId = this._projectIconMediaIds[projectId];
+      const oldIconMediaId = this._projectIconMediaIds[projectId];
 
-    const db = this.getDb();
-    await dbDeleteProject(db, projectId);
-    if (mediaIds.length > 0) {
-      await deleteMediaForTask(mediaIds);
-    }
+      const db = this.getDb();
+      await dbDeleteProject(db, projectId);
+      if (mediaIds.length > 0) {
+        await deleteMediaForTask(mediaIds);
+      }
 
-    this.projects = this.projects.filter(p => p.id !== projectId);
-    delete this._projectIconMediaIds[projectId];
+      this.projects = this.projects.filter(p => p.id !== projectId);
+      delete this._projectIconMediaIds[projectId];
 
-    if (oldIconMediaId) {
-      await this.cleanupOrphanedMedia(oldIconMediaId);
-    }
+      if (oldIconMediaId) {
+        await this.cleanupOrphanedMedia(oldIconMediaId);
+      }
 
-    if (this.activeProject && this.activeProject.id === projectId) {
-      this.activeProject = null;
-      this.activeTask = null;
-      this.setView('dashboard');
+      if (this.activeProject && this.activeProject.id === projectId) {
+        this.activeProject = null;
+        this.activeTask = null;
+        this.setView('dashboard');
+      }
+    } finally {
+      this.deletingProjectIds = this.deletingProjectIds.filter(id => id !== projectId);
     }
   }
 

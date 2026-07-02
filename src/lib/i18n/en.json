@@ -9,7 +9,8 @@
     "saveTask": "Save Task",
     "loading": "Loading...",
     "importing": "Importing...",
-    "exporting": "Exporting..."
+    "exporting": "Exporting...",
+    "deleting": "Deleting..."
   },
   "dashboard": {
     "title": "Dashboard",

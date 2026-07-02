@@ -677,14 +677,21 @@
     {#each filteredProjects as project, idx (project.id)}
       {@const progress = getProjectProgress(project)}
       {@const remaining = getRemainingTasks(project)}
+      {@const isDeleting = store.deletingProjectIds.includes(project.id)}
       {#if dropTargetIndex === idx && draggedProjectId && draggedProjectId !== project.id}
         <div class="h-1 bg-primary rounded-full mx-2 animate-pulse"></div>
       {/if}
       <article
         data-project-id={project.id}
-        onpointerdown={(e) => handleLessonPointerDown(e, project.id)}
-        class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary transition-colors group relative overflow-hidden shadow-sm self-start w-full {draggedProjectId === project.id ? 'opacity-50 scale-95' : ''} {isLessonDragActive ? 'cursor-grabbing' : 'cursor-grab'} select-none"
+        onpointerdown={(e) => !isDeleting && handleLessonPointerDown(e, project.id)}
+        class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary transition-colors group relative overflow-hidden shadow-sm self-start w-full {draggedProjectId === project.id ? 'opacity-50 scale-95' : ''} {isLessonDragActive ? 'cursor-grabbing' : 'cursor-grab'} select-none {isDeleting ? 'pointer-events-none opacity-80' : ''}"
       >
+        {#if isDeleting}
+          <div class="absolute inset-0 bg-surface-container/60 backdrop-blur-[2px] z-30 flex flex-col items-center justify-center gap-2">
+            <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <span class="text-sm font-semibold text-on-surface">{t('common.deleting')}</span>
+          </div>
+        {/if}
         <div
           class="absolute top-0 left-0 w-1.5 h-full bg-primary hidden group-hover:block transition-all"
         ></div>

@@ -9,7 +9,8 @@
     "saveTask": "Aufgabe speichern",
     "loading": "Wird geladen...",
     "importing": "Importiere...",
-    "exporting": "Exportiere..."
+    "exporting": "Exportiere...",
+    "deleting": "Wird gelöscht..."
   },
   "dashboard": {
     "title": "Lektionsübersicht",
