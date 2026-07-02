@@ -757,36 +757,34 @@ class CanvasCritiqueStore {
       project.categories = project.categories.filter(c => c !== categoryName);
     }
 
-    if (project.categories && project.categories.length > 0) {
-      const fallbackCategory = project.categories.includes('Basics')
-        ? 'Basics'
-        : project.categories[0];
+    const db = this.getDb();
+    const tasksToDelete = project.tasks ? project.tasks.filter(t => (t.category || 'Basics') === categoryName) : [];
 
-      if (project.tasks) {
-        project.tasks.forEach(t => {
-          if ((t.category || 'Basics') === categoryName) {
-            t.category = fallbackCategory;
-          }
-        });
-      }
-    } else {
-      // No sections remaining! Remove all tasks in this project
-      if (project.tasks) {
-        for (const t of project.tasks) {
-          const taskMediaIds: string[] = [];
-          taskMediaIds.push(...collectMediaIds(t.instructionFiles || []));
-          taskMediaIds.push(...collectMediaIds(t.solutionFiles || []));
-          try {
-            await deleteMediaForTask(taskMediaIds);
-          } catch (err) {
-            console.error('[store] Failed to delete media for task', t.id, err);
-          }
-          delete this.canvasSaves[t.id];
-          delete this.editorTexts[t.id];
+    for (const t of tasksToDelete) {
+      const taskMediaIds: string[] = [];
+      taskMediaIds.push(...collectMediaIds(t.instructionFiles || []));
+      taskMediaIds.push(...collectMediaIds(t.solutionFiles || []));
+      try {
+        await dbDeleteTask(db, t.id);
+        if (taskMediaIds.length > 0) {
+          await deleteMediaForTask(taskMediaIds);
         }
-        project.tasks = [];
+      } catch (err) {
+        console.error('[store] Failed to delete task/media in category deletion', t.id, err);
       }
-      project.categories = [];
+      delete this.canvasSaves[t.id];
+      delete this.editorTexts[t.id];
+
+      if (this.activeTask && this.activeTask.id === t.id) {
+        this.activeTask = null;
+      }
+      if (this.editingTask && this.editingTask.id === t.id) {
+        this.editingTask = null;
+      }
+    }
+
+    if (project.tasks) {
+      project.tasks = project.tasks.filter(t => (t.category || 'Basics') !== categoryName);
     }
 
     await this.saveProjects();
