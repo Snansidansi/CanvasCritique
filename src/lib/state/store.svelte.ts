@@ -1340,13 +1340,13 @@ class CanvasCritiqueStore {
           const importedCategories: string[] = proj.categories || [];
           const targetCat = options.targetCategory;
           const effectiveCategories: string[] = targetCat
-            ? (importedCategories.includes(targetCat) ? importedCategories : [...importedCategories, targetCat])
-            : importedCategories;
+            ? [targetCat]
+            : (importedCategories.length > 0 ? importedCategories : ['Basics']);
 
           // Walk imported sections in order
           for (const importedCat of effectiveCategories) {
             const sectionImportedTasks = targetCat
-              ? importedTasks.filter((t: any) => (t.category || 'Basics') === importedCat || importedCat === targetCat)
+              ? importedTasks
               : importedTasks.filter((t: any) => (t.category || 'Basics') === importedCat);
             if (sectionImportedTasks.length === 0) continue;
 
