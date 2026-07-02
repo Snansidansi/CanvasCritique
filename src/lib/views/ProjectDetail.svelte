@@ -724,7 +724,7 @@
 
 <!-- Main details area -->
 <main 
-  class="grow overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar h-full {isDragging ? 'bg-primary/5 ring-2 ring-primary/30 ring-inset' : ''}"
+  class="grow overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar h-full {(isDragging && !sectionDropTargetCat) ? 'bg-primary/5 ring-2 ring-primary/30 ring-inset' : ''}"
   ondragover={handleMainDragOver}
   ondragenter={handleMainDragEnter}
   ondragleave={handleMainDragLeave}
