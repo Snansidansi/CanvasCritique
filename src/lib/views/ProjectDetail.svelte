@@ -4,6 +4,8 @@
   import LessonSettingsModal from '../components/project/LessonSettingsModal.svelte';
   import { t } from '../services/i18n';
   import { saveMediaToDb } from '../db/media';
+  import { open } from '@tauri-apps/plugin-dialog';
+  import { readFile } from '@tauri-apps/plugin-fs';
 
   // Derived project state from store
   let project = $derived(store.activeProject || ({
@@ -53,37 +55,117 @@
   let isSelectionMode = $state(false);
   let selectedTaskIds = $state(new Set<string>());
 
-  // Task Import (Step 5)
-  let taskFileInput: HTMLInputElement | null = $state(null);
-  let importSectionCategory = $state<string | null>(null);
+  // Task Import using Native File Dialogs (Requirement 2 & 7)
+  async function handleNativeImportTasks(targetCategory?: string) {
+    try {
+      const selected = await open({
+        multiple: true,
+        directory: false,
+        filters: [{ name: 'Lesson Package', extensions: ['json', 'ccpack'] }]
+      });
+      if (!selected) return;
 
-  function handleImportTasksFile(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    const isCcpack = file.name.endsWith('.ccpack');
-    const reader = new FileReader();
-    const targetSection = importSectionCategory;
-    importSectionCategory = null;
-    reader.onload = async () => {
-      try {
+      const filePaths = Array.isArray(selected) ? selected : [selected];
+      const projectDatas = [];
+      for (const path of filePaths) {
+        const isCcpack = path.endsWith('.ccpack');
+        const bytes = await readFile(path);
         let imported;
         if (isCcpack) {
-          const bytes = new Uint8Array(reader.result as ArrayBuffer);
           imported = await store.importCcpackFile(bytes);
         } else {
-          imported = JSON.parse(reader.result as string);
+          const text = new TextDecoder().decode(bytes);
+          imported = JSON.parse(text);
         }
-        store.importProject(imported, project.id, targetSection || undefined);
-      } catch (err) {
-        alert(t('dashboard.notifications.parseFailed'));
+        projectDatas.push(imported);
       }
-    };
-    if (isCcpack) {
-      reader.readAsArrayBuffer(file);
-    } else {
-      reader.readAsText(file);
+
+      if (projectDatas.length > 0) {
+        store.importProject(projectDatas, project.id, targetCategory);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(t('dashboard.notifications.parseFailed'));
     }
-    (e.target as HTMLInputElement).value = "";
+  }
+
+  // Helper for multiple task files drop (Requirement 6 & 7)
+  async function importMultipleTaskFiles(files: File[], targetCategory?: string) {
+    const projectDatas = [];
+    for (const file of files) {
+      const isCcpack = file.name.endsWith('.ccpack');
+      if (!isCcpack && file.type !== 'application/json' && !file.name.endsWith('.json')) {
+        store.showNotification(t('dashboard.notifications.dropValidJson'), 'error');
+        continue;
+      }
+      try {
+        const reader = new FileReader();
+        const fileData = await new Promise<any>((resolve, reject) => {
+          reader.onload = async () => {
+            try {
+              if (isCcpack) {
+                const bytes = new Uint8Array(reader.result as ArrayBuffer);
+                const imported = await store.importCcpackFile(bytes);
+                resolve(imported);
+              } else {
+                const imported = JSON.parse(reader.result as string);
+                resolve(imported);
+              }
+            } catch (err) {
+              reject(err);
+            }
+          };
+          reader.onerror = () => reject(reader.error);
+          if (isCcpack) {
+            reader.readAsArrayBuffer(file);
+          } else {
+            reader.readAsText(file);
+          }
+        });
+        projectDatas.push(fileData);
+      } catch (err) {
+        console.error(err);
+        store.showNotification(t('dashboard.notifications.parseFailed'), 'error');
+      }
+    }
+
+    if (projectDatas.length > 0) {
+      store.importProject(projectDatas, project.id, targetCategory);
+    }
+  }
+
+  let isDragging = $state(false);
+
+  function handleMainDragOver(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  function handleMainDragEnter(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer?.types.includes('Files')) {
+      isDragging = true;
+    }
+  }
+
+  function handleMainDragLeave(e: DragEvent) {
+    e.preventDefault();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      isDragging = false;
+    }
+  }
+
+  function handleMainDrop(e: DragEvent) {
+    e.preventDefault();
+    isDragging = false;
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    importMultipleTaskFiles(Array.from(files));
   }
 
   // Auto-scroll to section after task creation
@@ -635,15 +717,8 @@
     {/if}
 
     <!-- Import Tasks Button -->
-    <input
-      type="file"
-      accept=".json,.ccpack"
-      bind:this={taskFileInput}
-      onchange={handleImportTasksFile}
-      class="hidden"
-    />
     <button 
-      onclick={() => taskFileInput?.click()}
+      onclick={() => handleNativeImportTasks()}
       class="bg-surface-container-low text-on-surface border border-outline-variant font-semibold text-xs py-2.5 px-2.5 md:px-4 rounded-lg hover:bg-surface-container transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm focus:outline-none"
       title={t('projectDetail.importTasksTooltip')}
     >
@@ -759,7 +834,7 @@
       <h3 class="font-bold text-sm text-on-surface uppercase tracking-wider">{t('projectDetail.roadmapTitle')}</h3>
       <div class="flex items-center gap-4">
         <button 
-          onclick={() => taskFileInput?.click()}
+          onclick={() => handleNativeImportTasks()}
           class="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer focus:outline-none"
           title={t('projectDetail.importTasksTooltip')}
         >
@@ -859,7 +934,7 @@
               </span>
               <button
                 type="button"
-                onclick={(e) => { e.preventDefault(); e.stopPropagation(); importSectionCategory = category; taskFileInput?.click(); }}
+                onclick={(e) => { e.preventDefault(); e.stopPropagation(); handleNativeImportTasks(category); }}
                 class="flex items-center gap-1 px-2 py-1 text-outline hover:text-primary text-[11px] font-bold rounded-lg hover:bg-surface-container cursor-pointer focus:outline-none"
                 title={t('projectDetail.importBtn')}
               >

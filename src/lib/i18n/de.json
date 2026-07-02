@@ -532,6 +532,9 @@
     "importMergeSelectLabel": "Lektion zum Zusammenführen auswählen",
     "importMergeModeOverwrite": "Vorhandene überschreiben",
     "importMergeModeSkip": "Vorhandene überspringen",
-    "importMergeModeTitle": "Zusammenführungsmodus"
+    "importMergeModeTitle": "Zusammenführungsmodus",
+    "importErrorTitle": "Importfehler",
+    "importErrorTasksOnlyInLesson": "Tasks können nur in eine Lektion importiert werden.",
+    "importMultipleAsNew": "{count} Lektionen werden als neue Lektionen importiert"
   }
 }

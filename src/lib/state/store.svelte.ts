@@ -1084,10 +1084,21 @@ class CanvasCritiqueStore {
     }
   }
 
-  confirm(title: string, message: string, onConfirm: () => void, onCancel: (() => void) | null = null): void {
+  confirm(
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    onCancel: (() => void) | null = null,
+    isAlert: boolean = false,
+    confirmLabel?: string,
+    cancelLabel?: string
+  ): void {
     this.confirmDialog = {
       title,
       message,
+      isAlert,
+      confirmLabel,
+      cancelLabel,
       onConfirm: () => {
         onConfirm();
         this.confirmDialog = null;

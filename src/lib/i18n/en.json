@@ -533,6 +533,9 @@
     "importMergeSelectLabel": "Select Lesson to Merge Into",
     "importMergeModeOverwrite": "Overwrite Existing",
     "importMergeModeSkip": "Skip Existing",
-    "importMergeModeTitle": "Merge Mode"
+    "importMergeModeTitle": "Merge Mode",
+    "importErrorTitle": "Import Error",
+    "importErrorTasksOnlyInLesson": "Tasks can only be imported into a lesson.",
+    "importMultipleAsNew": "{count} lessons will be imported as new lessons"
   }
 }

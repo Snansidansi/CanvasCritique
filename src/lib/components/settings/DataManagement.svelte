@@ -4,6 +4,9 @@
   import { getDb } from '../../db';
   import { getMediaDataUrl, saveMediaToDb } from '../../db/media';
 
+  import { open } from '@tauri-apps/plugin-dialog';
+  import { readFile } from '@tauri-apps/plugin-fs';
+
   // Local state for settings view tabs
   let activeTab = $state('settings'); // 'settings' | 'data'
 
@@ -18,27 +21,25 @@
     }
   }
 
-  function handleImport() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const imported = JSON.parse(reader.result as string);
-          store.settings = { ...store.settings, ...imported };
-          store.saveSettings();
-          store.showNotification(t('settings.data.notifications.importSettingsSuccess'), 'success');
-        } catch (err) {
-          store.showNotification(t('settings.data.notifications.importSettingsError'), 'error');
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
+  async function handleImport() {
+    try {
+      const selected = await open({
+        multiple: false,
+        directory: false,
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      });
+      if (!selected) return;
+
+      const path = Array.isArray(selected) ? selected[0] : selected;
+      const bytes = await readFile(path);
+      const text = new TextDecoder().decode(bytes);
+      const imported = JSON.parse(text);
+      store.settings = { ...store.settings, ...imported };
+      store.saveSettings();
+      store.showNotification(t('settings.data.notifications.importSettingsSuccess'), 'success');
+    } catch (err) {
+      store.showNotification(t('settings.data.notifications.importSettingsError'), 'error');
+    }
   }
 
   // Data export/import
@@ -46,113 +47,112 @@
     await store.exportWorkspaceCcpack();
   }
 
-  function handleImportData() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json,.ccpack';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const isCcpack = file.name.endsWith('.ccpack');
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        try {
-          let imported;
-          if (isCcpack) {
-            const bytes = new Uint8Array(reader.result as ArrayBuffer);
-            imported = await store.importCcpackFile(bytes);
-          } else {
-            imported = JSON.parse(reader.result as string);
-          }
+  async function handleImportData() {
+    try {
+      const selected = await open({
+        multiple: false,
+        directory: false,
+        filters: [{ name: 'CCPack or JSON', extensions: ['ccpack', 'json'] }]
+      });
+      if (!selected) return;
 
-          if (imported.projects && Array.isArray(imported.projects)) {
-            // Convert imported media files (dataUrl → mediaId)
-            for (const proj of imported.projects) {
-              if (proj.tasks) {
-                for (const task of proj.tasks) {
-                  if (task.instructionFiles) {
-                    for (const f of task.instructionFiles) {
-                      if (f.dataUrl && !f.mediaId) {
-                        try { f.mediaId = await saveMediaToDb(f.dataUrl); } catch (_) {}
-                      }
+      const path = Array.isArray(selected) ? selected[0] : selected;
+      const isCcpack = path.endsWith('.ccpack');
+      const bytes = await readFile(path);
+
+      try {
+        let imported;
+        if (isCcpack) {
+          imported = await store.importCcpackFile(bytes);
+        } else {
+          const text = new TextDecoder().decode(bytes);
+          imported = JSON.parse(text);
+        }
+
+        if (imported.projects && Array.isArray(imported.projects)) {
+          // Convert imported media files (dataUrl → mediaId)
+          for (const proj of imported.projects) {
+            if (proj.tasks) {
+              for (const task of proj.tasks) {
+                if (task.instructionFiles) {
+                  for (const f of task.instructionFiles) {
+                    if (f.dataUrl && !f.mediaId) {
+                      try { f.mediaId = await saveMediaToDb(f.dataUrl); } catch (_) {}
                     }
                   }
-                  if (task.solutionFiles) {
-                    for (const f of task.solutionFiles) {
-                      if (f.dataUrl && !f.mediaId) {
-                        try { f.mediaId = await saveMediaToDb(f.dataUrl); } catch (_) {}
-                      }
+                }
+                if (task.solutionFiles) {
+                  for (const f of task.solutionFiles) {
+                    if (f.dataUrl && !f.mediaId) {
+                      try { f.mediaId = await saveMediaToDb(f.dataUrl); } catch (_) {}
                     }
                   }
                 }
               }
             }
+          }
 
-            // Validate and resolve imported project/profile UUID icons
-            const db = getDb();
-            for (const proj of imported.projects) {
-              if (proj.icon && !proj.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(proj.icon)) {
-                try {
-                  const rows = (await db.select('SELECT id FROM media WHERE id = ?', [proj.icon])) as any[];
-                  if (rows.length === 0) {
-                    proj.icon = 'history_edu';
-                  }
-                } catch (_) {
+          // Validate and resolve imported project/profile UUID icons
+          const db = getDb();
+          for (const proj of imported.projects) {
+            if (proj.icon && !proj.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(proj.icon)) {
+              try {
+                const rows = (await db.select('SELECT id FROM media WHERE id = ?', [proj.icon])) as any[];
+                if (rows.length === 0) {
                   proj.icon = 'history_edu';
                 }
+              } catch (_) {
+                proj.icon = 'history_edu';
               }
             }
+          }
 
-            if (imported.profiles && Array.isArray(imported.profiles)) {
-              for (const p of imported.profiles) {
-                if (p.icon && !p.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(p.icon)) {
-                  try {
-                    const rows = (await db.select('SELECT id FROM media WHERE id = ?', [p.icon])) as any[];
-                    if (rows.length === 0) {
-                      p.icon = null;
-                    }
-                  } catch (_) {
+          if (imported.profiles && Array.isArray(imported.profiles)) {
+            for (const p of imported.profiles) {
+              if (p.icon && !p.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(p.icon)) {
+                try {
+                  const rows = (await db.select('SELECT id FROM media WHERE id = ?', [p.icon])) as any[];
+                  if (rows.length === 0) {
                     p.icon = null;
                   }
+                } catch (_) {
+                  p.icon = null;
                 }
               }
             }
-
-            store.projects = imported.projects;
-            await store.saveProjects();
-
-            if (imported.profiles && Array.isArray(imported.profiles)) {
-              store.profiles = imported.profiles;
-              store.activeProfileId = imported.activeProfileId || imported.profiles[0]?.id || 'default-profile';
-              await store.saveProfiles();
-            }
-
-            for (const proj of imported.projects) {
-              if (proj.canvasSaves) {
-                for (const [taskId, canvasState] of Object.entries(proj.canvasSaves)) {
-                  await store.saveCanvasState(taskId, canvasState);
-                }
-              }
-            }
-
-            store.showNotification(t('settings.data.notifications.importDbSuccess'), 'success');
-            setTimeout(() => {
-              window.location.reload();
-            }, 500);
-          } else {
-            store.showNotification(t('settings.data.notifications.importDbError'), 'error');
           }
-        } catch (err) {
-          store.showNotification(t('settings.data.notifications.importDbFailed'), 'error');
+
+          store.projects = imported.projects;
+          await store.saveProjects();
+
+          if (imported.profiles && Array.isArray(imported.profiles)) {
+            store.profiles = imported.profiles;
+            store.activeProfileId = imported.activeProfileId || imported.profiles[0]?.id || 'default-profile';
+            await store.saveProfiles();
+          }
+
+          for (const proj of imported.projects) {
+            if (proj.canvasSaves) {
+              for (const [taskId, canvasState] of Object.entries(proj.canvasSaves)) {
+                await store.saveCanvasState(taskId, canvasState);
+              }
+            }
+          }
+
+          store.showNotification(t('settings.data.notifications.importDbSuccess'), 'success');
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        } else {
+          store.showNotification(t('settings.data.notifications.importDbError'), 'error');
         }
-      };
-      if (isCcpack) {
-        reader.readAsArrayBuffer(file);
-      } else {
-        reader.readAsText(file);
+      } catch (err) {
+        store.showNotification(t('settings.data.notifications.importDbFailed'), 'error');
       }
-    };
-    input.click();
+    } catch (err) {
+      console.error(err);
+      store.showNotification(t('settings.data.notifications.importDbFailed'), 'error');
+    }
   }
 </script>
 

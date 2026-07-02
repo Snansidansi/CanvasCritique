@@ -4,46 +4,75 @@
   import ProfileModal from "../components/dashboard/ProfileModal.svelte";
   import DeleteProfileConfirm from "../components/dashboard/DeleteProfileConfirm.svelte";
   import { t } from "../services/i18n";
+  import { open } from '@tauri-apps/plugin-dialog';
+  import { readFile } from '@tauri-apps/plugin-fs';
 
   // Local state
   let searchQuery = $state("");
   let isAddProjectOpen = $state(false);
-  let fileInput: HTMLInputElement | null = $state(null);
 
   function importLessonData(jsonData: string) {
     try {
       const imported = JSON.parse(jsonData);
+      if (imported.isTasksExport) {
+        store.confirm(
+          t('dialogs.importErrorTitle') || 'Importfehler',
+          t('dialogs.importErrorTasksOnlyInLesson') || 'Tasks können nur in eine Lektion importiert werden.',
+          () => {},
+          null,
+          true
+        );
+        return;
+      }
       store.importProject(imported);
     } catch (err) {
       store.showNotification(t("dashboard.notifications.parseFailed"), "error");
     }
   }
 
-  function handleImportFile(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    const isCcpack = file.name.endsWith('.ccpack');
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
+  async function handleNativeImportLessons() {
+    try {
+      const selected = await open({
+        multiple: true,
+        directory: false,
+        filters: [{ name: 'Lesson Package', extensions: ['json', 'ccpack'] }]
+      });
+      if (!selected) return;
+
+      const filePaths = Array.isArray(selected) ? selected : [selected];
+      const projectDatas = [];
+      for (const path of filePaths) {
+        const isCcpack = path.endsWith('.ccpack');
+        let imported;
         if (isCcpack) {
-          const bytes = new Uint8Array(reader.result as ArrayBuffer);
-          const imported = await store.importCcpackFile(bytes);
-          store.importProject(imported);
+          const bytes = await readFile(path);
+          imported = await store.importCcpackFile(bytes);
         } else {
-          const imported = JSON.parse(reader.result as string);
-          store.importProject(imported);
+          const bytes = await readFile(path);
+          const text = new TextDecoder().decode(bytes);
+          imported = JSON.parse(text);
         }
-      } catch (err) {
-        store.showNotification(t("dashboard.notifications.parseFailed"), "error");
+
+        if (imported.isTasksExport) {
+          store.confirm(
+            t('dialogs.importErrorTitle') || 'Importfehler',
+            t('dialogs.importErrorTasksOnlyInLesson') || 'Tasks können nur in eine Lektion importiert werden.',
+            () => {},
+            null,
+            true
+          );
+          return;
+        }
+        projectDatas.push(imported);
       }
-    };
-    if (isCcpack) {
-      reader.readAsArrayBuffer(file);
-    } else {
-      reader.readAsText(file);
+
+      if (projectDatas.length > 0) {
+        store.importProject(projectDatas);
+      }
+    } catch (err) {
+      console.error(err);
+      store.showNotification(t("dashboard.notifications.parseFailed"), "error");
     }
-    (e.target as HTMLInputElement).value = "";
   }
 
   let isDragging = $state(false);
@@ -72,35 +101,63 @@
     }
   }
 
-  function handleDrop(e: DragEvent) {
+  async function handleDrop(e: DragEvent) {
     e.preventDefault();
     isDragging = false;
-    const file = e.dataTransfer?.files?.[0];
-    if (!file) return;
-    const isCcpack = file.name.endsWith('.ccpack');
-    if (!isCcpack && file.type !== "application/json" && !file.name.endsWith(".json")) {
-      store.showNotification(t("dashboard.notifications.dropValidJson"), "error");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = async () => {
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    const projectDatas = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const isCcpack = file.name.endsWith('.ccpack');
+      if (!isCcpack && file.type !== "application/json" && !file.name.endsWith(".json")) {
+        store.showNotification(t("dashboard.notifications.dropValidJson"), "error");
+        continue;
+      }
       try {
-        if (isCcpack) {
-          const bytes = new Uint8Array(reader.result as ArrayBuffer);
-          const imported = await store.importCcpackFile(bytes);
-          store.importProject(imported);
-        } else {
-          const imported = JSON.parse(reader.result as string);
-          store.importProject(imported);
+        const reader = new FileReader();
+        const imported = await new Promise<any>((resolve, reject) => {
+          reader.onload = async () => {
+            try {
+              if (isCcpack) {
+                const bytes = new Uint8Array(reader.result as ArrayBuffer);
+                const result = await store.importCcpackFile(bytes);
+                resolve(result);
+              } else {
+                const result = JSON.parse(reader.result as string);
+                resolve(result);
+              }
+            } catch (err) {
+              reject(err);
+            }
+          };
+          reader.onerror = () => reject(reader.error);
+          if (isCcpack) {
+            reader.readAsArrayBuffer(file);
+          } else {
+            reader.readAsText(file);
+          }
+        });
+
+        if (imported.isTasksExport) {
+          store.confirm(
+            t('dialogs.importErrorTitle') || 'Importfehler',
+            t('dialogs.importErrorTasksOnlyInLesson') || 'Tasks können nur in eine Lektion importiert werden.',
+            () => {},
+            null,
+            true
+          );
+          return;
         }
+        projectDatas.push(imported);
       } catch (err) {
         store.showNotification(t("dashboard.notifications.parseFailed"), "error");
       }
-    };
-    if (isCcpack) {
-      reader.readAsArrayBuffer(file);
-    } else {
-      reader.readAsText(file);
+    }
+
+    if (projectDatas.length > 0) {
+      store.importProject(projectDatas);
     }
   }
 
@@ -485,15 +542,8 @@
     </div>
 
     <!-- Import Lesson Button -->
-    <input
-      type="file"
-      accept=".json,.ccpack"
-      bind:this={fileInput}
-      onchange={handleImportFile}
-      class="hidden"
-    />
     <button
-      onclick={() => fileInput?.click()}
+      onclick={handleNativeImportLessons}
       class="bg-surface-container-low text-on-surface p-2 rounded-lg border border-outline-variant hover:bg-surface-container-high transition-colors flex items-center justify-center shrink-0 cursor-pointer"
       title={t('dashboard.importLesson')}
     >

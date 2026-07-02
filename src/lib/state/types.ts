@@ -166,6 +166,9 @@ export interface ConfirmDialog {
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
+  isAlert?: boolean;
+  confirmLabel?: string;
+  cancelLabel?: string;
 }
 
 export interface ExportDialog {
