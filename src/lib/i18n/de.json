@@ -545,6 +545,7 @@
     "importMergeModeTitle": "Zusammenführungsmodus",
     "importErrorTitle": "Importfehler",
     "importErrorTasksOnlyInLesson": "Tasks können nur in eine Lektion importiert werden.",
+    "importErrorLessonsOnlyOnHome": "Lektionen können nur auf dem Hauptbildschirm importiert werden.",
     "importMultipleAsNew": "{count} Lektionen werden als neue Lektionen importiert"
   }
 }

@@ -546,6 +546,7 @@
     "importMergeModeTitle": "Merge Mode",
     "importErrorTitle": "Import Error",
     "importErrorTasksOnlyInLesson": "Tasks can only be imported into a lesson.",
+    "importErrorLessonsOnlyOnHome": "Lessons can only be imported on the home screen.",
     "importMultipleAsNew": "{count} lessons will be imported as new lessons"
   }
 }

@@ -80,6 +80,18 @@
             const text = new TextDecoder().decode(bytes);
             imported = JSON.parse(text);
           }
+
+          if (!imported.isTasksExport) {
+            store.hideLoading();
+            store.confirm(
+              t('dialogs.importErrorTitle') || 'Importfehler',
+              t('dialogs.importErrorLessonsOnlyOnHome') || 'Lektionen können nur auf dem Hauptbildschirm importiert werden.',
+              () => {},
+              null,
+              true
+            );
+            return;
+          }
           projectDatas.push(imported);
         }
 
@@ -132,6 +144,18 @@
               reader.readAsText(file);
             }
           });
+
+          if (!fileData.isTasksExport) {
+            store.hideLoading();
+            store.confirm(
+              t('dialogs.importErrorTitle') || 'Importfehler',
+              t('dialogs.importErrorLessonsOnlyOnHome') || 'Lektionen können nur auf dem Hauptbildschirm importiert werden.',
+              () => {},
+              null,
+              true
+            );
+            return;
+          }
           projectDatas.push(fileData);
         } catch (err) {
           console.error(err);
@@ -279,6 +303,7 @@
     e.preventDefault();
     e.stopPropagation();
     sectionDropTargetCat = null;
+    isDragging = false;
     const files = e.dataTransfer?.files;
     if (!files || files.length === 0) return;
     importMultipleTaskFiles(Array.from(files), category);
