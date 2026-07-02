@@ -66,23 +66,30 @@
       });
       if (!selected) return;
 
-      const filePaths = Array.isArray(selected) ? selected : [selected];
-      const projectDatas = [];
-      for (const path of filePaths) {
-        const isCcpack = path.endsWith('.ccpack');
-        const bytes = await readFile(path);
-        let imported;
-        if (isCcpack) {
-          imported = await store.importCcpackFile(bytes);
-        } else {
-          const text = new TextDecoder().decode(bytes);
-          imported = JSON.parse(text);
+      store.showLoading(t('common.importing') || 'Importiere...');
+      try {
+        const filePaths = Array.isArray(selected) ? selected : [selected];
+        const projectDatas = [];
+        for (const path of filePaths) {
+          const isCcpack = path.endsWith('.ccpack');
+          const bytes = await readFile(path);
+          let imported;
+          if (isCcpack) {
+            imported = await store.importCcpackFile(bytes);
+          } else {
+            const text = new TextDecoder().decode(bytes);
+            imported = JSON.parse(text);
+          }
+          projectDatas.push(imported);
         }
-        projectDatas.push(imported);
-      }
 
-      if (projectDatas.length > 0) {
-        store.importProject(projectDatas, project.id, targetCategory);
+        store.hideLoading();
+        if (projectDatas.length > 0) {
+          store.importProject(projectDatas, project.id, targetCategory);
+        }
+      } catch (innerErr) {
+        store.hideLoading();
+        throw innerErr;
       }
     } catch (err) {
       console.error(err);
@@ -92,46 +99,53 @@
 
   // Helper for multiple task files drop (Requirement 6 & 7)
   async function importMultipleTaskFiles(files: File[], targetCategory: string | undefined = undefined) {
-    const projectDatas = [];
-    for (const file of files) {
-      const isCcpack = file.name.endsWith('.ccpack');
-      if (!isCcpack && file.type !== 'application/json' && !file.name.endsWith('.json')) {
-        store.showNotification(t('dashboard.notifications.dropValidJson'), 'error');
-        continue;
-      }
-      try {
-        const reader = new FileReader();
-        const fileData = await new Promise<any>((resolve, reject) => {
-          reader.onload = async () => {
-            try {
-              if (isCcpack) {
-                const bytes = new Uint8Array(reader.result as ArrayBuffer);
-                const imported = await store.importCcpackFile(bytes);
-                resolve(imported);
-              } else {
-                const imported = JSON.parse(reader.result as string);
-                resolve(imported);
+    store.showLoading(t('common.importing') || 'Importiere...');
+    try {
+      const projectDatas = [];
+      for (const file of files) {
+        const isCcpack = file.name.endsWith('.ccpack');
+        if (!isCcpack && file.type !== 'application/json' && !file.name.endsWith('.json')) {
+          store.showNotification(t('dashboard.notifications.dropValidJson'), 'error');
+          continue;
+        }
+        try {
+          const reader = new FileReader();
+          const fileData = await new Promise<any>((resolve, reject) => {
+            reader.onload = async () => {
+              try {
+                if (isCcpack) {
+                  const bytes = new Uint8Array(reader.result as ArrayBuffer);
+                  const imported = await store.importCcpackFile(bytes);
+                  resolve(imported);
+                } else {
+                  const imported = JSON.parse(reader.result as string);
+                  resolve(imported);
+                }
+              } catch (err) {
+                reject(err);
               }
-            } catch (err) {
-              reject(err);
+            };
+            reader.onerror = () => reject(reader.error);
+            if (isCcpack) {
+              reader.readAsArrayBuffer(file);
+            } else {
+              reader.readAsText(file);
             }
-          };
-          reader.onerror = () => reject(reader.error);
-          if (isCcpack) {
-            reader.readAsArrayBuffer(file);
-          } else {
-            reader.readAsText(file);
-          }
-        });
-        projectDatas.push(fileData);
-      } catch (err) {
-        console.error(err);
-        store.showNotification(t('dashboard.notifications.parseFailed'), 'error');
+          });
+          projectDatas.push(fileData);
+        } catch (err) {
+          console.error(err);
+          store.showNotification(t('dashboard.notifications.parseFailed'), 'error');
+        }
       }
-    }
 
-    if (projectDatas.length > 0) {
-      store.importProject(projectDatas, project.id, targetCategory);
+      store.hideLoading();
+      if (projectDatas.length > 0) {
+        store.importProject(projectDatas, project.id, targetCategory);
+      }
+    } catch (innerErr) {
+      store.hideLoading();
+      console.error(innerErr);
     }
   }
 

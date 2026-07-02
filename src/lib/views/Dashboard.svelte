@@ -39,35 +39,43 @@
       });
       if (!selected) return;
 
-      const filePaths = Array.isArray(selected) ? selected : [selected];
-      const projectDatas = [];
-      for (const path of filePaths) {
-        const isCcpack = path.endsWith('.ccpack');
-        let imported;
-        if (isCcpack) {
-          const bytes = await readFile(path);
-          imported = await store.importCcpackFile(bytes);
-        } else {
-          const bytes = await readFile(path);
-          const text = new TextDecoder().decode(bytes);
-          imported = JSON.parse(text);
+      store.showLoading(t('common.importing') || 'Importiere...');
+      try {
+        const filePaths = Array.isArray(selected) ? selected : [selected];
+        const projectDatas = [];
+        for (const path of filePaths) {
+          const isCcpack = path.endsWith('.ccpack');
+          let imported;
+          if (isCcpack) {
+            const bytes = await readFile(path);
+            imported = await store.importCcpackFile(bytes);
+          } else {
+            const bytes = await readFile(path);
+            const text = new TextDecoder().decode(bytes);
+            imported = JSON.parse(text);
+          }
+
+          if (imported.isTasksExport) {
+            store.hideLoading();
+            store.confirm(
+              t('dialogs.importErrorTitle') || 'Importfehler',
+              t('dialogs.importErrorTasksOnlyInLesson') || 'Tasks können nur in eine Lektion importiert werden.',
+              () => {},
+              null,
+              true
+            );
+            return;
+          }
+          projectDatas.push(imported);
         }
 
-        if (imported.isTasksExport) {
-          store.confirm(
-            t('dialogs.importErrorTitle') || 'Importfehler',
-            t('dialogs.importErrorTasksOnlyInLesson') || 'Tasks können nur in eine Lektion importiert werden.',
-            () => {},
-            null,
-            true
-          );
-          return;
+        store.hideLoading();
+        if (projectDatas.length > 0) {
+          store.importProject(projectDatas);
         }
-        projectDatas.push(imported);
-      }
-
-      if (projectDatas.length > 0) {
-        store.importProject(projectDatas);
+      } catch (innerErr) {
+        store.hideLoading();
+        throw innerErr;
       }
     } catch (err) {
       console.error(err);
@@ -107,57 +115,65 @@
     const files = e.dataTransfer?.files;
     if (!files || files.length === 0) return;
 
-    const projectDatas = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const isCcpack = file.name.endsWith('.ccpack');
-      if (!isCcpack && file.type !== "application/json" && !file.name.endsWith(".json")) {
-        store.showNotification(t("dashboard.notifications.dropValidJson"), "error");
-        continue;
-      }
-      try {
-        const reader = new FileReader();
-        const imported = await new Promise<any>((resolve, reject) => {
-          reader.onload = async () => {
-            try {
-              if (isCcpack) {
-                const bytes = new Uint8Array(reader.result as ArrayBuffer);
-                const result = await store.importCcpackFile(bytes);
-                resolve(result);
-              } else {
-                const result = JSON.parse(reader.result as string);
-                resolve(result);
-              }
-            } catch (err) {
-              reject(err);
-            }
-          };
-          reader.onerror = () => reject(reader.error);
-          if (isCcpack) {
-            reader.readAsArrayBuffer(file);
-          } else {
-            reader.readAsText(file);
-          }
-        });
-
-        if (imported.isTasksExport) {
-          store.confirm(
-            t('dialogs.importErrorTitle') || 'Importfehler',
-            t('dialogs.importErrorTasksOnlyInLesson') || 'Tasks können nur in eine Lektion importiert werden.',
-            () => {},
-            null,
-            true
-          );
-          return;
+    store.showLoading(t('common.importing') || 'Importiere...');
+    try {
+      const projectDatas = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const isCcpack = file.name.endsWith('.ccpack');
+        if (!isCcpack && file.type !== "application/json" && !file.name.endsWith(".json")) {
+          store.showNotification(t("dashboard.notifications.dropValidJson"), "error");
+          continue;
         }
-        projectDatas.push(imported);
-      } catch (err) {
-        store.showNotification(t("dashboard.notifications.parseFailed"), "error");
-      }
-    }
+        try {
+          const reader = new FileReader();
+          const imported = await new Promise<any>((resolve, reject) => {
+            reader.onload = async () => {
+              try {
+                if (isCcpack) {
+                  const bytes = new Uint8Array(reader.result as ArrayBuffer);
+                  const result = await store.importCcpackFile(bytes);
+                  resolve(result);
+                } else {
+                  const result = JSON.parse(reader.result as string);
+                  resolve(result);
+                }
+              } catch (err) {
+                reject(err);
+              }
+            };
+            reader.onerror = () => reject(reader.error);
+            if (isCcpack) {
+              reader.readAsArrayBuffer(file);
+            } else {
+              reader.readAsText(file);
+            }
+          });
 
-    if (projectDatas.length > 0) {
-      store.importProject(projectDatas);
+          if (imported.isTasksExport) {
+            store.hideLoading();
+            store.confirm(
+              t('dialogs.importErrorTitle') || 'Importfehler',
+              t('dialogs.importErrorTasksOnlyInLesson') || 'Tasks können nur in eine Lektion importiert werden.',
+              () => {},
+              null,
+              true
+            );
+            return;
+          }
+          projectDatas.push(imported);
+        } catch (err) {
+          store.showNotification(t("dashboard.notifications.parseFailed"), "error");
+        }
+      }
+
+      store.hideLoading();
+      if (projectDatas.length > 0) {
+        store.importProject(projectDatas);
+      }
+    } catch (innerErr) {
+      store.hideLoading();
+      console.error(innerErr);
     }
   }
 
