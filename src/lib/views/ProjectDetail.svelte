@@ -260,34 +260,11 @@
 
   function handleSectionDrop(e: DragEvent, category: string) {
     e.preventDefault();
+    e.stopPropagation();
     sectionDropTargetCat = null;
-    const file = e.dataTransfer?.files?.[0];
-    if (!file) return;
-    const isCcpack = file.name.endsWith('.ccpack');
-    if (!isCcpack && file.type !== 'application/json' && !file.name.endsWith('.json')) {
-      store.showNotification(t('dashboard.notifications.dropValidJson'), 'error');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        let imported;
-        if (isCcpack) {
-          const bytes = new Uint8Array(reader.result as ArrayBuffer);
-          imported = await store.importCcpackFile(bytes);
-        } else {
-          imported = JSON.parse(reader.result as string);
-        }
-        store.importProject(imported, project.id, category);
-      } catch (err) {
-        alert(t('dashboard.notifications.parseFailed'));
-      }
-    };
-    if (isCcpack) {
-      reader.readAsArrayBuffer(file);
-    } else {
-      reader.readAsText(file);
-    }
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    importMultipleTaskFiles(Array.from(files), category);
   }
 
   function handleEditTask(task) {
