@@ -1140,6 +1140,20 @@ class CanvasCritiqueStore {
   importProject(projectData: any, targetProjectId?: string, targetCategory?: string): void {
     const data = Array.isArray(projectData) ? projectData : [projectData];
 
+    if (!targetProjectId) {
+      const isAnyTaskExport = data.some(proj => proj && typeof proj === 'object' && proj.isTasksExport);
+      if (isAnyTaskExport) {
+        this.confirm(
+          this.settings?.language === 'Deutsch' ? 'Importfehler' : 'Import Error',
+          this.settings?.language === 'Deutsch' ? 'Tasks können nur in eine Lektion importiert werden.' : 'Tasks can only be imported into a lesson.',
+          () => {},
+          null,
+          true
+        );
+        return;
+      }
+    }
+
     let hasCritique = false;
     let hasCanvas = false;
     for (const proj of data) {
@@ -1452,7 +1466,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  async exportProject(project: Project, categoryName?: string): Promise<void> {
+  async exportProject(project: Project, categoryName?: string, isTasksExport: boolean = false): Promise<void> {
     const hasCritique = !!(project.tasks && project.tasks.some(t => t.critique));
     const hasCanvas = !!(project.tasks && project.tasks.some(t => this.canvasSaves[t.id]));
 
@@ -1518,7 +1532,8 @@ class CanvasCritiqueStore {
             icon: icon,
             guidelines: project.guidelines,
             categories: project.categories,
-            tasks: clonedTasks
+            tasks: clonedTasks,
+            isTasksExport: isTasksExport
           };
 
           if (project.settingsOverride) {
@@ -1584,7 +1599,7 @@ class CanvasCritiqueStore {
       ...project,
       tasks: tasks
     };
-    this.exportProject(tempProject, categoryName);
+    this.exportProject(tempProject, categoryName, true);
   }
 
   async getSavePath(suggestedFilename: string, extension: string, extensionLabel: string): Promise<string | null> {

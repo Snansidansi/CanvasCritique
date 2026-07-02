@@ -108,8 +108,8 @@
     <div
       class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-90 shadow-2xl flex flex-col gap-4"
     >
-      <div class="flex items-center gap-3 text-error">
-        <span class="material-symbols-outlined text-2xl">warning</span>
+      <div class="flex items-center gap-3 {store.confirmDialog.isAlert ? 'text-primary' : 'text-error'}">
+        <span class="material-symbols-outlined text-2xl">{store.confirmDialog.isAlert ? 'info' : 'warning'}</span>
         <h3 class="font-bold text-base text-on-surface">
           {store.confirmDialog.title || t('dialogs.confirmTitleDefault')}
         </h3>
@@ -120,17 +120,19 @@
       </p>
 
       <div class="flex justify-end gap-3 mt-2">
-        <button
-          onclick={store.confirmDialog.onCancel}
-          class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
-        >
-          {t('common.cancel')}
-        </button>
+        {#if !store.confirmDialog.isAlert}
+          <button
+            onclick={store.confirmDialog.onCancel}
+            class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
+          >
+            {store.confirmDialog.cancelLabel || t('common.cancel')}
+          </button>
+        {/if}
         <button
           onclick={store.confirmDialog.onConfirm}
-          class="px-4 py-2 bg-error text-white text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none"
+          class="px-4 py-2 text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none {store.confirmDialog.isAlert ? 'bg-primary text-on-primary' : 'bg-error text-white'}"
         >
-          {t('common.confirm')}
+          {store.confirmDialog.confirmLabel || (store.confirmDialog.isAlert ? 'OK' : t('common.confirm'))}
         </button>
       </div>
     </div>
