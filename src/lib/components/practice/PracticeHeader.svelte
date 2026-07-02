@@ -21,8 +21,7 @@
     handleBack,
     handleUndo,
     handleRedo,
-    checkWork,
-    handleExportPdf
+    checkWork
   } = $props();
 
   let currentTaskIndex = $derived(
@@ -280,16 +279,6 @@
           <span>{t('practice.critiqueLabel')}</span>
         </button>
       {/if}
-
-      <!-- PDF Export Button -->
-      <button 
-        onclick={handleExportPdf}
-        class="px-2.5 py-1.5 rounded-lg border border-outline-variant text-xs font-semibold focus:outline-none cursor-pointer text-on-surface-variant hover:bg-surface-container-high transition-all flex items-center gap-1"
-        title={activeMode === 'canvas' ? t('practice.exportCanvasPdf') : t('practice.exportTextPdf')}
-      >
-        <span class="material-symbols-outlined text-base">picture_as_pdf</span>
-        <span>{t('practice.exportPdfLabel')}</span>
-      </button>
     </div>
 
   </div>

@@ -2369,7 +2369,6 @@
     {handleUndo}
     {handleRedo}
     {checkWork}
-    {handleExportPdf}
   />
 
   <!-- Interactive practice screen split layout -->
@@ -2949,6 +2948,18 @@
 
       <!-- Actions -->
       <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4 mt-1">
+        <button 
+          onclick={() => {
+            store.canvasSettingsOpen = false;
+            handleExportPdf();
+          }}
+          class="w-full flex items-center justify-center gap-1.5 border border-outline-variant text-on-surface hover:bg-surface-container py-2.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none bg-transparent transition-colors"
+          title={activeMode === 'canvas' ? t('practice.exportCanvasPdf') : t('practice.exportTextPdf')}
+        >
+          <span class="material-symbols-outlined text-base text-primary">picture_as_pdf</span>
+          <span>{t('practice.exportPdfLabel')}</span>
+        </button>
+
         <button 
           onclick={() => {
             clearCanvas();
