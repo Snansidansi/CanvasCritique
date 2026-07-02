@@ -56,7 +56,7 @@
   let selectedTaskIds = $state(new Set<string>());
 
   // Task Import using Native File Dialogs (Requirement 2 & 7)
-  async function handleNativeImportTasks(targetCategory?: string) {
+  async function handleNativeImportTasks(targetCategory: string | undefined = undefined) {
     try {
       const selected = await open({
         multiple: true,
@@ -90,7 +90,7 @@
   }
 
   // Helper for multiple task files drop (Requirement 6 & 7)
-  async function importMultipleTaskFiles(files: File[], targetCategory?: string) {
+  async function importMultipleTaskFiles(files: File[], targetCategory: string | undefined = undefined) {
     const projectDatas = [];
     for (const file of files) {
       const isCcpack = file.name.endsWith('.ccpack');
