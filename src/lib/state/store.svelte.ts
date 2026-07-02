@@ -62,6 +62,8 @@ class CanvasCritiqueStore {
   confirmDialog = $state<ConfirmDialog | null>(null);
   exportDialog = $state<ExportDialog | null>(null);
   importDialog = $state<ImportDialog | null>(null);
+  isLoading = $state(false);
+  loadingText = $state("");
   canvasSaves = $state<Record<string, any>>({});
   editorTexts = $state<Record<string, string>>({});
   canvasSettingsOpen = $state(false);
@@ -1312,227 +1314,232 @@ class CanvasCritiqueStore {
       targetCategory?: string;
     }
   ): Promise<void> {
-    const data = Array.isArray(projectData) ? projectData : [projectData];
-    let lastImported: Project | null = null;
-    const db = this.getDb();
+    this.showLoading(this.settings?.language === 'Deutsch' ? 'Importiere...' : 'Importing...');
+    try {
+      const data = Array.isArray(projectData) ? projectData : [projectData];
+      let lastImported: Project | null = null;
+      const db = this.getDb();
 
-    for (let projIdx = 0; projIdx < data.length; projIdx++) {
-      const proj = data[projIdx];
-      if (!proj || typeof proj !== 'object') continue;
+      for (let projIdx = 0; projIdx < data.length; projIdx++) {
+        const proj = data[projIdx];
+        if (!proj || typeof proj !== 'object') continue;
 
-      const shouldMerge = options.mergeProjectId && proj.isTasksExport;
-      const mergeProject = shouldMerge
-        ? this.projects.find(p => p.id === options.mergeProjectId)
-        : null;
+        const shouldMerge = options.mergeProjectId && proj.isTasksExport;
+        const mergeProject = shouldMerge
+          ? this.projects.find(p => p.id === options.mergeProjectId)
+          : null;
 
-      if (mergeProject) {
-        const importedCanvasSaves = proj.canvasSaves || {};
-        const importedTasks: any[] = proj.tasks || [];
-        const importedCategories: string[] = proj.categories || [];
-        const targetCat = options.targetCategory;
-        const effectiveCategories: string[] = targetCat
-          ? (importedCategories.includes(targetCat) ? importedCategories : [...importedCategories, targetCat])
-          : importedCategories;
+        if (mergeProject) {
+          const importedCanvasSaves = proj.canvasSaves || {};
+          const importedTasks: any[] = proj.tasks || [];
+          const importedCategories: string[] = proj.categories || [];
+          const targetCat = options.targetCategory;
+          const effectiveCategories: string[] = targetCat
+            ? (importedCategories.includes(targetCat) ? importedCategories : [...importedCategories, targetCat])
+            : importedCategories;
 
-        // Walk imported sections in order
-        for (const importedCat of effectiveCategories) {
-          const sectionImportedTasks = targetCat
-            ? importedTasks.filter((t: any) => (t.category || 'Basics') === importedCat || importedCat === targetCat)
-            : importedTasks.filter((t: any) => (t.category || 'Basics') === importedCat);
-          if (sectionImportedTasks.length === 0) continue;
+          // Walk imported sections in order
+          for (const importedCat of effectiveCategories) {
+            const sectionImportedTasks = targetCat
+              ? importedTasks.filter((t: any) => (t.category || 'Basics') === importedCat || importedCat === targetCat)
+              : importedTasks.filter((t: any) => (t.category || 'Basics') === importedCat);
+            if (sectionImportedTasks.length === 0) continue;
 
-          // Ensure target section exists
-          if (!mergeProject.categories || !mergeProject.categories.includes(importedCat)) {
-            if (!mergeProject.categories) mergeProject.categories = [];
-            mergeProject.categories.push(importedCat);
-          }
+            // Ensure target section exists
+            if (!mergeProject.categories || !mergeProject.categories.includes(importedCat)) {
+              if (!mergeProject.categories) mergeProject.categories = [];
+              mergeProject.categories.push(importedCat);
+            }
 
-          for (const t of sectionImportedTasks) {
-            if (!t.name) continue;
+            for (const t of sectionImportedTasks) {
+              if (!t.name) continue;
 
-            const taskCategory = targetCat || importedCat;
+              const taskCategory = targetCat || importedCat;
 
-            // Match by name within the SAME section
-            const matchedTask = mergeProject.tasks.find(
-              et => et.name.trim().toLowerCase() === t.name.trim().toLowerCase() && (et.category || 'Basics') === taskCategory
-            );
+              // Match by name within the SAME section
+              const matchedTask = mergeProject.tasks.find(
+                et => et.name.trim().toLowerCase() === t.name.trim().toLowerCase() && (et.category || 'Basics') === taskCategory
+              );
 
-            if (matchedTask) {
-              if (options.mergeMode === 'update') {
-                matchedTask.instructions = t.instructions !== undefined ? t.instructions : matchedTask.instructions;
-                matchedTask.solution = t.solution !== undefined ? t.solution : matchedTask.solution;
-                matchedTask.category = taskCategory;
-                if (t.instructionFiles !== undefined) {
-                  matchedTask.instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles));
-                } else if (t.instructionFile) {
-                  matchedTask.instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
+              if (matchedTask) {
+                if (options.mergeMode === 'update') {
+                  matchedTask.instructions = t.instructions !== undefined ? t.instructions : matchedTask.instructions;
+                  matchedTask.solution = t.solution !== undefined ? t.solution : matchedTask.solution;
+                  matchedTask.category = taskCategory;
+                  if (t.instructionFiles !== undefined) {
+                    matchedTask.instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles));
+                  } else if (t.instructionFile) {
+                    matchedTask.instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
+                  }
+                  if (t.solutionFiles !== undefined) {
+                    matchedTask.solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles));
+                  } else if (t.solutionFile) {
+                    matchedTask.solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
+                  }
+                  if (options.importCompleted && t.completed !== undefined) matchedTask.completed = !!t.completed;
+                  if (options.importCritique && t.critique !== undefined) matchedTask.critique = t.critique;
+
+                  await dbUpdateTask(db, matchedTask.id, matchedTask);
+                  if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
+                    this.canvasSaves[matchedTask.id] = importedCanvasSaves[t.id];
+                    await setCanvasState(db, matchedTask.id, importedCanvasSaves[t.id]);
+                  }
                 }
-                if (t.solutionFiles !== undefined) {
-                  matchedTask.solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles));
-                } else if (t.solutionFile) {
-                  matchedTask.solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
+              } else {
+                // Task doesn't exist in this section -> always import
+                let taskId = t.id;
+                const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(et => et.id === taskId));
+                if (!taskId || isDuplicateId) {
+                  taskId = 'task-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
                 }
-                if (options.importCompleted && t.completed !== undefined) matchedTask.completed = !!t.completed;
-                if (options.importCritique && t.critique !== undefined) matchedTask.critique = t.critique;
 
-                await dbUpdateTask(db, matchedTask.id, matchedTask);
                 if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
-                  this.canvasSaves[matchedTask.id] = importedCanvasSaves[t.id];
-                  await setCanvasState(db, matchedTask.id, importedCanvasSaves[t.id]);
+                  this.canvasSaves[taskId] = importedCanvasSaves[t.id];
+                  await setCanvasState(db, taskId, importedCanvasSaves[t.id]);
                 }
-              }
-            } else {
-              // Task doesn't exist in this section -> always import
-              let taskId = t.id;
-              const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(et => et.id === taskId));
-              if (!taskId || isDuplicateId) {
-                taskId = 'task-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
-              }
 
-              if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
-                this.canvasSaves[taskId] = importedCanvasSaves[t.id];
-                await setCanvasState(db, taskId, importedCanvasSaves[t.id]);
-              }
+                let instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles || []));
+                if (t.instructionFile && instructionFiles.length === 0) {
+                  instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
+                }
+                let solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles || []));
+                if (t.solutionFile && solutionFiles.length === 0) {
+                  solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
+                }
 
-              let instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles || []));
-              if (t.instructionFile && instructionFiles.length === 0) {
-                instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
-              }
-              let solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles || []));
-              if (t.solutionFile && solutionFiles.length === 0) {
-                solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
-              }
+                const newTask: Task = {
+                  id: taskId,
+                  name: t.name,
+                  completed: options.importCompleted ? !!t.completed : false,
+                  instructions: t.instructions || '',
+                  solution: t.solution || '',
+                  category: taskCategory,
+                  instructionFiles,
+                  solutionFiles,
+                  editorText: t.editorText || ''
+                };
+                if (t.editorText) {
+                  this.editorTexts[taskId] = t.editorText;
+                }
+                if (options.importCritique && t.critique) newTask.critique = t.critique;
 
-              const newTask: Task = {
-                id: taskId,
-                name: t.name,
-                completed: options.importCompleted ? !!t.completed : false,
-                instructions: t.instructions || '',
-                solution: t.solution || '',
-                category: taskCategory,
-                instructionFiles,
-                solutionFiles,
-                editorText: t.editorText || ''
-              };
-              if (t.editorText) {
-                this.editorTexts[taskId] = t.editorText;
+                mergeProject.tasks.push(newTask);
+                await insertTask(db, newTask, mergeProject.id);
               }
-              if (options.importCritique && t.critique) newTask.critique = t.critique;
-
-              mergeProject.tasks.push(newTask);
-              await insertTask(db, newTask, mergeProject.id);
             }
           }
-        }
-        await this.saveProjects();
-        lastImported = mergeProject;
-      } else {
-        if (!proj.name) continue;
+          await this.saveProjects();
+          lastImported = mergeProject;
+        } else {
+          if (!proj.name) continue;
 
-        let newId = proj.id;
-        if (!newId || this.projects.some(p => p.id === newId)) {
-          newId = 'proj-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
-        }
-
-        const categories = proj.categories || [];
-        const importedCanvasSaves = proj.canvasSaves || {};
-
-        const tasks: Task[] = [];
-        for (let idx = 0; idx < (proj.tasks || []).length; idx++) {
-          const t = proj.tasks[idx];
-          const oldTaskId = t.id;
-          let taskId = t.id;
-          const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(existingTask => existingTask.id === taskId));
-          if (!taskId || isDuplicateId) {
-            taskId = 'task-' + Date.now() + '-' + idx + '-' + Math.random().toString(36).substring(2, 5);
+          let newId = proj.id;
+          if (!newId || this.projects.some(p => p.id === newId)) {
+            newId = 'proj-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
           }
 
-          if (options.importCanvas && oldTaskId && importedCanvasSaves[oldTaskId]) {
-            this.canvasSaves[taskId] = importedCanvasSaves[oldTaskId];
-            await setCanvasState(db, taskId, importedCanvasSaves[oldTaskId]);
+          const categories = proj.categories || [];
+          const importedCanvasSaves = proj.canvasSaves || {};
+
+          const tasks: Task[] = [];
+          for (let idx = 0; idx < (proj.tasks || []).length; idx++) {
+            const t = proj.tasks[idx];
+            const oldTaskId = t.id;
+            let taskId = t.id;
+            const isDuplicateId = taskId && this.projects.some(p => p.tasks.some(existingTask => existingTask.id === taskId));
+            if (!taskId || isDuplicateId) {
+              taskId = 'task-' + Date.now() + '-' + idx + '-' + Math.random().toString(36).substring(2, 5);
+            }
+
+            if (options.importCanvas && oldTaskId && importedCanvasSaves[oldTaskId]) {
+              this.canvasSaves[taskId] = importedCanvasSaves[oldTaskId];
+              await setCanvasState(db, taskId, importedCanvasSaves[oldTaskId]);
+            }
+
+            let instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles || []));
+            if (t.instructionFile && instructionFiles.length === 0) {
+              instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
+            }
+            let solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles || []));
+            if (t.solutionFile && solutionFiles.length === 0) {
+              solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
+            }
+
+            const taskCategory = options.targetCategory || t.category || 'Basics';
+
+            const newTask: Task = {
+              id: taskId,
+              name: t.name,
+              completed: options.importCompleted ? !!t.completed : false,
+              instructions: t.instructions || '',
+              solution: t.solution || '',
+              category: taskCategory,
+              instructionFiles,
+              solutionFiles,
+              editorText: t.editorText || ''
+            };
+            if (t.editorText) {
+              this.editorTexts[taskId] = t.editorText;
+            }
+            if (options.importCritique && t.critique) newTask.critique = t.critique;
+
+            tasks.push(newTask);
           }
 
-          let instructionFiles = this.stripDataUrls(await this.convertImportedFiles(t.instructionFiles || []));
-          if (t.instructionFile && instructionFiles.length === 0) {
-            instructionFiles = this.stripDataUrls(await this.convertImportedFiles([t.instructionFile]));
-          }
-          let solutionFiles = this.stripDataUrls(await this.convertImportedFiles(t.solutionFiles || []));
-          if (t.solutionFile && solutionFiles.length === 0) {
-            solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
+          const effectiveCategories = options.targetCategory
+            ? (categories.includes(options.targetCategory) ? categories : [...categories, options.targetCategory])
+            : categories;
+
+          let resolvedIcon = proj.icon || 'history_edu';
+          if (resolvedIcon && resolvedIcon.startsWith('data:')) {
+            try {
+              const mediaId = await saveMediaToDb(resolvedIcon);
+              this._projectIconMediaIds[newId] = mediaId;
+              resolvedIcon = await getMediaDataUrl(mediaId);
+            } catch (err) {
+              console.error('[store] Failed to save imported project icon to media:', err);
+            }
+          } else if (resolvedIcon && !resolvedIcon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(resolvedIcon)) {
+            this._projectIconMediaIds[newId] = resolvedIcon;
+            try {
+              resolvedIcon = await getMediaDataUrl(resolvedIcon);
+            } catch (err) {
+              console.error('[store] Failed to load project icon during import for', newId, err);
+              resolvedIcon = 'history_edu';
+            }
           }
 
-          const taskCategory = options.targetCategory || t.category || 'Basics';
-
-          const newTask: Task = {
-            id: taskId,
-            name: t.name,
-            completed: options.importCompleted ? !!t.completed : false,
-            instructions: t.instructions || '',
-            solution: t.solution || '',
-            category: taskCategory,
-            instructionFiles,
-            solutionFiles,
-            editorText: t.editorText || ''
+          const newProj: Project = {
+            id: newId,
+            name: proj.name,
+            icon: resolvedIcon,
+            guidelines: proj.guidelines || '',
+            categories: effectiveCategories,
+            tasks,
+            profileId: this.activeProfileId
           };
-          if (t.editorText) {
-            this.editorTexts[taskId] = t.editorText;
+          if (proj.settingsOverride) {
+            newProj.settingsOverride = proj.settingsOverride;
           }
-          if (options.importCritique && t.critique) newTask.critique = t.critique;
 
-          tasks.push(newTask);
-        }
-
-        const effectiveCategories = options.targetCategory
-          ? (categories.includes(options.targetCategory) ? categories : [...categories, options.targetCategory])
-          : categories;
-
-        let resolvedIcon = proj.icon || 'history_edu';
-        if (resolvedIcon && resolvedIcon.startsWith('data:')) {
-          try {
-            const mediaId = await saveMediaToDb(resolvedIcon);
-            this._projectIconMediaIds[newId] = mediaId;
-            resolvedIcon = await getMediaDataUrl(mediaId);
-          } catch (err) {
-            console.error('[store] Failed to save imported project icon to media:', err);
+          this.projects.push(newProj);
+          const dbIcon = this._projectIconMediaIds[newProj.id] || newProj.icon;
+          await insertProject(db, { ...newProj, icon: dbIcon });
+          for (const t of tasks) {
+            await insertTask(db, t, newProj.id);
           }
-        } else if (resolvedIcon && !resolvedIcon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(resolvedIcon)) {
-          this._projectIconMediaIds[newId] = resolvedIcon;
-          try {
-            resolvedIcon = await getMediaDataUrl(resolvedIcon);
-          } catch (err) {
-            console.error('[store] Failed to load project icon during import for', newId, err);
-            resolvedIcon = 'history_edu';
-          }
+          lastImported = newProj;
         }
-
-        const newProj: Project = {
-          id: newId,
-          name: proj.name,
-          icon: resolvedIcon,
-          guidelines: proj.guidelines || '',
-          categories: effectiveCategories,
-          tasks,
-          profileId: this.activeProfileId
-        };
-        if (proj.settingsOverride) {
-          newProj.settingsOverride = proj.settingsOverride;
-        }
-
-        this.projects.push(newProj);
-        const dbIcon = this._projectIconMediaIds[newProj.id] || newProj.icon;
-        await insertProject(db, { ...newProj, icon: dbIcon });
-        for (const t of tasks) {
-          await insertTask(db, t, newProj.id);
-        }
-        lastImported = newProj;
       }
-    }
 
-    if (lastImported) {
-      this.selectProject(lastImported);
-      this.setView('project-detail');
-    } else {
-      console.warn('Could not find any valid lesson to import.');
+      if (lastImported) {
+        this.selectProject(lastImported);
+        this.setView('project-detail');
+      } else {
+        console.warn('Could not find any valid lesson to import.');
+      }
+    } finally {
+      this.hideLoading();
     }
   }
 
@@ -1560,100 +1567,107 @@ class CanvasCritiqueStore {
           const filePath = await this.getSavePath(filename, 'ccpack', 'Canvas Critique Package');
           if (!filePath) return; // User cancelled, do no work
 
-          // 2. Prepare the export file in the background
-          const clonedTasks = (project.tasks || []).map(t => {
-            const cloned: any = { ...t };
-            if (cloned.instructionFiles) {
-              cloned.instructionFiles = [...cloned.instructionFiles];
-            }
-            if (cloned.solutionFiles) {
-              cloned.solutionFiles = [...cloned.solutionFiles];
-            }
-            return cloned;
-          });
+          this.showLoading(this.settings?.language === 'Deutsch' ? 'Exportiere...' : 'Exporting...');
+          try {
+            // 2. Prepare the export file in the background
+            const clonedTasks = (project.tasks || []).map(t => {
+              const cloned: any = { ...t };
+              if (cloned.instructionFiles) {
+                cloned.instructionFiles = [...cloned.instructionFiles];
+              }
+              if (cloned.solutionFiles) {
+                cloned.solutionFiles = [...cloned.solutionFiles];
+              }
+              return cloned;
+            });
 
-          // Collect media IDs instead of inlining dataUrls
-          const mediaIdsToPack: string[] = [];
-          for (const task of clonedTasks) {
-            if (task.instructionFiles) {
-              for (const file of task.instructionFiles) {
-                if (file.mediaId) {
-                  mediaIdsToPack.push(file.mediaId);
+            // Collect media IDs instead of inlining dataUrls
+            const mediaIdsToPack: string[] = [];
+            for (const task of clonedTasks) {
+              if (task.instructionFiles) {
+                for (const file of task.instructionFiles) {
+                  if (file.mediaId) {
+                    mediaIdsToPack.push(file.mediaId);
+                  }
+                }
+              }
+              if (task.solutionFiles) {
+                for (const file of task.solutionFiles) {
+                  if (file.mediaId) {
+                    mediaIdsToPack.push(file.mediaId);
+                  }
                 }
               }
             }
-            if (task.solutionFiles) {
-              for (const file of task.solutionFiles) {
-                if (file.mediaId) {
-                  mediaIdsToPack.push(file.mediaId);
+
+            let icon = project.icon;
+            if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(icon)) {
+              mediaIdsToPack.push(icon);
+            }
+
+            const exportData: any = {
+              id: project.id,
+              name: project.name,
+              icon: icon,
+              guidelines: project.guidelines,
+              categories: project.categories,
+              tasks: clonedTasks,
+              isTasksExport: isTasksExport
+            };
+
+            if (project.settingsOverride) {
+              exportData.settingsOverride = project.settingsOverride;
+            }
+
+            // Attach canvas saves for all tasks in this project if requested
+            exportData.canvasSaves = {};
+            if (options.includeCanvas && project.tasks) {
+              for (const task of project.tasks) {
+                if (this.canvasSaves[task.id]) {
+                  exportData.canvasSaves[task.id] = this.canvasSaves[task.id];
                 }
               }
             }
-          }
 
-          let icon = project.icon;
-          if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(icon)) {
-            mediaIdsToPack.push(icon);
-          }
-
-          const exportData: any = {
-            id: project.id,
-            name: project.name,
-            icon: icon,
-            guidelines: project.guidelines,
-            categories: project.categories,
-            tasks: clonedTasks,
-            isTasksExport: isTasksExport
-          };
-
-          if (project.settingsOverride) {
-            exportData.settingsOverride = project.settingsOverride;
-          }
-
-          // Attach canvas saves for all tasks in this project if requested
-          exportData.canvasSaves = {};
-          if (options.includeCanvas && project.tasks) {
-            for (const task of project.tasks) {
-              if (this.canvasSaves[task.id]) {
-                exportData.canvasSaves[task.id] = this.canvasSaves[task.id];
+            // Remove critique from all tasks if not requested
+            if (!options.includeCritique && exportData.tasks) {
+              for (const task of exportData.tasks) {
+                delete task.critique;
               }
             }
-          }
 
-          // Remove critique from all tasks if not requested
-          if (!options.includeCritique && exportData.tasks) {
-            for (const task of exportData.tasks) {
-              delete task.critique;
+            // Remove completed status from all tasks if not requested
+            if (!options.includeCompleted && exportData.tasks) {
+              for (const task of exportData.tasks) {
+                task.completed = false;
+              }
             }
+
+            const packBytes = await createPack(exportData, mediaIdsToPack);
+
+            // 3. Write file
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            await writeFile(filePath, packBytes);
+
+            this.showNotification(
+              this.settings?.language === 'Deutsch'
+                ? 'Erfolgreich exportiert.'
+                : 'Exported successfully.',
+              'success'
+            );
+          } catch (e) {
+            console.error('Export failed:', e);
+            this.showNotification(
+              this.settings?.language === 'Deutsch'
+                ? `Export fehlgeschlagen: ${e}`
+                : `Export failed: ${e}`,
+              'error'
+            );
+          } finally {
+            this.hideLoading();
           }
-
-          // Remove completed status from all tasks if not requested
-          if (!options.includeCompleted && exportData.tasks) {
-            for (const task of exportData.tasks) {
-              task.completed = false;
-            }
-          }
-
-          const packBytes = await createPack(exportData, mediaIdsToPack);
-
-          // 3. Write file
-          const { writeFile } = await import('@tauri-apps/plugin-fs');
-          await writeFile(filePath, packBytes);
-
-          this.showNotification(
-            this.settings?.language === 'Deutsch'
-              ? 'Erfolgreich exportiert.'
-              : 'Exported successfully.',
-            'success'
-          );
         } catch (e) {
-          console.error('Export failed:', e);
-          this.showNotification(
-            this.settings?.language === 'Deutsch'
-              ? `Export fehlgeschlagen: ${e}`
-              : `Export failed: ${e}`,
-            'error'
-          );
+          console.error('Export confirmation outer failed:', e);
         } finally {
           this.exportDialog = null;
         }
@@ -1715,11 +1729,11 @@ class CanvasCritiqueStore {
   }
 
   async exportWorkspaceCcpack(): Promise<void> {
-    try {
-      // 1. Open the file save dialog FIRST
-      const filePath = await this.getSavePath('canvascritique_workspace.ccpack', 'ccpack', 'Canvas Critique Package');
-      if (!filePath) return; // User cancelled
+    const filePath = await this.getSavePath('canvascritique_workspace.ccpack', 'ccpack', 'Canvas Critique Package');
+    if (!filePath) return; // User cancelled
 
+    this.showLoading(this.settings?.language === 'Deutsch' ? 'Exportiere...' : 'Exporting...');
+    try {
       // 2. Prepare the workspace export in the background
       const exportProjects = JSON.parse(JSON.stringify(this.projects));
       const mediaIdsToPack: string[] = [];
@@ -1787,6 +1801,8 @@ class CanvasCritiqueStore {
           : `Export failed: ${e}`,
         'error'
       );
+    } finally {
+      this.hideLoading();
     }
   }
 
@@ -1887,6 +1903,16 @@ class CanvasCritiqueStore {
     dayStats.cost += cost;
 
     await this.saveSettings();
+  }
+
+  showLoading(text: string): void {
+    this.isLoading = true;
+    this.loadingText = text;
+  }
+
+  hideLoading(): void {
+    this.isLoading = false;
+    this.loadingText = "";
   }
 
   showNotification(message: string, type: 'success' | 'error' | 'info' = 'success', duration = 3000): void {

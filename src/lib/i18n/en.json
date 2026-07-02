@@ -6,7 +6,10 @@
     "delete": "Delete",
     "edit": "Edit",
     "saveChanges": "Save Changes",
-    "saveTask": "Save Task"
+    "saveTask": "Save Task",
+    "loading": "Loading...",
+    "importing": "Importing...",
+    "exporting": "Exporting..."
   },
   "dashboard": {
     "title": "Dashboard",

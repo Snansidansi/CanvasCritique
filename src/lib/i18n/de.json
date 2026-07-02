@@ -6,7 +6,10 @@
     "delete": "Löschen",
     "edit": "Bearbeiten",
     "saveChanges": "Änderungen speichern",
-    "saveTask": "Aufgabe speichern"
+    "saveTask": "Aufgabe speichern",
+    "loading": "Wird geladen...",
+    "importing": "Importiere...",
+    "exporting": "Exportiere..."
   },
   "dashboard": {
     "title": "Lektionsübersicht",

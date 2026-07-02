@@ -12,12 +12,15 @@
 
   // Settings export/import
   async function handleExport() {
+    store.showLoading(t('common.exporting') || 'Exportiere...');
     try {
       const content = await store.getSettingsExportPayload();
       await store.saveFileWithDialog('canvascritique_settings.json', content);
     } catch (e) {
       console.error('Settings export failed:', e);
       store.showNotification(t('settings.data.notifications.exportSettingsError'), 'error');
+    } finally {
+      store.hideLoading();
     }
   }
 
@@ -30,13 +33,18 @@
       });
       if (!selected) return;
 
-      const path = Array.isArray(selected) ? selected[0] : selected;
-      const bytes = await readFile(path);
-      const text = new TextDecoder().decode(bytes);
-      const imported = JSON.parse(text);
-      store.settings = { ...store.settings, ...imported };
-      store.saveSettings();
-      store.showNotification(t('settings.data.notifications.importSettingsSuccess'), 'success');
+      store.showLoading(t('common.importing') || 'Importiere...');
+      try {
+        const path = Array.isArray(selected) ? selected[0] : selected;
+        const bytes = await readFile(path);
+        const text = new TextDecoder().decode(bytes);
+        const imported = JSON.parse(text);
+        store.settings = { ...store.settings, ...imported };
+        store.saveSettings();
+        store.showNotification(t('settings.data.notifications.importSettingsSuccess'), 'success');
+      } finally {
+        store.hideLoading();
+      }
     } catch (err) {
       store.showNotification(t('settings.data.notifications.importSettingsError'), 'error');
     }
@@ -56,11 +64,12 @@
       });
       if (!selected) return;
 
-      const path = Array.isArray(selected) ? selected[0] : selected;
-      const isCcpack = path.endsWith('.ccpack');
-      const bytes = await readFile(path);
-
+      store.showLoading(t('common.importing') || 'Importiere...');
       try {
+        const path = Array.isArray(selected) ? selected[0] : selected;
+        const isCcpack = path.endsWith('.ccpack');
+        const bytes = await readFile(path);
+
         let imported;
         if (isCcpack) {
           imported = await store.importCcpackFile(bytes);
@@ -146,8 +155,8 @@
         } else {
           store.showNotification(t('settings.data.notifications.importDbError'), 'error');
         }
-      } catch (err) {
-        store.showNotification(t('settings.data.notifications.importDbFailed'), 'error');
+      } finally {
+        store.hideLoading();
       }
     } catch (err) {
       console.error(err);

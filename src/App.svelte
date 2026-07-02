@@ -399,3 +399,23 @@
 
 <Notification />
 
+<!-- Global Loading Overlay -->
+{#if store.isLoading}
+  <div
+    class="fixed inset-0 z-200 flex flex-col items-center justify-center bg-black/50 backdrop-blur-md animate-fade-in select-none"
+  >
+    <div
+      class="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl max-w-sm"
+    >
+      <div class="relative w-12 h-12 flex items-center justify-center">
+        <!-- Spinner animation -->
+        <div class="absolute inset-0 rounded-full border-4 border-primary/20"></div>
+        <div class="absolute inset-0 rounded-full border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+      </div>
+      <span class="text-sm font-semibold text-on-surface text-center">
+        {store.loadingText || t('common.loading') || 'Wird geladen...'}
+      </span>
+    </div>
+  </div>
+{/if}
+
