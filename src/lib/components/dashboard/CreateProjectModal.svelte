@@ -80,26 +80,31 @@
           <span class="text-xs font-semibold text-on-surface-variant">
             {t('dashboard.iconStyleLabel')}
           </span>
-          <button
-            type="button"
-            onclick={() => (isIconModalOpen = true)}
-            class="p-3 border border-outline-variant rounded-lg flex items-center justify-between hover:bg-surface-container cursor-pointer transition-colors text-on-surface bg-surface-container-low"
-          >
-            <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              onclick={() => (isIconModalOpen = true)}
+              class="w-12 h-12 flex items-center justify-center bg-secondary-container text-on-secondary-container rounded-lg border border-outline-variant hover:ring-2 hover:ring-primary focus:outline-none transition-all cursor-pointer overflow-hidden shrink-0"
+              title={t('projectDetail.changeImageTooltip')}
+            >
               {#if newProjectIconPreview}
                 <img
                   src={newProjectIconPreview}
-                  class="w-8 h-8 object-contain rounded border border-outline-variant bg-white"
+                  class="w-8 h-8 object-contain rounded"
                   alt=""
                 />
-                <span class="text-sm font-medium">{t('dashboard.customPreviewLabel')}</span>
               {:else}
-                <span class="material-symbols-outlined text-[28px]">{newProjectIcon}</span>
-                <span class="text-sm font-medium">{newProjectIcon}</span>
+                <span class="material-symbols-outlined text-[24px]">{newProjectIcon}</span>
               {/if}
-            </div>
-            <span class="material-symbols-outlined text-on-surface-variant">edit</span>
-          </button>
+            </button>
+            <button
+              type="button"
+              onclick={() => (isIconModalOpen = true)}
+              class="text-xs text-primary font-semibold hover:underline cursor-pointer focus:outline-none"
+            >
+              {t('projectDetail.changeImageTooltip')}
+            </button>
+          </div>
         </div>
 
         <div class="flex justify-end gap-3 mt-2">
