@@ -321,6 +321,11 @@
             <span class="material-symbols-outlined text-[18px] text-primary">merge</span>
             <span>{@html t('dialogs.importDirectPrompt', { name: targetProj?.name || 'current lesson' })}</span>
           </div>
+        {:else if Array.isArray(dialog.projectData) && dialog.projectData.length > 1}
+          <div class="p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs text-on-surface flex items-center gap-2 animate-fade-in">
+            <span class="material-symbols-outlined text-[18px] text-primary">add_to_photos</span>
+            <span>{t('dialogs.importMultipleAsNew', { count: dialog.projectData.length })}</span>
+          </div>
         {:else}
           <div class="flex gap-4">
             <label class="flex items-center gap-2 text-xs text-on-surface cursor-pointer select-none">

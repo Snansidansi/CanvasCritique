@@ -1254,14 +1254,16 @@ class CanvasCritiqueStore {
     let lastImported: Project | null = null;
     const db = this.getDb();
 
-    const mergeProject = options.mergeProjectId
-      ? this.projects.find(p => p.id === options.mergeProjectId)
-      : null;
+    for (let projIdx = 0; projIdx < data.length; projIdx++) {
+      const proj = data[projIdx];
+      if (!proj || typeof proj !== 'object') continue;
 
-    if (mergeProject) {
-      for (const proj of data) {
-        if (!proj || typeof proj !== 'object') continue;
+      const shouldMerge = options.mergeProjectId && proj.isTasksExport;
+      const mergeProject = shouldMerge
+        ? this.projects.find(p => p.id === options.mergeProjectId)
+        : null;
 
+      if (mergeProject) {
         const importedCanvasSaves = proj.canvasSaves || {};
         const importedTasks: any[] = proj.tasks || [];
         const importedCategories: string[] = proj.categories || [];
@@ -1317,7 +1319,6 @@ class CanvasCritiqueStore {
                   await setCanvasState(db, matchedTask.id, importedCanvasSaves[t.id]);
                 }
               }
-              // skip mode: do nothing for matched tasks
             } else {
               // Task doesn't exist in this section -> always import
               let taskId = t.id;
@@ -1361,12 +1362,10 @@ class CanvasCritiqueStore {
             }
           }
         }
-      }
-      await this.saveProjects();
-      lastImported = mergeProject;
-    } else {
-      for (const proj of data) {
-        if (!proj || typeof proj !== 'object' || !proj.name) continue;
+        await this.saveProjects();
+        lastImported = mergeProject;
+      } else {
+        if (!proj.name) continue;
 
         let newId = proj.id;
         if (!newId || this.projects.some(p => p.id === newId)) {
