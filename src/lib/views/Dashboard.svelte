@@ -22,11 +22,27 @@
   function handleImportFile(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
+    const isCcpack = file.name.endsWith('.ccpack');
     const reader = new FileReader();
-    reader.onload = () => {
-      importLessonData(reader.result as string);
+    reader.onload = async () => {
+      try {
+        if (isCcpack) {
+          const bytes = new Uint8Array(reader.result as ArrayBuffer);
+          const imported = await store.importCcpackFile(bytes);
+          store.importProject(imported);
+        } else {
+          const imported = JSON.parse(reader.result as string);
+          store.importProject(imported);
+        }
+      } catch (err) {
+        store.showNotification(t("dashboard.notifications.parseFailed"), "error");
+      }
     };
-    reader.readAsText(file);
+    if (isCcpack) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
     (e.target as HTMLInputElement).value = "";
   }
 
@@ -61,15 +77,31 @@
     isDragging = false;
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
-    if (file.type !== "application/json" && !file.name.endsWith(".json")) {
+    const isCcpack = file.name.endsWith('.ccpack');
+    if (!isCcpack && file.type !== "application/json" && !file.name.endsWith(".json")) {
       store.showNotification(t("dashboard.notifications.dropValidJson"), "error");
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => {
-      importLessonData(reader.result as string);
+    reader.onload = async () => {
+      try {
+        if (isCcpack) {
+          const bytes = new Uint8Array(reader.result as ArrayBuffer);
+          const imported = await store.importCcpackFile(bytes);
+          store.importProject(imported);
+        } else {
+          const imported = JSON.parse(reader.result as string);
+          store.importProject(imported);
+        }
+      } catch (err) {
+        store.showNotification(t("dashboard.notifications.parseFailed"), "error");
+      }
     };
-    reader.readAsText(file);
+    if (isCcpack) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
   }
 
   // Quick task add state per project
@@ -455,7 +487,7 @@
     <!-- Import Lesson Button -->
     <input
       type="file"
-      accept="application/json"
+      accept=".json,.ccpack"
       bind:this={fileInput}
       onchange={handleImportFile}
       class="hidden"

@@ -121,6 +121,49 @@ export async function getMediaDataUrl(mediaId: string): Promise<string> {
   return `data:${mime_type};base64,${base64}`;
 }
 
+export async function getMediaBytesAndMime(mediaId: string): Promise<{ bytes: Uint8Array; mimeType: string }> {
+  const db = getDb();
+  const rows: any[] = await db.select(
+    'SELECT mime_type FROM media WHERE id = ?',
+    [mediaId]
+  );
+  if (rows.length === 0) throw new Error(`Media ${mediaId} not found`);
+
+  const { mime_type } = rows[0];
+
+  const mediaDir = await getMediaDir();
+  const filePath = await join(mediaDir, mediaId);
+  const bytes = await readFile(filePath);
+  return { bytes: new Uint8Array(bytes), mimeType: mime_type };
+}
+
+export async function saveMediaBytesToDb(id: string, bytes: Uint8Array, mimeType: string): Promise<string> {
+  try {
+    const base64 = bytesToBase64(bytes);
+    const hash = await computeSha256(base64);
+
+    const existingId = await findMediaByHash(hash);
+    if (existingId) return existingId;
+
+    const db = getDb();
+    const mediaDir = await getMediaDir();
+    const filePath = await join(mediaDir, id);
+    await writeFile(filePath, bytes);
+    console.log('[media] wrote file from bytes:', filePath, 'bytes:', bytes.length);
+
+    await db.execute(
+      'INSERT INTO media (id, data, mime_type, sha256_hash) VALUES (?, ?, ?, ?)',
+      [id, `media/${id}`, mimeType, hash]
+    );
+    console.log('[media] inserted DB entry for byte-saved:', id);
+
+    return id;
+  } catch (err) {
+    console.error('[media] saveMediaBytesToDb failed:', err);
+    throw err;
+  }
+}
+
 export async function deleteMediaFromDb(mediaId: string): Promise<void> {
   const db = getDb();
   try {

@@ -60,18 +60,29 @@
   function handleImportTasksFile(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
+    const isCcpack = file.name.endsWith('.ccpack');
     const reader = new FileReader();
     const targetSection = importSectionCategory;
     importSectionCategory = null;
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
-        const imported = JSON.parse(reader.result as string);
+        let imported;
+        if (isCcpack) {
+          const bytes = new Uint8Array(reader.result as ArrayBuffer);
+          imported = await store.importCcpackFile(bytes);
+        } else {
+          imported = JSON.parse(reader.result as string);
+        }
         store.importProject(imported, project.id, targetSection || undefined);
       } catch (err) {
         alert(t('dashboard.notifications.parseFailed'));
       }
     };
-    reader.readAsText(file);
+    if (isCcpack) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
     (e.target as HTMLInputElement).value = "";
   }
 
@@ -169,20 +180,31 @@
     sectionDropTargetCat = null;
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
-    if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+    const isCcpack = file.name.endsWith('.ccpack');
+    if (!isCcpack && file.type !== 'application/json' && !file.name.endsWith('.json')) {
       store.showNotification(t('dashboard.notifications.dropValidJson'), 'error');
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
-        const imported = JSON.parse(reader.result as string);
+        let imported;
+        if (isCcpack) {
+          const bytes = new Uint8Array(reader.result as ArrayBuffer);
+          imported = await store.importCcpackFile(bytes);
+        } else {
+          imported = JSON.parse(reader.result as string);
+        }
         store.importProject(imported, project.id, category);
       } catch (err) {
         alert(t('dashboard.notifications.parseFailed'));
       }
     };
-    reader.readAsText(file);
+    if (isCcpack) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
   }
 
   function handleEditTask(task) {
@@ -615,7 +637,7 @@
     <!-- Import Tasks Button -->
     <input
       type="file"
-      accept="application/json"
+      accept=".json,.ccpack"
       bind:this={taskFileInput}
       onchange={handleImportTasksFile}
       class="hidden"

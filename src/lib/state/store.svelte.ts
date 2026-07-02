@@ -36,10 +36,11 @@ import {
   deleteCustomBackground as dbDeleteCustomBackground,
 } from '../db';
 
-import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs, migrateMediaHashes, deleteMediaForTask, collectMediaIds } from '../db/media';
+import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs, migrateMediaHashes, deleteMediaForTask, collectMediaIds, saveMediaBytesToDb } from '../db/media';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { downloadDir } from '@tauri-apps/api/path';
+import { createPack, parsePack } from '../utils/ccpack';
 
 // Re-export everything from types and defaults so existing imports in other files don't break
 export * from './types';
@@ -1425,7 +1426,6 @@ class CanvasCritiqueStore {
       hasCanvas,
       onConfirm: async (options) => {
         try {
-          // Inline media files for export
           const clonedTasks = (project.tasks || []).map(t => {
             const cloned: any = { ...t };
             if (cloned.instructionFiles) {
@@ -1437,25 +1437,20 @@ class CanvasCritiqueStore {
             return cloned;
           });
 
-          // Read media files and inline as dataUrl
+          // Collect media IDs instead of inlining dataUrls
+          const mediaIdsToPack: string[] = [];
           for (const task of clonedTasks) {
             if (task.instructionFiles) {
               for (const file of task.instructionFiles) {
-                if (file.mediaId && !file.dataUrl) {
-                  try {
-                    file.dataUrl = await getMediaDataUrl(file.mediaId);
-                    delete file.mediaId;
-                  } catch (err) { console.error('[store] Failed to inline instruction file for export:', err); }
+                if (file.mediaId) {
+                  mediaIdsToPack.push(file.mediaId);
                 }
               }
             }
             if (task.solutionFiles) {
               for (const file of task.solutionFiles) {
-                if (file.mediaId && !file.dataUrl) {
-                  try {
-                    file.dataUrl = await getMediaDataUrl(file.mediaId);
-                    delete file.mediaId;
-                  } catch (err) { console.error('[store] Failed to inline solution file for export:', err); }
+                if (file.mediaId) {
+                  mediaIdsToPack.push(file.mediaId);
                 }
               }
             }
@@ -1463,11 +1458,7 @@ class CanvasCritiqueStore {
 
           let icon = project.icon;
           if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(icon)) {
-            try {
-              icon = await getMediaDataUrl(icon);
-            } catch (_) {
-              icon = 'history_edu';
-            }
+            mediaIdsToPack.push(icon);
           }
 
           const exportData: any = {
@@ -1507,15 +1498,15 @@ class CanvasCritiqueStore {
             }
           }
 
-          let filename = `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`;
+          let filename = `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
           if (project.tasks && project.tasks.length === 1) {
-            filename = `task_${project.tasks[0].name.toLowerCase().replace(/\s+/g, '_')}.json`;
+            filename = `task_${project.tasks[0].name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
           } else if (project.tasks && project.tasks.length < (this.projects.find(p => p.id === project.id)?.tasks.length || 0)) {
-            filename = `tasks_${project.name.toLowerCase().replace(/\s+/g, '_')}.json`;
+            filename = `tasks_${project.name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
           }
 
-          const dataStr = JSON.stringify(exportData);
-          await this.saveFileWithDialog(filename, dataStr);
+          const packBytes = await createPack(exportData, mediaIdsToPack);
+          await this.saveBinaryFileWithDialog(filename, packBytes, 'ccpack', 'Canvas Critique Package');
         } catch (e) {
           console.error('Export failed:', e);
           this.showNotification(
@@ -1573,6 +1564,157 @@ class CanvasCritiqueStore {
       );
       return false;
     }
+  }
+
+  async saveBinaryFileWithDialog(suggestedFilename: string, content: Uint8Array, extension: string, extensionLabel: string): Promise<boolean> {
+    try {
+      const downloadsBase = await downloadDir();
+      const defaultPath = `${downloadsBase}/${suggestedFilename}`;
+
+      const filePath = await save({
+        defaultPath,
+        filters: [{ name: extensionLabel, extensions: [extension] }]
+      });
+
+      if (filePath) {
+        const { writeFile } = await import('@tauri-apps/plugin-fs');
+        await writeFile(filePath, content);
+        this.showNotification(
+          this.settings?.language === 'Deutsch'
+            ? 'Erfolgreich exportiert.'
+            : 'Exported successfully.',
+          'success'
+        );
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Binary export failed:', e);
+      this.showNotification(
+        this.settings?.language === 'Deutsch'
+          ? `Export fehlgeschlagen: ${e}`
+          : `Export failed: ${e}`,
+        'error'
+      );
+      return false;
+    }
+  }
+
+  async exportWorkspaceCcpack(): Promise<void> {
+    try {
+      const exportProjects = JSON.parse(JSON.stringify(this.projects));
+      const mediaIdsToPack: string[] = [];
+
+      for (const proj of exportProjects) {
+        proj.canvasSaves = {};
+        if (proj.icon && !proj.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(proj.icon)) {
+          mediaIdsToPack.push(proj.icon);
+        }
+        if (proj.tasks) {
+          for (const task of proj.tasks) {
+            const save = this.getCanvasState(task.id);
+            if (save) {
+              proj.canvasSaves[task.id] = save;
+            }
+            if (task.instructionFiles) {
+              for (const file of task.instructionFiles) {
+                if (file.mediaId) {
+                  mediaIdsToPack.push(file.mediaId);
+                }
+              }
+            }
+            if (task.solutionFiles) {
+              for (const file of task.solutionFiles) {
+                if (file.mediaId) {
+                  mediaIdsToPack.push(file.mediaId);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const exportProfiles = JSON.parse(JSON.stringify(this.profiles));
+      for (const prof of exportProfiles) {
+        if (prof.icon && !prof.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(prof.icon)) {
+          mediaIdsToPack.push(prof.icon);
+        }
+      }
+
+      const payload = {
+        version: '1.0',
+        projects: exportProjects,
+        profiles: exportProfiles,
+        activeProfileId: this.activeProfileId
+      };
+
+      const packBytes = await createPack(payload, mediaIdsToPack);
+      await this.saveBinaryFileWithDialog('canvascritique_workspace.ccpack', packBytes, 'ccpack', 'Canvas Critique Package');
+    } catch (e) {
+      console.error('Data export failed:', e);
+      this.showNotification(
+        this.settings?.language === 'Deutsch'
+          ? `Export fehlgeschlagen: ${e}`
+          : `Export failed: ${e}`,
+        'error'
+      );
+    }
+  }
+
+  async importCcpackFile(fileBytes: Uint8Array): Promise<any> {
+    const { jsonHeader, mediaItems } = await parsePack(fileBytes);
+    
+    // Save all media items to DB/disk, and get their actual saved media IDs (for deduplication)
+    const mediaIdMap = new Map<string, string>();
+    for (const item of mediaItems) {
+      try {
+        const newId = await saveMediaBytesToDb(item.id, item.bytes, item.mimeType);
+        mediaIdMap.set(item.id, newId);
+      } catch (err) {
+        console.error(`[store] Failed to import media item ${item.id}:`, err);
+      }
+    }
+    
+    // Helper function to recursively replace media IDs in the parsed JSON structure
+    const replaceMediaIdsInPayload = (payload: any, map: Map<string, string>): any => {
+      if (!payload || typeof payload !== 'object') return payload;
+
+      const replaceId = (id: any) => {
+        if (typeof id === 'string' && map.has(id)) {
+          return map.get(id);
+        }
+        return id;
+      };
+
+      const cloned = JSON.parse(JSON.stringify(payload));
+
+      const traverse = (obj: any) => {
+        if (!obj || typeof obj !== 'object') return;
+
+        if (Array.isArray(obj)) {
+          for (let i = 0; i < obj.length; i++) {
+            if (obj[i] && typeof obj[i] === 'object') {
+              traverse(obj[i]);
+            } else {
+              obj[i] = replaceId(obj[i]);
+            }
+          }
+        } else {
+          for (const key of Object.keys(obj)) {
+            if (key === 'icon' || key === 'mediaId' || key === 'relative_path' || key === 'iconMediaId') {
+              obj[key] = replaceId(obj[key]);
+            } else if (obj[key] && typeof obj[key] === 'object') {
+              traverse(obj[key]);
+            }
+          }
+        }
+      };
+
+      traverse(cloned);
+      return cloned;
+    };
+    
+    return replaceMediaIdsInPayload(jsonHeader, mediaIdMap);
   }
 
   async recordRequest(

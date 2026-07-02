@@ -43,26 +43,28 @@
 
   // Data export/import
   async function handleExportData() {
-    try {
-      const content = await store.getDataExportPayload();
-      await store.saveFileWithDialog('canvascritique_workspace.json', content);
-    } catch (e) {
-      console.error('Data export failed:', e);
-      store.showNotification(t('settings.data.notifications.exportDbError'), 'error');
-    }
+    await store.exportWorkspaceCcpack();
   }
 
   function handleImportData() {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'application/json';
+    input.accept = '.json,.ccpack';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
+      const isCcpack = file.name.endsWith('.ccpack');
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
-          const imported = JSON.parse(reader.result as string);
+          let imported;
+          if (isCcpack) {
+            const bytes = new Uint8Array(reader.result as ArrayBuffer);
+            imported = await store.importCcpackFile(bytes);
+          } else {
+            imported = JSON.parse(reader.result as string);
+          }
+
           if (imported.projects && Array.isArray(imported.projects)) {
             // Convert imported media files (dataUrl → mediaId)
             for (const proj of imported.projects) {
@@ -144,7 +146,11 @@
           store.showNotification(t('settings.data.notifications.importDbFailed'), 'error');
         }
       };
-      reader.readAsText(file);
+      if (isCcpack) {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file);
+      }
     };
     input.click();
   }
