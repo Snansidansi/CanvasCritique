@@ -158,7 +158,7 @@
 
   function handleExportSection(category: string) {
     const tasks = project.tasks.filter((t: any) => (t.category || 'Basics') === category);
-    store.exportTasks(project, tasks);
+    store.exportTasks(project, tasks, category);
   }
 
   let sectionDropTargetCat = $state<string | null>(null);

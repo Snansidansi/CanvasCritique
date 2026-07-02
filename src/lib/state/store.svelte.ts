@@ -1416,7 +1416,7 @@ class CanvasCritiqueStore {
     }
   }
 
-  async exportProject(project: Project): Promise<void> {
+  async exportProject(project: Project, categoryName?: string): Promise<void> {
     const hasCritique = !!(project.tasks && project.tasks.some(t => t.critique));
     const hasCanvas = !!(project.tasks && project.tasks.some(t => this.canvasSaves[t.id]));
 
@@ -1499,7 +1499,9 @@ class CanvasCritiqueStore {
           }
 
           let filename = `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
-          if (project.tasks && project.tasks.length === 1) {
+          if (categoryName) {
+            filename = `section_${project.name.toLowerCase().replace(/\s+/g, '_')}_${categoryName.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
+          } else if (project.tasks && project.tasks.length === 1) {
             filename = `task_${project.tasks[0].name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
           } else if (project.tasks && project.tasks.length < (this.projects.find(p => p.id === project.id)?.tasks.length || 0)) {
             filename = `tasks_${project.name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
@@ -1525,12 +1527,12 @@ class CanvasCritiqueStore {
     };
   }
 
-  exportTasks(project: Project, tasks: Task[]): void {
+  exportTasks(project: Project, tasks: Task[], categoryName?: string): void {
     const tempProject: Project = {
       ...project,
       tasks: tasks
     };
-    this.exportProject(tempProject);
+    this.exportProject(tempProject, categoryName);
   }
 
   async saveFileWithDialog(suggestedFilename: string, content: string): Promise<boolean> {
