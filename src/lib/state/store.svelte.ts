@@ -482,6 +482,11 @@ class CanvasCritiqueStore {
         }
       } else {
         profile.icon = updated.icon;
+        if (updated.icon && (updated.icon.startsWith('data:') || !/^[a-f0-9-]{36}$/i.test(updated.icon))) {
+          delete this._iconMediaIds[id];
+        } else if (!updated.icon) {
+          delete this._iconMediaIds[id];
+        }
       }
     }
     if (updated.color !== undefined) profile.color = updated.color;
@@ -1030,6 +1035,9 @@ class CanvasCritiqueStore {
         }
       } else {
         project.icon = updates.icon;
+        if (updates.icon && (updates.icon.startsWith('data:') || !/^[a-f0-9-]{36}$/i.test(updates.icon))) {
+          delete this._projectIconMediaIds[projectId];
+        }
       }
     }
     await this.saveProjects();
@@ -1425,7 +1433,15 @@ class CanvasCritiqueStore {
           : categories;
 
         let resolvedIcon = proj.icon || 'history_edu';
-        if (resolvedIcon && !resolvedIcon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(resolvedIcon)) {
+        if (resolvedIcon && resolvedIcon.startsWith('data:')) {
+          try {
+            const mediaId = await saveMediaToDb(resolvedIcon);
+            this._projectIconMediaIds[newId] = mediaId;
+            resolvedIcon = await getMediaDataUrl(mediaId);
+          } catch (err) {
+            console.error('[store] Failed to save imported project icon to media:', err);
+          }
+        } else if (resolvedIcon && !resolvedIcon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(resolvedIcon)) {
           this._projectIconMediaIds[newId] = resolvedIcon;
           try {
             resolvedIcon = await getMediaDataUrl(resolvedIcon);
@@ -1449,7 +1465,8 @@ class CanvasCritiqueStore {
         }
 
         this.projects.push(newProj);
-        await insertProject(db, newProj);
+        const dbIcon = this._projectIconMediaIds[newProj.id] || newProj.icon;
+        await insertProject(db, { ...newProj, icon: dbIcon });
         for (const t of tasks) {
           await insertTask(db, t, newProj.id);
         }
