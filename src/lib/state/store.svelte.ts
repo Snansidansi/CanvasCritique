@@ -1425,7 +1425,22 @@ class CanvasCritiqueStore {
       hasCritique,
       hasCanvas,
       onConfirm: async (options) => {
+        this.exportDialog = null;
         try {
+          let filename = `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
+          if (categoryName) {
+            filename = `section_${project.name.toLowerCase().replace(/\s+/g, '_')}_${categoryName.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
+          } else if (project.tasks && project.tasks.length === 1) {
+            filename = `task_${project.tasks[0].name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
+          } else if (project.tasks && project.tasks.length < (this.projects.find(p => p.id === project.id)?.tasks.length || 0)) {
+            filename = `tasks_${project.name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
+          }
+
+          // 1. Open the file save dialog FIRST
+          const filePath = await this.getSavePath(filename, 'ccpack', 'Canvas Critique Package');
+          if (!filePath) return; // User cancelled, do no work
+
+          // 2. Prepare the export file in the background
           const clonedTasks = (project.tasks || []).map(t => {
             const cloned: any = { ...t };
             if (cloned.instructionFiles) {
@@ -1498,17 +1513,18 @@ class CanvasCritiqueStore {
             }
           }
 
-          let filename = `lesson_${project.name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
-          if (categoryName) {
-            filename = `section_${project.name.toLowerCase().replace(/\s+/g, '_')}_${categoryName.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
-          } else if (project.tasks && project.tasks.length === 1) {
-            filename = `task_${project.tasks[0].name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
-          } else if (project.tasks && project.tasks.length < (this.projects.find(p => p.id === project.id)?.tasks.length || 0)) {
-            filename = `tasks_${project.name.toLowerCase().replace(/\s+/g, '_')}.ccpack`;
-          }
-
           const packBytes = await createPack(exportData, mediaIdsToPack);
-          await this.saveBinaryFileWithDialog(filename, packBytes, 'ccpack', 'Canvas Critique Package');
+
+          // 3. Write file
+          const { writeFile } = await import('@tauri-apps/plugin-fs');
+          await writeFile(filePath, packBytes);
+
+          this.showNotification(
+            this.settings?.language === 'Deutsch'
+              ? 'Erfolgreich exportiert.'
+              : 'Exported successfully.',
+            'success'
+          );
         } catch (e) {
           console.error('Export failed:', e);
           this.showNotification(
@@ -1535,15 +1551,24 @@ class CanvasCritiqueStore {
     this.exportProject(tempProject, categoryName);
   }
 
-  async saveFileWithDialog(suggestedFilename: string, content: string): Promise<boolean> {
+  async getSavePath(suggestedFilename: string, extension: string, extensionLabel: string): Promise<string | null> {
     try {
       const downloadsBase = await downloadDir();
       const defaultPath = `${downloadsBase}/${suggestedFilename}`;
 
-      const filePath = await save({
+      return await save({
         defaultPath,
-        filters: [{ name: 'JSON', extensions: ['json'] }]
+        filters: [{ name: extensionLabel, extensions: [extension] }]
       });
+    } catch (e) {
+      console.error('Failed to get save path:', e);
+      return null;
+    }
+  }
+
+  async saveFileWithDialog(suggestedFilename: string, content: string): Promise<boolean> {
+    try {
+      const filePath = await this.getSavePath(suggestedFilename, 'json', 'JSON');
 
       if (filePath) {
         await writeTextFile(filePath, content);
@@ -1568,42 +1593,13 @@ class CanvasCritiqueStore {
     }
   }
 
-  async saveBinaryFileWithDialog(suggestedFilename: string, content: Uint8Array, extension: string, extensionLabel: string): Promise<boolean> {
-    try {
-      const downloadsBase = await downloadDir();
-      const defaultPath = `${downloadsBase}/${suggestedFilename}`;
-
-      const filePath = await save({
-        defaultPath,
-        filters: [{ name: extensionLabel, extensions: [extension] }]
-      });
-
-      if (filePath) {
-        const { writeFile } = await import('@tauri-apps/plugin-fs');
-        await writeFile(filePath, content);
-        this.showNotification(
-          this.settings?.language === 'Deutsch'
-            ? 'Erfolgreich exportiert.'
-            : 'Exported successfully.',
-          'success'
-        );
-        return true;
-      }
-      return false;
-    } catch (e) {
-      console.error('Binary export failed:', e);
-      this.showNotification(
-        this.settings?.language === 'Deutsch'
-          ? `Export fehlgeschlagen: ${e}`
-          : `Export failed: ${e}`,
-        'error'
-      );
-      return false;
-    }
-  }
-
   async exportWorkspaceCcpack(): Promise<void> {
     try {
+      // 1. Open the file save dialog FIRST
+      const filePath = await this.getSavePath('canvascritique_workspace.ccpack', 'ccpack', 'Canvas Critique Package');
+      if (!filePath) return; // User cancelled
+
+      // 2. Prepare the workspace export in the background
       const exportProjects = JSON.parse(JSON.stringify(this.projects));
       const mediaIdsToPack: string[] = [];
 
@@ -1651,7 +1647,17 @@ class CanvasCritiqueStore {
       };
 
       const packBytes = await createPack(payload, mediaIdsToPack);
-      await this.saveBinaryFileWithDialog('canvascritique_workspace.ccpack', packBytes, 'ccpack', 'Canvas Critique Package');
+
+      // 3. Write file
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
+      await writeFile(filePath, packBytes);
+
+      this.showNotification(
+        this.settings?.language === 'Deutsch'
+          ? 'Erfolgreich exportiert.'
+          : 'Exported successfully.',
+        'success'
+      );
     } catch (e) {
       console.error('Data export failed:', e);
       this.showNotification(
