@@ -248,11 +248,14 @@
 
   function handleSectionDragOver(e: DragEvent, category: string) {
     e.preventDefault();
+    e.stopPropagation();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
     sectionDropTargetCat = category;
   }
 
   function handleSectionDragLeave(e: DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as HTMLElement)) {
       sectionDropTargetCat = null;
     }
@@ -839,8 +842,17 @@
         {/if}
         {@const catTasks = getCategoryTasks(category)}
         {@const sectionKey = `section-collapsed-${project.id}-${category}`}
-        <details class="group/section" open={getSectionOpenState(sectionKey)} data-section-key={sectionKey} data-section-category={category} ontoggle={handleSectionToggle}>
-          <summary class="bg-surface-container-low border border-outline-variant/60 rounded-xl group-open/section:rounded-b-none p-6 flex flex-col gap-4 cursor-pointer list-none" onpointerdown={(e) => handleSectionPointerDown(e, category)}>
+        <details 
+          class="group/section transition-all duration-200" 
+          open={getSectionOpenState(sectionKey)} 
+          data-section-key={sectionKey} 
+          data-section-category={category} 
+          ontoggle={handleSectionToggle}
+          ondragover={(e) => handleSectionDragOver(e, category)}
+          ondragleave={handleSectionDragLeave}
+          ondrop={(e) => handleSectionDrop(e, category)}
+        >
+          <summary class="bg-surface-container-low border rounded-xl group-open/section:rounded-b-none p-6 flex flex-col gap-4 cursor-pointer list-none transition-all duration-200 {sectionDropTargetCat === category ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : 'border-outline-variant/60'}" onpointerdown={(e) => handleSectionPointerDown(e, category)}>
           <div class="flex items-center justify-between border-b border-outline-variant/20 pb-3">
             <div class="flex items-center gap-2">
               {#if editingCategory === category}
@@ -926,14 +938,11 @@
           </summary>
 
           <!-- Pointer-based draggable task list -->
-          <div class="bg-surface-container-low border border-outline-variant/60 rounded-b-xl rounded-t-none px-6 pb-6 pt-0 border-t-0 -mt-0.5">
+          <div class="bg-surface-container-low border rounded-b-xl rounded-t-none px-6 pb-6 pt-0 border-t-0 -mt-0.5 transition-all duration-200 {sectionDropTargetCat === category ? 'border-primary ring-2 ring-primary/20 ring-t-0 bg-primary/5' : 'border-outline-variant/60'}">
           <div 
             role="region"
-            class="flex flex-col gap-2 min-h-12.5 {sectionDropTargetCat === category ? 'border-2 border-dashed border-primary bg-primary/5 rounded-lg' : ''}"
+            class="flex flex-col gap-2 min-h-12.5 rounded-lg"
             data-category-container={category}
-            ondragover={(e) => handleSectionDragOver(e, category)}
-            ondragleave={handleSectionDragLeave}
-            ondrop={(e) => handleSectionDrop(e, category)}
           >
             {#if catTasks.length > 0}
               {#each catTasks as task, index (task.id)}
