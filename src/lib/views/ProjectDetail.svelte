@@ -768,7 +768,13 @@
 </header>
 
 <!-- Main details area -->
-<main class="grow overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar h-full">
+<main 
+  class="grow overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar h-full {isDragging ? 'bg-primary/5 ring-2 ring-primary/30 ring-inset' : ''}"
+  ondragover={handleMainDragOver}
+  ondragenter={handleMainDragEnter}
+  ondragleave={handleMainDragLeave}
+  ondrop={handleMainDrop}
+>
   <!-- Stats & Progress banner -->
   <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shrink-0">
     <div class="space-y-1">
