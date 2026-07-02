@@ -2,6 +2,7 @@
   import { store, type Project } from '../state/store.svelte';
   import TaskSelectionBar from '../components/project/TaskSelectionBar.svelte';
   import LessonSettingsModal from '../components/project/LessonSettingsModal.svelte';
+  import LessonIconModal from '../components/project/LessonIconModal.svelte';
   import { t } from '../services/i18n';
   import { saveMediaToDb } from '../db/media';
   import { open } from '@tauri-apps/plugin-dialog';
@@ -602,27 +603,11 @@
     return localStorage.getItem(key) !== 'true';
   }
 
-  function triggerImageUpload() {
-    if (project.id === 'No Lesson Selected') return;
-    const fileInput = document.getElementById('project-image-upload') as HTMLInputElement;
-    if (fileInput) fileInput.click();
-  }
+  let isIconModalOpen = $state(false);
 
-  async function handleImageUpload(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result as string;
-      try {
-        const mediaId = await saveMediaToDb(dataUrl);
-        await store.updateProjectDetails(project.id, { icon: mediaId });
-      } catch (_) {
-        await store.updateProjectDetails(project.id, { icon: dataUrl });
-      }
-    };
-    reader.readAsDataURL(file);
-    (e.target as HTMLInputElement).value = '';
+  async function handleIconSelect(icon: string) {
+    if (project.id === 'No Lesson Selected') return;
+    await store.updateProjectDetails(project.id, { icon });
   }
 
   function selectAndFocus(node: HTMLInputElement) {
@@ -643,17 +628,10 @@
     </button>
     
     <div class="flex items-center gap-2 md:gap-3 min-w-0">
-      <input
-        type="file"
-        accept="image/*"
-        class="hidden"
-        id="project-image-upload"
-        onchange={handleImageUpload}
-      />
       {#if project.id !== 'No Lesson Selected'}
         <button
           type="button"
-          onclick={triggerImageUpload}
+          onclick={() => (isIconModalOpen = true)}
           class="group relative w-10 h-10 flex items-center justify-center bg-secondary-container text-on-secondary-container rounded-lg shrink-0 overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary focus:outline-none transition-all"
           title={t('projectDetail.changeImageTooltip')}
         >
@@ -1165,3 +1143,5 @@
 {#if project && project.id && project.id !== 'No Lesson Selected'}
   <LessonSettingsModal bind:isOpen={showSettingsOverrideModal} {project} />
 {/if}
+
+<LessonIconModal bind:isOpen={isIconModalOpen} onSelect={handleIconSelect} />

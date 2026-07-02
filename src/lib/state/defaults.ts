@@ -122,6 +122,7 @@ export const defaultSettings: Settings = {
   eraserRadiusStroke: 24,
   penRecentColors: ['#000000', '#1d4ed8', '#dc2626', '#059669'],
   penBrushWidth: 2,
-  penEraserWidth: 24
+  penEraserWidth: 24,
+  userIcons: []
 };
 

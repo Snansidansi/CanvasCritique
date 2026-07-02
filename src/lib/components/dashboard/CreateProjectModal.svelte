@@ -1,7 +1,8 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
-  import { saveMediaToDb } from '../../db/media';
+  import { getMediaDataUrl } from '../../db/media';
+  import LessonIconModal from '../project/LessonIconModal.svelte';
 
   let { 
     isOpen = $bindable(false) 
@@ -12,6 +13,7 @@
   let newProjectName = $state("");
   let newProjectIcon = $state("history_edu");
   let newProjectIconPreview = $state("");
+  let isIconModalOpen = $state(false);
 
   // Reset inputs when opened
   $effect(() => {
@@ -19,8 +21,23 @@
       newProjectName = "";
       newProjectIcon = "history_edu";
       newProjectIconPreview = "";
+      isIconModalOpen = false;
     }
   });
+
+  async function resolvePreview(icon: string) {
+    if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(icon)) {
+      try {
+        newProjectIconPreview = await getMediaDataUrl(icon);
+      } catch (_) {
+        newProjectIconPreview = "";
+      }
+    } else if (icon && icon.startsWith('data:')) {
+      newProjectIconPreview = icon;
+    } else {
+      newProjectIconPreview = "";
+    }
+  }
 
   async function handleCreateProject(e: Event) {
     e.preventDefault();
@@ -29,22 +46,6 @@
     isOpen = false;
     store.selectProject(proj);
     store.setView("project-detail");
-  }
-
-  async function handleCustomIconUpload(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result as string;
-      newProjectIconPreview = dataUrl;
-      try {
-        newProjectIcon = await saveMediaToDb(dataUrl);
-      } catch (_) {
-        newProjectIcon = dataUrl;
-      }
-    };
-    reader.readAsDataURL(file);
   }
 </script>
 
@@ -76,46 +77,29 @@
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label
-            class="text-xs font-semibold text-on-surface-variant"
-            for="projIcon">{t('dashboard.iconStyleLabel')}</label
+          <span class="text-xs font-semibold text-on-surface-variant">
+            {t('dashboard.iconStyleLabel')}
+          </span>
+          <button
+            type="button"
+            onclick={() => (isIconModalOpen = true)}
+            class="p-3 border border-outline-variant rounded-lg flex items-center justify-between hover:bg-surface-container cursor-pointer transition-colors text-on-surface bg-surface-container-low"
           >
-          <div class="grid grid-cols-4 gap-2">
-            {#each ["history_edu", "draw", "ink_pen", "edit_square", "palette", "brush", "format_paint", "signature", "gesture", "border_color", "content_cut", "text_fields"] as icon}
-              <button
-                type="button"
-                onclick={() => (newProjectIcon = icon)}
-                class="p-2 border rounded-lg flex items-center justify-center hover:bg-surface-container
-                       {newProjectIcon === icon
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-outline-variant text-on-surface-variant'}"
-              >
-                <span class="material-symbols-outlined text-[24px]">{icon}</span>
-              </button>
-            {/each}
-          </div>
-
-          <div class="flex flex-col gap-1 mt-2">
-            <span class="text-xs font-semibold text-on-surface-variant"
-              >{t('dashboard.uploadCustomIconLabel')}</span>
-            <input
-              type="file"
-              accept="image/*"
-              onchange={handleCustomIconUpload}
-              class="text-xs text-on-surface bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 focus:outline-none cursor-pointer"
-            />
-            {#if newProjectIconPreview}
-              <div class="flex items-center gap-2 mt-1">
-                <span class="text-[10px] text-primary font-semibold"
-                  >{t('dashboard.customPreviewLabel')}</span>
+            <div class="flex items-center gap-3">
+              {#if newProjectIconPreview}
                 <img
                   src={newProjectIconPreview}
-                  class="w-8 h-8 object-contain rounded border border-primary/20 bg-white"
-                  alt="Preview"
+                  class="w-8 h-8 object-contain rounded border border-outline-variant bg-white"
+                  alt=""
                 />
-              </div>
-            {/if}
-          </div>
+                <span class="text-sm font-medium">{t('dashboard.customPreviewLabel')}</span>
+              {:else}
+                <span class="material-symbols-outlined text-[28px]">{newProjectIcon}</span>
+                <span class="text-sm font-medium">{newProjectIcon}</span>
+              {/if}
+            </div>
+            <span class="material-symbols-outlined text-on-surface-variant">edit</span>
+          </button>
         </div>
 
         <div class="flex justify-end gap-3 mt-2">
@@ -136,5 +120,6 @@
       </form>
     </div>
   </div>
+  <LessonIconModal bind:isOpen={isIconModalOpen} onSelect={(icon) => { newProjectIcon = icon; resolvePreview(icon); }} />
 {/if}
 

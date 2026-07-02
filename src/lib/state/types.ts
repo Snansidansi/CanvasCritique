@@ -143,6 +143,7 @@ export interface Settings {
   penRecentColors: string[];
   penBrushWidth: number;
   penEraserWidth: number;
+  userIcons?: string[];
 }
 
 export interface Profile {

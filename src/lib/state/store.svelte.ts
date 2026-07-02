@@ -36,7 +36,7 @@ import {
   deleteCustomBackground as dbDeleteCustomBackground,
 } from '../db';
 
-import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs, migrateMediaHashes, deleteMediaForTask, collectMediaIds, saveMediaBytesToDb } from '../db/media';
+import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs, migrateMediaHashes, deleteMediaForTask, collectMediaIds, saveMediaBytesToDb, deleteMediaFromDb } from '../db/media';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { downloadDir } from '@tauri-apps/api/path';
@@ -294,6 +294,9 @@ class CanvasCritiqueStore {
       }
       if (!this.settings.penEraserWidth || typeof this.settings.penEraserWidth !== 'number') {
         this.settings.penEraserWidth = 24;
+      }
+      if (!this.settings.userIcons || !Array.isArray(this.settings.userIcons)) {
+        this.settings.userIcons = [];
       }
 
       if (data.projects.length > 0) {
@@ -573,6 +576,42 @@ class CanvasCritiqueStore {
     this.customBackgrounds = this.customBackgrounds.filter(bg => bg.id !== id);
     const db = this.getDb();
     await dbDeleteCustomBackground(db, id);
+  }
+
+  async cleanupOrphanedMedia(mediaId: string): Promise<void> {
+    if (this.settings.userIcons && this.settings.userIcons.includes(mediaId)) {
+      return;
+    }
+
+    let isReferenced = false;
+    for (const project of this.projects) {
+      if (this._projectIconMediaIds[project.id] === mediaId || project.icon === mediaId) {
+        isReferenced = true;
+        break;
+      }
+    }
+
+    if (!isReferenced) {
+      for (const profile of this.profiles) {
+        if (this._iconMediaIds[profile.id] === mediaId || profile.icon === mediaId) {
+          isReferenced = true;
+          break;
+        }
+      }
+    }
+
+    if (!isReferenced) {
+      console.log(`[store] Cleaning up orphaned media: ${mediaId}`);
+      await deleteMediaFromDb(mediaId);
+    }
+  }
+
+  async deleteUserIcon(mediaId: string): Promise<void> {
+    if (this.settings.userIcons) {
+      this.settings.userIcons = this.settings.userIcons.filter(id => id !== mediaId);
+      await this.saveSettings();
+    }
+    await this.cleanupOrphanedMedia(mediaId);
   }
 
   recordPointerEvent(e: PointerEvent): void {
@@ -1023,6 +1062,8 @@ class CanvasCritiqueStore {
   async updateProjectDetails(projectId: string, updates: { name?: string; icon?: string }): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
+    const oldIconMediaId = this._projectIconMediaIds[projectId];
+
     if (updates.name !== undefined) project.name = updates.name;
     if (updates.icon !== undefined) {
       if (updates.icon && !updates.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(updates.icon)) {
@@ -1041,6 +1082,11 @@ class CanvasCritiqueStore {
       }
     }
     await this.saveProjects();
+
+    if (oldIconMediaId && oldIconMediaId !== this._projectIconMediaIds[projectId]) {
+      await this.cleanupOrphanedMedia(oldIconMediaId);
+    }
+
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }
@@ -1059,6 +1105,8 @@ class CanvasCritiqueStore {
       }
     }
 
+    const oldIconMediaId = this._projectIconMediaIds[projectId];
+
     const db = this.getDb();
     await dbDeleteProject(db, projectId);
     if (mediaIds.length > 0) {
@@ -1066,6 +1114,12 @@ class CanvasCritiqueStore {
     }
 
     this.projects = this.projects.filter(p => p.id !== projectId);
+    delete this._projectIconMediaIds[projectId];
+
+    if (oldIconMediaId) {
+      await this.cleanupOrphanedMedia(oldIconMediaId);
+    }
+
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = null;
       this.activeTask = null;
