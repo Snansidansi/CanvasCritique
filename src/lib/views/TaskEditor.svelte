@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { parseMarkdown } from '../utils/markdown';
   import { t } from '../services/i18n';
-  import { saveMediaToDb, getMediaDataUrl } from '../db/media';
+  import { saveMediaToDb, getMediaDataUrl, isAudioFile, isVideoFile, isImageFile, getFileIcon, isIntegratedFile, openAttachmentInDefaultApp } from '../db/media';
   import AudioPlayer from '../components/practice/AudioPlayer.svelte';
 
   // Form states
@@ -174,6 +174,7 @@
   // Preview modal states & handlers
   let previewFile = $state<{ name: string; dataUrl: string } | null>(null);
   let previewIsAudio = $state(false);
+  let previewIsVideo = $state(false);
   let modalZoom = $state(1);
   let modalPan = $state({ x: 0, y: 0 });
   let isModalDragging = $state(false);
@@ -198,6 +199,12 @@
   }
 
   async function openPreview(file: { name: string; dataUrl?: string; mediaId?: string }) {
+    if (!isIntegratedFile(file.name)) {
+      openAttachmentInDefaultApp(file).catch(err => {
+        console.error('Failed to open attachment:', err);
+      });
+      return;
+    }
     let dataUrl = file.dataUrl || '';
     if (!dataUrl && file.mediaId) {
       try {
@@ -206,6 +213,7 @@
     }
     previewFile = { name: file.name, dataUrl };
     previewIsAudio = isAudioFile(file.name);
+    previewIsVideo = isVideoFile(file.name);
     modalZoom = 1;
     modalPan = { x: 0, y: 0 };
   }
@@ -398,10 +406,7 @@
     }
   }
 
-  function isAudioFile(name: string): boolean {
-    const ext = name.split('.').pop()?.toLowerCase() || '';
-    return ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma', 'opus'].includes(ext);
-  }
+  // Removed local isAudioFile, imported from media.ts instead
 
   function blobToBase64(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -691,7 +696,6 @@
         <input 
           type="file" 
           id="instructionFileInput" 
-          accept="image/*,application/pdf,text/plain,.md,audio/*"
           class="hidden" 
           multiple
           onchange={(e) => handleFileSelect(e, 'instruction')}
@@ -749,7 +753,7 @@
                     drag_indicator
                   </span>
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
-                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : (isAudioFile(file.name) ? 'audio_file' : 'image'))}
+                    {getFileIcon(file.name)}
                   </span>
                   <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
                 </div>
@@ -809,7 +813,6 @@
         <input 
           type="file" 
           id="solutionFileInput" 
-          accept="image/*,application/pdf,text/plain,.md,audio/*"
           class="hidden" 
           multiple
           onchange={(e) => handleFileSelect(e, 'solution')}
@@ -867,7 +870,7 @@
                     drag_indicator
                   </span>
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
-                    {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : (isAudioFile(file.name) ? 'audio_file' : 'image'))}
+                    {getFileIcon(file.name)}
                   </span>
                   <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
                 </div>
@@ -923,7 +926,7 @@
       <header class="flex items-center justify-between px-6 py-4 border-b border-outline-variant select-none shrink-0 bg-surface">
         <div class="flex items-center gap-2 min-w-0">
           <span class="material-symbols-outlined text-primary text-[20px] shrink-0">
-            {previewIsAudio ? 'audio_file' : (previewFile.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') ? 'description' : 'image'))}
+            {getFileIcon(previewFile.name)}
           </span>
           <h2 class="font-bold text-sm text-on-surface truncate pr-6">{previewFile.name}</h2>
         </div>
@@ -938,18 +941,24 @@
 
       <!-- Modal Body (Max size view with Zoom / Pan support for images) -->
       <div 
-        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalWheel : null}
-        onpointerdown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalPointerDown : null}
-        onpointermove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalPointerMove : null}
-        onpointerup={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalPointerUp : null}
-        onpointercancel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? handleModalPointerCancel : null}
-        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || previewIsAudio ? 'overflow-auto' : 'overflow-hidden relative'}"
-        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;` : ''}
+        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio && !previewIsVideo ? handleModalWheel : null}
+        onpointerdown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio && !previewIsVideo ? handleModalPointerDown : null}
+        onpointermove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio && !previewIsVideo ? handleModalPointerMove : null}
+        onpointerup={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio && !previewIsVideo ? handleModalPointerUp : null}
+        onpointercancel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio && !previewIsVideo ? handleModalPointerCancel : null}
+        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || previewIsAudio || previewIsVideo ? 'overflow-auto' : 'overflow-hidden relative'}"
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !previewIsAudio && !previewIsVideo ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;` : ''}
       >
         {#if previewIsAudio}
           <div class="w-full max-w-md">
             <AudioPlayer dataUrl={previewFile.dataUrl} />
           </div>
+        {:else if previewIsVideo}
+          <video 
+            src={previewFile.dataUrl} 
+            controls 
+            class="max-w-full max-h-full rounded-lg shadow-sm"
+          ></video>
         {:else if previewFile.name.toLowerCase().endsWith('.pdf')}
           <iframe 
             src={previewFile.dataUrl} 

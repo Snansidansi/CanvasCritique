@@ -1,7 +1,8 @@
 import { getDb } from '../db';
 import { v4 as uuidv4 } from './uuid';
-import { appLocalDataDir, join } from '@tauri-apps/api/path';
+import { appLocalDataDir, join, tempDir } from '@tauri-apps/api/path';
 import { exists, mkdir, readFile, writeFile, remove } from '@tauri-apps/plugin-fs';
+import { invoke } from '@tauri-apps/api/core';
 
 function getMimeAndBase64(dataUrl: string): { mimeType: string; base64: string } | null {
   const match = dataUrl.match(/^data:(.*?);base64,(.*)$/);
@@ -452,5 +453,74 @@ export async function migrateMediaFromFs(): Promise<void> {
     }
   } catch (e) {
     console.warn('Media migration skipped:', e);
+  }
+}
+
+export function isAudioFile(name: string): boolean {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  return ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma', 'opus'].includes(ext);
+}
+
+export function isVideoFile(name: string): boolean {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  return ['mp4', 'webm', 'ogg', 'ogv', 'mov', 'm4v', 'mkv', '3gp', 'flv'].includes(ext);
+}
+
+export function isImageFile(name: string): boolean {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  return ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico'].includes(ext);
+}
+
+export function getFileIcon(name: string): string {
+  const lowercaseName = name.toLowerCase();
+  if (lowercaseName.endsWith('.pdf')) return 'picture_as_pdf';
+  if (lowercaseName.endsWith('.txt') || lowercaseName.endsWith('.md')) return 'description';
+  if (isAudioFile(name)) return 'audio_file';
+  if (isVideoFile(name)) return 'video_library';
+  if (isImageFile(name)) return 'image';
+  return 'insert_drive_file';
+}
+
+export function isIntegratedFile(name: string): boolean {
+  const lowercaseName = name.toLowerCase();
+  return (
+    lowercaseName.endsWith('.pdf') ||
+    lowercaseName.endsWith('.txt') ||
+    lowercaseName.endsWith('.md') ||
+    isAudioFile(name) ||
+    isVideoFile(name) ||
+    isImageFile(name)
+  );
+}
+
+export async function openAttachmentInDefaultApp(file: { name: string; dataUrl?: string; mediaId?: string }): Promise<void> {
+  try {
+    let bytes: Uint8Array;
+
+    if (file.mediaId) {
+      const mediaDir = await getMediaDir();
+      const filePath = await join(mediaDir, file.mediaId);
+      const rawBytes = await readFile(filePath);
+      bytes = new Uint8Array(rawBytes);
+    } else if (file.dataUrl) {
+      const parsed = getMimeAndBase64(file.dataUrl);
+      if (!parsed) throw new Error('Invalid data URL');
+      bytes = base64ToBytes(parsed.base64);
+    } else {
+      throw new Error('No media ID or data URL provided');
+    }
+
+    const tempDirVal = await tempDir();
+    const appTempDir = await join(tempDirVal, 'canvascritique_temp');
+    if (!(await exists(appTempDir))) {
+      await mkdir(appTempDir, { recursive: true });
+    }
+    const tempFilePath = await join(appTempDir, file.name);
+    await writeFile(tempFilePath, bytes);
+
+    await invoke('open_file', { path: tempFilePath });
+  } catch (err) {
+    console.error('[media] openAttachmentInDefaultApp failed:', err);
+    throw err;
   }
 }

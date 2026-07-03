@@ -1,12 +1,7 @@
 <script lang="ts">
   import { t } from '../../services/i18n';
-  import { getMediaDataUrl } from '../../db/media';
+  import { getMediaDataUrl, isAudioFile, isVideoFile, isImageFile, getFileIcon, isIntegratedFile, openAttachmentInDefaultApp } from '../../db/media';
   import AudioPlayer from './AudioPlayer.svelte';
-
-  function isAudioFile(name: string): boolean {
-    const ext = name.split('.').pop()?.toLowerCase() || '';
-    return ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma', 'opus'].includes(ext);
-  }
 
   let {
     splitWidth = $bindable(400),
@@ -507,12 +502,12 @@
                       >
                         <div class="flex items-center gap-2 min-w-0">
                           <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
-                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : (isAudioFile(file.name) ? 'audio_file' : 'image'))}
+                            {getFileIcon(file.name)}
                           </span>
                           <span class="truncate pr-4">{file.name}</span>
                         </div>
                         <div class="flex items-center shrink-0">
-                          {#if !isAudioFile(file.name)}
+                          {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
                           <button
                             type="button"
                             onclick={(e) => {
@@ -547,6 +542,30 @@
                             {#if fileUrl}
                               <AudioPlayer dataUrl={fileUrl} compact={true} />
                             {/if}
+                          {:else if isVideoFile(file.name)}
+                            {#if fileUrl}
+                              <!-- svelte-ignore a11y_media_has_caption -->
+                              <video 
+                                src={fileUrl} 
+                                controls 
+                                class="max-w-full max-h-full rounded-lg shadow-sm border border-outline-variant/10"
+                              ></video>
+                            {/if}
+                          {:else if !isIntegratedFile(file.name)}
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                            <div 
+                              onclick={() => openAttachmentInDefaultApp(file).catch(err => console.error(err))}
+                              class="w-full p-4 flex flex-col items-center justify-center gap-3 bg-surface-container-low hover:bg-surface-container-high border border-outline-variant rounded-xl cursor-pointer transition-all select-none hover:shadow-md py-6 group"
+                            >
+                              <span class="material-symbols-outlined text-[36px] text-primary shrink-0 group-hover:scale-105 transition-transform">
+                                {getFileIcon(file.name)}
+                              </span>
+                              <div class="text-center">
+                                <p class="text-xs font-bold text-on-surface truncate max-w-[280px]">{file.name}</p>
+                                <p class="text-[10px] text-on-surface-variant mt-1">{t('practice.infoPanels.openDefaultApp')}</p>
+                              </div>
+                            </div>
                           {:else}
                             <div class="w-full aspect-[4/3] max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10">
                               {#if file.name.toLowerCase().endsWith('.pdf')}
@@ -609,12 +628,12 @@
                       >
                         <div class="flex items-center gap-2 min-w-0">
                           <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
-                            {file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') ? 'description' : (isAudioFile(file.name) ? 'audio_file' : 'image'))}
+                            {getFileIcon(file.name)}
                           </span>
                           <span class="truncate pr-4">{file.name}</span>
                         </div>
                         <div class="flex items-center shrink-0">
-                          {#if !isAudioFile(file.name)}
+                          {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
                           <button
                             type="button"
                             onclick={(e) => {
@@ -649,6 +668,30 @@
                             {#if fileUrl}
                               <AudioPlayer dataUrl={fileUrl} compact={true} />
                             {/if}
+                          {:else if isVideoFile(file.name)}
+                            {#if fileUrl}
+                              <!-- svelte-ignore a11y_media_has_caption -->
+                              <video 
+                                src={fileUrl} 
+                                controls 
+                                class="max-w-full max-h-full rounded-lg shadow-sm border border-outline-variant/10"
+                              ></video>
+                            {/if}
+                          {:else if !isIntegratedFile(file.name)}
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                            <div 
+                              onclick={() => openAttachmentInDefaultApp(file).catch(err => console.error(err))}
+                              class="w-full p-4 flex flex-col items-center justify-center gap-3 bg-surface-container-low hover:bg-surface-container-high border border-outline-variant rounded-xl cursor-pointer transition-all select-none hover:shadow-md py-6 group"
+                            >
+                              <span class="material-symbols-outlined text-[36px] text-primary shrink-0 group-hover:scale-105 transition-transform">
+                                {getFileIcon(file.name)}
+                              </span>
+                              <div class="text-center">
+                                <p class="text-xs font-bold text-on-surface truncate max-w-[280px]">{file.name}</p>
+                                <p class="text-[10px] text-on-surface-variant mt-1">{t('practice.infoPanels.openDefaultApp')}</p>
+                              </div>
+                            </div>
                           {:else}
                             <div class="w-full aspect-[4/3] max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10">
                               {#if file.name.toLowerCase().endsWith('.pdf')}
@@ -726,7 +769,7 @@
       <header class="flex items-center justify-between px-6 py-4 border-b border-outline-variant select-none shrink-0 bg-surface">
         <div class="flex items-center gap-2 min-w-0">
           <span class="material-symbols-outlined text-primary text-[20px] shrink-0">
-            {isAudioFile(previewFile.name) ? 'audio_file' : (previewFile.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' : (previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') ? 'description' : 'image'))}
+            {getFileIcon(previewFile.name)}
           </span>
           <h2 class="font-bold text-sm text-on-surface truncate pr-6">{previewFile.name}</h2>
         </div>
@@ -742,18 +785,25 @@
       <!-- Modal Body (Max size view with Zoom / Pan support for images) -->
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <div 
-        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalWheel : null}
-        onpointerdown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerDown : null}
-        onpointermove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerMove : null}
-        onpointerup={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerUp : null}
-        onpointercancel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? handleModalPointerCancel : null}
-        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || isAudioFile(previewFile.name) ? 'overflow-auto' : 'overflow-hidden relative'}"
-        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;` : ''}
+        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? handleModalWheel : null}
+        onpointerdown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? handleModalPointerDown : null}
+        onpointermove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? handleModalPointerMove : null}
+        onpointerup={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? handleModalPointerUp : null}
+        onpointercancel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? handleModalPointerCancel : null}
+        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || isAudioFile(previewFile.name) || isVideoFile(previewFile.name) ? 'overflow-auto' : 'overflow-hidden relative'}"
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;` : ''}
       >
         {#if isAudioFile(previewFile.name)}
           <div class="w-full max-w-md">
             <AudioPlayer dataUrl={previewFile.dataUrl} />
           </div>
+        {:else if isVideoFile(previewFile.name)}
+          <!-- svelte-ignore a11y_media_has_caption -->
+          <video 
+            src={previewFile.dataUrl} 
+            controls 
+            class="max-w-full max-h-full rounded-lg shadow-md"
+          ></video>
         {:else if previewFile.name.toLowerCase().endsWith('.pdf')}
           <iframe 
             src={previewFile.dataUrl} 
