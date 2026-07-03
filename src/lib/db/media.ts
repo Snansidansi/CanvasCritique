@@ -1,6 +1,6 @@
 import { getDb } from '../db';
 import { v4 as uuidv4 } from './uuid';
-import { appLocalDataDir, join, tempDir } from '@tauri-apps/api/path';
+import { appLocalDataDir, join } from '@tauri-apps/api/path';
 import { exists, mkdir, readFile, writeFile, remove } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -493,6 +493,15 @@ export function isIntegratedFile(name: string): boolean {
   );
 }
 
+async function getOpenTmpDir(): Promise<string> {
+  const localDataDir = await appLocalDataDir();
+  const tmpDir = await join(localDataDir, 'open_tmp');
+  if (!(await exists(tmpDir))) {
+    await mkdir(tmpDir, { recursive: true });
+  }
+  return tmpDir;
+}
+
 export async function openAttachmentInDefaultApp(file: { name: string; dataUrl?: string; mediaId?: string }): Promise<void> {
   try {
     let bytes: Uint8Array;
@@ -510,11 +519,7 @@ export async function openAttachmentInDefaultApp(file: { name: string; dataUrl?:
       throw new Error('No media ID or data URL provided');
     }
 
-    const tempDirVal = await tempDir();
-    const appTempDir = await join(tempDirVal, 'canvascritique_temp');
-    if (!(await exists(appTempDir))) {
-      await mkdir(appTempDir, { recursive: true });
-    }
+    const appTempDir = await getOpenTmpDir();
     const tempFilePath = await join(appTempDir, file.name);
     await writeFile(tempFilePath, bytes);
 
