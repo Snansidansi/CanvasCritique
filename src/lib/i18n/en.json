@@ -147,7 +147,7 @@
     "apiCostWarningDesc": "Large files or long text may exceed API limits and increase costs. Keep instructions concise.",
     "instructionMaterial": "Instruction Material",
     "uploadPrompt": "Click to upload instruction materials",
-    "uploadSupportInfo": "Supports images, PDFs, text files",
+    "uploadSupportInfo": "Supports all file types",
     "filesSelected": "{count} files selected",
     "pasteClipboard": "Paste from Clipboard",
     "clickToPreview": "Click to preview",

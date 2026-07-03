@@ -146,7 +146,7 @@
     "apiCostWarningDesc": "Große Dateien oder langer Text können API-Grenzen überschreiten und die Kosten erhöhen. Halte Anweisungen knapp.",
     "instructionMaterial": "Anleitungsmaterial",
     "uploadPrompt": "Klicken zum Hochladen von Anleitungsmaterial",
-    "uploadSupportInfo": "Unterstützt Bilder, PDFs, Textdateien",
+    "uploadSupportInfo": "Unterstützt alle Dateitypen",
     "filesSelected": "{count} Dateien ausgewählt",
     "pasteClipboard": "Aus Zwischenablage einfügen",
     "clickToPreview": "Zum Vorschau klicken",
