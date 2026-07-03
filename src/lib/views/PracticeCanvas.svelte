@@ -1138,7 +1138,7 @@
       }
     }
 
-    if (store.settings.stylusMode && isPen && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen && activeTool !== 'eraser' && activeTool !== 'select' && activeTool !== 'pan') {
+    if (store.settings.stylusMode && isPen && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen && activeTool !== 'eraser' && activeTool !== 'select' && activeTool !== 'pan' && activeTool !== 'shape') {
       if (keyboardToolSwitch) {
         keyboardToolSwitch = false;
         if (keyboardToolSwitchTimeout) clearTimeout(keyboardToolSwitchTimeout);
