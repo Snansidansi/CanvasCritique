@@ -122,6 +122,7 @@
     }
 
     // Reset and return
+    store.pendingScrollCategory = category;
     taskName = '';
     instructions = '';
     solution = '';
