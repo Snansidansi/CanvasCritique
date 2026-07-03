@@ -72,6 +72,13 @@
   });
 
   $effect(() => {
+    if (showText && editorText.trim() === '') {
+      store.settings.editorShowAllRaw = true;
+      store.saveSettings();
+    }
+  });
+
+  $effect(() => {
     if (editorText !== lines.join('\n')) {
       lines = editorText.split('\n');
     }
