@@ -1003,6 +1003,58 @@
       });
     }
   }
+  function isPointNearSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number, maxDist: number): boolean {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    
+    if (lenSq === 0) {
+      const distSq = (px - ax) * (px - ax) + (py - ay) * (py - ay);
+      return distSq < maxDist * maxDist;
+    }
+    
+    let t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    
+    const closestX = ax + t * dx;
+    const closestY = ay + t * dy;
+    
+    const distSq = (px - closestX) * (px - closestX) + (py - closestY) * (py - closestY);
+    return distSq < maxDist * maxDist;
+  }
+
+  function isStrokeHit(stroke: Stroke, coords: { x: number; y: number }, hitRadius: number): boolean {
+    if (stroke.points.length === 0) return false;
+    if (stroke.points.length === 1) {
+      const p = stroke.points[0];
+      return Math.hypot(p.x - coords.x, p.y - coords.y) < hitRadius;
+    }
+    
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of stroke.points) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    if (
+      coords.x < minX - hitRadius ||
+      coords.x > maxX + hitRadius ||
+      coords.y < minY - hitRadius ||
+      coords.y > maxY + hitRadius
+    ) {
+      return false;
+    }
+
+    for (let i = 0; i < stroke.points.length - 1; i++) {
+      const a = stroke.points[i];
+      const b = stroke.points[i + 1];
+      if (isPointNearSegment(coords.x, coords.y, a.x, a.y, b.x, b.y, hitRadius)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   function generateShapePoints(shape: string, x1: number, y1: number, x2: number, y2: number): Point[] {
     switch (shape) {
@@ -1201,7 +1253,7 @@
       for (let i = currentHistory.length - 1; i >= 0; i--) {
         const stroke = currentHistory[i];
         if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
-        if (stroke.points.some(p => Math.abs(p.x - coords.x) < hitRadius && Math.abs(p.y - coords.y) < hitRadius)) {
+        if (isStrokeHit(stroke, coords, hitRadius)) {
           currentEraserUndo.push(stroke);
           currentHistory.splice(i, 1);
           break;
@@ -1245,7 +1297,7 @@
       }, 600);
     }
 
-    if (activeTool === 'shape') {
+    if (activeTool === 'shape' && !isPointerEraser && !isPointerSelect && !isPointerPan) {
       if (selectedStrokes.length > 0) selectedStrokes = [];
       isShapeDrawing = true;
       shapeAnchorX = coords.x;
@@ -1354,7 +1406,7 @@
       for (let i = currentHistory.length - 1; i >= 0; i--) {
         const stroke = currentHistory[i];
         if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
-        if (stroke.points.some(p => Math.abs(p.x - coords.x) < hitRadius && Math.abs(p.y - coords.y) < hitRadius)) {
+        if (isStrokeHit(stroke, coords, hitRadius)) {
           currentEraserUndo.push(stroke);
           currentHistory.splice(i, 1);
           break;
