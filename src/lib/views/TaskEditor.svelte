@@ -130,6 +130,7 @@
   }
 
   function handleCancel() {
+    store.pendingScrollCategory = category;
     store.editingTask = null;
     store.setView(store.activeProject ? 'project-detail' : 'dashboard');
   }
