@@ -807,6 +807,7 @@
       isInitializingTask = true;
       lastTaskId = task.id;
       loadCritiqueForActiveMode();
+      showSolution = false;
       
       const targetBg = task.background || store.activeProject?.default_background || 'grid';
       activeBg = targetBg;
