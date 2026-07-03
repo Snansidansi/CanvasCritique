@@ -262,7 +262,8 @@
       "solutionMedia": "Lösungsmedien",
       "score": "Punktzahl:",
       "openFullScreen": "Im Vollbild öffnen",
-      "mediaError": "Medium nicht gefunden"
+      "mediaError": "Medium nicht gefunden",
+      "openDefaultApp": "Mit Standard-App öffnen"
     },
     "palette": {
       "collapse": "Zeichenwerkzeuge einklappen",

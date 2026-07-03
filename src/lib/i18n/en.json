@@ -263,7 +263,8 @@
       "solutionMedia": "Solution Media",
       "score": "Score:",
       "openFullScreen": "Open in full screen",
-      "mediaError": "Media not found"
+      "mediaError": "Media not found",
+      "openDefaultApp": "Open with standard app"
     },
     "palette": {
       "collapse": "Collapse drawing tools",
