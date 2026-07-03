@@ -921,7 +921,7 @@
   >
     <div 
       onclick={(e) => e.stopPropagation()}
-      class="relative w-full h-full max-w-6xl max-h-[90vh] bg-surface rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-outline-variant"
+      class="relative w-[95%] h-[95%] max-w-[95vw] max-h-[95vh] bg-surface rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-outline-variant"
     >
       <!-- Modal Header -->
       <header class="flex items-center justify-between px-6 py-4 border-b border-outline-variant select-none shrink-0 bg-surface">
