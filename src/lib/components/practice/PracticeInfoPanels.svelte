@@ -20,6 +20,92 @@
   let startX = 0;
   let startWidth = 0;
 
+  // Panel horizontal resizing states and effects
+  let panelWidths = $state<Record<string, number>>({});
+  let lastSplitWidth = splitWidth;
+
+  $effect(() => {
+    const panels = activeLeftPanels;
+    if (!panels || panels.length === 0) return;
+
+    // Check if we need to initialize or re-initialize widths
+    const panelIds = panels.map(p => p.id);
+    const existingIds = Object.keys(panelWidths);
+    const isMismatch = panelIds.some(id => !panelWidths[id]) || existingIds.length !== panelIds.length;
+
+    if (isMismatch) {
+      const share = splitWidth / panels.length;
+      const newWidths: Record<string, number> = {};
+      for (const p of panels) {
+        newWidths[p.id] = panelWidths[p.id] || share;
+      }
+      // Normalize to sum up to splitWidth
+      let sum = 0;
+      for (const id in newWidths) sum += newWidths[id];
+      if (Math.abs(sum - splitWidth) > 1 && sum > 0) {
+        for (const id in newWidths) {
+          newWidths[id] = (newWidths[id] / sum) * splitWidth;
+        }
+      }
+      panelWidths = newWidths;
+    }
+  });
+
+  $effect(() => {
+    if (splitWidth !== lastSplitWidth) {
+      const ratio = splitWidth / (lastSplitWidth || 1);
+      const newWidths = { ...panelWidths };
+      for (const id in newWidths) {
+        newWidths[id] = (newWidths[id] || 0) * ratio;
+      }
+      panelWidths = newWidths;
+      lastSplitWidth = splitWidth;
+    }
+  });
+
+  let resizingPanelIndex = -1;
+  let panelResizeStartWidths: number[] = [];
+  let panelResizeStartX = 0;
+  let panelResizePointerId = -1;
+
+  function startPanelResizeDrag(e: PointerEvent, leftPanelIdx: number) {
+    e.preventDefault();
+    resizingPanelIndex = leftPanelIdx;
+    panelResizeStartX = e.clientX;
+    panelResizeStartWidths = activeLeftPanels.map((p: any) => panelWidths[p.id] || 0);
+    panelResizePointerId = e.pointerId;
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch (_) {}
+  }
+
+  function handlePanelResizeDrag(e: PointerEvent) {
+    if (resizingPanelIndex === -1 || e.pointerId !== panelResizePointerId) return;
+    const dx = e.clientX - panelResizeStartX;
+    const leftPanelId = activeLeftPanels[resizingPanelIndex].id;
+    const rightPanelId = activeLeftPanels[resizingPanelIndex + 1].id;
+    
+    const origLeftWidth = panelResizeStartWidths[resizingPanelIndex];
+    const origRightWidth = panelResizeStartWidths[resizingPanelIndex + 1];
+    
+    const minWidth = 100;
+    const maxDx = origRightWidth - minWidth;
+    const minDx = minWidth - origLeftWidth;
+    const constrainedDx = Math.max(minDx, Math.min(maxDx, dx));
+    
+    panelWidths[leftPanelId] = origLeftWidth + constrainedDx;
+    panelWidths[rightPanelId] = origRightWidth - constrainedDx;
+  }
+
+  function stopPanelResizeDrag(e: PointerEvent) {
+    if (resizingPanelIndex === -1 || e.pointerId !== panelResizePointerId) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(panelResizePointerId);
+    } catch (_) {}
+    resizingPanelIndex = -1;
+    panelResizePointerId = -1;
+  }
+
   let expandedMediaIds = $state<Record<string, boolean>>({});
 
   // Cache loaded media URLs with loading state
@@ -436,18 +522,28 @@
 
 {#if activeLeftPanels.length > 0}
   <section 
-    class="bg-surface-container-low border-r border-outline-variant flex flex-col overflow-hidden h-full {isRightContentVisible ? 'shrink-0' : 'grow w-full'}"
+    class="bg-surface-container-low border-r border-outline-variant flex flex-row overflow-hidden h-full {isRightContentVisible ? 'shrink-0' : 'grow w-full'}"
     style={isRightContentVisible ? `width: ${splitWidth}px;` : ''}
   >
     {#each activeLeftPanels as panel, idx}
       {#if idx > 0}
-        <div class="h-px w-full bg-outline-variant/30"></div>
+        <!-- Draggable Horizontal Panel Divider -->
+        <div 
+          role="separator"
+          class="w-1 bg-outline-variant/50 hover:bg-primary cursor-col-resize select-none h-full z-20 transition-all active:bg-primary shrink-0"
+          style="touch-action: none;"
+          onpointerdown={(e) => startPanelResizeDrag(e, idx - 1)}
+          onpointermove={handlePanelResizeDrag}
+          onpointerup={stopPanelResizeDrag}
+          onpointercancel={stopPanelResizeDrag}
+        ></div>
       {/if}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <div 
         onclick={panel.isFeedback ? handleCritiqueClick : null}
-        class="flex-1 flex flex-col overflow-y-auto p-6 hide-scrollbar {panel.id === 'solution' ? 'bg-surface-container-low/20' : panel.id === 'feedback' ? 'bg-primary/5' : ''}"
+        class="flex flex-col overflow-y-auto p-6 hide-scrollbar shrink-0 {panel.id === 'solution' ? 'bg-surface-container-low/20' : panel.id === 'feedback' ? 'bg-primary/5' : ''}"
+        style="width: {panelWidths[panel.id] || (splitWidth / activeLeftPanels.length)}px;"
       >
         <div class="flex items-center justify-between mb-3 pb-1 border-b border-outline-variant/30">
           <h2 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5 font-sans select-none">
