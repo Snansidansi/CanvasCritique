@@ -1616,6 +1616,7 @@
       const shapePoints = generateShapePoints(shapeType, shapeAnchorX, shapeAnchorY, shapePreviewX, shapePreviewY);
       if (shapePoints.length > 0) {
         const newStroke: Stroke = {
+          id: Math.random().toString(36).substring(2, 9),
           color: strokeColor,
           width: brushWidth,
           points: shapePoints
@@ -1638,6 +1639,7 @@
       if (isStraightening && straightLineStart && straightLineEnd) {
         const finalEnd = snapLine(straightLineStart, straightLineEnd);
         const newStroke = {
+          id: Math.random().toString(36).substring(2, 9),
           color: strokeColor,
           width: brushWidth,
           points: [straightLineStart, finalEnd]
@@ -1656,6 +1658,7 @@
       } else if (currentStroke.length > 0) {
         const isEraser = (activeTool === 'eraser' || isPointerEraser);
         const newStroke = {
+          id: Math.random().toString(36).substring(2, 9),
           color: isEraser ? 'eraser' : strokeColor,
           width: isEraser ? eraserWidth : brushWidth,
           points: [...currentStroke]
@@ -2277,13 +2280,13 @@
     
     if (canvasMode === 'a4') {
       pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(
-        s => !selectedStrokes.includes(s)
+        s => !selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id))
       );
       pages[activePageIndex].redoStack = [];
       pages[activePageIndex].eraserUndoStack = [];
     } else {
       infiniteStrokes = infiniteStrokes.filter(
-        s => !selectedStrokes.includes(s)
+        s => !selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id))
       );
       infiniteRedo = [];
       infiniteEraserUndo = [];
@@ -2318,6 +2321,7 @@
     const dy = targetY - centerY;
     
     for (const stroke of strokesToPaste) {
+      stroke.id = Math.random().toString(36).substring(2, 9);
       for (const p of stroke.points) {
         p.x += dx;
         p.y += dy;
@@ -2808,10 +2812,10 @@
           <button 
             onclick={copySelected}
             class="px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent"
-            title="Copy strokes (Ctrl+C)"
+            title={t('practice.canvas.copy')}
           >
             <span class="material-symbols-outlined text-[14px]">content_copy</span>
-            <span>Copy</span>
+            <span>{t('practice.canvas.copy')}</span>
           </button>
           <div class="w-px h-3 bg-outline-variant/50"></div>
           <button 
