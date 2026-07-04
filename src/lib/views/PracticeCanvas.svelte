@@ -357,6 +357,7 @@
   // Auto-invalidate strokes cache when relevant inputs change
   $effect(() => {
     const _sh = strokeHistory;
+    const _shLen = strokeHistory.length;
     const _panX = panOffset.x;
     const _panY = panOffset.y;
     const _zoom = zoomScale;
