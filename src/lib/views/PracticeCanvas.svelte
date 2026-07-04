@@ -1243,10 +1243,10 @@
 
     const coords = getCoords(e);
     const bounds = selectionBoundingBox;
-    const isClickInSelection = (activeTool === 'select' || isPointerSelect) && bounds && isPointInBounds(coords.x, coords.y, bounds);
+    const isClickInSelection = bounds && isPointInBounds(coords.x, coords.y, bounds);
 
     // Stroke-erase mode: delete entire stroke under pointer (drag-support)
-    if ((activeTool === 'eraser' || isPointerEraser) && effectiveEraserSettings.eraserMode === 'stroke') {
+    if (!isClickInSelection && (activeTool === 'eraser' || isPointerEraser) && effectiveEraserSettings.eraserMode === 'stroke') {
       const hitRadius = effectiveEraserSettings.eraserRadiusStroke ?? 24;
       const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
       const currentEraserUndo = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
@@ -1297,7 +1297,15 @@
       }, 600);
     }
 
-    if (activeTool === 'shape' && !isPointerEraser && !isPointerSelect && !isPointerPan) {
+    if (isClickInSelection) {
+      isMovingSelection = true;
+      selectionDragStart = { x: coords.x, y: coords.y };
+      selectionBox = null;
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    } else if (activeTool === 'shape' && !isPointerEraser && !isPointerSelect && !isPointerPan) {
       if (selectedStrokes.length > 0) selectedStrokes = [];
       isShapeDrawing = true;
       shapeAnchorX = coords.x;
@@ -1305,19 +1313,9 @@
       shapePreviewX = coords.x;
       shapePreviewY = coords.y;
     } else if (activeTool === 'select' || isPointerSelect) {
-      if (isClickInSelection) {
-        isMovingSelection = true;
-        selectionDragStart = { x: coords.x, y: coords.y };
-        selectionBox = null;
-        if (longPressTimer) {
-          clearTimeout(longPressTimer);
-          longPressTimer = null;
-        }
-      } else {
-        selectedStrokes = [];
-        selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
-        isMovingSelection = false;
-      }
+      selectedStrokes = [];
+      selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
+      isMovingSelection = false;
     } else {
       if (selectedStrokes.length > 0) selectedStrokes = [];
       isDrawing = true;
@@ -1447,28 +1445,28 @@
 
     const coords = getCoords(e);
     
-    if (activeTool === 'select' || isPointerSelect) {
-      if (isMovingSelection && selectedStrokes.length > 0) {
-        const dx = coords.x - selectionDragStart.x;
-        const dy = coords.y - selectionDragStart.y;
-        
-        for (const stroke of selectedStrokes) {
-          for (const p of stroke.points) {
-            p.x += dx;
-            p.y += dy;
-          }
+    if (isMovingSelection && selectedStrokes.length > 0) {
+      const dx = coords.x - selectionDragStart.x;
+      const dy = coords.y - selectionDragStart.y;
+      
+      for (const stroke of selectedStrokes) {
+        for (const p of stroke.points) {
+          p.x += dx;
+          p.y += dy;
         }
-        
-        selectionDragStart = { x: coords.x, y: coords.y };
-        
-        // Trigger Svelte 5 reactivity updates
-        selectedStrokes = [...selectedStrokes];
-        if (canvasMode === 'a4') {
-          pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
-        } else {
-          infiniteStrokes = [...infiniteStrokes];
-        }
-      } else if (selectionBox) {
+      }
+      
+      selectionDragStart = { x: coords.x, y: coords.y };
+      
+      // Trigger Svelte 5 reactivity updates
+      selectedStrokes = [...selectedStrokes];
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
+      } else {
+        infiniteStrokes = [...infiniteStrokes];
+      }
+    } else if (activeTool === 'select' || isPointerSelect) {
+      if (selectionBox) {
         selectionBox.x2 = coords.x;
         selectionBox.y2 = coords.y;
       }
@@ -1516,15 +1514,14 @@
       return;
     }
     
-    if (activeTool === 'select' || isPointerSelect) {
+    if (isMovingSelection) {
+      saveToStore();
+      isMovingSelection = false;
+    } else if (activeTool === 'select' || isPointerSelect) {
       if (selectionBox) {
         selectedStrokes = getStrokesInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2);
         selectionBox = null;
       }
-      if (isMovingSelection) {
-        saveToStore();
-      }
-      isMovingSelection = false;
     } else if (isShapeDrawing) {
       isShapeDrawing = false;
 
