@@ -35,6 +35,7 @@ export interface Task {
   } | null;
   background?: string | null;
   editorText?: string;
+  settingsOverride?: ProjectSettingsOverride;
 }
 
 export interface ProjectSettingsOverride {
@@ -46,6 +47,7 @@ export interface ProjectSettingsOverride {
   overrideSystemPrompt?: boolean;
   overrideTaskNumbering?: boolean;
   overrideAlwaysSendBoth?: boolean;
+  overrideMediaFilter?: boolean;
   apiProvider?: string;
   geminiModel?: string;
   openRouterModel?: string;
@@ -66,6 +68,10 @@ export interface ProjectSettingsOverride {
   eraserMode?: 'normal' | 'stroke';
   eraserRadiusNormal?: number;
   eraserRadiusStroke?: number;
+  taskMediaFilterMode?: string;
+  taskMediaFilterExtensions?: string;
+  solutionMediaFilterMode?: string;
+  solutionMediaFilterExtensions?: string;
 }
 
 export interface Project {
@@ -144,6 +150,10 @@ export interface Settings {
   penBrushWidth: number;
   penEraserWidth: number;
   userIcons?: string[];
+  taskMediaFilterMode?: string;
+  taskMediaFilterExtensions?: string;
+  solutionMediaFilterMode?: string;
+  solutionMediaFilterExtensions?: string;
 }
 
 export interface Profile {

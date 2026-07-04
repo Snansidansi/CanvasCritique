@@ -264,31 +264,31 @@
   // Canvas mode derived from store settings (with per-lesson override)
   let canvasMode = $derived(
     store.activeProject
-      ? store.getEffectiveSettings(store.activeProject.id).canvasMode
+      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id).canvasMode
       : store.settings.canvasMode
   );
 
   let canvasTextFontSize = $derived(
     store.activeProject
-      ? store.getEffectiveSettings(store.activeProject.id).canvasFontSize ?? 13
+      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id).canvasFontSize ?? 13
       : store.settings.canvasFontSize ?? 13
   );
 
   let effectiveEraserSettings = $derived(
     store.activeProject
-      ? store.getEffectiveSettings(store.activeProject.id)
+      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
       : store.settings
   );
 
   let eraserWidth = $state(
     ((store.activeProject
-      ? store.getEffectiveSettings(store.activeProject.id)
+      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
       : store.settings).eraserMode === 'stroke'
       ? (store.activeProject
-          ? store.getEffectiveSettings(store.activeProject.id)
+          ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
           : store.settings).eraserRadiusStroke
       : (store.activeProject
-          ? store.getEffectiveSettings(store.activeProject.id)
+          ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
           : store.settings).eraserRadiusNormal) ?? 24
   );
 
@@ -2475,7 +2475,7 @@
 
     try {
       const effectiveSettings = store.activeProject
-        ? store.getEffectiveSettings(store.activeProject.id)
+        ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
         : store.settings;
 
       const result = await runCheckWork({
@@ -2501,7 +2501,11 @@
           sendTaskText: effectiveSettings.sendTaskText,
           sendSolutionText: effectiveSettings.sendSolutionText,
           language: effectiveSettings.language,
-          customSystemPrompt: effectiveSettings.customSystemPrompt
+          customSystemPrompt: effectiveSettings.customSystemPrompt,
+          taskMediaFilterMode: effectiveSettings.taskMediaFilterMode,
+          taskMediaFilterExtensions: effectiveSettings.taskMediaFilterExtensions,
+          solutionMediaFilterMode: effectiveSettings.solutionMediaFilterMode,
+          solutionMediaFilterExtensions: effectiveSettings.solutionMediaFilterExtensions
         },
         defaultSystemPrompt: DEFAULT_SYSTEM_PROMPT,
         activeMode,

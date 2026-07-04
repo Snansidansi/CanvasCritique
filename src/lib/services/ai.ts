@@ -74,6 +74,10 @@ export interface CheckWorkSettings {
   sendSolutionText?: boolean;
   language?: string;
   customSystemPrompt?: string;
+  taskMediaFilterMode?: string;
+  taskMediaFilterExtensions?: string;
+  solutionMediaFilterMode?: string;
+  solutionMediaFilterExtensions?: string;
 }
 
 export interface CheckWorkOptions {
@@ -138,6 +142,35 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     alwaysSendBothCanvasAndText = false
   } = options;
 
+  // Helper to filter files
+  function shouldIncludeFile(filename: string, isSolution: boolean): boolean {
+    if (!settings) return true;
+    const mode = isSolution
+      ? (settings.solutionMediaFilterMode ?? 'blacklist')
+      : (settings.taskMediaFilterMode ?? 'blacklist');
+    const extensionsStr = isSolution
+      ? (settings.solutionMediaFilterExtensions ?? '')
+      : (settings.taskMediaFilterExtensions ?? '');
+    
+    const extensions = extensionsStr
+      .split(',')
+      .map((ext: string) => ext.trim().toLowerCase())
+      .filter((ext: string) => ext.length > 0)
+      .map((ext: string) => ext.startsWith('.') ? ext : '.' + ext);
+      
+    if (extensions.length === 0) {
+      return mode === 'blacklist';
+    }
+    
+    const fileExt = '.' + filename.split('.').pop()!.toLowerCase();
+    
+    if (mode === 'whitelist') {
+      return extensions.includes(fileExt);
+    } else {
+      return !extensions.includes(fileExt);
+    }
+  }
+
   // Resolve media files from filesystem to data URLs
   const task = { ...initialTask };
   if (task.instructionFiles) {
@@ -151,6 +184,7 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
         return { ...f };
       })
     );
+    task.instructionFiles = task.instructionFiles.filter(f => shouldIncludeFile(f.name, false));
   }
   if (task.solutionFiles) {
     task.solutionFiles = await Promise.all(
@@ -163,16 +197,25 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
         return { ...f };
       })
     );
+    task.solutionFiles = task.solutionFiles.filter(f => shouldIncludeFile(f.name, true));
   }
-  if (task.instructionFile && !task.instructionFile.dataUrl && task.instructionFile.mediaId) {
-    try {
-      task.instructionFile = { ...task.instructionFile, dataUrl: await getMediaDataUrl(task.instructionFile.mediaId) };
-    } catch (_) {}
+  if (task.instructionFile) {
+    if (!shouldIncludeFile(task.instructionFile.name, false)) {
+      task.instructionFile = null;
+    } else if (!task.instructionFile.dataUrl && task.instructionFile.mediaId) {
+      try {
+        task.instructionFile = { ...task.instructionFile, dataUrl: await getMediaDataUrl(task.instructionFile.mediaId) };
+      } catch (_) {}
+    }
   }
-  if (task.solutionFile && !task.solutionFile.dataUrl && task.solutionFile.mediaId) {
-    try {
-      task.solutionFile = { ...task.solutionFile, dataUrl: await getMediaDataUrl(task.solutionFile.mediaId) };
-    } catch (_) {}
+  if (task.solutionFile) {
+    if (!shouldIncludeFile(task.solutionFile.name, true)) {
+      task.solutionFile = null;
+    } else if (!task.solutionFile.dataUrl && task.solutionFile.mediaId) {
+      try {
+        task.solutionFile = { ...task.solutionFile, dataUrl: await getMediaDataUrl(task.solutionFile.mediaId) };
+      } catch (_) {}
+    }
   }
 
   // Helper to determine if history contains any visible (non-eraser) drawing strokes with points

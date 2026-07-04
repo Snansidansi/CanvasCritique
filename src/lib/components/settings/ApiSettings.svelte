@@ -2,6 +2,7 @@
   import { store } from '../../state/store.svelte';
   import AiModelConfig from './AiModelConfig.svelte';
   import EvaluationDetailsSettings from './EvaluationDetailsSettings.svelte';
+  import MediaFilterSettings from './MediaFilterSettings.svelte';
   import { t } from '../../services/i18n';
 
   // Connection test state
@@ -104,6 +105,15 @@
         {t('settings.api.evaluationDetailsDesc')}
       </p>
       <EvaluationDetailsSettings settings={store.settings} onchange={handleInputChange} />
+    </div>
+
+    <!-- Media Filter Settings -->
+    <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
+      <h4 class="text-sm font-bold text-on-surface">{t('settings.api.mediaFilterMode')}</h4>
+      <p class="text-xs text-on-surface-variant leading-relaxed">
+        Definiere getrennte Filter für die Dateiendungen von Aufgabenmedien und Lösungsmedien.
+      </p>
+      <MediaFilterSettings settings={store.settings} onchange={handleInputChange} />
     </div>
 
     <!-- Connection Test Panel -->

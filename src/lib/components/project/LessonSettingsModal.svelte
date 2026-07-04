@@ -4,6 +4,7 @@
   import EvaluationDetailsSettings from '../settings/EvaluationDetailsSettings.svelte';
   import CanvasModeSelector from '../settings/CanvasModeSelector.svelte';
   import TaskNumberingConfig from '../settings/TaskNumberingConfig.svelte';
+  import MediaFilterSettings from '../settings/MediaFilterSettings.svelte';
   import type { Project } from '../../state/types';
   import { t } from '../../services/i18n';
 
@@ -24,6 +25,7 @@
         overrideCanvas: false,
         overrideEvaluation: false,
         overrideSystemPrompt: false,
+        overrideMediaFilter: false,
         apiProvider: store.settings.apiProvider,
         geminiModel: store.settings.geminiModel,
         openRouterModel: store.settings.openRouterModel,
@@ -43,7 +45,11 @@
         eraserRadiusStroke: store.settings.eraserRadiusStroke,
         overrideTaskNumbering: false,
         autoNumberTasks: store.settings.autoNumberTasks,
-        taskNumberingTemplate: store.settings.taskNumberingTemplate
+        taskNumberingTemplate: store.settings.taskNumberingTemplate,
+        taskMediaFilterMode: store.settings.taskMediaFilterMode || 'blacklist',
+        taskMediaFilterExtensions: store.settings.taskMediaFilterExtensions || '',
+        solutionMediaFilterMode: store.settings.solutionMediaFilterMode || 'blacklist',
+        solutionMediaFilterExtensions: store.settings.solutionMediaFilterExtensions || ''
       };
     }
   });
@@ -52,14 +58,15 @@
   let hasCustomSystemPrompt = $state(false);
 
   // Tab navigation state
-  type TabId = 'model' | 'canvas' | 'eraser' | 'evaluation' | 'prompt' | 'numbering';
+  type TabId = 'model' | 'canvas' | 'eraser' | 'evaluation' | 'prompt' | 'numbering' | 'mediaFilter';
   let activeTab = $state<TabId>('model');
 
   const tabs = [
     { id: 'model', labelKey: 'lessonSettings.modelConfigTitle', icon: 'smart_toy' },
+    { id: 'evaluation', labelKey: 'lessonSettings.evaluationDetailsTitle', icon: 'fact_check' },
+    { id: 'mediaFilter', labelKey: 'settings.api.mediaFilterMode', icon: 'filter_alt' },
     { id: 'canvas', labelKey: 'lessonSettings.canvasLayoutTitle', icon: 'aspect_ratio' },
     { id: 'eraser', labelKey: 'lessonSettings.eraserTitle', icon: 'ink_eraser' },
-    { id: 'evaluation', labelKey: 'lessonSettings.evaluationDetailsTitle', icon: 'fact_check' },
     { id: 'prompt', labelKey: 'lessonSettings.systemPromptTitle', icon: 'terminal' },
     { id: 'numbering', labelKey: 'lessonSettings.taskNumberingTitle', icon: 'format_list_numbered' }
   ];
@@ -117,7 +124,7 @@
     isOpen = false;
   }
 
-  function handleToggleOverride(category: 'overrideModel' | 'overrideCanvas' | 'overrideEraser' | 'overrideEvaluation' | 'overrideSystemPrompt' | 'overrideTaskNumbering', e: Event & { currentTarget: HTMLInputElement }) {
+  function handleToggleOverride(category: 'overrideModel' | 'overrideCanvas' | 'overrideEraser' | 'overrideEvaluation' | 'overrideSystemPrompt' | 'overrideTaskNumbering' | 'overrideMediaFilter', e: Event & { currentTarget: HTMLInputElement }) {
     if (!project.settingsOverride) return;
     const checked = e.currentTarget.checked;
     project.settingsOverride[category] = checked;
@@ -129,7 +136,8 @@
       project.settingsOverride.overrideEraser ||
       project.settingsOverride.overrideEvaluation ||
       project.settingsOverride.overrideSystemPrompt ||
-      project.settingsOverride.overrideTaskNumbering
+      project.settingsOverride.overrideTaskNumbering ||
+      project.settingsOverride.overrideMediaFilter
     );
 
     if (category === 'overrideSystemPrompt') {
@@ -490,6 +498,42 @@
                 <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
                 <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto font-medium">
                   {t('settings.taskNumbering.title')}: {store.settings.autoNumberTasks ? `${t('settings.taskNumbering.autoNumber')} (${store.settings.taskNumberingTemplate})` : (store.settings.language === 'Deutsch' ? 'Deaktiviert' : 'Deactivated')}
+                </p>
+              </div>
+            {/if}
+
+          {:else if activeTab === 'mediaFilter'}
+            <!-- Media Filter Override Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-xs font-bold text-on-surface">{t('settings.api.mediaFilterMode')} (Override)</span>
+                <span class="text-[10.5px] text-outline leading-tight">Möchtest du die Medienfilter für diese Lektion überschreiben?</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={project.settingsOverride?.overrideMediaFilter || false} 
+                  onchange={(e) => handleToggleOverride('overrideMediaFilter', e)}
+                  class="sr-only peer"
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+
+            {#if project.settingsOverride?.overrideMediaFilter}
+              <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                <MediaFilterSettings 
+                  settings={project.settingsOverride} 
+                  onchange={() => store.saveProjects()} 
+                />
+              </div>
+            {:else}
+              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">filter_alt</span>
+                <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto font-medium">
+                  Task: {store.settings.taskMediaFilterMode === 'whitelist' ? 'Whitelist' : 'Blacklist'} ({store.settings.taskMediaFilterExtensions || 'None'}), 
+                  Solution: {store.settings.solutionMediaFilterMode === 'whitelist' ? 'Whitelist' : 'Blacklist'} ({store.settings.solutionMediaFilterExtensions || 'None'})
                 </p>
               </div>
             {/if}

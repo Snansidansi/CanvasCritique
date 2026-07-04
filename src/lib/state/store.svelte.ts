@@ -151,45 +151,65 @@ class CanvasCritiqueStore {
     return regex.test(name);
   }
 
-  getEffectiveSettings(projectId: string): Settings {
+  getEffectiveSettings(projectId: string, taskId?: string): Settings {
     const project = this.projects.find(p => p.id === projectId);
+    const task = project?.tasks?.find(t => t.id === taskId);
     const globalSettings = this.settings;
-    if (project && project.settingsOverride) {
-      const override = project.settingsOverride;
-      const isOverrideModel = override.overrideModel ?? override.overrideSettings ?? false;
-      const isOverrideCanvas = override.overrideCanvas ?? override.overrideSettings ?? false;
-      const isOverrideEraser = override.overrideEraser ?? override.overrideSettings ?? false;
-      const isOverrideEvaluation = override.overrideEvaluation ?? override.overrideSettings ?? false;
-      const isOverrideSystemPrompt = override.overrideSystemPrompt ?? override.overrideSettings ?? false;
-      const isOverrideTaskNumbering = override.overrideTaskNumbering ?? override.overrideSettings ?? false;
-      const isOverrideAlwaysSendBoth = override.overrideAlwaysSendBoth ?? override.overrideSettings ?? false;
-      const isAnyOverride = isOverrideModel || isOverrideCanvas || isOverrideEraser || isOverrideEvaluation || isOverrideSystemPrompt || isOverrideTaskNumbering || isOverrideAlwaysSendBoth;
 
-      return {
-        ...globalSettings,
-        apiProvider: isOverrideModel ? (override.apiProvider ?? globalSettings.apiProvider) : globalSettings.apiProvider,
-        geminiModel: isOverrideModel ? (override.geminiModel ?? globalSettings.geminiModel) : globalSettings.geminiModel,
-        openRouterModel: isOverrideModel ? (override.openRouterModel ?? globalSettings.openRouterModel) : globalSettings.openRouterModel,
-        openRouterReasoning: isOverrideModel ? (override.openRouterReasoning ?? globalSettings.openRouterReasoning) : globalSettings.openRouterReasoning,
-        openRouterProvider: isOverrideModel ? (override.openRouterProvider ?? globalSettings.openRouterProvider) : globalSettings.openRouterProvider,
-        sendTaskMedia: isOverrideEvaluation ? (override.sendTaskMedia ?? globalSettings.sendTaskMedia) : globalSettings.sendTaskMedia,
-        sendSolutionMedia: isOverrideEvaluation ? (override.sendSolutionMedia ?? globalSettings.sendSolutionMedia) : globalSettings.sendSolutionMedia,
-        sendCanvasBackground: isOverrideEvaluation ? (override.sendCanvasBackground ?? globalSettings.sendCanvasBackground) : globalSettings.sendCanvasBackground,
-        sendTaskText: isOverrideEvaluation ? (override.sendTaskText ?? globalSettings.sendTaskText) : globalSettings.sendTaskText,
-        sendSolutionText: isOverrideEvaluation ? (override.sendSolutionText ?? globalSettings.sendSolutionText) : globalSettings.sendSolutionText,
-        alwaysSendBothCanvasAndText: isOverrideAlwaysSendBoth ? (override.alwaysSendBothCanvasAndText ?? globalSettings.alwaysSendBothCanvasAndText) : globalSettings.alwaysSendBothCanvasAndText,
-        customSystemPrompt: isOverrideSystemPrompt ? (override.customSystemPrompt !== undefined && override.customSystemPrompt !== null ? override.customSystemPrompt : globalSettings.customSystemPrompt) : globalSettings.customSystemPrompt,
-        language: isAnyOverride ? (override.language ?? globalSettings.language) : globalSettings.language,
-        canvasMode: isOverrideCanvas ? (override.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode,
-        canvasFontSize: isOverrideCanvas ? (override.canvasFontSize ?? globalSettings.canvasFontSize) : globalSettings.canvasFontSize,
-        eraserMode: isOverrideEraser ? (override.eraserMode ?? globalSettings.eraserMode) : globalSettings.eraserMode,
-        eraserRadiusNormal: isOverrideEraser ? (override.eraserRadiusNormal ?? globalSettings.eraserRadiusNormal) : globalSettings.eraserRadiusNormal,
-        eraserRadiusStroke: isOverrideEraser ? (override.eraserRadiusStroke ?? globalSettings.eraserRadiusStroke) : globalSettings.eraserRadiusStroke,
-        autoNumberTasks: isOverrideTaskNumbering ? (override.autoNumberTasks ?? globalSettings.autoNumberTasks) : globalSettings.autoNumberTasks,
-        taskNumberingTemplate: isOverrideTaskNumbering ? (override.taskNumberingTemplate ?? globalSettings.taskNumberingTemplate) : globalSettings.taskNumberingTemplate
-      };
-    }
-    return globalSettings;
+    const projOverride = project?.settingsOverride;
+    const taskOverride = task?.settingsOverride;
+
+    const useTaskModel = taskOverride?.overrideSettings && taskOverride?.overrideModel;
+    const useProjModel = projOverride?.overrideSettings && projOverride?.overrideModel;
+
+    const useTaskCanvas = taskOverride?.overrideSettings && taskOverride?.overrideCanvas;
+    const useProjCanvas = projOverride?.overrideSettings && projOverride?.overrideCanvas;
+
+    const useTaskEraser = taskOverride?.overrideSettings && taskOverride?.overrideEraser;
+    const useProjEraser = projOverride?.overrideSettings && projOverride?.overrideEraser;
+
+    const useTaskEvaluation = taskOverride?.overrideSettings && taskOverride?.overrideEvaluation;
+    const useProjEvaluation = projOverride?.overrideSettings && projOverride?.overrideEvaluation;
+
+    const useTaskSystemPrompt = taskOverride?.overrideSettings && taskOverride?.overrideSystemPrompt;
+    const useProjSystemPrompt = projOverride?.overrideSettings && projOverride?.overrideSystemPrompt;
+
+    const useTaskTaskNumbering = taskOverride?.overrideSettings && taskOverride?.overrideTaskNumbering;
+    const useProjTaskNumbering = projOverride?.overrideSettings && projOverride?.overrideTaskNumbering;
+
+    const useTaskAlwaysSendBoth = taskOverride?.overrideSettings && taskOverride?.overrideAlwaysSendBoth;
+    const useProjAlwaysSendBoth = projOverride?.overrideSettings && projOverride?.overrideAlwaysSendBoth;
+
+    const useTaskMediaFilter = taskOverride?.overrideSettings && taskOverride?.overrideMediaFilter;
+    const useProjMediaFilter = projOverride?.overrideSettings && projOverride?.overrideMediaFilter;
+
+    return {
+      ...globalSettings,
+      apiProvider: useTaskModel ? (taskOverride.apiProvider ?? globalSettings.apiProvider) : (useProjModel ? (projOverride.apiProvider ?? globalSettings.apiProvider) : globalSettings.apiProvider),
+      geminiModel: useTaskModel ? (taskOverride.geminiModel ?? globalSettings.geminiModel) : (useProjModel ? (projOverride.geminiModel ?? globalSettings.geminiModel) : globalSettings.geminiModel),
+      openRouterModel: useTaskModel ? (taskOverride.openRouterModel ?? globalSettings.openRouterModel) : (useProjModel ? (projOverride.openRouterModel ?? globalSettings.openRouterModel) : globalSettings.openRouterModel),
+      openRouterReasoning: useTaskModel ? (taskOverride.openRouterReasoning ?? globalSettings.openRouterReasoning) : (useProjModel ? (projOverride.openRouterReasoning ?? globalSettings.openRouterReasoning) : globalSettings.openRouterReasoning),
+      openRouterProvider: useTaskModel ? (taskOverride.openRouterProvider ?? globalSettings.openRouterProvider) : (useProjModel ? (projOverride.openRouterProvider ?? globalSettings.openRouterProvider) : globalSettings.openRouterProvider),
+      sendTaskMedia: useTaskEvaluation ? (taskOverride.sendTaskMedia ?? globalSettings.sendTaskMedia) : (useProjEvaluation ? (projOverride.sendTaskMedia ?? globalSettings.sendTaskMedia) : globalSettings.sendTaskMedia),
+      sendSolutionMedia: useTaskEvaluation ? (taskOverride.sendSolutionMedia ?? globalSettings.sendSolutionMedia) : (useProjEvaluation ? (projOverride.sendSolutionMedia ?? globalSettings.sendSolutionMedia) : globalSettings.sendSolutionMedia),
+      sendCanvasBackground: useTaskEvaluation ? (taskOverride.sendCanvasBackground ?? globalSettings.sendCanvasBackground) : (useProjEvaluation ? (projOverride.sendCanvasBackground ?? globalSettings.sendCanvasBackground) : globalSettings.sendCanvasBackground),
+      sendTaskText: useTaskEvaluation ? (taskOverride.sendTaskText ?? globalSettings.sendTaskText) : (useProjEvaluation ? (projOverride.sendTaskText ?? globalSettings.sendTaskText) : globalSettings.sendTaskText),
+      sendSolutionText: useTaskEvaluation ? (taskOverride.sendSolutionText ?? globalSettings.sendSolutionText) : (useProjEvaluation ? (projOverride.sendSolutionText ?? globalSettings.sendSolutionText) : globalSettings.sendSolutionText),
+      alwaysSendBothCanvasAndText: useTaskAlwaysSendBoth ? (taskOverride.alwaysSendBothCanvasAndText ?? globalSettings.alwaysSendBothCanvasAndText) : (useProjAlwaysSendBoth ? (projOverride.alwaysSendBothCanvasAndText ?? globalSettings.alwaysSendBothCanvasAndText) : globalSettings.alwaysSendBothCanvasAndText),
+      customSystemPrompt: useTaskSystemPrompt ? (taskOverride.customSystemPrompt !== undefined && taskOverride.customSystemPrompt !== null ? taskOverride.customSystemPrompt : globalSettings.customSystemPrompt) : (useProjSystemPrompt ? (projOverride.customSystemPrompt !== undefined && projOverride.customSystemPrompt !== null ? projOverride.customSystemPrompt : globalSettings.customSystemPrompt) : globalSettings.customSystemPrompt),
+      canvasMode: useTaskCanvas ? (taskOverride.canvasMode ?? globalSettings.canvasMode) : (useProjCanvas ? (projOverride.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode),
+      canvasFontSize: useTaskCanvas ? (taskOverride.canvasFontSize ?? globalSettings.canvasFontSize) : (useProjCanvas ? (projOverride.canvasFontSize ?? globalSettings.canvasFontSize) : globalSettings.canvasFontSize),
+      eraserMode: useTaskEraser ? (taskOverride.eraserMode ?? globalSettings.eraserMode) : (useProjEraser ? (projOverride.eraserMode ?? globalSettings.eraserMode) : globalSettings.eraserMode),
+      eraserRadiusNormal: useTaskEraser ? (taskOverride.eraserRadiusNormal ?? globalSettings.eraserRadiusNormal) : (useProjEraser ? (projOverride.eraserRadiusNormal ?? globalSettings.eraserRadiusNormal) : globalSettings.eraserRadiusNormal),
+      eraserRadiusStroke: useTaskEraser ? (taskOverride.eraserRadiusStroke ?? globalSettings.eraserRadiusStroke) : (useProjEraser ? (projOverride.eraserRadiusStroke ?? globalSettings.eraserRadiusStroke) : globalSettings.eraserRadiusStroke),
+      autoNumberTasks: useTaskTaskNumbering ? (taskOverride.autoNumberTasks ?? globalSettings.autoNumberTasks) : (useProjTaskNumbering ? (projOverride.autoNumberTasks ?? globalSettings.autoNumberTasks) : globalSettings.autoNumberTasks),
+      taskNumberingTemplate: useTaskTaskNumbering ? (taskOverride.taskNumberingTemplate ?? globalSettings.taskNumberingTemplate) : (useProjTaskNumbering ? (projOverride.taskNumberingTemplate ?? globalSettings.taskNumberingTemplate) : globalSettings.taskNumberingTemplate),
+      taskMediaFilterMode: useTaskMediaFilter ? (taskOverride.taskMediaFilterMode ?? globalSettings.taskMediaFilterMode) : (useProjMediaFilter ? (projOverride.taskMediaFilterMode ?? globalSettings.taskMediaFilterMode) : globalSettings.taskMediaFilterMode),
+      taskMediaFilterExtensions: useTaskMediaFilter ? (taskOverride.taskMediaFilterExtensions ?? globalSettings.taskMediaFilterExtensions) : (useProjMediaFilter ? (projOverride.taskMediaFilterExtensions ?? globalSettings.taskMediaFilterExtensions) : globalSettings.taskMediaFilterExtensions),
+      solutionMediaFilterMode: useTaskMediaFilter ? (taskOverride.solutionMediaFilterMode ?? globalSettings.solutionMediaFilterMode) : (useProjMediaFilter ? (projOverride.solutionMediaFilterMode ?? globalSettings.solutionMediaFilterMode) : globalSettings.solutionMediaFilterMode),
+      solutionMediaFilterExtensions: useTaskMediaFilter ? (taskOverride.solutionMediaFilterExtensions ?? globalSettings.solutionMediaFilterExtensions) : (useProjMediaFilter ? (projOverride.solutionMediaFilterExtensions ?? globalSettings.solutionMediaFilterExtensions) : globalSettings.solutionMediaFilterExtensions),
+      language: (taskOverride?.overrideSettings) ? (taskOverride.language ?? globalSettings.language) : ((projOverride?.overrideSettings) ? (projOverride.language ?? globalSettings.language) : globalSettings.language),
+    };
   }
 
   // DB init — call before using store
@@ -288,6 +308,18 @@ class CanvasCritiqueStore {
       }
       if (!this.settings.eraserRadiusStroke || typeof this.settings.eraserRadiusStroke !== 'number') {
         this.settings.eraserRadiusStroke = 24;
+      }
+      if (!this.settings.taskMediaFilterMode) {
+        this.settings.taskMediaFilterMode = 'blacklist';
+      }
+      if (this.settings.taskMediaFilterExtensions === undefined) {
+        this.settings.taskMediaFilterExtensions = '';
+      }
+      if (!this.settings.solutionMediaFilterMode) {
+        this.settings.solutionMediaFilterMode = 'blacklist';
+      }
+      if (this.settings.solutionMediaFilterExtensions === undefined) {
+        this.settings.solutionMediaFilterExtensions = '';
       }
       if (!this.settings.penRecentColors || !Array.isArray(this.settings.penRecentColors)) {
         this.settings.penRecentColors = ['#000000', '#1d4ed8', '#dc2626', '#059669'];
@@ -403,7 +435,8 @@ class CanvasCritiqueStore {
             solutionFiles: this.stripDataUrls(task.solutionFiles || []),
             critique: task.critique || null,
             canvasData: this.canvasSaves[task.id] || null,
-            background: task.background || null
+            background: task.background || null,
+            settingsOverride: task.settingsOverride || null
           });
         } else {
           const t = { ...task, canvasData: this.canvasSaves[task.id] || null };
@@ -801,7 +834,8 @@ class CanvasCritiqueStore {
     solution: string,
     category: string = 'Basics',
     instructionFiles: any[] = [],
-    solutionFiles: any[] = []
+    solutionFiles: any[] = [],
+    settingsOverride?: any
   ): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
@@ -814,7 +848,8 @@ class CanvasCritiqueStore {
       solution,
       category,
       instructionFiles: this.stripDataUrls(instructionFiles),
-      solutionFiles: this.stripDataUrls(solutionFiles)
+      solutionFiles: this.stripDataUrls(solutionFiles),
+      settingsOverride
     };
 
     project.tasks.push(newTask);
@@ -853,6 +888,7 @@ class CanvasCritiqueStore {
     if (updatedData.completed !== undefined) task.completed = updatedData.completed;
     if (updatedData.critique !== undefined) task.critique = updatedData.critique;
     if (updatedData.background !== undefined) task.background = updatedData.background;
+    if (updatedData.settingsOverride !== undefined) task.settingsOverride = updatedData.settingsOverride;
 
     // Auto-add category if it isn't listed
     if (task.category && project.categories && !project.categories.includes(task.category)) {
@@ -870,7 +906,8 @@ class CanvasCritiqueStore {
       instructionFiles: task.instructionFiles || [],
       solutionFiles: task.solutionFiles || [],
       critique: task.critique || null,
-      background: task.background || null
+      background: task.background || null,
+      settingsOverride: task.settingsOverride || null
     });
     await this.saveProjects();
 
@@ -1383,6 +1420,7 @@ class CanvasCritiqueStore {
                   }
                   if (options.importCompleted && t.completed !== undefined) matchedTask.completed = !!t.completed;
                   if (options.importCritique && t.critique !== undefined) matchedTask.critique = t.critique;
+                  if (t.settingsOverride !== undefined) matchedTask.settingsOverride = t.settingsOverride;
 
                   await dbUpdateTask(db, matchedTask.id, matchedTask);
                   if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
@@ -1421,7 +1459,8 @@ class CanvasCritiqueStore {
                   category: taskCategory,
                   instructionFiles,
                   solutionFiles,
-                  editorText: t.editorText || ''
+                  editorText: t.editorText || '',
+                  settingsOverride: t.settingsOverride || null
                 };
                 if (t.editorText) {
                   this.editorTexts[taskId] = t.editorText;
@@ -1481,7 +1520,8 @@ class CanvasCritiqueStore {
               category: taskCategory,
               instructionFiles,
               solutionFiles,
-              editorText: t.editorText || ''
+              editorText: t.editorText || '',
+              settingsOverride: t.settingsOverride || null
             };
             if (t.editorText) {
               this.editorTexts[taskId] = t.editorText;

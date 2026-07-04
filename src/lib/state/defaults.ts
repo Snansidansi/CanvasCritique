@@ -123,6 +123,10 @@ export const defaultSettings: Settings = {
   penRecentColors: ['#000000', '#1d4ed8', '#dc2626', '#059669'],
   penBrushWidth: 2,
   penEraserWidth: 24,
-  userIcons: []
+  userIcons: [],
+  taskMediaFilterMode: 'blacklist',
+  taskMediaFilterExtensions: '',
+  solutionMediaFilterMode: 'blacklist',
+  solutionMediaFilterExtensions: ''
 };
 

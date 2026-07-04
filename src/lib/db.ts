@@ -27,6 +27,12 @@ export async function initDb(): Promise<Database> {
     // Column already exists
   }
 
+  try {
+    await db.execute('ALTER TABLE tasks ADD COLUMN settings_override_json TEXT');
+  } catch (_) {
+    // Column already exists
+  }
+
   await db.execute(`
     CREATE TABLE IF NOT EXISTS profiles (
       id TEXT PRIMARY KEY,
@@ -302,7 +308,7 @@ export async function deleteProject(db: Database, id: string): Promise<void> {
 
 export async function getTasks(db: Database): Promise<Task[]> {
   const rows: any[] = await db.select(
-    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text FROM tasks'
+    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json FROM tasks'
   );
   return rows.map(r => {
     const task: Task = {
@@ -318,6 +324,9 @@ export async function getTasks(db: Database): Promise<Task[]> {
       background: r.background || null,
       editorText: r.editor_text || ''
     };
+    if (r.settings_override_json) {
+      try { task.settingsOverride = JSON.parse(r.settings_override_json); } catch (_) {}
+    }
     if (r.critique_json) {
       try { task.critique = JSON.parse(r.critique_json); } catch (_) {}
     }
@@ -331,8 +340,8 @@ export async function getTasks(db: Database): Promise<Task[]> {
 export async function insertTask(db: Database, task: Task, projectId: string): Promise<void> {
   const canvasData = (task as any).canvasData;
   await db.execute(
-    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       task.id,
       task.name,
@@ -346,7 +355,8 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
       canvasData ? JSON.stringify(canvasData) : null,
       projectId,
       task.background || null,
-      task.editorText || ''
+      task.editorText || '',
+      task.settingsOverride ? JSON.stringify(task.settingsOverride) : null
     ]
   );
 }
@@ -366,6 +376,7 @@ export async function updateTask(db: Database, id: string, updates: Partial<any>
   if (updates.projectId !== undefined) { fields.push('project_id = ?'); values.push(updates.projectId); }
   if (updates.background !== undefined) { fields.push('background = ?'); values.push(updates.background); }
   if (updates.editorText !== undefined) { fields.push('editor_text = ?'); values.push(updates.editorText); }
+  if (updates.settingsOverride !== undefined) { fields.push('settings_override_json = ?'); values.push(updates.settingsOverride ? JSON.stringify(updates.settingsOverride) : null); }
   if (fields.length === 0) return;
   values.push(id);
   await db.execute(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ?`, values);
