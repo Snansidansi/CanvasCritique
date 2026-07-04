@@ -534,6 +534,7 @@
 
   // Straightening gesture states
   let straightenTimer: any = null;
+  let straightenAnchorScreen: { x: number; y: number } | null = null;
   let isStraightening = $state(false);
   let straightLineStart = $state<{ x: number; y: number } | null>(null);
   let straightLineEnd = $state<{ x: number; y: number } | null>(null);
@@ -543,10 +544,12 @@
       clearTimeout(straightenTimer);
       straightenTimer = null;
     }
+    straightenAnchorScreen = null;
   }
 
-  function startStraightenTimer(coords: { x: number; y: number }) {
+  function startStraightenTimer(coords: { x: number; y: number }, clientX: number, clientY: number) {
     clearStraightenTimer();
+    straightenAnchorScreen = { x: clientX, y: clientY };
     straightenTimer = setTimeout(() => {
       isStraightening = true;
       straightLineStart = currentStroke[0] || coords;
@@ -1384,7 +1387,7 @@
       if (selectedStrokes.length > 0) selectedStrokes = [];
       isDrawing = true;
       currentStroke = [coords];
-      startStraightenTimer(coords);
+      startStraightenTimer(coords, e.clientX, e.clientY);
     }
   }
 
@@ -1549,13 +1552,14 @@
         straightLineEnd = coords;
       } else {
         currentStroke.push(coords);
-        const last = currentStroke[currentStroke.length - 2];
-        if (last) {
-          const dist = Math.hypot(coords.x - last.x, coords.y - last.y);
-          if (dist > 8) {
+        if (straightenAnchorScreen) {
+          const dist = Math.hypot(e.clientX - straightenAnchorScreen.x, e.clientY - straightenAnchorScreen.y);
+          if (dist > 3) {
             clearStraightenTimer();
-            startStraightenTimer(coords);
+            startStraightenTimer(coords, e.clientX, e.clientY);
           }
+        } else {
+          startStraightenTimer(coords, e.clientX, e.clientY);
         }
       }
     }
