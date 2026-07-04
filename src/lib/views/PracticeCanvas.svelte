@@ -356,7 +356,7 @@
 
   // Auto-invalidate strokes cache when relevant inputs change
   $effect(() => {
-    const _sh = strokeHistory.length;
+    const _sh = strokeHistory;
     const _panX = panOffset.x;
     const _panY = panOffset.y;
     const _zoom = zoomScale;
@@ -1533,6 +1533,7 @@
       } else {
         infiniteStrokes = [...infiniteStrokes];
       }
+      invalidateCache();
     } else if (activeTool === 'select' || isPointerSelect) {
       if (selectionBox) {
         selectionBox.x2 = coords.x;
