@@ -20,59 +20,61 @@
   let startX = 0;
   let startWidth = 0;
 
-  // Panel horizontal resizing states and effects
-  let panelWidths = $state<Record<string, number>>({});
-  let lastSplitWidth = splitWidth;
+  // Panel vertical resizing states and effects
+  let containerHeight = $state(0);
+  let panelHeights = $state<Record<string, number>>({});
+  let lastContainerHeight = 0;
 
   $effect(() => {
     const panels = activeLeftPanels;
-    if (!panels || panels.length === 0) return;
+    if (!panels || panels.length === 0 || containerHeight === 0) return;
 
-    // Check if we need to initialize or re-initialize widths
+    // Check if we need to initialize or re-initialize heights
     const panelIds = panels.map(p => p.id);
-    const existingIds = Object.keys(panelWidths);
-    const isMismatch = panelIds.some(id => !panelWidths[id]) || existingIds.length !== panelIds.length;
+    const existingIds = Object.keys(panelHeights);
+    const isMismatch = panelIds.some(id => !panelHeights[id]) || existingIds.length !== panelIds.length;
 
     if (isMismatch) {
-      const share = splitWidth / panels.length;
-      const newWidths: Record<string, number> = {};
+      const share = containerHeight / panels.length;
+      const newHeights: Record<string, number> = {};
       for (const p of panels) {
-        newWidths[p.id] = panelWidths[p.id] || share;
+        newHeights[p.id] = panelHeights[p.id] || share;
       }
-      // Normalize to sum up to splitWidth
+      // Normalize to sum up to containerHeight
       let sum = 0;
-      for (const id in newWidths) sum += newWidths[id];
-      if (Math.abs(sum - splitWidth) > 1 && sum > 0) {
-        for (const id in newWidths) {
-          newWidths[id] = (newWidths[id] / sum) * splitWidth;
+      for (const id in newHeights) sum += newHeights[id];
+      if (Math.abs(sum - containerHeight) > 1 && sum > 0) {
+        for (const id in newHeights) {
+          newHeights[id] = (newHeights[id] / sum) * containerHeight;
         }
       }
-      panelWidths = newWidths;
+      panelHeights = newHeights;
+      lastContainerHeight = containerHeight;
     }
   });
 
   $effect(() => {
-    if (splitWidth !== lastSplitWidth) {
-      const ratio = splitWidth / (lastSplitWidth || 1);
-      const newWidths = { ...panelWidths };
-      for (const id in newWidths) {
-        newWidths[id] = (newWidths[id] || 0) * ratio;
+    if (containerHeight !== lastContainerHeight && containerHeight > 0) {
+      const ratio = containerHeight / (lastContainerHeight || 1);
+      const newHeights = { ...panelHeights };
+      for (const id in newHeights) {
+        newHeights[id] = (newHeights[id] || 0) * ratio;
       }
-      panelWidths = newWidths;
-      lastSplitWidth = splitWidth;
+      panelHeights = newHeights;
+      lastContainerHeight = containerHeight;
     }
   });
 
   let resizingPanelIndex = -1;
-  let panelResizeStartWidths: number[] = [];
-  let panelResizeStartX = 0;
+  let panelResizeStartHeights: number[] = [];
+  let panelResizeStartY = 0;
   let panelResizePointerId = -1;
 
   function startPanelResizeDrag(e: PointerEvent, leftPanelIdx: number) {
     e.preventDefault();
     resizingPanelIndex = leftPanelIdx;
-    panelResizeStartX = e.clientX;
-    panelResizeStartWidths = activeLeftPanels.map((p: any) => panelWidths[p.id] || 0);
+    panelResizeStartY = e.clientY;
+    panelResizeStartHeights = activeLeftPanels.map((p: any) => panelHeights[p.id] || 0);
     panelResizePointerId = e.pointerId;
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -81,20 +83,20 @@
 
   function handlePanelResizeDrag(e: PointerEvent) {
     if (resizingPanelIndex === -1 || e.pointerId !== panelResizePointerId) return;
-    const dx = e.clientX - panelResizeStartX;
-    const leftPanelId = activeLeftPanels[resizingPanelIndex].id;
-    const rightPanelId = activeLeftPanels[resizingPanelIndex + 1].id;
+    const dy = e.clientY - panelResizeStartY;
+    const topPanelId = activeLeftPanels[resizingPanelIndex].id;
+    const bottomPanelId = activeLeftPanels[resizingPanelIndex + 1].id;
     
-    const origLeftWidth = panelResizeStartWidths[resizingPanelIndex];
-    const origRightWidth = panelResizeStartWidths[resizingPanelIndex + 1];
+    const origTopHeight = panelResizeStartHeights[resizingPanelIndex];
+    const origBottomHeight = panelResizeStartHeights[resizingPanelIndex + 1];
     
-    const minWidth = 100;
-    const maxDx = origRightWidth - minWidth;
-    const minDx = minWidth - origLeftWidth;
-    const constrainedDx = Math.max(minDx, Math.min(maxDx, dx));
+    const minHeight = 80;
+    const maxDy = origBottomHeight - minHeight;
+    const minDy = minHeight - origTopHeight;
+    const constrainedDy = Math.max(minDy, Math.min(maxDy, dy));
     
-    panelWidths[leftPanelId] = origLeftWidth + constrainedDx;
-    panelWidths[rightPanelId] = origRightWidth - constrainedDx;
+    panelHeights[topPanelId] = origTopHeight + constrainedDy;
+    panelHeights[bottomPanelId] = origBottomHeight - constrainedDy;
   }
 
   function stopPanelResizeDrag(e: PointerEvent) {
@@ -522,7 +524,8 @@
 
 {#if activeLeftPanels.length > 0}
   <section 
-    class="bg-surface-container-low border-r border-outline-variant flex flex-row overflow-hidden h-full {isRightContentVisible ? 'shrink-0' : 'grow w-full'}"
+    bind:clientHeight={containerHeight}
+    class="bg-surface-container-low border-r border-outline-variant flex flex-col overflow-hidden h-full {isRightContentVisible ? 'shrink-0' : 'grow w-full'}"
     style={isRightContentVisible ? `width: ${splitWidth}px;` : ''}
   >
     {#each activeLeftPanels as panel, idx}
@@ -530,7 +533,7 @@
         <!-- Draggable Horizontal Panel Divider -->
         <div 
           role="separator"
-          class="w-1 bg-outline-variant/50 hover:bg-primary cursor-col-resize select-none h-full z-20 transition-all active:bg-primary shrink-0"
+          class="h-1.5 w-full bg-outline-variant/60 hover:bg-primary cursor-row-resize select-none z-20 transition-all active:bg-primary shrink-0"
           style="touch-action: none;"
           onpointerdown={(e) => startPanelResizeDrag(e, idx - 1)}
           onpointermove={handlePanelResizeDrag}
@@ -542,8 +545,8 @@
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <div 
         onclick={panel.isFeedback ? handleCritiqueClick : null}
-        class="flex flex-col overflow-y-auto p-6 hide-scrollbar shrink-0 {panel.id === 'solution' ? 'bg-surface-container-low/20' : panel.id === 'feedback' ? 'bg-primary/5' : ''}"
-        style="width: {panelWidths[panel.id] || (splitWidth / activeLeftPanels.length)}px;"
+        class="w-full flex flex-col overflow-y-auto p-6 hide-scrollbar shrink-0 {panel.id === 'solution' ? 'bg-surface-container-low/20' : panel.id === 'feedback' ? 'bg-primary/5' : ''}"
+        style="height: {panelHeights[panel.id] || (containerHeight / activeLeftPanels.length)}px;"
       >
         <div class="flex items-center justify-between mb-3 pb-1 border-b border-outline-variant/30">
           <h2 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5 font-sans select-none">
