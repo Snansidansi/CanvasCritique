@@ -501,6 +501,59 @@
       : infiniteEraserUndo
   );
 
+  // Snaps line to horizontal or vertical if it's within ±5 degrees
+  function snapLine(start: { x: number; y: number }, end: { x: number; y: number }) {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const length = Math.hypot(dx, dy);
+    if (length === 0) return { ...end };
+
+    const angleRad = Math.atan2(dy, dx);
+    let angleDeg = (angleRad * 180 / Math.PI) % 360;
+    if (angleDeg < 0) angleDeg += 360;
+
+    const threshold = 5; // ±5 degrees
+    
+    // Check horizontal (0, 180, 360)
+    if (Math.abs(angleDeg - 0) <= threshold || Math.abs(angleDeg - 360) <= threshold) {
+      return { x: start.x + Math.sign(dx || 1) * length, y: start.y };
+    }
+    if (Math.abs(angleDeg - 180) <= threshold) {
+      return { x: start.x - length, y: start.y };
+    }
+    // Check vertical (90, 270)
+    if (Math.abs(angleDeg - 90) <= threshold) {
+      return { x: start.x, y: start.y + length };
+    }
+    if (Math.abs(angleDeg - 270) <= threshold) {
+      return { x: start.x, y: start.y - length };
+    }
+    
+    return { ...end };
+  }
+
+  // Straightening gesture states
+  let straightenTimer: any = null;
+  let isStraightening = $state(false);
+  let straightLineStart = $state<{ x: number; y: number } | null>(null);
+  let straightLineEnd = $state<{ x: number; y: number } | null>(null);
+
+  function clearStraightenTimer() {
+    if (straightenTimer) {
+      clearTimeout(straightenTimer);
+      straightenTimer = null;
+    }
+  }
+
+  function startStraightenTimer(coords: { x: number; y: number }) {
+    clearStraightenTimer();
+    straightenTimer = setTimeout(() => {
+      isStraightening = true;
+      straightLineStart = currentStroke[0] || coords;
+      straightLineEnd = coords;
+    }, 600);
+  }
+
   // Stroke history state
   let isDrawing = false;
   let currentStroke = $state([]);
@@ -649,6 +702,11 @@
     const sPrevX = shapePreviewX;
     const sPrevY = shapePreviewY;
     const sType = shapeType;
+
+    // Straightening triggers
+    const isStr = isStraightening;
+    const strStart = straightLineStart;
+    const strEnd = straightLineEnd;
 
     if (ctx && canvasElement) {
       requestRedraw();
@@ -1241,6 +1299,12 @@
     // Only allow drawing/selecting/panning on left-click (or barrel button actions)
     if (e.button !== 0 && !isPointerEraser && !isPointerSelect && !isPointerPan && !isPointerPen) return;
 
+    // Reset straightening gesture
+    isStraightening = false;
+    straightLineStart = null;
+    straightLineEnd = null;
+    clearStraightenTimer();
+
     const coords = getCoords(e);
     const bounds = selectionBoundingBox;
     const isClickInSelection = bounds && isPointInBounds(coords.x, coords.y, bounds);
@@ -1320,6 +1384,7 @@
       if (selectedStrokes.length > 0) selectedStrokes = [];
       isDrawing = true;
       currentStroke = [coords];
+      startStraightenTimer(coords);
     }
   }
 
@@ -1471,15 +1536,34 @@
         selectionBox.y2 = coords.y;
       }
     } else if (isShapeDrawing) {
-      shapePreviewX = coords.x;
-      shapePreviewY = coords.y;
+      if (shapeType === 'line') {
+        const snapped = snapLine({ x: shapeAnchorX, y: shapeAnchorY }, coords);
+        shapePreviewX = snapped.x;
+        shapePreviewY = snapped.y;
+      } else {
+        shapePreviewX = coords.x;
+        shapePreviewY = coords.y;
+      }
     } else if (isDrawing) {
-      currentStroke.push(coords);
+      if (isStraightening) {
+        straightLineEnd = coords;
+      } else {
+        currentStroke.push(coords);
+        const last = currentStroke[currentStroke.length - 2];
+        if (last) {
+          const dist = Math.hypot(coords.x - last.x, coords.y - last.y);
+          if (dist > 8) {
+            clearStraightenTimer();
+            startStraightenTimer(coords);
+          }
+        }
+      }
     }
   }
 
   function handlePointerUp(e) {
     activePointers.delete(e.pointerId);
+    clearStraightenTimer();
 
     if (e && canvasElement && canvasElement.hasPointerCapture(e.pointerId)) {
       try {
@@ -1547,7 +1631,25 @@
     } else if (isDrawing) {
       isDrawing = false;
       
-      if (currentStroke.length > 0) {
+      if (isStraightening && straightLineStart && straightLineEnd) {
+        const finalEnd = snapLine(straightLineStart, straightLineEnd);
+        const newStroke = {
+          color: strokeColor,
+          width: brushWidth,
+          points: [straightLineStart, finalEnd]
+        };
+        
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].strokeHistory.push(newStroke);
+          pages[activePageIndex].redoStack = [];
+          pages[activePageIndex].eraserUndoStack = [];
+        } else {
+          infiniteStrokes.push(newStroke);
+          infiniteRedo = [];
+          infiniteEraserUndo = [];
+        }
+        saveToStore();
+      } else if (currentStroke.length > 0) {
         const isEraser = (activeTool === 'eraser' || isPointerEraser);
         const newStroke = {
           color: isEraser ? 'eraser' : strokeColor,
@@ -1583,6 +1685,9 @@
         saveToStore();
       }
       currentStroke = [];
+      isStraightening = false;
+      straightLineStart = null;
+      straightLineEnd = null;
     }
     isPointerEraser = false;
     isPointerSelect = false;
@@ -1796,11 +1901,24 @@
           offscreenCtx.translate(panOffset.x, panOffset.y);
           offscreenCtx.scale(zoomScale, zoomScale);
         }
-        drawStroke(offscreenCtx, {
-          color: (activeTool === 'eraser' || isPointerEraser) ? 'eraser' : strokeColor,
-          width: (activeTool === 'eraser' || isPointerEraser) ? eraserWidth : brushWidth,
-          points: currentStroke
-        });
+        if (isStraightening && straightLineStart && straightLineEnd) {
+          offscreenCtx.strokeStyle = strokeColor + '80';
+          offscreenCtx.lineWidth = brushWidth;
+          offscreenCtx.lineCap = 'round';
+          offscreenCtx.lineJoin = 'round';
+          offscreenCtx.setLineDash([6, 4]);
+          offscreenCtx.beginPath();
+          offscreenCtx.moveTo(straightLineStart.x, straightLineStart.y);
+          const snappedEnd = snapLine(straightLineStart, straightLineEnd);
+          offscreenCtx.lineTo(snappedEnd.x, snappedEnd.y);
+          offscreenCtx.stroke();
+        } else {
+          drawStroke(offscreenCtx, {
+            color: (activeTool === 'eraser' || isPointerEraser) ? 'eraser' : strokeColor,
+            width: (activeTool === 'eraser' || isPointerEraser) ? eraserWidth : brushWidth,
+            points: currentStroke
+          });
+        }
         offscreenCtx.restore();
       }
     }
