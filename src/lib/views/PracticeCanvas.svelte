@@ -2489,6 +2489,7 @@
       {handleCritiqueClick}
       {task}
       textFontSize={canvasTextFontSize}
+      isRightContentVisible={showCanvas || showText}
     />
 
     <!-- Right side: Drawing Workspace (Infinite or A4 Centered) -->

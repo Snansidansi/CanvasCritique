@@ -12,7 +12,8 @@
     parseMarkdown,
     handleCritiqueClick,
     task,
-    textFontSize = 13
+    textFontSize = 13,
+    isRightContentVisible = true
   } = $props();
 
   let isDraggingSplitter = $state(false);
@@ -435,8 +436,8 @@
 
 {#if activeLeftPanels.length > 0}
   <section 
-    class="bg-surface-container-low border-r border-outline-variant flex flex-col overflow-hidden h-full shrink-0"
-    style="width: {splitWidth}px;"
+    class="bg-surface-container-low border-r border-outline-variant flex flex-col overflow-hidden h-full {isRightContentVisible ? 'shrink-0' : 'grow w-full'}"
+    style={isRightContentVisible ? `width: ${splitWidth}px;` : ''}
   >
     {#each activeLeftPanels as panel, idx}
       {#if idx > 0}
@@ -741,16 +742,18 @@
   </section>
 
   <!-- Draggable Split Separator -->
-  <div 
-    role="separator"
-    aria-valuenow={splitWidth}
-    class="w-1.5 hover:w-2 bg-outline-variant/60 hover:bg-primary cursor-col-resize select-none h-full z-20 transition-all active:bg-primary shrink-0"
-    style="touch-action: none;"
-    onpointerdown={startSplitDrag}
-    onpointermove={handleSplitDrag}
-    onpointerup={stopSplitDrag}
-    onpointercancel={stopSplitDrag}
-  ></div>
+  {#if isRightContentVisible}
+    <div 
+      role="separator"
+      aria-valuenow={splitWidth}
+      class="w-1.5 hover:w-2 bg-outline-variant/60 hover:bg-primary cursor-col-resize select-none h-full z-20 transition-all active:bg-primary shrink-0"
+      style="touch-action: none;"
+      onpointerdown={startSplitDrag}
+      onpointermove={handleSplitDrag}
+      onpointerup={stopSplitDrag}
+      onpointercancel={stopSplitDrag}
+    ></div>
+  {/if}
 {/if}
 
 <!-- Full-screen Media Preview Modal -->
