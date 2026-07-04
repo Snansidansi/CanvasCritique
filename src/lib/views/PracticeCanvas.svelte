@@ -2336,14 +2336,17 @@
       pages[activePageIndex].redoStack = [];
       pages[activePageIndex].eraserUndoStack = [];
       pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
+      const len = pages[activePageIndex].strokeHistory.length;
+      selectedStrokes = pages[activePageIndex].strokeHistory.slice(len - strokesToPaste.length);
     } else {
       infiniteStrokes.push(...strokesToPaste);
       infiniteRedo = [];
       infiniteEraserUndo = [];
       infiniteStrokes = [...infiniteStrokes];
+      const len = infiniteStrokes.length;
+      selectedStrokes = infiniteStrokes.slice(len - strokesToPaste.length);
     }
     
-    selectedStrokes = strokesToPaste;
     contextMenu = null;
     saveToStore();
   }
