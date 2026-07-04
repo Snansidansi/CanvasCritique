@@ -2337,7 +2337,6 @@
     }
     
     selectedStrokes = strokesToPaste;
-    activeTool = 'select';
     contextMenu = null;
     saveToStore();
   }
