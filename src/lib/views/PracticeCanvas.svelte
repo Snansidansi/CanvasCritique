@@ -1,6 +1,6 @@
 <script lang="ts">
   import { store, DEFAULT_SYSTEM_PROMPT, type Task } from '../state/store.svelte';
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { fly } from 'svelte/transition';
   import { t } from '../services/i18n';
   import { jsPDF } from 'jspdf';
@@ -960,7 +960,7 @@
   $effect(() => {
     const taskId = task.id;
     if (taskId) {
-      const saved = store.getCanvasState(taskId);
+      const saved = untrack(() => store.getCanvasState(taskId));
       if (saved) {
         pages = saved.pages || [
           {
