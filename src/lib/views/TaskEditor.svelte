@@ -5,6 +5,11 @@
   import { t } from '../services/i18n';
   import { saveMediaToDb, getMediaDataUrl, isAudioFile, isVideoFile, isImageFile, getFileIcon, isIntegratedFile, openAttachmentInDefaultApp } from '../db/media';
   import AudioPlayer from '../components/practice/AudioPlayer.svelte';
+  import AiModelConfig from '../components/settings/AiModelConfig.svelte';
+  import EvaluationDetailsSettings from '../components/settings/EvaluationDetailsSettings.svelte';
+  import CanvasModeSelector from '../components/settings/CanvasModeSelector.svelte';
+  import MediaFilterSettings from '../components/settings/MediaFilterSettings.svelte';
+  import TaskNumberingConfig from '../components/settings/TaskNumberingConfig.svelte';
 
   // Form states
   let taskName = $state('');
@@ -15,6 +20,82 @@
   let category = $state('Basics');
   let showInstructionsRaw = $state(true);
   let showSolutionRaw = $state(true);
+
+  // Task specific override settings
+  let settingsOverride = $state<any>({
+    overrideSettings: false,
+    overrideModel: false,
+    overrideCanvas: false,
+    overrideEraser: false,
+    overrideEvaluation: false,
+    overrideSystemPrompt: false,
+    overrideTaskNumbering: false,
+    overrideAlwaysSendBoth: false,
+    overrideMediaFilter: false,
+    apiProvider: 'gemini',
+    geminiModel: 'gemini-1.5-pro',
+    openRouterModel: 'google/gemini-2.0-pro-exp-02-05:free',
+    openRouterProvider: [],
+    openRouterReasoning: false,
+    sendTaskMedia: true,
+    sendSolutionMedia: true,
+    sendCanvasBackground: true,
+    sendTaskText: true,
+    sendSolutionText: true,
+    alwaysSendBothCanvasAndText: false,
+    customSystemPrompt: '',
+    language: 'de',
+    canvasMode: 'infinite',
+    canvasFontSize: 13,
+    autoNumberTasks: true,
+    taskNumberingTemplate: 'Aufgabe {n}',
+    eraserMode: 'normal',
+    eraserRadiusNormal: 24,
+    eraserRadiusStroke: 24,
+    taskMediaFilterMode: 'blacklist',
+    taskMediaFilterExtensions: '',
+    solutionMediaFilterMode: 'blacklist',
+    solutionMediaFilterExtensions: ''
+  });
+
+  // Overrides tab state
+  type TaskTabId = 'model' | 'evaluation' | 'mediaFilter' | 'canvas' | 'eraser' | 'prompt' | 'numbering';
+  let activeTaskTab = $state<TaskTabId>('model');
+
+  const taskTabs = [
+    { id: 'model', labelKey: 'lessonSettings.modelConfigTitle', icon: 'smart_toy' },
+    { id: 'evaluation', labelKey: 'lessonSettings.evaluationDetailsTitle', icon: 'fact_check' },
+    { id: 'mediaFilter', labelKey: 'settings.api.mediaFilterMode', icon: 'filter_alt' },
+    { id: 'canvas', labelKey: 'lessonSettings.canvasLayoutTitle', icon: 'aspect_ratio' },
+    { id: 'eraser', labelKey: 'lessonSettings.eraserTitle', icon: 'ink_eraser' },
+    { id: 'prompt', labelKey: 'lessonSettings.systemPromptTitle', icon: 'terminal' },
+    { id: 'numbering', labelKey: 'lessonSettings.taskNumberingTitle', icon: 'format_list_numbered' }
+  ];
+
+  function handleToggleOverride(category: 'overrideModel' | 'overrideCanvas' | 'overrideEraser' | 'overrideEvaluation' | 'overrideSystemPrompt' | 'overrideTaskNumbering' | 'overrideMediaFilter', checked: boolean) {
+    settingsOverride[category] = checked;
+    
+    // Keep overall overrideSettings in sync
+    settingsOverride.overrideSettings = !!(
+      settingsOverride.overrideModel ||
+      settingsOverride.overrideCanvas ||
+      settingsOverride.overrideEraser ||
+      settingsOverride.overrideEvaluation ||
+      settingsOverride.overrideSystemPrompt ||
+      settingsOverride.overrideTaskNumbering ||
+      settingsOverride.overrideMediaFilter
+    );
+
+    if (category === 'overrideSystemPrompt') {
+      if (checked) {
+        if (!settingsOverride.customSystemPrompt) {
+          settingsOverride.customSystemPrompt = store.settings.customSystemPrompt || 'You are a thorough but encouraging teacher...';
+        }
+      } else {
+        settingsOverride.customSystemPrompt = '';
+      }
+    }
+  }
 
   // Derived edit state
   let isEditMode = $derived(store.editingTask !== null);
@@ -30,6 +111,44 @@
       solution = store.editingTask.solution;
       category = store.editingTask.category || 'Basics';
       targetProjectId = store.activeProject?.id || '';
+
+      if (store.editingTask.settingsOverride) {
+        settingsOverride = {
+          overrideSettings: store.editingTask.settingsOverride.overrideSettings ?? false,
+          overrideModel: store.editingTask.settingsOverride.overrideModel ?? false,
+          overrideCanvas: store.editingTask.settingsOverride.overrideCanvas ?? false,
+          overrideEraser: store.editingTask.settingsOverride.overrideEraser ?? false,
+          overrideEvaluation: store.editingTask.settingsOverride.overrideEvaluation ?? false,
+          overrideSystemPrompt: store.editingTask.settingsOverride.overrideSystemPrompt ?? false,
+          overrideTaskNumbering: store.editingTask.settingsOverride.overrideTaskNumbering ?? false,
+          overrideAlwaysSendBoth: store.editingTask.settingsOverride.overrideAlwaysSendBoth ?? false,
+          overrideMediaFilter: store.editingTask.settingsOverride.overrideMediaFilter ?? false,
+          apiProvider: store.editingTask.settingsOverride.apiProvider ?? 'gemini',
+          geminiModel: store.editingTask.settingsOverride.geminiModel ?? 'gemini-1.5-pro',
+          openRouterModel: store.editingTask.settingsOverride.openRouterModel ?? 'google/gemini-2.0-pro-exp-02-05:free',
+          openRouterProvider: store.editingTask.settingsOverride.openRouterProvider ?? [],
+          openRouterReasoning: store.editingTask.settingsOverride.openRouterReasoning ?? false,
+          sendTaskMedia: store.editingTask.settingsOverride.sendTaskMedia ?? true,
+          sendSolutionMedia: store.editingTask.settingsOverride.sendSolutionMedia ?? true,
+          sendCanvasBackground: store.editingTask.settingsOverride.sendCanvasBackground ?? true,
+          sendTaskText: store.editingTask.settingsOverride.sendTaskText ?? true,
+          sendSolutionText: store.editingTask.settingsOverride.sendSolutionText ?? true,
+          alwaysSendBothCanvasAndText: store.editingTask.settingsOverride.alwaysSendBothCanvasAndText ?? false,
+          customSystemPrompt: store.editingTask.settingsOverride.customSystemPrompt ?? '',
+          language: store.editingTask.settingsOverride.language ?? 'de',
+          canvasMode: store.editingTask.settingsOverride.canvasMode ?? 'infinite',
+          canvasFontSize: store.editingTask.settingsOverride.canvasFontSize ?? 13,
+          autoNumberTasks: store.editingTask.settingsOverride.autoNumberTasks ?? true,
+          taskNumberingTemplate: store.editingTask.settingsOverride.taskNumberingTemplate ?? 'Aufgabe {n}',
+          eraserMode: store.editingTask.settingsOverride.eraserMode ?? 'normal',
+          eraserRadiusNormal: store.editingTask.settingsOverride.eraserRadiusNormal ?? 24,
+          eraserRadiusStroke: store.editingTask.settingsOverride.eraserRadiusStroke ?? 24,
+          taskMediaFilterMode: store.editingTask.settingsOverride.taskMediaFilterMode ?? 'blacklist',
+          taskMediaFilterExtensions: store.editingTask.settingsOverride.taskMediaFilterExtensions ?? '',
+          solutionMediaFilterMode: store.editingTask.settingsOverride.solutionMediaFilterMode ?? 'blacklist',
+          solutionMediaFilterExtensions: store.editingTask.settingsOverride.solutionMediaFilterExtensions ?? ''
+        };
+      }
       
       // Load saved files
       if (store.editingTask.instructionFiles && Array.isArray(store.editingTask.instructionFiles)) {
@@ -106,7 +225,8 @@
         solutionFiles,
         // Reset single legacy files to keep database clean
         instructionFile: null,
-        solutionFile: null
+        solutionFile: null,
+        settingsOverride: { ...settingsOverride }
       });
       store.editingTask = null;
     } else {
@@ -117,7 +237,8 @@
         solution.trim(),
         category,
         instructionFiles,
-        solutionFiles
+        solutionFiles,
+        { ...settingsOverride }
       );
     }
 
@@ -887,6 +1008,330 @@
                 </button>
               </div>
             {/each}
+          </div>
+        {/if}
+      </div>
+
+      <!-- Task Settings Overrides -->
+      <div class="border-t border-outline-variant/30 pt-6 mt-4 flex flex-col gap-4">
+        <div class="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-sm font-bold text-on-surface">Task-spezifische Einstellungen / Task-Specific Overrides</span>
+            <span class="text-xs text-on-surface-variant">Lerneinstellungen für diese spezifische Aufgabe überschreiben</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer select-none">
+            <input 
+              type="checkbox" 
+              bind:checked={settingsOverride.overrideSettings} 
+              class="sr-only peer"
+            />
+            <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </div>
+
+        {#if settingsOverride.overrideSettings}
+          <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex grow overflow-hidden min-h-0 gap-6 animate-fade-in select-none">
+            <!-- Left Tab Navigation Sidebar -->
+            <div class="w-48 shrink-0 flex flex-col gap-1 border-r border-outline-variant/30 pr-4 overflow-y-auto no-scrollbar py-1">
+              {#each taskTabs as tab}
+                <button
+                  type="button"
+                  onclick={() => activeTaskTab = tab.id as TaskTabId}
+                  class="flex items-center gap-2 px-3 py-2.5 font-semibold text-xs rounded-lg transition-colors text-left focus:outline-none w-full cursor-pointer
+                         {activeTaskTab === tab.id
+                           ? 'text-primary bg-primary/10'
+                           : 'text-on-surface-variant hover:bg-surface-variant/30 hover:text-on-surface'}"
+                >
+                  <span class="material-symbols-outlined text-[18px]">{tab.icon}</span>
+                  <span class="truncate">{t(tab.labelKey)}</span>
+                </button>
+              {/each}
+            </div>
+
+            <!-- Right Content Pane -->
+            <div class="grow overflow-y-auto py-1 pr-1 flex flex-col gap-4 custom-scrollbar min-h-[300px]">
+              {#if activeTaskTab === 'model'}
+                <!-- Model Override Toggle -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideModelLabel')}</span>
+                    <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideModelDesc')}</span>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={settingsOverride.overrideModel || false} 
+                      onchange={(e) => handleToggleOverride('overrideModel', e.currentTarget.checked)}
+                      class="sr-only peer"
+                    />
+                    <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                {#if settingsOverride.overrideModel}
+                  <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                    <AiModelConfig settings={settingsOverride} showKeys={false} />
+                  </div>
+                {:else}
+                  <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                    <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">smart_toy</span>
+                    <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                    <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
+                      {t('lessonSettings.usingGlobalDesc', { provider: store.settings.apiProvider === 'gemini' ? 'Gemini' : 'OpenRouter', model: store.settings.apiProvider === 'gemini' ? store.settings.geminiModel : store.settings.openRouterModel })}
+                    </p>
+                  </div>
+                {/if}
+
+              {:else if activeTaskTab === 'evaluation'}
+                <!-- Evaluation Override Toggle -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-xs font-bold text-on-surface">Evaluationsdetails überschreiben</span>
+                    <span class="text-[10.5px] text-outline leading-tight">Möchtest du festlegen, welche Medien/Texte an die API gesendet werden?</span>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={settingsOverride.overrideEvaluation || false} 
+                      onchange={(e) => handleToggleOverride('overrideEvaluation', e.currentTarget.checked)}
+                      class="sr-only peer"
+                    />
+                    <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                {#if settingsOverride.overrideEvaluation}
+                  <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                    <EvaluationDetailsSettings settings={settingsOverride} />
+                  </div>
+                {:else}
+                  <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                    <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">fact_check</span>
+                    <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                    <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
+                      Verwendet die globalen/Lektions-Einstellungen für die Evaluation.
+                    </p>
+                  </div>
+                {/if}
+
+              {:else if activeTaskTab === 'mediaFilter'}
+                <!-- Media Filter Override Toggle -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-xs font-bold text-on-surface">{t('settings.api.mediaFilterMode')} (Override)</span>
+                    <span class="text-[10.5px] text-outline leading-tight">Möchtest du die Medienfilter für diese Aufgabe überschreiben?</span>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={settingsOverride.overrideMediaFilter || false} 
+                      onchange={(e) => handleToggleOverride('overrideMediaFilter', e.currentTarget.checked)}
+                      class="sr-only peer"
+                    />
+                    <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                {#if settingsOverride.overrideMediaFilter}
+                  <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                    <MediaFilterSettings settings={settingsOverride} />
+                  </div>
+                {:else}
+                  <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                    <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">filter_alt</span>
+                    <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                    <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto font-medium">
+                      Verwendet die globalen/Lektions-Medienfilter.
+                    </p>
+                  </div>
+                {/if}
+
+              {:else if activeTaskTab === 'canvas'}
+                <!-- Canvas Override Toggle -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideCanvasLabel')}</span>
+                    <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideCanvasDesc')}</span>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={settingsOverride.overrideCanvas || false} 
+                      onchange={(e) => handleToggleOverride('overrideCanvas', e.currentTarget.checked)}
+                      class="sr-only peer"
+                    />
+                    <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                {#if settingsOverride.overrideCanvas}
+                  <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                    <CanvasModeSelector settings={settingsOverride} />
+                  </div>
+                {:else}
+                  <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                    <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">aspect_ratio</span>
+                    <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                    <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
+                      Verwendet die globalen/Lektions-Einstellungen für Canvas und Text-Editor.
+                    </p>
+                  </div>
+                {/if}
+
+              {:else if activeTaskTab === 'eraser'}
+                <!-- Eraser Override Toggle -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-xs font-bold text-on-surface">Radiergummi überschreiben</span>
+                    <span class="text-[10.5px] text-outline leading-tight">Möchtest du den Radiergummi-Modus und -Radius anpassen?</span>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={settingsOverride.overrideEraser || false} 
+                      onchange={(e) => handleToggleOverride('overrideEraser', e.currentTarget.checked)}
+                      class="sr-only peer"
+                    />
+                    <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                {#if settingsOverride.overrideEraser}
+                  <div class="border-t border-outline-variant/30 pt-4 animate-fade-in flex flex-col gap-3">
+                    <!-- Eraser Mode Selection -->
+                    <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
+                      <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px] text-primary">ink_eraser</span>
+                        Modus
+                      </span>
+                      <select
+                        bind:value={settingsOverride.eraserMode}
+                        class="bg-surface-container border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary font-semibold w-40 text-right"
+                      >
+                        <option value="normal">Klassisch / Pixels</option>
+                        <option value="stroke">Strich radieren</option>
+                      </select>
+                    </div>
+
+                    <!-- Eraser Normal Radius -->
+                    <div class="flex flex-col gap-1.5 bg-surface-container-low px-3 py-2.5 rounded-lg border border-outline-variant">
+                      <div class="flex justify-between items-center text-xs font-semibold text-on-surface">
+                        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px] text-primary">blur_on</span>Pixel Radius</span>
+                        <span class="font-mono text-primary">{settingsOverride.eraserRadiusNormal}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="5"
+                        max="100"
+                        bind:value={settingsOverride.eraserRadiusNormal}
+                        class="w-full h-1.5 bg-outline-variant/30 rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
+                      />
+                    </div>
+
+                    <!-- Eraser Stroke Radius -->
+                    <div class="flex flex-col gap-1.5 bg-surface-container-low px-3 py-2.5 rounded-lg border border-outline-variant">
+                      <div class="flex justify-between items-center text-xs font-semibold text-on-surface">
+                        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px] text-primary">gesture</span>Strich-Erkennungsradius</span>
+                        <span class="font-mono text-primary">{settingsOverride.eraserRadiusStroke}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="5"
+                        max="100"
+                        bind:value={settingsOverride.eraserRadiusStroke}
+                        class="w-full h-1.5 bg-outline-variant/30 rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                {:else}
+                  <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                    <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">ink_eraser</span>
+                    <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                    <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
+                      Verwendet die globalen/Lektions-Radiergummi Einstellungen.
+                    </p>
+                  </div>
+                {/if}
+
+              {:else if activeTaskTab === 'prompt'}
+                <!-- System Prompt Override Toggle -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-xs font-bold text-on-surface">System Prompt überschreiben</span>
+                    <span class="text-[10.5px] text-outline leading-tight">Möchtest du die KI-Instruktionen anpassen?</span>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={settingsOverride.overrideSystemPrompt || false} 
+                      onchange={(e) => handleToggleOverride('overrideSystemPrompt', e.currentTarget.checked)}
+                      class="sr-only peer"
+                    />
+                    <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                {#if settingsOverride.overrideSystemPrompt}
+                  <div class="border-t border-outline-variant/30 pt-4 animate-fade-in flex flex-col gap-2">
+                    <div class="flex justify-between items-center">
+                      <span class="text-xs font-bold text-on-surface">Custom System Prompt</span>
+                      <button
+                        type="button"
+                        onclick={() => settingsOverride.customSystemPrompt = store.settings.customSystemPrompt || 'You are a thorough but encouraging teacher...'}
+                        class="text-[10.5px] text-primary font-semibold hover:underline cursor-pointer focus:outline-none"
+                      >
+                        Auf Standard zurücksetzen
+                      </button>
+                    </div>
+                    <textarea
+                      bind:value={settingsOverride.customSystemPrompt}
+                      rows="8"
+                      class="w-full bg-surface-container border border-outline-variant rounded-lg p-3 text-xs font-mono text-on-surface focus:outline-none focus:border-primary custom-scrollbar resize-y"
+                    ></textarea>
+                  </div>
+                {:else}
+                  <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                    <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">terminal</span>
+                    <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                    <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
+                      Verwendet den globalen/Lektions-System Prompt.
+                    </p>
+                  </div>
+                {/if}
+
+              {:else if activeTaskTab === 'numbering'}
+                <!-- Task Numbering Override Toggle -->
+                <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-xs font-bold text-on-surface">Aufgaben-Nummerierung überschreiben</span>
+                    <span class="text-[10.5px] text-outline leading-tight">Möchtest du das Namensschema überschreiben?</span>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={settingsOverride.overrideTaskNumbering || false} 
+                      onchange={(e) => handleToggleOverride('overrideTaskNumbering', e.currentTarget.checked)}
+                      class="sr-only peer"
+                    />
+                    <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                {#if settingsOverride.overrideTaskNumbering}
+                  <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                    <TaskNumberingConfig settings={settingsOverride} />
+                  </div>
+                {:else}
+                  <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                    <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">format_list_numbered</span>
+                    <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                    <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto font-medium">
+                      Verwendet das globale/Lektions-Schema für die Nummerierung.
+                    </p>
+                  </div>
+                {/if}
+              {/if}
+            </div>
           </div>
         {/if}
       </div>
