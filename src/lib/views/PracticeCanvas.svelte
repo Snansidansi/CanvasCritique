@@ -2273,6 +2273,7 @@
   function copySelected() {
     if (selectedStrokes.length === 0) return;
     copiedStrokes = JSON.parse(JSON.stringify(selectedStrokes));
+    selectedStrokes = [];
   }
 
   function deleteSelected() {
