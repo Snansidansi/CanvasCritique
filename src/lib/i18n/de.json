@@ -316,7 +316,9 @@
       "opacity": "Vorlagen-Deckkraft",
       "clearCanvas": "Leinwand leeren",
       "editorFontSize": "Texteditor-Schriftgröße",
-      "editorShowAllRaw": "Immer Raw-Markdown anzeigen"
+      "editorShowAllRaw": "Immer Raw-Markdown anzeigen",
+      "paste": "Einfügen",
+      "copy": "Kopieren"
     }
   },
   "settings": {

@@ -2818,18 +2818,18 @@
           <button 
             onclick={deleteSelected}
             class="px-2.5 py-1 text-[10px] font-bold text-error hover:bg-error/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent"
-            title="Delete strokes (Delete)"
+            title={t('delete')}
           >
             <span class="material-symbols-outlined text-[14px]">delete</span>
-            <span>Delete</span>
+            <span>{t('delete')}</span>
           </button>
           <div class="w-px h-3 bg-outline-variant/50"></div>
           <button 
             onclick={() => selectedStrokes = []}
             class="px-2.5 py-1 text-[10px] font-bold text-outline hover:bg-surface-container rounded cursor-pointer transition-colors border-0 bg-transparent"
-            title="Clear Selection"
+            title={t('cancelSelection')}
           >
-            <span>Cancel</span>
+            <span>{t('cancel')}</span>
           </button>
         </div>
       {/if}
@@ -2858,7 +2858,7 @@
             class="w-full text-left px-4 py-2 hover:bg-primary/10 hover:text-primary disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-on-surface flex items-center gap-2 cursor-pointer font-semibold border-0 bg-transparent"
           >
             <span class="material-symbols-outlined text-[16px]">content_paste</span>
-            <span>Paste</span>
+            <span>{t('practice.canvas.paste')}</span>
           </button>
           
           {#if selectedStrokes.length > 0}
@@ -2868,14 +2868,14 @@
               class="w-full text-left px-4 py-2 hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer font-semibold border-0 bg-transparent"
             >
               <span class="material-symbols-outlined text-[16px]">content_copy</span>
-              <span>Copy</span>
+              <span>{t('practice.canvas.copy')}</span>
             </button>
             <button 
               onclick={() => { deleteSelected(); contextMenu = null; }}
               class="w-full text-left px-4 py-2 hover:bg-error/10 hover:text-error flex items-center gap-2 cursor-pointer font-semibold border-0 bg-transparent"
             >
               <span class="material-symbols-outlined text-[16px]">delete</span>
-              <span>Delete</span>
+              <span>{t('delete')}</span>
             </button>
           {/if}
         </div>

@@ -317,7 +317,9 @@
       "opacity": "Template Opacity",
       "clearCanvas": "Clear Canvas",
       "editorFontSize": "Text Editor Font Size",
-      "editorShowAllRaw": "Always Show Raw Markdown"
+      "editorShowAllRaw": "Always Show Raw Markdown",
+      "paste": "Paste",
+      "copy": "Copy"
     }
   },
   "settings": {
