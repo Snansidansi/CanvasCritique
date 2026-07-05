@@ -137,10 +137,11 @@ Run the following commands inside your WSL terminal to set up the build tools:
    cargo install --locked cargo-xwin
    ```
 
-7. **Link the LLVM Resource Compiler:**
-   Tauri relies on `llvm-rc` to compile Windows resource files. Link your versioned LLVM resource compiler into Cargo's binary path:
+7. **Link LLVM Tools:**
+   Tauri relies on `llvm-rc` to compile Windows resource files and `llvm-lib` for managing libraries. Link these versioned LLVM tools into Cargo's binary path:
    ```bash
    ln -sf /usr/bin/llvm-rc-18 $HOME/.cargo/bin/llvm-rc
+   ln -sf /usr/bin/llvm-lib-18 $HOME/.cargo/bin/llvm-lib
    ```
 
 ### Commands
