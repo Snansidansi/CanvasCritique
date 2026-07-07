@@ -846,7 +846,7 @@
         </button>
 
         <button 
-          onclick={() => isAddCategoryOpen = true}
+          onclick={() => { newCategoryName = ''; isAddCategoryOpen = true; }}
           class="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer focus:outline-none"
         >
           <span class="material-symbols-outlined text-[16px]">create_new_folder</span>
@@ -866,7 +866,7 @@
           </div>
           <button 
             type="button"
-            onclick={() => isAddCategoryOpen = true}
+            onclick={() => { newCategoryName = ''; isAddCategoryOpen = true; }}
             class="mt-2 flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary font-bold text-xs rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-sm cursor-pointer focus:outline-none"
           >
             <span class="material-symbols-outlined text-[16px]">add</span>
@@ -1131,6 +1131,7 @@
             placeholder={t('projectDetail.topicNamePlaceholder')}
             class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary"
             required
+            autofocus
           />
         </div>
 

@@ -118,7 +118,7 @@
     "createSectionBtn": "Create Section",
     "addTopicModalTitle": "Add New Topic",
     "topicNameLabel": "Topic Name",
-    "topicNamePlaceholder": "e.g. Basics",
+    "topicNamePlaceholder": "Topic name",
     "exportLesson": "Export Lesson"
   },
   "sidebar": {

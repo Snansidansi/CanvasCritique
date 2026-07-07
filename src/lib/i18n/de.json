@@ -118,7 +118,7 @@
     "createSectionBtn": "Bereich erstellen",
     "addTopicModalTitle": "Neues Thema hinzufügen",
     "topicNameLabel": "Themenname",
-    "topicNamePlaceholder": "z.B. Basics"
+    "topicNamePlaceholder": "Name des Themas"
   },
   "sidebar": {
     "expand": "Sidebar ausklappen",
