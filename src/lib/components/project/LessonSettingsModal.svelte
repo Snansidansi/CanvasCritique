@@ -110,6 +110,9 @@
       if (project.settingsOverride.openRouterReasoning === undefined) {
         project.settingsOverride.openRouterReasoning = store.settings.openRouterReasoning !== false;
       }
+      if (project.settingsOverride.canvasFontSize === undefined) {
+        project.settingsOverride.canvasFontSize = store.settings.canvasFontSize || 13;
+      }
       hasCustomSystemPrompt = !!project.settingsOverride.customSystemPrompt;
     }
   });
@@ -260,19 +263,42 @@
               </label>
             </div>
 
-            {#if project.settingsOverride?.overrideCanvas}
+             {#if project.settingsOverride?.overrideCanvas}
               <div class="border-t border-outline-variant/30 pt-4 animate-fade-in flex flex-col gap-4">
                 <CanvasModeSelector 
                   settings={project.settingsOverride} 
                   onchange={() => store.saveProjects()} 
                 />
+
+                <div class="flex flex-col gap-2 mt-2">
+                  <div class="flex justify-between items-center">
+                    <span class="text-xs font-semibold text-on-surface">{t('settings.canvas.fontSizeLabel') || 'Font Size'}</span>
+                    <span class="text-xs font-bold text-on-surface w-10 text-right">{project.settingsOverride.canvasFontSize || 13}px</span>
+                  </div>
+                  <div class="flex items-center gap-4">
+                    <span class="text-xs text-outline font-medium shrink-0">10px</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="24"
+                      step="1"
+                      bind:value={project.settingsOverride.canvasFontSize}
+                      onchange={() => store.saveProjects()}
+                      class="grow h-1.5 bg-surface-container-high rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                    <span class="text-xs text-outline font-medium shrink-0">24px</span>
+                  </div>
+                </div>
               </div>
             {:else}
-              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
-                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">aspect_ratio</span>
-                <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
-                <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
+              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in flex flex-col gap-1 items-center">
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-1">aspect_ratio</span>
+                <p class="text-xs text-on-surface font-bold">{t('lessonSettings.usingGlobalTitle')}</p>
+                <p class="text-[11px] text-on-surface-variant leading-normal max-w-sm mx-auto">
                   {t('lessonSettings.canvasLayoutTitle')}: {store.settings.canvasMode === 'side-by-side' ? 'Side by Side' : 'Split Screen'}
+                </p>
+                <p class="text-[11px] text-on-surface-variant leading-normal max-w-sm mx-auto">
+                  {t('settings.canvas.fontSizeLabel') || 'Font Size'}: {store.settings.canvasFontSize || 13}px
                 </p>
               </div>
             {/if}
