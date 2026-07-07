@@ -1536,21 +1536,35 @@ class CanvasCritiqueStore {
             : categories;
 
           let resolvedIcon = proj.icon || 'history_edu';
+          let customIconMediaId: string | null = null;
+
           if (resolvedIcon && resolvedIcon.startsWith('data:')) {
             try {
               const mediaId = await saveMediaToDb(resolvedIcon);
               this._projectIconMediaIds[newId] = mediaId;
               resolvedIcon = await getMediaDataUrl(mediaId);
+              customIconMediaId = mediaId;
             } catch (err) {
               console.error('[store] Failed to save imported project icon to media:', err);
             }
-          } else if (resolvedIcon && !resolvedIcon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(resolvedIcon)) {
+          } else if (resolvedIcon && !resolvedIcon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(resolvedIcon)) {
             this._projectIconMediaIds[newId] = resolvedIcon;
+            customIconMediaId = resolvedIcon;
             try {
               resolvedIcon = await getMediaDataUrl(resolvedIcon);
             } catch (err) {
               console.error('[store] Failed to load project icon during import for', newId, err);
               resolvedIcon = 'history_edu';
+            }
+          }
+
+          if (customIconMediaId) {
+            if (!this.settings.userIcons) {
+              this.settings.userIcons = [];
+            }
+            if (!this.settings.userIcons.includes(customIconMediaId)) {
+              this.settings.userIcons.push(customIconMediaId);
+              await this.saveSettings();
             }
           }
 
