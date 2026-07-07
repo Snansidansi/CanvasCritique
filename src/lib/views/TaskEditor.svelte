@@ -62,6 +62,42 @@
   type TaskTabId = 'model' | 'evaluation' | 'mediaFilter' | 'canvas' | 'editorFontSize' | 'eraser' | 'prompt' | 'numbering';
   let activeTaskTab = $state<TaskTabId>('model');
 
+  // Inline rename state for media attachments
+  let editingFileIndex = $state<number | null>(null);
+  let editingFileType = $state<'instruction' | 'solution' | null>(null);
+  let editingFileNameValue = $state<string>('');
+  let renameInputEl = $state<HTMLInputElement | null>(null);
+
+  $effect(() => {
+    if (editingFileIndex !== null && renameInputEl) {
+      renameInputEl.focus();
+      renameInputEl.select();
+    }
+  });
+
+  function saveInlineRename() {
+    if (editingFileIndex === null || editingFileType === null) return;
+    const name = editingFileNameValue.trim();
+    if (name !== '') {
+      if (editingFileType === 'instruction') {
+        const files = [...instructionFiles];
+        files[editingFileIndex] = { ...files[editingFileIndex], name };
+        instructionFiles = files;
+      } else {
+        const files = [...solutionFiles];
+        files[editingFileIndex] = { ...files[editingFileIndex], name };
+        solutionFiles = files;
+      }
+    }
+    cancelInlineRename();
+  }
+
+  function cancelInlineRename() {
+    editingFileIndex = null;
+    editingFileType = null;
+    editingFileNameValue = '';
+  }
+
   const taskTabs = [
     { id: 'model', labelKey: 'lessonSettings.modelConfigTitle', icon: 'smart_toy' },
     { id: 'evaluation', labelKey: 'lessonSettings.evaluationDetailsTitle', icon: 'fact_check' },
@@ -371,21 +407,9 @@
     const file = files[index];
     if (!file) return;
 
-    const newName = window.prompt(
-      t('taskEditor.renameFilePrompt') || 'Enter new file name:',
-      file.name
-    );
-
-    if (newName && newName.trim() !== '') {
-      const updated = { ...file, name: newName.trim() };
-      if (type === 'instruction') {
-        instructionFiles[index] = updated;
-        instructionFiles = [...instructionFiles];
-      } else {
-        solutionFiles[index] = updated;
-        solutionFiles = [...solutionFiles];
-      }
-    }
+    editingFileIndex = index;
+    editingFileType = type;
+    editingFileNameValue = file.name;
   }
 
   function handleCategoryChange(newCategory: string) {
@@ -1069,7 +1093,11 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div 
-                  onclick={() => openPreview(file)}
+                  onclick={() => {
+                    if (editingFileIndex !== index || editingFileType !== 'instruction') {
+                      openPreview(file);
+                    }
+                  }}
                   class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
                   title={t('taskEditor.clickToPreview')}
                 >
@@ -1079,7 +1107,28 @@
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
                     {getFileIcon(file.name)}
                   </span>
-                  <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
+                  {#if editingFileIndex === index && editingFileType === 'instruction'}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <input
+                      bind:this={renameInputEl}
+                      type="text"
+                      bind:value={editingFileNameValue}
+                      onclick={(e) => e.stopPropagation()}
+                      onkeydown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === 'Enter') {
+                          saveInlineRename();
+                        } else if (e.key === 'Escape') {
+                          cancelInlineRename();
+                        }
+                      }}
+                      onblur={saveInlineRename}
+                      class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
+                    />
+                  {:else}
+                    <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
+                  {/if}
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                   <button 
@@ -1196,7 +1245,11 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div 
-                  onclick={() => openPreview(file)}
+                  onclick={() => {
+                    if (editingFileIndex !== index || editingFileType !== 'solution') {
+                      openPreview(file);
+                    }
+                  }}
                   class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
                   title={t('taskEditor.clickToPreview')}
                 >
@@ -1206,7 +1259,28 @@
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
                     {getFileIcon(file.name)}
                   </span>
-                  <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
+                  {#if editingFileIndex === index && editingFileType === 'solution'}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <input
+                      bind:this={renameInputEl}
+                      type="text"
+                      bind:value={editingFileNameValue}
+                      onclick={(e) => e.stopPropagation()}
+                      onkeydown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === 'Enter') {
+                          saveInlineRename();
+                        } else if (e.key === 'Escape') {
+                          cancelInlineRename();
+                        }
+                      }}
+                      onblur={saveInlineRename}
+                      class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
+                    />
+                  {:else}
+                    <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
+                  {/if}
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                   <button 
