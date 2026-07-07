@@ -86,12 +86,40 @@
       settingsOverride.overrideMediaFilter
     );
 
-    if (category === 'overrideSystemPrompt') {
-      if (checked) {
-        if (!settingsOverride.customSystemPrompt) {
-          settingsOverride.customSystemPrompt = store.settings.customSystemPrompt || 'You are a thorough but encouraging teacher...';
-        }
-      } else {
+    if (checked) {
+      const parent = store.getEffectiveSettings(targetProjectId);
+      if (category === 'overrideModel') {
+        settingsOverride.apiProvider = parent.apiProvider;
+        settingsOverride.geminiModel = parent.geminiModel;
+        settingsOverride.openRouterModel = parent.openRouterModel;
+        settingsOverride.openRouterReasoning = parent.openRouterReasoning;
+        settingsOverride.openRouterProvider = parent.openRouterProvider;
+      } else if (category === 'overrideEvaluation') {
+        settingsOverride.sendTaskMedia = parent.sendTaskMedia;
+        settingsOverride.sendSolutionMedia = parent.sendSolutionMedia;
+        settingsOverride.sendCanvasBackground = parent.sendCanvasBackground;
+        settingsOverride.sendTaskText = parent.sendTaskText;
+        settingsOverride.sendSolutionText = parent.sendSolutionText;
+      } else if (category === 'overrideMediaFilter') {
+        settingsOverride.taskMediaFilterMode = parent.taskMediaFilterMode;
+        settingsOverride.taskMediaFilterExtensions = parent.taskMediaFilterExtensions;
+        settingsOverride.solutionMediaFilterMode = parent.solutionMediaFilterMode;
+        settingsOverride.solutionMediaFilterExtensions = parent.solutionMediaFilterExtensions;
+      } else if (category === 'overrideCanvas') {
+        settingsOverride.canvasMode = parent.canvasMode;
+        settingsOverride.canvasFontSize = parent.canvasFontSize;
+      } else if (category === 'overrideEraser') {
+        settingsOverride.eraserMode = parent.eraserMode;
+        settingsOverride.eraserRadiusNormal = parent.eraserRadiusNormal;
+        settingsOverride.eraserRadiusStroke = parent.eraserRadiusStroke;
+      } else if (category === 'overrideSystemPrompt') {
+        settingsOverride.customSystemPrompt = parent.customSystemPrompt || 'You are a thorough but encouraging teacher...';
+      } else if (category === 'overrideTaskNumbering') {
+        settingsOverride.autoNumberTasks = parent.autoNumberTasks;
+        settingsOverride.taskNumberingTemplate = parent.taskNumberingTemplate;
+      }
+    } else {
+      if (category === 'overrideSystemPrompt') {
         settingsOverride.customSystemPrompt = '';
       }
     }
@@ -112,6 +140,8 @@
       category = store.editingTask.category || 'Basics';
       targetProjectId = store.activeProject?.id || '';
 
+      const parentSettings = store.getEffectiveSettings(targetProjectId);
+
       if (store.editingTask.settingsOverride) {
         settingsOverride = {
           overrideSettings: store.editingTask.settingsOverride.overrideSettings ?? false,
@@ -123,30 +153,66 @@
           overrideTaskNumbering: store.editingTask.settingsOverride.overrideTaskNumbering ?? false,
           overrideAlwaysSendBoth: store.editingTask.settingsOverride.overrideAlwaysSendBoth ?? false,
           overrideMediaFilter: store.editingTask.settingsOverride.overrideMediaFilter ?? false,
-          apiProvider: store.editingTask.settingsOverride.apiProvider ?? 'gemini',
-          geminiModel: store.editingTask.settingsOverride.geminiModel ?? 'gemini-1.5-pro',
-          openRouterModel: store.editingTask.settingsOverride.openRouterModel ?? 'google/gemini-2.0-pro-exp-02-05:free',
-          openRouterProvider: store.editingTask.settingsOverride.openRouterProvider ?? [],
-          openRouterReasoning: store.editingTask.settingsOverride.openRouterReasoning ?? false,
-          sendTaskMedia: store.editingTask.settingsOverride.sendTaskMedia ?? true,
-          sendSolutionMedia: store.editingTask.settingsOverride.sendSolutionMedia ?? true,
-          sendCanvasBackground: store.editingTask.settingsOverride.sendCanvasBackground ?? true,
-          sendTaskText: store.editingTask.settingsOverride.sendTaskText ?? true,
-          sendSolutionText: store.editingTask.settingsOverride.sendSolutionText ?? true,
-          alwaysSendBothCanvasAndText: store.editingTask.settingsOverride.alwaysSendBothCanvasAndText ?? false,
-          customSystemPrompt: store.editingTask.settingsOverride.customSystemPrompt ?? '',
-          language: store.editingTask.settingsOverride.language ?? 'de',
-          canvasMode: store.editingTask.settingsOverride.canvasMode ?? 'infinite',
-          canvasFontSize: store.editingTask.settingsOverride.canvasFontSize ?? 13,
-          autoNumberTasks: store.editingTask.settingsOverride.autoNumberTasks ?? true,
-          taskNumberingTemplate: store.editingTask.settingsOverride.taskNumberingTemplate ?? 'Aufgabe {n}',
-          eraserMode: store.editingTask.settingsOverride.eraserMode ?? 'normal',
-          eraserRadiusNormal: store.editingTask.settingsOverride.eraserRadiusNormal ?? 24,
-          eraserRadiusStroke: store.editingTask.settingsOverride.eraserRadiusStroke ?? 24,
-          taskMediaFilterMode: store.editingTask.settingsOverride.taskMediaFilterMode ?? 'blacklist',
-          taskMediaFilterExtensions: store.editingTask.settingsOverride.taskMediaFilterExtensions ?? '',
-          solutionMediaFilterMode: store.editingTask.settingsOverride.solutionMediaFilterMode ?? 'blacklist',
-          solutionMediaFilterExtensions: store.editingTask.settingsOverride.solutionMediaFilterExtensions ?? ''
+          apiProvider: store.editingTask.settingsOverride.apiProvider ?? parentSettings.apiProvider,
+          geminiModel: store.editingTask.settingsOverride.geminiModel ?? parentSettings.geminiModel,
+          openRouterModel: store.editingTask.settingsOverride.openRouterModel ?? parentSettings.openRouterModel,
+          openRouterProvider: store.editingTask.settingsOverride.openRouterProvider ?? parentSettings.openRouterProvider,
+          openRouterReasoning: store.editingTask.settingsOverride.openRouterReasoning ?? parentSettings.openRouterReasoning,
+          sendTaskMedia: store.editingTask.settingsOverride.sendTaskMedia ?? parentSettings.sendTaskMedia,
+          sendSolutionMedia: store.editingTask.settingsOverride.sendSolutionMedia ?? parentSettings.sendSolutionMedia,
+          sendCanvasBackground: store.editingTask.settingsOverride.sendCanvasBackground ?? parentSettings.sendCanvasBackground,
+          sendTaskText: store.editingTask.settingsOverride.sendTaskText ?? parentSettings.sendTaskText,
+          sendSolutionText: store.editingTask.settingsOverride.sendSolutionText ?? parentSettings.sendSolutionText,
+          alwaysSendBothCanvasAndText: store.editingTask.settingsOverride.alwaysSendBothCanvasAndText ?? parentSettings.alwaysSendBothCanvasAndText,
+          customSystemPrompt: store.editingTask.settingsOverride.customSystemPrompt ?? parentSettings.customSystemPrompt,
+          language: store.editingTask.settingsOverride.language ?? parentSettings.language,
+          canvasMode: store.editingTask.settingsOverride.canvasMode ?? parentSettings.canvasMode,
+          canvasFontSize: store.editingTask.settingsOverride.canvasFontSize ?? parentSettings.canvasFontSize,
+          autoNumberTasks: store.editingTask.settingsOverride.autoNumberTasks ?? parentSettings.autoNumberTasks,
+          taskNumberingTemplate: store.editingTask.settingsOverride.taskNumberingTemplate ?? parentSettings.taskNumberingTemplate,
+          eraserMode: store.editingTask.settingsOverride.eraserMode ?? parentSettings.eraserMode,
+          eraserRadiusNormal: store.editingTask.settingsOverride.eraserRadiusNormal ?? parentSettings.eraserRadiusNormal,
+          eraserRadiusStroke: store.editingTask.settingsOverride.eraserRadiusStroke ?? parentSettings.eraserRadiusStroke,
+          taskMediaFilterMode: store.editingTask.settingsOverride.taskMediaFilterMode ?? parentSettings.taskMediaFilterMode,
+          taskMediaFilterExtensions: store.editingTask.settingsOverride.taskMediaFilterExtensions ?? parentSettings.taskMediaFilterExtensions,
+          solutionMediaFilterMode: store.editingTask.settingsOverride.solutionMediaFilterMode ?? parentSettings.solutionMediaFilterMode,
+          solutionMediaFilterExtensions: store.editingTask.settingsOverride.solutionMediaFilterExtensions ?? parentSettings.solutionMediaFilterExtensions
+        };
+      } else {
+        settingsOverride = {
+          overrideSettings: false,
+          overrideModel: false,
+          overrideCanvas: false,
+          overrideEraser: false,
+          overrideEvaluation: false,
+          overrideSystemPrompt: false,
+          overrideTaskNumbering: false,
+          overrideAlwaysSendBoth: false,
+          overrideMediaFilter: false,
+          apiProvider: parentSettings.apiProvider,
+          geminiModel: parentSettings.geminiModel,
+          openRouterModel: parentSettings.openRouterModel,
+          openRouterProvider: parentSettings.openRouterProvider,
+          openRouterReasoning: parentSettings.openRouterReasoning,
+          sendTaskMedia: parentSettings.sendTaskMedia,
+          sendSolutionMedia: parentSettings.sendSolutionMedia,
+          sendCanvasBackground: parentSettings.sendCanvasBackground,
+          sendTaskText: parentSettings.sendTaskText,
+          sendSolutionText: parentSettings.sendSolutionText,
+          alwaysSendBothCanvasAndText: parentSettings.alwaysSendBothCanvasAndText,
+          customSystemPrompt: parentSettings.customSystemPrompt,
+          language: parentSettings.language,
+          canvasMode: parentSettings.canvasMode,
+          canvasFontSize: parentSettings.canvasFontSize,
+          autoNumberTasks: parentSettings.autoNumberTasks,
+          taskNumberingTemplate: parentSettings.taskNumberingTemplate,
+          eraserMode: parentSettings.eraserMode,
+          eraserRadiusNormal: parentSettings.eraserRadiusNormal,
+          eraserRadiusStroke: parentSettings.eraserRadiusStroke,
+          taskMediaFilterMode: parentSettings.taskMediaFilterMode,
+          taskMediaFilterExtensions: parentSettings.taskMediaFilterExtensions,
+          solutionMediaFilterMode: parentSettings.solutionMediaFilterMode,
+          solutionMediaFilterExtensions: parentSettings.solutionMediaFilterExtensions
         };
       }
       
@@ -167,12 +233,87 @@
       category = store.quickAddTaskData.category || 'Basics';
       targetProjectId = store.activeProject?.id || (store.projects.find(p => p.profileId === store.activeProfileId)?.id || '');
       store.quickAddTaskData = null; // Clear it out
+      
+      const parentSettings = store.getEffectiveSettings(targetProjectId);
+      settingsOverride = {
+        overrideSettings: false,
+        overrideModel: false,
+        overrideCanvas: false,
+        overrideEraser: false,
+        overrideEvaluation: false,
+        overrideSystemPrompt: false,
+        overrideTaskNumbering: false,
+        overrideAlwaysSendBoth: false,
+        overrideMediaFilter: false,
+        apiProvider: parentSettings.apiProvider,
+        geminiModel: parentSettings.geminiModel,
+        openRouterModel: parentSettings.openRouterModel,
+        openRouterProvider: parentSettings.openRouterProvider,
+        openRouterReasoning: parentSettings.openRouterReasoning,
+        sendTaskMedia: parentSettings.sendTaskMedia,
+        sendSolutionMedia: parentSettings.sendSolutionMedia,
+        sendCanvasBackground: parentSettings.sendCanvasBackground,
+        sendTaskText: parentSettings.sendTaskText,
+        sendSolutionText: parentSettings.sendSolutionText,
+        alwaysSendBothCanvasAndText: parentSettings.alwaysSendBothCanvasAndText,
+        customSystemPrompt: parentSettings.customSystemPrompt,
+        language: parentSettings.language,
+        canvasMode: parentSettings.canvasMode,
+        canvasFontSize: parentSettings.canvasFontSize,
+        autoNumberTasks: parentSettings.autoNumberTasks,
+        taskNumberingTemplate: parentSettings.taskNumberingTemplate,
+        eraserMode: parentSettings.eraserMode,
+        eraserRadiusNormal: parentSettings.eraserRadiusNormal,
+        eraserRadiusStroke: parentSettings.eraserRadiusStroke,
+        taskMediaFilterMode: parentSettings.taskMediaFilterMode,
+        taskMediaFilterExtensions: parentSettings.taskMediaFilterExtensions,
+        solutionMediaFilterMode: parentSettings.solutionMediaFilterMode,
+        solutionMediaFilterExtensions: parentSettings.solutionMediaFilterExtensions
+      };
+
       if (!taskName && targetProjectId) {
         taskName = store.generateNextTaskName(targetProjectId, category);
       }
     } else {
       targetProjectId = store.activeProject?.id || (store.projects.find(p => p.profileId === store.activeProfileId)?.id || '');
-      // When created via general add task button, we don't automatically generate name here.
+      
+      const parentSettings = store.getEffectiveSettings(targetProjectId);
+      settingsOverride = {
+        overrideSettings: false,
+        overrideModel: false,
+        overrideCanvas: false,
+        overrideEraser: false,
+        overrideEvaluation: false,
+        overrideSystemPrompt: false,
+        overrideTaskNumbering: false,
+        overrideAlwaysSendBoth: false,
+        overrideMediaFilter: false,
+        apiProvider: parentSettings.apiProvider,
+        geminiModel: parentSettings.geminiModel,
+        openRouterModel: parentSettings.openRouterModel,
+        openRouterProvider: parentSettings.openRouterProvider,
+        openRouterReasoning: parentSettings.openRouterReasoning,
+        sendTaskMedia: parentSettings.sendTaskMedia,
+        sendSolutionMedia: parentSettings.sendSolutionMedia,
+        sendCanvasBackground: parentSettings.sendCanvasBackground,
+        sendTaskText: parentSettings.sendTaskText,
+        sendSolutionText: parentSettings.sendSolutionText,
+        alwaysSendBothCanvasAndText: parentSettings.alwaysSendBothCanvasAndText,
+        customSystemPrompt: parentSettings.customSystemPrompt,
+        language: parentSettings.language,
+        canvasMode: parentSettings.canvasMode,
+        canvasFontSize: parentSettings.canvasFontSize,
+        autoNumberTasks: parentSettings.autoNumberTasks,
+        taskNumberingTemplate: parentSettings.taskNumberingTemplate,
+        eraserMode: parentSettings.eraserMode,
+        eraserRadiusNormal: parentSettings.eraserRadiusNormal,
+        eraserRadiusStroke: parentSettings.eraserRadiusStroke,
+        taskMediaFilterMode: parentSettings.taskMediaFilterMode,
+        taskMediaFilterExtensions: parentSettings.taskMediaFilterExtensions,
+        solutionMediaFilterMode: parentSettings.solutionMediaFilterMode,
+        solutionMediaFilterExtensions: parentSettings.solutionMediaFilterExtensions
+      };
+
       taskName = '';
     }
 
