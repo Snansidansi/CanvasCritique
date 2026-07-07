@@ -52,7 +52,7 @@ export interface ProjectSettingsOverride {
   geminiModel?: string;
   openRouterModel?: string;
   openRouterProvider?: string[];
-  openRouterReasoning?: boolean;
+  openRouterReasoning?: boolean | string;
   sendTaskMedia?: boolean;
   sendSolutionMedia?: boolean;
   sendCanvasBackground?: boolean;
@@ -116,7 +116,7 @@ export interface Settings {
   geminiModel: string;
   openRouterModel: string;
   openRouterProvider: string[];
-  openRouterReasoning: boolean;
+  openRouterReasoning: boolean | string;
   sendTaskMedia: boolean;
   sendSolutionMedia: boolean;
   sendCanvasBackground: boolean;

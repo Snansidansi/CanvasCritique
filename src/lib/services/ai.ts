@@ -65,7 +65,7 @@ export interface CheckWorkSettings {
   openRouterApiKey: string;
   geminiModel: string;
   openRouterModel: string;
-  openRouterReasoning: boolean;
+  openRouterReasoning: boolean | string;
   openRouterProvider?: string[];
   sendTaskMedia?: boolean;
   sendSolutionMedia?: boolean;
@@ -726,9 +726,21 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
           const bodyText = await cloned.text();
           const bodyJson = JSON.parse(bodyText);
           
-          bodyJson.reasoning = {
-            exclude: !settings.openRouterReasoning
-          };
+          const reasoningSetting = settings.openRouterReasoning;
+          if (reasoningSetting === 'none' || reasoningSetting === false) {
+            bodyJson.reasoning = {
+              exclude: true
+            };
+          } else if (typeof reasoningSetting === 'string' && reasoningSetting !== 'auto') {
+            bodyJson.reasoning = {
+              exclude: false,
+              effort: reasoningSetting
+            };
+          } else {
+            bodyJson.reasoning = {
+              exclude: false
+            };
+          }
           
           return new Request(req.url, {
             method: req.method,

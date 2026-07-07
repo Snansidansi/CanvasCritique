@@ -48,12 +48,18 @@
         }
       } else {
         const url = 'https://openrouter.ai/api/v1/chat/completions';
+        const reasoningSetting = store.settings.openRouterReasoning;
+        let reasoningObj: any = { exclude: false };
+        if (reasoningSetting === 'none' || reasoningSetting === false) {
+          reasoningObj = { exclude: true };
+        } else if (typeof reasoningSetting === 'string' && reasoningSetting !== 'auto') {
+          reasoningObj = { exclude: false, effort: reasoningSetting };
+        }
+
         const requestBody: any = {
           model: model,
           messages: [{ role: "user", content: "Hello! Reply in one short word." }],
-          reasoning: {
-            exclude: !store.settings.openRouterReasoning
-          }
+          reasoning: reasoningObj
         };
         const selectedProviders = store.settings.openRouterProvider || [];
         if (selectedProviders.length > 0) {

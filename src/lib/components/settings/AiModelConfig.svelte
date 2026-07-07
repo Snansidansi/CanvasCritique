@@ -152,6 +152,24 @@
     }
   });
 
+  const selectedModelHasReasoningEfforts = $derived.by(() => {
+    if (!settings.openRouterModel || openRouterModelsFullList.length === 0) return false;
+    const info: any = openRouterModelsFullList.find((m: any) => m.id === settings.openRouterModel);
+    return !!(info?.reasoning?.supported_efforts && info.reasoning.supported_efforts.length > 0);
+  });
+
+  const getReasoningEffortsList = $derived.by(() => {
+    if (!settings.openRouterModel || openRouterModelsFullList.length === 0) return [];
+    const info: any = openRouterModelsFullList.find((m: any) => m.id === settings.openRouterModel);
+    return info?.reasoning?.supported_efforts || [];
+  });
+
+  const isReasoningMandatory = $derived.by(() => {
+    if (!settings.openRouterModel || openRouterModelsFullList.length === 0) return false;
+    const info: any = openRouterModelsFullList.find((m: any) => m.id === settings.openRouterModel);
+    return !!info?.reasoning?.mandatory;
+  });
+
   // Filtered dropdown suggestions based on active text input values
   let filteredGeminiModels = $derived(
     geminiModelsList
@@ -463,25 +481,59 @@
         {/if}
       </div>
 
-      <!-- OpenRouter Reasoning Toggle -->
-      <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
-        <div class="flex flex-col gap-0.5 min-w-0 pr-4">
-          <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-[18px] text-primary">psychology</span>
-            {t('settings.api.enableReasoning')}
-          </span>
-          <span class="text-[10px] text-on-surface-variant leading-tight">{t('settings.api.reasoningDesc')}</span>
+      <!-- OpenRouter Reasoning Toggle or Level Dropdown -->
+      {#if selectedModelHasReasoningEfforts}
+        <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
+          <div class="flex flex-col gap-0.5 min-w-0 pr-4">
+            <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px] text-primary">psychology</span>
+              {t('settings.api.enableReasoning')}
+            </span>
+            <span class="text-[10px] text-on-surface-variant leading-tight">{t('settings.api.reasoningLevelDesc')}</span>
+          </div>
+          <select
+            value={settings.openRouterReasoning === false ? 'none' : (settings.openRouterReasoning === true ? 'auto' : settings.openRouterReasoning)}
+            onchange={(e) => {
+              const val = e.currentTarget.value;
+              if (val === 'none') settings.openRouterReasoning = false;
+              else if (val === 'auto') settings.openRouterReasoning = true;
+              else settings.openRouterReasoning = val;
+              handleInputChange();
+            }}
+            class="bg-surface-container-high border border-outline-variant rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary shrink-0 max-w-37.5 cursor-pointer"
+          >
+            {#if !isReasoningMandatory}
+              <option value="none">{t('settings.api.reasoningNone')}</option>
+            {/if}
+            <option value="auto">{t('settings.api.reasoningAuto')}</option>
+            {#each getReasoningEffortsList as effort}
+              <option value={effort}>{effort.toUpperCase()}</option>
+            {/each}
+          </select>
         </div>
-        <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
-          <input 
-            type="checkbox" 
-            bind:checked={settings.openRouterReasoning}
-            onchange={handleInputChange}
-            class="sr-only peer" 
-          />
-          <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-        </label>
-      </div>
+      {:else}
+        <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
+          <div class="flex flex-col gap-0.5 min-w-0 pr-4">
+            <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px] text-primary">psychology</span>
+              {t('settings.api.enableReasoning')}
+            </span>
+            <span class="text-[10px] text-on-surface-variant leading-tight">{t('settings.api.reasoningDesc')}</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
+            <input 
+              type="checkbox" 
+              checked={settings.openRouterReasoning !== false && settings.openRouterReasoning !== 'none'}
+              onchange={(e) => {
+                settings.openRouterReasoning = e.currentTarget.checked;
+                handleInputChange();
+              }}
+              class="sr-only peer" 
+            />
+            <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </div>
+      {/if}
 
     </div>
   {/if}
