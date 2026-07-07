@@ -26,7 +26,7 @@
   });
 
   async function resolvePreview(icon: string) {
-    if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(icon)) {
+    if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(icon)) {
       try {
         newProjectIconPreview = await getMediaDataUrl(icon);
       } catch (_) {

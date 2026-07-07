@@ -104,7 +104,7 @@
           // Validate and resolve imported project/profile UUID icons
           const db = getDb();
           for (const proj of imported.projects) {
-            if (proj.icon && !proj.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(proj.icon)) {
+            if (proj.icon && !proj.icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(proj.icon)) {
               try {
                 const rows = (await db.select('SELECT id FROM media WHERE id = ?', [proj.icon])) as any[];
                 if (rows.length === 0) {
@@ -118,7 +118,7 @@
 
           if (imported.profiles && Array.isArray(imported.profiles)) {
             for (const p of imported.profiles) {
-              if (p.icon && !p.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(p.icon)) {
+              if (p.icon && !p.icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(p.icon)) {
                 try {
                   const rows = (await db.select('SELECT id FROM media WHERE id = ?', [p.icon])) as any[];
                   if (rows.length === 0) {

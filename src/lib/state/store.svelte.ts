@@ -239,7 +239,7 @@ class CanvasCritiqueStore {
         this.profiles = data.profiles;
         // Resolve profile icons from mediaId to dataUrl for UI
         for (const p of this.profiles) {
-          if (p.icon && !p.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(p.icon)) {
+          if (p.icon && !p.icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(p.icon)) {
             this._iconMediaIds[p.id] = p.icon;
             try {
               const url = await getMediaDataUrl(p.icon);
@@ -376,7 +376,7 @@ class CanvasCritiqueStore {
         this.projects = data.projects;
         // Resolve project icons from mediaId to dataUrl
         for (const p of this.projects) {
-          if (p.icon && !p.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(p.icon)) {
+          if (p.icon && !p.icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(p.icon)) {
             this._projectIconMediaIds[p.id] = p.icon;
             try {
               const url = await getMediaDataUrl(p.icon);
@@ -524,7 +524,7 @@ class CanvasCritiqueStore {
   async addProfile(name: string, icon: string | null = null, color: string = '#3b82f6') {
     const id = 'profile-' + Date.now();
     let resolvedIcon = icon;
-    if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(icon)) {
+    if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(icon)) {
       this._iconMediaIds[id] = icon;
       try {
         resolvedIcon = await getMediaDataUrl(icon);
@@ -549,7 +549,7 @@ class CanvasCritiqueStore {
     if (!profile) return;
     if (updated.name !== undefined) profile.name = updated.name;
     if (updated.icon !== undefined) {
-      if (updated.icon && !updated.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(updated.icon)) {
+      if (updated.icon && !updated.icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(updated.icon)) {
         this._iconMediaIds[id] = updated.icon;
         try {
           profile.icon = await getMediaDataUrl(updated.icon);
@@ -559,7 +559,7 @@ class CanvasCritiqueStore {
         }
       } else {
         profile.icon = updated.icon;
-        if (updated.icon && (updated.icon.startsWith('data:') || !/^[a-f0-9-]{36}$/i.test(updated.icon))) {
+        if (updated.icon && (updated.icon.startsWith('data:') || !/^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(updated.icon))) {
           delete this._iconMediaIds[id];
         } else if (!updated.icon) {
           delete this._iconMediaIds[id];
@@ -750,7 +750,7 @@ class CanvasCritiqueStore {
   async addProject(name: string, icon: string = 'history_edu'): Promise<Project> {
     const projectId = 'proj-' + Date.now();
     let resolvedIcon = icon;
-    if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(icon)) {
+    if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(icon)) {
       this._projectIconMediaIds[projectId] = icon;
       try {
         resolvedIcon = await getMediaDataUrl(icon);
@@ -1142,7 +1142,7 @@ class CanvasCritiqueStore {
 
     if (updates.name !== undefined) project.name = updates.name;
     if (updates.icon !== undefined) {
-      if (updates.icon && !updates.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(updates.icon)) {
+      if (updates.icon && !updates.icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(updates.icon)) {
         this._projectIconMediaIds[projectId] = updates.icon;
         try {
           project.icon = await getMediaDataUrl(updates.icon);
@@ -1152,7 +1152,7 @@ class CanvasCritiqueStore {
         }
       } else {
         project.icon = updates.icon;
-        if (updates.icon && (updates.icon.startsWith('data:') || !/^[a-f0-9-]{36}$/i.test(updates.icon))) {
+        if (updates.icon && (updates.icon.startsWith('data:') || !/^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(updates.icon))) {
           delete this._projectIconMediaIds[projectId];
         }
       }
@@ -1698,7 +1698,7 @@ class CanvasCritiqueStore {
             }
 
             let icon = project.icon;
-            if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(icon)) {
+            if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(icon)) {
               mediaIdsToPack.push(icon);
             }
 
@@ -1837,7 +1837,7 @@ class CanvasCritiqueStore {
 
       for (const proj of exportProjects) {
         proj.canvasSaves = {};
-        if (proj.icon && !proj.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(proj.icon)) {
+        if (proj.icon && !proj.icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(proj.icon)) {
           mediaIdsToPack.push(proj.icon);
         }
         if (proj.tasks) {
@@ -1866,7 +1866,7 @@ class CanvasCritiqueStore {
 
       const exportProfiles = JSON.parse(JSON.stringify(this.profiles));
       for (const prof of exportProfiles) {
-        if (prof.icon && !prof.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(prof.icon)) {
+        if (prof.icon && !prof.icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(prof.icon)) {
           mediaIdsToPack.push(prof.icon);
         }
       }
@@ -2067,7 +2067,7 @@ class CanvasCritiqueStore {
     const exportProjects = JSON.parse(JSON.stringify(this.projects));
     for (const proj of exportProjects) {
       proj.canvasSaves = {};
-      if (proj.icon && !proj.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(proj.icon)) {
+      if (proj.icon && !proj.icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(proj.icon)) {
         try {
           proj.icon = await getMediaDataUrl(proj.icon);
         } catch (_) {
@@ -2110,7 +2110,7 @@ class CanvasCritiqueStore {
       profiles: await (async () => {
         const exportProfiles = JSON.parse(JSON.stringify(this.profiles));
         for (const prof of exportProfiles) {
-          if (prof.icon && !prof.icon.startsWith('data:') && /^[a-f0-9-]{36}$/i.test(prof.icon)) {
+          if (prof.icon && !prof.icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(prof.icon)) {
             try {
               prof.icon = await getMediaDataUrl(prof.icon);
             } catch (_) {
