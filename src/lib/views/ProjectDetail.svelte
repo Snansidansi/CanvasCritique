@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { store, type Project } from '../state/store.svelte';
   import TaskSelectionBar from '../components/project/TaskSelectionBar.svelte';
   import LessonSettingsModal from '../components/project/LessonSettingsModal.svelte';
@@ -28,6 +29,15 @@
   // Local state for category addition
   let newCategoryName = $state('');
   let isAddCategoryOpen = $state(false);
+  let categoryInputEl = $state<HTMLInputElement | null>(null);
+
+  $effect(() => {
+    if (isAddCategoryOpen) {
+      tick().then(() => {
+        categoryInputEl?.focus();
+      });
+    }
+  });
 
   // Pointer-based drag state
   let draggedTaskId = $state<string | null>(null);
@@ -1125,13 +1135,13 @@
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-semibold text-on-surface-variant" for="catName">{t('projectDetail.topicNameLabel')}</label>
           <input 
+            bind:this={categoryInputEl}
             type="text" 
             id="catName" 
             bind:value={newCategoryName} 
             placeholder={t('projectDetail.topicNamePlaceholder')}
             class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:outline-none focus:border-primary"
             required
-            autofocus
           />
         </div>
 
