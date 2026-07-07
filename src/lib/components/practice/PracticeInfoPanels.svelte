@@ -109,55 +109,6 @@
   }
 
   let expandedMediaIds = $state<Record<string, boolean>>({});
-  let customHeights = $state<Record<string, number>>({});
-
-  $effect(() => {
-    // Reset custom heights when the task changes
-    const _ = task?.id;
-    customHeights = {};
-  });
-
-  let dragMediaId = $state<string | null>(null);
-  let dragStartHeight = 0;
-  let dragStartY = 0;
-
-  function handleResizeStart(e: PointerEvent, mediaId: string, currentElement: HTMLElement) {
-    e.preventDefault();
-    dragMediaId = mediaId;
-    const container = currentElement.closest('.resizable-preview-container') as HTMLElement;
-    if (container) {
-      dragStartHeight = container.getBoundingClientRect().height;
-      dragStartY = e.clientY;
-      container.setPointerCapture(e.pointerId);
-    }
-  }
-
-  function handleResizeMove(e: PointerEvent) {
-    if (!dragMediaId) return;
-    const deltaY = e.clientY - dragStartY;
-    const newHeight = Math.max(100, dragStartHeight + deltaY);
-    customHeights[dragMediaId] = newHeight;
-  }
-
-  function handleResizeEnd(e: PointerEvent, currentElement: HTMLElement) {
-    if (!dragMediaId) return;
-    try {
-      const container = currentElement.closest('.resizable-preview-container') as HTMLElement;
-      if (container) {
-        container.releasePointerCapture(e.pointerId);
-      }
-    } catch (_) {}
-    dragMediaId = null;
-  }
-
-  function getDefaultHeight(fileName: string): string {
-    const lower = fileName.toLowerCase();
-    if (isAudioFile(fileName)) return 'auto';
-    if (lower.endsWith('.pdf')) return '400px';
-    if (lower.endsWith('.md') || lower.endsWith('.txt')) return '300px';
-    if (isVideoFile(fileName)) return '360px';
-    return 'auto'; // Images, etc.
-  }
 
   // Cache loaded media URLs with loading state
   let loadedMedia = $state<Record<string, { url: string; loading: boolean; error: boolean }>>({});
@@ -716,53 +667,37 @@
                               </div>
                             </div>
                           {:else}
-                            <div 
-                              class="w-full relative flex flex-col items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10 resizable-preview-container"
-                              style="height: {customHeights[mediaId] ? customHeights[mediaId] + 'px' : getDefaultHeight(file.name)}; max-height: 70vh; min-height: 100px;"
-                            >
-                              <div class="w-full grow overflow-hidden relative flex items-center justify-center">
-                                {#if file.name.toLowerCase().endsWith('.pdf')}
-                                  <iframe 
-                                    src={fileUrl} 
-                                    title={file.name} 
-                                    class="w-full h-full border-0 rounded-lg"
-                                  ></iframe>
-                                {:else if file.name.toLowerCase().endsWith('.md')}
-                                  <div class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
-                                    {@html parseMarkdown(decodeBase64Text(fileUrl))}
-                                  </div>
-                                {:else if file.name.toLowerCase().endsWith('.txt')}
-                                  <pre class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
-                                {:else}
-                                  {@const inlineImgState = inlineStates[mediaId]}
-                                  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                                  <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                  <img 
-                                    src={fileUrl} 
-                                    alt={file.name} 
-                                    data-media-id={mediaId}
-                                    onclick={(e) => handleInlineClick(e, file, mediaId)}
-                                    onwheel={handleInlineWheel}
-                                    onpointerdown={handleInlinePointerDown}
-                                    onpointermove={handleInlinePointerMove}
-                                    onpointerup={handleInlinePointerUp}
-                                    onpointercancel={handleInlinePointerCancel}
-                                    class="w-full h-full object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
-                                    style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
-                                    draggable="false"
-                                  />
-                                {/if}
-                              </div>
-                              {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
-                                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                <div 
-                                  onpointerdown={(e) => handleResizeStart(e, mediaId, e.currentTarget as HTMLElement)}
-                                  onpointermove={handleResizeMove}
-                                  onpointerup={(e) => handleResizeEnd(e, e.currentTarget as HTMLElement)}
-                                  class="w-full h-2 hover:bg-primary/20 active:bg-primary/40 cursor-row-resize flex items-center justify-center bg-outline-variant/20 transition-all select-none shrink-0"
-                                >
-                                  <div class="w-8 h-1 bg-outline-variant rounded-full"></div>
+                            <div class="w-full aspect-[4/3] max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10">
+                              {#if file.name.toLowerCase().endsWith('.pdf')}
+                                <iframe 
+                                  src={fileUrl} 
+                                  title={file.name} 
+                                  class="w-full h-full border-0 rounded-lg"
+                                ></iframe>
+                              {:else if file.name.toLowerCase().endsWith('.md')}
+                                <div class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
+                                  {@html parseMarkdown(decodeBase64Text(fileUrl))}
                                 </div>
+                              {:else if file.name.toLowerCase().endsWith('.txt')}
+                                <pre class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
+                              {:else}
+                                {@const inlineImgState = inlineStates[mediaId]}
+                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                <img 
+                                  src={fileUrl} 
+                                  alt={file.name} 
+                                  data-media-id={mediaId}
+                                  onclick={(e) => handleInlineClick(e, file, mediaId)}
+                                  onwheel={handleInlineWheel}
+                                  onpointerdown={handleInlinePointerDown}
+                                  onpointermove={handleInlinePointerMove}
+                                  onpointerup={handleInlinePointerUp}
+                                  onpointercancel={handleInlinePointerCancel}
+                                  class="w-full h-full object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
+                                  style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
+                                  draggable="false"
+                                />
                               {/if}
                             </div>
                           {/if}
@@ -858,53 +793,37 @@
                               </div>
                             </div>
                           {:else}
-                            <div 
-                              class="w-full relative flex flex-col items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10 resizable-preview-container"
-                              style="height: {customHeights[mediaId] ? customHeights[mediaId] + 'px' : getDefaultHeight(file.name)}; max-height: 70vh; min-height: 100px;"
-                            >
-                              <div class="w-full grow overflow-hidden relative flex items-center justify-center">
-                                {#if file.name.toLowerCase().endsWith('.pdf')}
-                                  <iframe 
-                                    src={fileUrl} 
-                                    title={file.name} 
-                                    class="w-full h-full border-0 rounded-lg"
-                                  ></iframe>
-                                {:else if file.name.toLowerCase().endsWith('.md')}
-                                  <div class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
-                                    {@html parseMarkdown(decodeBase64Text(fileUrl))}
-                                  </div>
-                                {:else if file.name.toLowerCase().endsWith('.txt')}
-                                  <pre class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
-                                {:else}
-                                  {@const inlineImgState = inlineStates[mediaId]}
-                                  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                                  <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                  <img 
-                                    src={fileUrl} 
-                                    alt={file.name} 
-                                    data-media-id={mediaId}
-                                    onclick={(e) => handleInlineClick(e, file, mediaId)}
-                                    onwheel={handleInlineWheel}
-                                    onpointerdown={handleInlinePointerDown}
-                                    onpointermove={handleInlinePointerMove}
-                                    onpointerup={handleInlinePointerUp}
-                                    onpointercancel={handleInlinePointerCancel}
-                                    class="w-full h-full object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
-                                    style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
-                                    draggable="false"
-                                  />
-                                {/if}
-                              </div>
-                              {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
-                                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                <div 
-                                  onpointerdown={(e) => handleResizeStart(e, mediaId, e.currentTarget as HTMLElement)}
-                                  onpointermove={handleResizeMove}
-                                  onpointerup={(e) => handleResizeEnd(e, e.currentTarget as HTMLElement)}
-                                  class="w-full h-2 hover:bg-primary/20 active:bg-primary/40 cursor-row-resize flex items-center justify-center bg-outline-variant/20 transition-all select-none shrink-0"
-                                >
-                                  <div class="w-8 h-1 bg-outline-variant rounded-full"></div>
+                            <div class="w-full aspect-[4/3] max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10">
+                              {#if file.name.toLowerCase().endsWith('.pdf')}
+                                <iframe 
+                                  src={fileUrl} 
+                                  title={file.name} 
+                                  class="w-full h-full border-0 rounded-lg"
+                                ></iframe>
+                              {:else if file.name.toLowerCase().endsWith('.md')}
+                                <div class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
+                                  {@html parseMarkdown(decodeBase64Text(fileUrl))}
                                 </div>
+                              {:else if file.name.toLowerCase().endsWith('.txt')}
+                                <pre class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
+                              {:else}
+                                {@const inlineImgState = inlineStates[mediaId]}
+                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                <img 
+                                  src={fileUrl} 
+                                  alt={file.name} 
+                                  data-media-id={mediaId}
+                                  onclick={(e) => handleInlineClick(e, file, mediaId)}
+                                  onwheel={handleInlineWheel}
+                                  onpointerdown={handleInlinePointerDown}
+                                  onpointermove={handleInlinePointerMove}
+                                  onpointerup={handleInlinePointerUp}
+                                  onpointercancel={handleInlinePointerCancel}
+                                  class="w-full h-full object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
+                                  style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
+                                  draggable="false"
+                                />
                               {/if}
                             </div>
                           {/if}
