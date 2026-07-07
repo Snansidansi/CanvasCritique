@@ -72,6 +72,7 @@ class CanvasCritiqueStore {
   profiles = $state<Profile[]>([]);
   activeProfileId = $state<string>('');
   notification = $state<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  openRouterPrices = $state<Record<string, { prompt: number; completion: number }>>({});
 
   private _dbReady = false;
   private _iconMediaIds: Record<string, string> = {};
@@ -220,6 +221,7 @@ class CanvasCritiqueStore {
     await migrateMediaExtensions();
     await this.loadState(db);
     this._dbReady = true;
+    this.fetchOpenRouterPrices();
   }
 
   private getDb() {
@@ -270,10 +272,45 @@ class CanvasCritiqueStore {
         this.settings.statsEnabled = true;
       }
       if (!this.settings.stats) {
-        this.settings.stats = { daily: {} };
+        this.settings.stats = { daily: {}, history: [] };
       }
       if (!this.settings.stats.daily) {
         this.settings.stats.daily = {};
+      }
+      if (!this.settings.stats.history) {
+        this.settings.stats.history = [];
+      }
+      // Migrate daily stats to history if history is empty but daily has data
+      if (this.settings.stats.daily && Object.keys(this.settings.stats.daily).length > 0 && (!this.settings.stats.history || this.settings.stats.history.length === 0)) {
+        this.settings.stats.history = [];
+        for (const date of Object.keys(this.settings.stats.daily)) {
+          const day = this.settings.stats.daily[date];
+          if (day.gemini && (day.gemini.requests > 0 || day.gemini.cost > 0)) {
+            this.settings.stats.history.push({
+              id: `migrated-gemini-${date}`,
+              timestamp: `${date}T12:00:00.000Z`,
+              provider: 'gemini',
+              model: this.settings.geminiModel || 'gemini-1.5-flash',
+              inputTokens: day.gemini.inputTokens,
+              outputTokens: day.gemini.outputTokens,
+              reasoningTokens: day.gemini.reasoningTokens || 0,
+              cost: day.gemini.cost
+            });
+          }
+          if (day.openrouter && (day.openrouter.requests > 0 || day.openrouter.cost > 0)) {
+            this.settings.stats.history.push({
+              id: `migrated-openrouter-${date}`,
+              timestamp: `${date}T12:00:00.000Z`,
+              provider: 'openrouter',
+              model: this.settings.openRouterModel || 'google/gemini-flash-1.5',
+              inputTokens: day.openrouter.inputTokens,
+              outputTokens: day.openrouter.outputTokens,
+              reasoningTokens: day.openrouter.reasoningTokens || 0,
+              cost: day.openrouter.cost
+            });
+          }
+        }
+        await dbSaveSettings(database, this.settings);
       }
       if (!this.settings.stylusButtons || !Array.isArray(this.settings.stylusButtons)) {
         this.settings.stylusButtons = [];
@@ -1932,8 +1969,24 @@ class CanvasCritiqueStore {
   ): Promise<void> {
     if (!this.settings.statsEnabled) return;
     if (!this.settings.stats) {
-      this.settings.stats = { daily: {} };
+      this.settings.stats = { daily: {}, history: [] };
     }
+    if (!this.settings.stats.history) {
+      this.settings.stats.history = [];
+    }
+
+    const log = {
+      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+      timestamp: new Date().toISOString(),
+      provider,
+      model,
+      inputTokens,
+      outputTokens,
+      reasoningTokens,
+      cost
+    };
+    this.settings.stats.history.push(log);
+
     if (!this.settings.stats.daily) {
       this.settings.stats.daily = {};
     }
@@ -1963,6 +2016,28 @@ class CanvasCritiqueStore {
     dayStats.cost += cost;
 
     await this.saveSettings();
+  }
+
+  async fetchOpenRouterPrices(): Promise<void> {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/models');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.data && Array.isArray(data.data)) {
+          const prices: Record<string, { prompt: number; completion: number }> = {};
+          for (const model of data.data) {
+            prices[model.id] = {
+              prompt: parseFloat(model.pricing?.prompt || '0'),
+              completion: parseFloat(model.pricing?.completion || '0')
+            };
+          }
+          this.openRouterPrices = prices;
+          console.log('[store] Loaded OpenRouter pricing for', Object.keys(prices).length, 'models');
+        }
+      }
+    } catch (err) {
+      console.error('[store] Failed to fetch OpenRouter prices:', err);
+    }
   }
 
   showLoading(text: string): void {

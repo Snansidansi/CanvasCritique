@@ -793,10 +793,53 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
       const inputTokens = chatResult.usage?.promptTokens || 0;
       const outputTokens = chatResult.usage?.completionTokens || 0;
       const reasoningTokens = chatResult.usage?.completionTokensDetails?.reasoningTokens || 0;
-      const cost = estimateCost('openrouter', model, inputTokens, outputTokens, {
-        geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
-        geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
-      });
+      const generationId = chatResult.id;
+
+      let cost = 0;
+      let costResolved = false;
+
+      if (generationId && apiKey) {
+        try {
+          // Wait briefly for OpenRouter backend to index the generation (e.g., 800ms)
+          await new Promise(resolve => setTimeout(resolve, 800));
+          const genRes = await fetch(`https://openrouter.ai/api/v1/generation?id=${generationId}`, {
+            headers: {
+              'Authorization': `Bearer ${apiKey}`
+            }
+          });
+          if (genRes.ok) {
+            const genData = await genRes.json();
+            if (genData?.data) {
+              const byokUsage = genData.data.byok_usage_inference || 0;
+              const normalUsage = genData.data.usage || 0;
+              cost = byokUsage || normalUsage || 0;
+              if (cost > 0) {
+                costResolved = true;
+                console.log('[openrouter-cost] Resolved exact cost from generation API:', cost);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[openrouter-cost] Failed to fetch exact cost from generation API:', err);
+        }
+      }
+
+      if (!costResolved) {
+        // Fallback: calculate using session-cached prices
+        const price = store.openRouterPrices[model];
+        if (price) {
+          cost = (inputTokens * price.prompt) + (outputTokens * price.completion);
+          console.log('[openrouter-cost] Calculated cost from cached pricing:', cost);
+        } else {
+          // Fallback to static estimateCost
+          cost = estimateCost('openrouter', model, inputTokens, outputTokens, {
+            geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
+            geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
+          });
+          console.log('[openrouter-cost] Fallback to estimateCost:', cost);
+        }
+      }
+
       store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost);
     } catch (err) {
       console.error('Failed to log LLM statistics:', err);

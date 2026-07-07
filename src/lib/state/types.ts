@@ -103,6 +103,17 @@ export interface ApiStats {
   cost: number;
 }
 
+export interface RequestLog {
+  id: string;
+  timestamp: string;
+  provider: 'gemini' | 'openrouter';
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cost: number;
+}
+
 export interface DailyStats {
   gemini: ApiStats;
   openrouter: ApiStats;
@@ -140,6 +151,7 @@ export interface Settings {
   statsEnabled: boolean;
   stats: {
     daily: Record<string, DailyStats>;
+    history: RequestLog[];
   };
   geminiInputCostPerMillion: number;
   geminiOutputCostPerMillion: number;

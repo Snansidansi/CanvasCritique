@@ -4,33 +4,83 @@
   import { t } from '../../services/i18n';
 
   // State variables for statistics settings and visualization
-  let timeframe = $state<'7' | '30'>('7'); // '7' | '30' days
+  let timeframe = $state<'7' | '30' | 'custom'>('7'); // '7' | '30' | 'custom' days
   let activeMetric = $state<'cost' | 'requests' | 'tokens'>('cost');
   let hoverIndex = $state<number | null>(null);
 
   // Fallback structure to prevent runtime access errors
   const statsDaily = $derived(store.settings.stats?.daily || {});
 
-  // 1. Calculate overall aggregate statistics
+  // Calculate date boundaries
+  const activeRangeDates = $derived.by(() => {
+    let startD = new Date();
+    let endD = new Date();
+
+    if (timeframe === '7') {
+      startD.setDate(endD.getDate() - 6);
+    } else if (timeframe === '30') {
+      startD.setDate(endD.getDate() - 29);
+    } else {
+      startD = new Date(customStartDate);
+      endD = new Date(customEndDate);
+    }
+
+    if (startD > endD) {
+      const tmp = startD;
+      startD = endD;
+      endD = tmp;
+    }
+
+    startD.setHours(0, 0, 0, 0);
+    endD.setHours(23, 59, 59, 999);
+
+    return { start: startD, end: endD };
+  });
+
+  let customStartDate = $state(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+  let customEndDate = $state(new Date().toISOString().split('T')[0]);
+
+  // 1. Calculate range aggregate statistics
   const aggregates = $derived.by(() => {
     let gemini = { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 };
     let openrouter = { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 };
 
-    for (const date of Object.keys(statsDaily)) {
-      const day = statsDaily[date];
-      if (day.gemini) {
-        gemini.requests += day.gemini.requests || 0;
-        gemini.inputTokens += day.gemini.inputTokens || 0;
-        gemini.outputTokens += day.gemini.outputTokens || 0;
-        gemini.reasoningTokens += day.gemini.reasoningTokens || 0;
-        gemini.cost += day.gemini.cost || 0;
+    const { start, end } = activeRangeDates;
+    const history = store.settings.stats?.history || [];
+
+    for (const log of history) {
+      const logDate = new Date(log.timestamp);
+      if (logDate >= start && logDate <= end) {
+        const statsObj = log.provider === 'gemini' ? gemini : openrouter;
+        statsObj.requests += 1;
+        statsObj.inputTokens += log.inputTokens || 0;
+        statsObj.outputTokens += log.outputTokens || 0;
+        statsObj.reasoningTokens += log.reasoningTokens || 0;
+        statsObj.cost += log.cost || 0;
       }
-      if (day.openrouter) {
-        openrouter.requests += day.openrouter.requests || 0;
-        openrouter.inputTokens += day.openrouter.inputTokens || 0;
-        openrouter.outputTokens += day.openrouter.outputTokens || 0;
-        openrouter.reasoningTokens += day.openrouter.reasoningTokens || 0;
-        openrouter.cost += day.openrouter.cost || 0;
+    }
+
+    // Fallback for daily aggregates if history is not populated yet
+    if (history.length === 0) {
+      for (const date of Object.keys(statsDaily)) {
+        const dDate = new Date(date + 'T12:00:00');
+        if (dDate >= start && dDate <= end) {
+          const day = statsDaily[date];
+          if (day.gemini) {
+            gemini.requests += day.gemini.requests || 0;
+            gemini.inputTokens += day.gemini.inputTokens || 0;
+            gemini.outputTokens += day.gemini.outputTokens || 0;
+            gemini.reasoningTokens += day.gemini.reasoningTokens || 0;
+            gemini.cost += day.gemini.cost || 0;
+          }
+          if (day.openrouter) {
+            openrouter.requests += day.openrouter.requests || 0;
+            openrouter.inputTokens += day.openrouter.inputTokens || 0;
+            openrouter.outputTokens += day.openrouter.outputTokens || 0;
+            openrouter.reasoningTokens += day.openrouter.reasoningTokens || 0;
+            openrouter.cost += day.openrouter.cost || 0;
+          }
+        }
       }
     }
 
@@ -45,9 +95,34 @@
     return { gemini, openrouter, combined };
   });
 
+  // Group request history by model inside range
+  const modelStats = $derived.by(() => {
+    const { start, end } = activeRangeDates;
+    const history = store.settings.stats?.history || [];
+    const models: Record<string, { requests: number; inputTokens: number; outputTokens: number; cost: number; provider: string }> = {};
+
+    for (const log of history) {
+      const logDate = new Date(log.timestamp);
+      if (logDate >= start && logDate <= end) {
+        if (!models[log.model]) {
+          models[log.model] = { requests: 0, inputTokens: 0, outputTokens: 0, cost: 0, provider: log.provider };
+        }
+        const item = models[log.model];
+        item.requests += 1;
+        item.inputTokens += log.inputTokens || 0;
+        item.outputTokens += log.outputTokens || 0;
+        item.cost += log.cost || 0;
+      }
+    }
+
+    return Object.entries(models).map(([name, stats]) => ({
+      name,
+      ...stats
+    })).sort((a, b) => b.cost - a.cost);
+  });
+
   // 2. Generate date range for selected timeframe
   const chartData = $derived.by(() => {
-    const today = new Date();
     const list: Array<{
       date: string;
       label: string;
@@ -60,45 +135,62 @@
       totalCost: number;
       totalRequests: number;
       totalTokens: number;
-      allData: any;
     }> = [];
-    const count = timeframe === '7' ? 7 : 30;
 
-    for (let i = count - 1; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      
-      // Format label (e.g., "Jun 24")
-      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      
-      const dayData = statsDaily[dateStr] || {
-        gemini: { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 },
-        openrouter: { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 }
-      };
+    const { start, end } = activeRangeDates;
+    const history = store.settings.stats?.history || [];
 
-      const gCost = dayData.gemini?.cost || 0;
-      const orCost = dayData.openrouter?.cost || 0;
-      const gReq = dayData.gemini?.requests || 0;
-      const orReq = dayData.openrouter?.requests || 0;
-      const gTok = (dayData.gemini?.inputTokens || 0) + (dayData.gemini?.outputTokens || 0);
-      const orTok = (dayData.openrouter?.inputTokens || 0) + (dayData.openrouter?.outputTokens || 0);
+    // Group logs by exact YYYY-MM-DD date string within start & end
+    const dailyLogs: Record<string, typeof history> = {};
+    const curr = new Date(start);
+    while (curr <= end) {
+      const dateStr = curr.toISOString().split('T')[0];
+      dailyLogs[dateStr] = [];
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    for (const log of history) {
+      const dateStr = log.timestamp.split('T')[0];
+      if (dailyLogs[dateStr]) {
+        dailyLogs[dateStr].push(log);
+      }
+    }
+
+    for (const [dateStr, logs] of Object.entries(dailyLogs)) {
+      const d = new Date(dateStr + 'T12:00:00');
+      const label = d.toLocaleDateString(store.settings.language === 'Deutsch' ? 'de-DE' : 'en-US', { month: 'short', day: 'numeric' });
+
+      let geminiCost = 0, openRouterCost = 0;
+      let geminiRequests = 0, openRouterRequests = 0;
+      let geminiTokens = 0, openRouterTokens = 0;
+
+      for (const log of logs) {
+        if (log.provider === 'gemini') {
+          geminiCost += log.cost || 0;
+          geminiRequests += 1;
+          geminiTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
+        } else {
+          openRouterCost += log.cost || 0;
+          openRouterRequests += 1;
+          openRouterTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
+        }
+      }
 
       list.push({
         date: dateStr,
         label,
-        geminiCost: gCost,
-        openRouterCost: orCost,
-        geminiRequests: gReq,
-        openRouterRequests: orReq,
-        geminiTokens: gTok,
-        openRouterTokens: orTok,
-        totalCost: gCost + orCost,
-        totalRequests: gReq + orReq,
-        totalTokens: gTok + orTok,
-        allData: dayData
+        geminiCost,
+        openRouterCost,
+        geminiRequests,
+        openRouterRequests,
+        geminiTokens,
+        openRouterTokens,
+        totalCost: geminiCost + openRouterCost,
+        totalRequests: geminiRequests + openRouterRequests,
+        totalTokens: geminiTokens + openRouterTokens
       });
     }
+
     return list;
   });
 
@@ -200,7 +292,7 @@
       t('settings.stats.confirmResetTitle'),
       t('settings.stats.confirmResetMsg'),
       () => {
-        store.settings.stats = { daily: {} };
+        store.settings.stats = { daily: {}, history: [] };
         store.saveSettings();
         store.showNotification(t('settings.stats.notifyResetSuccess'), 'success');
       }
@@ -309,7 +401,7 @@
   <!-- Aggregates Grid -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
     <!-- Combined Card -->
-    <div class="bg-gradient-to-br from-primary/10 via-primary/5 to-surface p-5 rounded-xl border border-primary/20 shadow-sm relative overflow-hidden">
+    <div class="bg-linear-to-br from-primary/10 via-primary/5 to-surface p-5 rounded-xl border border-primary/20 shadow-sm relative overflow-hidden">
       <div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-xl translate-x-8 -translate-y-8"></div>
       <div class="flex items-center gap-2.5 mb-4">
         <span class="material-symbols-outlined text-primary text-xl">all_inclusive</span>
@@ -443,11 +535,46 @@
         >
           {t('settings.stats.days30')}
         </button>
+        <button
+          onclick={() => timeframe = 'custom'}
+          class="px-3 py-1 text-xs rounded-md font-semibold transition-all
+                 {timeframe === 'custom' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
+        >
+          {t('settings.stats.customRange') || 'Custom'}
+        </button>
       </div>
     </div>
 
+    <!-- Custom Date Range Pickers -->
+    {#if timeframe === 'custom'}
+      <div class="flex flex-wrap items-center gap-4 bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/60 w-fit">
+        <div class="flex flex-col gap-1">
+          <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider" for="statsStartDate">
+            {t('settings.stats.startDate') || 'Start Date'}
+          </label>
+          <input
+            id="statsStartDate"
+            type="date"
+            bind:value={customStartDate}
+            class="bg-surface border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+          />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider" for="statsEndDate">
+            {t('settings.stats.endDate') || 'End Date'}
+          </label>
+          <input
+            id="statsEndDate"
+            type="date"
+            bind:value={customEndDate}
+            class="bg-surface border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+          />
+        </div>
+      </div>
+    {/if}
+
     <!-- Chart Container -->
-    <div class="relative w-full h-[220px] select-none">
+    <div class="relative w-full h-55 select-none">
       {#if points.length > 0}
         <svg 
           viewBox="0 0 {svgWidth} {svgHeight}" 
@@ -541,7 +668,7 @@
         {#if hoverIndex !== null}
           {@const p = points[hoverIndex]}
           <div 
-            class="absolute pointer-events-none bg-surface-container-high border border-outline-variant/80 p-3.5 rounded-lg shadow-xl text-left text-xs z-20 space-y-1.5 min-w-[170px]"
+            class="absolute pointer-events-none bg-surface-container-high border border-outline-variant/80 p-3.5 rounded-lg shadow-xl text-left text-xs z-20 space-y-1.5 min-w-42.5"
             style="
               left: {Math.min(Math.max((p.x / svgWidth) * 100 - 15, 2), 70)}%;
               top: {Math.max((p.y / svgHeight) * 100 - 55, -20)}%;
@@ -564,11 +691,11 @@
                 <span>{t('settings.stats.tokensMetricBtn')}:</span>
                 <span class="font-bold text-on-surface">{formatTokens(p.data.totalTokens)}</span>
               </div>
-              <div class="text-[10px] text-primary/80 pt-1 border-t border-outline-variant/40 flex justify-between">
+              <div class="text-[10px] text-primary font-semibold pt-1 border-t border-outline-variant/40 flex justify-between">
                 <span>Gemini:</span>
                 <span>{formatCost(p.data.geminiCost)}</span>
               </div>
-              <div class="text-[10px] text-primary/80 flex justify-between">
+              <div class="text-[10px] text-primary font-semibold flex justify-between">
                 <span>OpenRouter:</span>
                 <span>{formatCost(p.data.openRouterCost)}</span>
               </div>
@@ -584,9 +711,59 @@
     </div>
   </section>
 
+  <!-- Usage by Model Section -->
+  {#if store.settings.stats?.history && store.settings.stats.history.length > 0}
+    <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm space-y-4">
+      <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+        <div class="flex flex-col gap-0.5">
+          <h4 class="font-bold text-sm text-on-surface">
+            {store.settings.language === 'Deutsch' ? 'Nutzung nach Modell' : 'Usage by Model'}
+          </h4>
+          <p class="text-xs text-on-surface-variant">
+            {store.settings.language === 'Deutsch' ? 'Detaillierte Aufschlüsselung der Anfragen pro KI-Modell' : 'Detailed breakdown of requests per AI model'}
+          </p>
+        </div>
+        <span class="text-xs font-semibold px-2 py-1 bg-surface-container rounded-full text-primary">
+          {modelStats.length} {store.settings.language === 'Deutsch' ? 'Modelle' : 'Models'}
+        </span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-outline-variant/60 text-on-surface-variant font-semibold">
+              <th class="py-2 pr-4">{store.settings.language === 'Deutsch' ? 'Modellname' : 'Model Name'}</th>
+              <th class="py-2 px-4">{store.settings.language === 'Deutsch' ? 'Anbieter' : 'Provider'}</th>
+              <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Anfragen' : 'Requests'}</th>
+              <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Tokens (In/Out)' : 'Tokens (In/Out)'}</th>
+              <th class="py-2 pl-4 text-right">{store.settings.language === 'Deutsch' ? 'Kosten' : 'Cost'}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline-variant/30 text-on-surface">
+            {#each modelStats as m}
+              <tr class="hover:bg-surface-container-low/30 transition-colors">
+                <td class="py-2.5 pr-4 font-mono font-medium truncate max-w-50" title={m.name}>{m.name}</td>
+                <td class="py-2.5 px-4 capitalize">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold {m.provider === 'gemini' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}">
+                    {m.provider}
+                  </span>
+                </td>
+                <td class="py-2.5 px-4 text-right font-medium">{m.requests}</td>
+                <td class="py-2.5 px-4 text-right text-on-surface-variant font-mono">
+                  {formatTokens(m.inputTokens)} / {formatTokens(m.outputTokens)}
+                </td>
+                <td class="py-2.5 pl-4 text-right font-semibold font-mono text-primary">{formatCost(m.cost)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {/if}
+
   <!-- Danger / Management Section -->
   <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm">
-    <h4 class="font-bold text-sm text-on-surface mb-1 text-error">{t('settings.stats.controlsTitle')}</h4>
+    <h4 class="font-bold text-sm mb-1 text-error">{t('settings.stats.controlsTitle')}</h4>
     <p class="text-xs text-on-surface-variant mb-4">
       {t('settings.stats.controlsDesc')}
     </p>
