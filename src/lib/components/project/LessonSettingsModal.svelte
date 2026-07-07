@@ -40,6 +40,9 @@
         language: store.settings.language,
         customSystemPrompt: store.settings.customSystemPrompt || '',
         canvasMode: store.settings.canvasMode,
+        canvasFontSize: store.settings.canvasFontSize,
+        overrideEditorFontSize: false,
+        editorFontSize: store.settings.editorFontSize || 16,
         eraserMode: store.settings.eraserMode,
         eraserRadiusNormal: store.settings.eraserRadiusNormal,
         eraserRadiusStroke: store.settings.eraserRadiusStroke,
@@ -58,7 +61,7 @@
   let hasCustomSystemPrompt = $state(false);
 
   // Tab navigation state
-  type TabId = 'model' | 'canvas' | 'eraser' | 'evaluation' | 'prompt' | 'numbering' | 'mediaFilter';
+  type TabId = 'model' | 'canvas' | 'editorFontSize' | 'eraser' | 'evaluation' | 'prompt' | 'numbering' | 'mediaFilter';
   let activeTab = $state<TabId>('model');
 
   const tabs = [
@@ -66,6 +69,7 @@
     { id: 'evaluation', labelKey: 'lessonSettings.evaluationDetailsTitle', icon: 'fact_check' },
     { id: 'mediaFilter', labelKey: 'settings.api.mediaFilterMode', icon: 'filter_alt' },
     { id: 'canvas', labelKey: 'lessonSettings.canvasLayoutTitle', icon: 'aspect_ratio' },
+    { id: 'editorFontSize', labelKey: 'lessonSettings.editorFontSizeTitle', icon: 'format_size' },
     { id: 'eraser', labelKey: 'lessonSettings.eraserTitle', icon: 'ink_eraser' },
     { id: 'prompt', labelKey: 'lessonSettings.systemPromptTitle', icon: 'terminal' },
     { id: 'numbering', labelKey: 'lessonSettings.taskNumberingTitle', icon: 'format_list_numbered' }
@@ -113,6 +117,12 @@
       if (project.settingsOverride.canvasFontSize === undefined) {
         project.settingsOverride.canvasFontSize = store.settings.canvasFontSize || 13;
       }
+      if (project.settingsOverride.overrideEditorFontSize === undefined) {
+        project.settingsOverride.overrideEditorFontSize = project.settingsOverride.overrideSettings || false;
+      }
+      if (project.settingsOverride.editorFontSize === undefined) {
+        project.settingsOverride.editorFontSize = store.settings.editorFontSize || 16;
+      }
       hasCustomSystemPrompt = !!project.settingsOverride.customSystemPrompt;
     }
   });
@@ -127,7 +137,7 @@
     isOpen = false;
   }
 
-  function handleToggleOverride(category: 'overrideModel' | 'overrideCanvas' | 'overrideEraser' | 'overrideEvaluation' | 'overrideSystemPrompt' | 'overrideTaskNumbering' | 'overrideMediaFilter', e: Event & { currentTarget: HTMLInputElement }) {
+  function handleToggleOverride(category: 'overrideModel' | 'overrideCanvas' | 'overrideEditorFontSize' | 'overrideEraser' | 'overrideEvaluation' | 'overrideSystemPrompt' | 'overrideTaskNumbering' | 'overrideMediaFilter', e: Event & { currentTarget: HTMLInputElement }) {
     if (!project.settingsOverride) return;
     const checked = e.currentTarget.checked;
     project.settingsOverride[category] = checked;
@@ -136,12 +146,46 @@
     project.settingsOverride.overrideSettings = !!(
       project.settingsOverride.overrideModel ||
       project.settingsOverride.overrideCanvas ||
+      project.settingsOverride.overrideEditorFontSize ||
       project.settingsOverride.overrideEraser ||
       project.settingsOverride.overrideEvaluation ||
       project.settingsOverride.overrideSystemPrompt ||
       project.settingsOverride.overrideTaskNumbering ||
       project.settingsOverride.overrideMediaFilter
     );
+
+    if (checked) {
+      if (category === 'overrideModel') {
+        project.settingsOverride.apiProvider = project.settingsOverride.apiProvider ?? store.settings.apiProvider;
+        project.settingsOverride.geminiModel = project.settingsOverride.geminiModel ?? store.settings.geminiModel;
+        project.settingsOverride.openRouterModel = project.settingsOverride.openRouterModel ?? store.settings.openRouterModel;
+        project.settingsOverride.openRouterProvider = project.settingsOverride.openRouterProvider ?? store.settings.openRouterProvider;
+        project.settingsOverride.openRouterReasoning = project.settingsOverride.openRouterReasoning ?? store.settings.openRouterReasoning;
+      } else if (category === 'overrideCanvas') {
+        project.settingsOverride.canvasMode = project.settingsOverride.canvasMode ?? store.settings.canvasMode;
+        project.settingsOverride.canvasFontSize = project.settingsOverride.canvasFontSize ?? store.settings.canvasFontSize;
+      } else if (category === 'overrideEditorFontSize') {
+        project.settingsOverride.editorFontSize = project.settingsOverride.editorFontSize ?? store.settings.editorFontSize;
+      } else if (category === 'overrideEraser') {
+        project.settingsOverride.eraserMode = project.settingsOverride.eraserMode ?? store.settings.eraserMode;
+        project.settingsOverride.eraserRadiusNormal = project.settingsOverride.eraserRadiusNormal ?? store.settings.eraserRadiusNormal;
+        project.settingsOverride.eraserRadiusStroke = project.settingsOverride.eraserRadiusStroke ?? store.settings.eraserRadiusStroke;
+      } else if (category === 'overrideEvaluation') {
+        project.settingsOverride.sendTaskMedia = project.settingsOverride.sendTaskMedia ?? store.settings.sendTaskMedia;
+        project.settingsOverride.sendSolutionMedia = project.settingsOverride.sendSolutionMedia ?? store.settings.sendSolutionMedia;
+        project.settingsOverride.sendCanvasBackground = project.settingsOverride.sendCanvasBackground ?? store.settings.sendCanvasBackground;
+        project.settingsOverride.sendTaskText = project.settingsOverride.sendTaskText ?? store.settings.sendTaskText;
+        project.settingsOverride.sendSolutionText = project.settingsOverride.sendSolutionText ?? store.settings.sendSolutionText;
+      } else if (category === 'overrideMediaFilter') {
+        project.settingsOverride.taskMediaFilterMode = project.settingsOverride.taskMediaFilterMode ?? store.settings.taskMediaFilterMode;
+        project.settingsOverride.taskMediaFilterExtensions = project.settingsOverride.taskMediaFilterExtensions ?? store.settings.taskMediaFilterExtensions;
+        project.settingsOverride.solutionMediaFilterMode = project.settingsOverride.solutionMediaFilterMode ?? store.settings.solutionMediaFilterMode;
+        project.settingsOverride.solutionMediaFilterExtensions = project.settingsOverride.solutionMediaFilterExtensions ?? store.settings.solutionMediaFilterExtensions;
+      } else if (category === 'overrideTaskNumbering') {
+        project.settingsOverride.autoNumberTasks = project.settingsOverride.autoNumberTasks ?? store.settings.autoNumberTasks;
+        project.settingsOverride.taskNumberingTemplate = project.settingsOverride.taskNumberingTemplate ?? store.settings.taskNumberingTemplate;
+      }
+    }
 
     if (category === 'overrideSystemPrompt') {
       if (checked) {
@@ -269,26 +313,6 @@
                   settings={project.settingsOverride} 
                   onchange={() => store.saveProjects()} 
                 />
-
-                <div class="flex flex-col gap-2 mt-2">
-                  <div class="flex justify-between items-center">
-                    <span class="text-xs font-semibold text-on-surface">{t('settings.canvas.fontSizeLabel') || 'Font Size'}</span>
-                    <span class="text-xs font-bold text-on-surface w-10 text-right">{project.settingsOverride.canvasFontSize || 13}px</span>
-                  </div>
-                  <div class="flex items-center gap-4">
-                    <span class="text-xs text-outline font-medium shrink-0">10px</span>
-                    <input
-                      type="range"
-                      min="10"
-                      max="24"
-                      step="1"
-                      bind:value={project.settingsOverride.canvasFontSize}
-                      onchange={() => store.saveProjects()}
-                      class="grow h-1.5 bg-surface-container-high rounded-lg appearance-none cursor-pointer accent-primary"
-                    />
-                    <span class="text-xs text-outline font-medium shrink-0">24px</span>
-                  </div>
-                </div>
               </div>
             {:else}
               <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in flex flex-col gap-1 items-center">
@@ -297,8 +321,55 @@
                 <p class="text-[11px] text-on-surface-variant leading-normal max-w-sm mx-auto">
                   {t('lessonSettings.canvasLayoutTitle')}: {store.settings.canvasMode === 'side-by-side' ? 'Side by Side' : 'Split Screen'}
                 </p>
+              </div>
+            {/if}
+
+          {:else if activeTab === 'editorFontSize'}
+            <!-- Editor Font Size Override Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideEditorFontSizeLabel')}</span>
+                <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideEditorFontSizeDesc')}</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={project.settingsOverride?.overrideEditorFontSize || false} 
+                  onchange={(e) => handleToggleOverride('overrideEditorFontSize', e)}
+                  class="sr-only peer"
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+
+            {#if project.settingsOverride?.overrideEditorFontSize}
+              <div class="border-t border-outline-variant/30 pt-4 animate-fade-in flex flex-col gap-4">
+                <div class="flex flex-col gap-2 mt-2">
+                  <div class="flex justify-between items-center">
+                    <span class="text-xs font-semibold text-on-surface">{t('lessonSettings.editorFontSizeTitle')}</span>
+                    <span class="text-xs font-bold text-on-surface w-10 text-right">{project.settingsOverride.editorFontSize || 16}px</span>
+                  </div>
+                  <div class="flex items-center gap-4">
+                    <span class="text-xs text-outline font-medium shrink-0">10px</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="40"
+                      step="1"
+                      bind:value={project.settingsOverride.editorFontSize}
+                      onchange={() => store.saveProjects()}
+                      class="grow h-1.5 bg-surface-container-high rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                    <span class="text-xs text-outline font-medium shrink-0">40px</span>
+                  </div>
+                </div>
+              </div>
+            {:else}
+              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in flex flex-col gap-1 items-center">
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-1">format_size</span>
+                <p class="text-xs text-on-surface font-bold">{t('lessonSettings.usingGlobalTitle')}</p>
                 <p class="text-[11px] text-on-surface-variant leading-normal max-w-sm mx-auto">
-                  {t('settings.canvas.fontSizeLabel') || 'Font Size'}: {store.settings.canvasFontSize || 13}px
+                  {t('lessonSettings.usingGlobalEditorFontSizeDesc')}: {store.settings.editorFontSize || 16}px
                 </p>
               </div>
             {/if}

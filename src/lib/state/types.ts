@@ -42,6 +42,7 @@ export interface ProjectSettingsOverride {
   overrideSettings: boolean;
   overrideModel?: boolean;
   overrideCanvas?: boolean;
+  overrideEditorFontSize?: boolean;
   overrideEraser?: boolean;
   overrideEvaluation?: boolean;
   overrideSystemPrompt?: boolean;
@@ -63,6 +64,7 @@ export interface ProjectSettingsOverride {
   language?: string;
   canvasMode?: string;
   canvasFontSize?: number;
+  editorFontSize?: number;
   autoNumberTasks?: boolean;
   taskNumberingTemplate?: string;
   eraserMode?: 'normal' | 'stroke';

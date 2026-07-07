@@ -184,6 +184,9 @@ class CanvasCritiqueStore {
     const useTaskMediaFilter = taskOverride?.overrideSettings && taskOverride?.overrideMediaFilter;
     const useProjMediaFilter = projOverride?.overrideSettings && projOverride?.overrideMediaFilter;
 
+    const useTaskEditorFontSize = taskOverride?.overrideSettings && taskOverride?.overrideEditorFontSize;
+    const useProjEditorFontSize = projOverride?.overrideSettings && projOverride?.overrideEditorFontSize;
+
     return {
       ...globalSettings,
       apiProvider: useTaskModel ? (taskOverride.apiProvider ?? globalSettings.apiProvider) : (useProjModel ? (projOverride.apiProvider ?? globalSettings.apiProvider) : globalSettings.apiProvider),
@@ -200,6 +203,7 @@ class CanvasCritiqueStore {
       customSystemPrompt: useTaskSystemPrompt ? (taskOverride.customSystemPrompt !== undefined && taskOverride.customSystemPrompt !== null ? taskOverride.customSystemPrompt : globalSettings.customSystemPrompt) : (useProjSystemPrompt ? (projOverride.customSystemPrompt !== undefined && projOverride.customSystemPrompt !== null ? projOverride.customSystemPrompt : globalSettings.customSystemPrompt) : globalSettings.customSystemPrompt),
       canvasMode: useTaskCanvas ? (taskOverride.canvasMode ?? globalSettings.canvasMode) : (useProjCanvas ? (projOverride.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode),
       canvasFontSize: useTaskCanvas ? (taskOverride.canvasFontSize ?? globalSettings.canvasFontSize) : (useProjCanvas ? (projOverride.canvasFontSize ?? globalSettings.canvasFontSize) : globalSettings.canvasFontSize),
+      editorFontSize: useTaskEditorFontSize ? (taskOverride.editorFontSize ?? globalSettings.editorFontSize) : (useProjEditorFontSize ? (projOverride.editorFontSize ?? globalSettings.editorFontSize) : globalSettings.editorFontSize),
       eraserMode: useTaskEraser ? (taskOverride.eraserMode ?? globalSettings.eraserMode) : (useProjEraser ? (projOverride.eraserMode ?? globalSettings.eraserMode) : globalSettings.eraserMode),
       eraserRadiusNormal: useTaskEraser ? (taskOverride.eraserRadiusNormal ?? globalSettings.eraserRadiusNormal) : (useProjEraser ? (projOverride.eraserRadiusNormal ?? globalSettings.eraserRadiusNormal) : globalSettings.eraserRadiusNormal),
       eraserRadiusStroke: useTaskEraser ? (taskOverride.eraserRadiusStroke ?? globalSettings.eraserRadiusStroke) : (useProjEraser ? (projOverride.eraserRadiusStroke ?? globalSettings.eraserRadiusStroke) : globalSettings.eraserRadiusStroke),

@@ -2975,14 +2975,14 @@
               oninput={handleEditorInput}
               placeholder=""
               class="grow w-full h-full resize-none bg-transparent text-on-surface focus:outline-none leading-relaxed border border-outline-variant/30 rounded-xl p-6 font-mono shadow-inner bg-surface-container-low/20 animate-fade-in"
-              style="font-size: {store.settings.editorFontSize || 16}px;"
+              style="font-size: {store.getEffectiveSettings(store.activeProject?.id || '', store.activeTask?.id).editorFontSize || 16}px;"
             ></textarea>
           {:else}
             <!-- Preview Mode: non-editable rendered HTML -->
             <div 
               role="document"
               class="grow w-full h-full overflow-y-auto bg-surface-container-low/20 border border-outline-variant/30 rounded-xl p-6 select-text text-left leading-relaxed max-w-none prose dark:prose-invert animate-fade-in custom-scrollbar"
-              style="font-size: {store.settings.editorFontSize || 16}px;"
+              style="font-size: {store.getEffectiveSettings(store.activeProject?.id || '', store.activeTask?.id).editorFontSize || 16}px;"
               onpointerover={handlePreviewPointerOver}
               onpointerout={handlePreviewPointerOut}
             >
