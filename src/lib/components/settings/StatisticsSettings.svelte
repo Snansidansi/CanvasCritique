@@ -313,6 +313,94 @@
     if (val >= 1000) return (val / 1000).toFixed(1) + 'k';
     return val.toString();
   }
+
+  // Local state for paginated request history table
+  let tableStartDate = $state<string>('');
+  let tableEndDate = $state<string>('');
+  let tablePage = $state<number>(1);
+  let tablePageSize = $state<10 | 50 | 100>(10);
+
+  // Drag selection state on chart
+  let isDraggingRange = $state(false);
+  let dragStartX = $state<number | null>(null);
+  let dragCurrentX = $state<number | null>(null);
+
+  function handleChartMouseDown(e: MouseEvent & { currentTarget: SVGSVGElement }) {
+    if (points.length === 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const scaleX = svgWidth / rect.width;
+    dragStartX = mouseX * scaleX;
+    dragCurrentX = dragStartX;
+    isDraggingRange = true;
+  }
+
+  function handleChartMouseMove(e: MouseEvent & { currentTarget: SVGSVGElement }) {
+    handleMouseMove(e); // Maintain tooltip hover highlight
+    if (isDraggingRange && dragStartX !== null) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const scaleX = svgWidth / rect.width;
+      dragCurrentX = mouseX * scaleX;
+    }
+  }
+
+  function handleChartMouseUp() {
+    if (isDraggingRange && dragStartX !== null && dragCurrentX !== null) {
+      const x1 = Math.min(dragStartX, dragCurrentX);
+      const x2 = Math.max(dragStartX, dragCurrentX);
+
+      // Find all points that fall within drag boundaries
+      const selectedPoints = points.filter(p => p.x >= x1 && p.x <= x2);
+      if (selectedPoints.length > 0) {
+        const dates = selectedPoints.map(p => p.data.date);
+        dates.sort();
+        tableStartDate = dates[0];
+        tableEndDate = dates[dates.length - 1];
+        tablePage = 1;
+      }
+    }
+    isDraggingRange = false;
+    dragStartX = null;
+    dragCurrentX = null;
+  }
+
+  function handleChartMouseLeave() {
+    handleMouseLeave();
+    if (isDraggingRange) {
+      handleChartMouseUp();
+    }
+  }
+
+  function resetTableFilter() {
+    tableStartDate = '';
+    tableEndDate = '';
+    tablePage = 1;
+  }
+
+  // Derive filtered logs
+  const filteredHistory = $derived.by(() => {
+    const history = store.settings.stats?.history || [];
+    let list = [...history];
+
+    if (tableStartDate) {
+      const start = new Date(tableStartDate + 'T00:00:00.000');
+      list = list.filter(log => new Date(log.timestamp) >= start);
+    }
+    if (tableEndDate) {
+      const end = new Date(tableEndDate + 'T23:59:59.999');
+      list = list.filter(log => new Date(log.timestamp) <= end);
+    }
+
+    return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  });
+
+  const totalTablePages = $derived(Math.ceil(filteredHistory.length / tablePageSize) || 1);
+
+  const paginatedHistory = $derived.by(() => {
+    const startIdx = (tablePage - 1) * tablePageSize;
+    return filteredHistory.slice(startIdx, startIdx + tablePageSize);
+  });
 </script>
 
 <div class="space-y-8">
@@ -576,11 +664,14 @@
     <!-- Chart Container -->
     <div class="relative w-full h-55 select-none">
       {#if points.length > 0}
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <svg 
           viewBox="0 0 {svgWidth} {svgHeight}" 
-          class="w-full h-full overflow-visible"
-          onmousemove={handleMouseMove}
-          onmouseleave={handleMouseLeave}
+          class="w-full h-full overflow-visible cursor-crosshair select-none"
+          onmousedown={handleChartMouseDown}
+          onmousemove={handleChartMouseMove}
+          onmouseup={handleChartMouseUp}
+          onmouseleave={handleChartMouseLeave}
           role="application"
           aria-label={t('settings.stats.chartAria')}
         >
@@ -629,6 +720,46 @@
             <circle cx={p.x} cy={p.y} r="6" fill="var(--color-primary)" fill-opacity="0.25" />
             <!-- Inner crisp dot -->
             <circle cx={p.x} cy={p.y} r="3.5" fill="var(--color-surface)" stroke="var(--color-primary)" stroke-width="2" />
+          {/if}
+
+          <!-- Dragging range overlay -->
+          {#if isDraggingRange && dragStartX !== null && dragCurrentX !== null}
+            {@const x1 = Math.min(dragStartX, dragCurrentX)}
+            {@const x2 = Math.max(dragStartX, dragCurrentX)}
+            <rect
+              x={x1}
+              y={padding.top}
+              width={x2 - x1}
+              height={graphHeight}
+              fill="var(--color-primary)"
+              fill-opacity="0.15"
+              stroke="var(--color-primary)"
+              stroke-width="1.5"
+              stroke-dasharray="3,3"
+              pointer-events="none"
+            />
+          {/if}
+
+          <!-- Persistent selected range overlay -->
+          {#if tableStartDate && tableEndDate && !isDraggingRange}
+            {@const startPt = points.find(p => p.data.date === tableStartDate)}
+            {@const endPt = points.find(p => p.data.date === tableEndDate)}
+            {#if startPt && endPt}
+              {@const x1 = Math.min(startPt.x, endPt.x)}
+              {@const x2 = Math.max(startPt.x, endPt.x)}
+              <rect
+                x={x1 - 10}
+                y={padding.top}
+                width={x2 - x1 + 20}
+                height={graphHeight}
+                fill="var(--color-primary)"
+                fill-opacity="0.08"
+                stroke="var(--color-primary)"
+                stroke-width="1"
+                stroke-opacity="0.2"
+                pointer-events="none"
+              />
+            {/if}
           {/if}
 
           <!-- X-Axis Labels (Date Labels - Sparse selection for 30 days) -->
@@ -760,6 +891,159 @@
       </div>
     </section>
   {/if}
+
+  <!-- Requests History List Section -->
+  <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm space-y-4">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant pb-4">
+      <div class="flex flex-col gap-0.5 shrink-0">
+        <h4 class="font-bold text-sm text-on-surface">
+          {store.settings.language === 'Deutsch' ? 'Verlauf der Anfragen' : 'Request History'}
+        </h4>
+        <p class="text-xs text-on-surface-variant">
+          {store.settings.language === 'Deutsch' ? 'Auflistung aller getätigten KI-Anfragen' : 'List of all made AI requests'}
+        </p>
+      </div>
+
+      <!-- Time Range Selectors + Reset -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-1.5">
+          <input
+            id="tableStartDate"
+            type="date"
+            bind:value={tableStartDate}
+            onchange={() => tablePage = 1}
+            class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+          />
+          <span class="text-outline text-xs">-</span>
+          <input
+            id="tableEndDate"
+            type="date"
+            bind:value={tableEndDate}
+            onchange={() => tablePage = 1}
+            class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+          />
+        </div>
+        {#if tableStartDate || tableEndDate}
+          <button
+            onclick={resetTableFilter}
+            class="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-[11px] font-semibold rounded-lg text-on-surface cursor-pointer focus:outline-none transition-colors"
+          >
+            {store.settings.language === 'Deutsch' ? 'Zurücksetzen' : 'Reset'}
+          </button>
+        {/if}
+      </div>
+    </div>
+
+    <!-- Paginated Request List Table -->
+    {#if paginatedHistory.length > 0}
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-outline-variant/60 text-on-surface-variant font-semibold">
+              <th class="py-2 pr-4">{store.settings.language === 'Deutsch' ? 'Zeitstempel' : 'Timestamp'}</th>
+              <th class="py-2 px-4">{store.settings.language === 'Deutsch' ? 'Modell' : 'Model'}</th>
+              <th class="py-2 px-4">{store.settings.language === 'Deutsch' ? 'Anbieter' : 'Provider'}</th>
+              <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Input Tokens' : 'Input Tokens'}</th>
+              <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Output Tokens' : 'Output Tokens'}</th>
+              <th class="py-2 pl-4 text-right">{store.settings.language === 'Deutsch' ? 'Preis' : 'Cost'}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline-variant/30 text-on-surface">
+            {#each paginatedHistory as log (log.id)}
+              <tr class="hover:bg-surface-container-low/30 transition-colors">
+                <td class="py-2.5 pr-4 text-on-surface-variant font-mono">
+                  {new Date(log.timestamp).toLocaleString(store.settings.language === 'Deutsch' ? 'de-DE' : 'en-US', { dateStyle: 'short', timeStyle: 'short' })}
+                </td>
+                <td class="py-2.5 px-4 font-mono font-medium truncate max-w-50" title={log.model}>{log.model}</td>
+                <td class="py-2.5 px-4 capitalize">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold {log.provider === 'gemini' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}">
+                    {log.provider}
+                  </span>
+                </td>
+                <td class="py-2.5 px-4 text-right font-mono">{log.inputTokens.toLocaleString()}</td>
+                <td class="py-2.5 px-4 text-right font-mono">{log.outputTokens.toLocaleString()}</td>
+                <td class="py-2.5 pl-4 text-right font-semibold font-mono text-primary">{formatCost(log.cost)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Controls -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-outline-variant/40 pt-4 text-xs">
+        <div class="flex items-center gap-4 text-on-surface-variant">
+          <span>
+            {store.settings.language === 'Deutsch' 
+              ? `Einträge: ${((tablePage - 1) * tablePageSize) + 1} - ${Math.min(tablePage * tablePageSize, filteredHistory.length)} von ${filteredHistory.length}`
+              : `Showing ${((tablePage - 1) * tablePageSize) + 1} - ${Math.min(tablePage * tablePageSize, filteredHistory.length)} of ${filteredHistory.length}`}
+          </span>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px]">{store.settings.language === 'Deutsch' ? 'Zeilen pro Seite:' : 'Rows per page:'}</span>
+            <select
+              bind:value={tablePageSize}
+              onchange={() => tablePage = 1}
+              class="bg-surface-container border border-outline-variant rounded-md px-1.5 py-0.5 text-xs text-on-surface focus:outline-none focus:border-primary font-semibold"
+            >
+              <option value={10}>10</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <!-- Quick jump back to page 1 -->
+          {#if tablePage > 2}
+            <button
+              onclick={() => tablePage = 1}
+              class="px-2 py-1 bg-surface-container hover:bg-surface-container-high rounded text-on-surface cursor-pointer focus:outline-none border-0 text-[11px] font-semibold transition-colors flex items-center gap-0.5"
+              title={store.settings.language === 'Deutsch' ? 'Zur ersten Seite' : 'Jump to page 1'}
+            >
+              <span class="material-symbols-outlined text-xs">first_page</span>
+              {store.settings.language === 'Deutsch' ? 'Erste' : 'First'}
+            </button>
+          {/if}
+
+          <button
+            onclick={() => tablePage = Math.max(1, tablePage - 1)}
+            disabled={tablePage === 1}
+            class="px-2 py-1 bg-surface-container hover:bg-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed rounded text-on-surface cursor-pointer focus:outline-none border-0 text-[11px] font-semibold transition-colors flex items-center"
+          >
+            <span class="material-symbols-outlined text-xs">chevron_left</span>
+          </button>
+
+          <span class="px-3 py-1 font-semibold text-on-surface-variant">
+            {store.settings.language === 'Deutsch' ? `Seite ${tablePage} von ${totalTablePages}` : `Page ${tablePage} of ${totalTablePages}`}
+          </span>
+
+          <button
+            onclick={() => tablePage = Math.min(totalTablePages, tablePage + 1)}
+            disabled={tablePage === totalTablePages}
+            class="px-2 py-1 bg-surface-container hover:bg-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed rounded text-on-surface cursor-pointer focus:outline-none border-0 text-[11px] font-semibold transition-colors flex items-center"
+          >
+            <span class="material-symbols-outlined text-xs">chevron_right</span>
+          </button>
+        </div>
+      </div>
+    {:else}
+      <div class="flex flex-col items-center justify-center py-10 border border-dashed border-outline-variant rounded-lg">
+        <span class="material-symbols-outlined text-outline text-3xl mb-2">find_in_page</span>
+        <span class="text-sm font-semibold text-on-surface-variant">
+          {store.settings.language === 'Deutsch' ? 'Keine Anfragen für den ausgewählten Zeitraum vorhanden' : 'No request logs found for the selected range'}
+        </span>
+      </div>
+    {/if}
+
+    <!-- Subtle Drag Range Selector Tip Box -->
+    <div class="flex items-start gap-2.5 bg-surface-container-low/50 p-3 rounded-lg border border-outline-variant/30 text-[11px] text-on-surface-variant font-medium leading-normal">
+      <span class="material-symbols-outlined text-primary text-base shrink-0">info</span>
+      <span>
+        {store.settings.language === 'Deutsch' 
+          ? 'Tipp: Du kannst im Diagramm oben mit der Maus klicken und ziehen (drag), um direkt einen Zeitraum für diese Tabelle auszuwählen.'
+          : 'Tip: You can click and drag in the chart above with your mouse to select a time range for this table.'}
+      </span>
+    </div>
+  </section>
 
   <!-- Danger / Management Section -->
   <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm">
