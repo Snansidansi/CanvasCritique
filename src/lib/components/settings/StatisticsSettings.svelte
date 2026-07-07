@@ -568,7 +568,7 @@
                 <span>Gemini:</span>
                 <span>{formatCost(p.data.geminiCost)}</span>
               </div>
-              <div class="text-[10px] text-tertiary/85 flex justify-between">
+              <div class="text-[10px] text-primary/80 flex justify-between">
                 <span>OpenRouter:</span>
                 <span>{formatCost(p.data.openRouterCost)}</span>
               </div>
