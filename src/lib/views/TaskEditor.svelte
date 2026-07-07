@@ -327,6 +327,33 @@
     }, 50);
   });
 
+  function autoResize(node: HTMLTextAreaElement, _val: any) {
+    const update = () => {
+      node.style.height = 'auto';
+      node.style.overflowY = 'hidden';
+      const style = window.getComputedStyle(node);
+      const isBorderBox = style.boxSizing === 'border-box';
+      let height = node.scrollHeight;
+      if (isBorderBox) {
+        const borderTop = parseFloat(style.borderTopWidth) || 0;
+        const borderBottom = parseFloat(style.borderBottomWidth) || 0;
+        height += borderTop + borderBottom;
+      }
+      node.style.height = `${height}px`;
+    };
+    const timer = setTimeout(update, 0);
+    node.addEventListener('input', update);
+    return {
+      update() {
+        update();
+      },
+      destroy() {
+        clearTimeout(timer);
+        node.removeEventListener('input', update);
+      }
+    };
+  }
+
   function handleCategoryChange(newCategory: string) {
     if (isEditMode) return;
     const settings = store.getEffectiveSettings(targetProjectId);
@@ -931,13 +958,13 @@
           <textarea 
             id="instructions" 
             bind:value={instructions}
+            use:autoResize={instructions}
             placeholder={t('taskEditor.instructionsPlaceholder')} 
-            rows="5"
-            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y shadow-sm focus:outline-none"
+            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-none shadow-sm focus:outline-none overflow-hidden"
           ></textarea>
         {:else}
           <div 
-            class="w-full border border-outline-variant rounded-lg p-4 text-sm text-on-surface bg-surface-container-low/20 overflow-y-auto min-h-[120px] max-h-[300px] text-left leading-relaxed max-w-none prose dark:prose-invert custom-scrollbar"
+            class="w-full border border-outline-variant rounded-lg p-4 text-sm text-on-surface bg-surface-container-low/20 min-h-30 text-left leading-relaxed max-w-none prose dark:prose-invert"
           >
             {@html parseMarkdown(instructions)}
           </div>
@@ -1057,13 +1084,13 @@
           <textarea 
             id="solution" 
             bind:value={solution}
+            use:autoResize={solution}
             placeholder={t('taskEditor.solutionPlaceholder')} 
-            rows="4"
-            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y shadow-sm focus:outline-none"
+            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-none shadow-sm focus:outline-none overflow-hidden"
           ></textarea>
         {:else}
           <div 
-            class="w-full border border-outline-variant rounded-lg p-4 text-sm text-on-surface bg-surface-container-low/20 overflow-y-auto min-h-[100px] max-h-[250px] text-left leading-relaxed max-w-none prose dark:prose-invert custom-scrollbar"
+            class="w-full border border-outline-variant rounded-lg p-4 text-sm text-on-surface bg-surface-container-low/20 min-h-25 text-left leading-relaxed max-w-none prose dark:prose-invert"
           >
             {@html parseMarkdown(solution)}
           </div>
