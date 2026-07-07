@@ -26,15 +26,25 @@ export function parseMarkdown(md: string | null | undefined): string {
     return placeholder;
   });
 
-  // 3. Extract Display Math $$ ... $$
+  // 3. Extract Display Math $$ ... $$ and \[ ... \]
   html = html.replace(/\$\$(.*?)\$\$/gs, (match, formula) => {
     const placeholder = `__LATEX_DISPLAY_${displayMath.length}__`;
     displayMath.push(formula);
     return placeholder;
   });
+  html = html.replace(/\\\[([\s\S]*?)\\\]/g, (match, formula) => {
+    const placeholder = `__LATEX_DISPLAY_${displayMath.length}__`;
+    displayMath.push(formula);
+    return placeholder;
+  });
 
-  // 4. Extract Inline Math $ ... $
+  // 4. Extract Inline Math $ ... $ and \( ... \)
   html = html.replace(/\$([^\s$](?:[^$]*?[^\s$])?)\$/g, (match, formula) => {
+    const placeholder = `__LATEX_INLINE_${inlineMath.length}__`;
+    inlineMath.push(formula);
+    return placeholder;
+  });
+  html = html.replace(/\\\(([\s\S]*?)\\\)/g, (match, formula) => {
     const placeholder = `__LATEX_INLINE_${inlineMath.length}__`;
     inlineMath.push(formula);
     return placeholder;
@@ -45,6 +55,9 @@ export function parseMarkdown(md: string | null | undefined): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+
+  // 5b. Parse LaTeX tabular / table environments
+  html = parseLatexTables(html);
 
   // 6. Split into lines to parse block-level elements
   const rawLines = html.split(/\r?\n/);
@@ -371,4 +384,73 @@ function renderTable(rows: string[][], alignments: ('left' | 'center' | 'right' 
   });
   html += `</tbody></table></div>`;
   return html;
+}
+
+function parseLatexTables(md: string): string {
+  // Strip out outer \begin{table}[...] and \end{table} environments and options
+  let result = md.replace(/\\begin\{table\}(\[[^\]]*\])?/g, '');
+  result = result.replace(/\\end\{table\}/g, '');
+  result = result.replace(/\\centering/g, '');
+  result = result.replace(/\\caption\{[^}]*\}/g, '');
+  result = result.replace(/\\label\{[^}]*\}/g, '');
+
+  // Match tabular environments: \begin{tabular}{spec} ... \end{tabular}
+  const tabularRegex = /\\begin\{tabular\}\{([^}]*)\}([\s\S]*?)\\end\{tabular\}/g;
+
+  result = result.replace(tabularRegex, (match, spec, body) => {
+    const aligns: ('left' | 'center' | 'right')[] = [];
+    const cleanSpec = spec.replace(/\|/g, '').trim();
+    for (const char of cleanSpec) {
+      if (char === 'l') aligns.push('left');
+      else if (char === 'c') aligns.push('center');
+      else if (char === 'r') aligns.push('right');
+      else aligns.push('left');
+    }
+
+    const rawRows = body.split(/\\\\|\\cr/);
+    const parsedRows: string[][] = [];
+
+    for (const rawRow of rawRows) {
+      let cleanRow = rawRow.trim();
+      cleanRow = cleanRow.replace(/\\hline/g, '').trim();
+      if (!cleanRow) continue;
+
+      // Columns split by & or escaped &amp;
+      const cols = cleanRow.split(/&amp;|&/).map((c: string) => c.trim());
+      parsedRows.push(cols);
+    }
+
+    if (parsedRows.length === 0) return '';
+
+    const headers = parsedRows[0];
+    const bodyRows = parsedRows.slice(1);
+
+    let html = `<div class="my-4 overflow-x-auto border border-outline-variant/30 rounded-lg shadow-sm bg-surface-container-low/10 text-left">`;
+    html += `<table class="w-full text-left border-collapse text-[11px] leading-normal">`;
+
+    // Headers
+    html += `<thead><tr class="bg-surface-container-low border-b border-outline-variant/50">`;
+    headers.forEach((h, idx) => {
+      const align = aligns[idx] ? `style="text-align: ${aligns[idx]}"` : '';
+      html += `<th class="p-2.5 font-semibold text-primary" ${align}>${h}</th>`;
+    });
+    html += `</tr></thead>`;
+
+    // Body
+    html += `<tbody class="divide-y divide-outline-variant/20">`;
+    bodyRows.forEach(row => {
+      html += `<tr class="hover:bg-surface-container/20 transition-colors">`;
+      headers.forEach((_, idx) => {
+        const align = aligns[idx] ? `style="text-align: ${aligns[idx]}"` : '';
+        const cellVal = row[idx] !== undefined ? row[idx] : '';
+        html += `<td class="p-2.5 text-on-surface" ${align}>${cellVal}</td>`;
+      });
+      html += `</tr>`;
+    });
+    html += `</tbody></table></div>`;
+
+    return html;
+  });
+
+  return result;
 }
