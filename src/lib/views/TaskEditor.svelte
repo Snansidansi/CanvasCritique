@@ -354,6 +354,28 @@
     };
   }
 
+  function handleRenameFile(index: number, type: 'instruction' | 'solution') {
+    const files = type === 'instruction' ? instructionFiles : solutionFiles;
+    const file = files[index];
+    if (!file) return;
+
+    const newName = window.prompt(
+      t('taskEditor.renameFilePrompt') || 'Enter new file name:',
+      file.name
+    );
+
+    if (newName && newName.trim() !== '') {
+      const updated = { ...file, name: newName.trim() };
+      if (type === 'instruction') {
+        instructionFiles[index] = updated;
+        instructionFiles = [...instructionFiles];
+      } else {
+        solutionFiles[index] = updated;
+        solutionFiles = [...solutionFiles];
+      }
+    }
+  }
+
   function handleCategoryChange(newCategory: string) {
     if (isEditMode) return;
     const settings = store.getEffectiveSettings(targetProjectId);
@@ -1047,16 +1069,26 @@
                   </span>
                   <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
                 </div>
-                <button 
-                  type="button"
-                  onclick={() => {
-                    instructionFiles = instructionFiles.filter((_, i) => i !== index);
-                  }}
-                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
-                  title={t('taskEditor.remove')}
-                >
-                  close
-                </button>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button 
+                    type="button"
+                    onclick={() => handleRenameFile(index, 'instruction')}
+                    class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
+                    title={t('taskEditor.renameFileTooltip') || 'Rename File'}
+                  >
+                    edit
+                  </button>
+                  <button 
+                    type="button"
+                    onclick={() => {
+                      instructionFiles = instructionFiles.filter((_, i) => i !== index);
+                    }}
+                    class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
+                    title={t('taskEditor.remove')}
+                  >
+                    close
+                  </button>
+                </div>
               </div>
             {/each}
           </div>
@@ -1164,16 +1196,26 @@
                   </span>
                   <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
                 </div>
-                <button 
-                  type="button"
-                  onclick={() => {
-                    solutionFiles = solutionFiles.filter((_, i) => i !== index);
-                  }}
-                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
-                  title={t('taskEditor.remove')}
-                >
-                  close
-                </button>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button 
+                    type="button"
+                    onclick={() => handleRenameFile(index, 'solution')}
+                    class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
+                    title={t('taskEditor.renameFileTooltip') || 'Rename File'}
+                  >
+                    edit
+                  </button>
+                  <button 
+                    type="button"
+                    onclick={() => {
+                      solutionFiles = solutionFiles.filter((_, i) => i !== index);
+                    }}
+                    class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
+                    title={t('taskEditor.remove')}
+                  >
+                    close
+                  </button>
+                </div>
               </div>
             {/each}
           </div>

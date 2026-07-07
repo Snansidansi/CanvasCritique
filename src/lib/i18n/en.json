@@ -152,6 +152,8 @@
     "pasteClipboard": "Paste from Clipboard",
     "clickToPreview": "Click to preview",
     "remove": "Remove",
+    "renameFilePrompt": "Enter new file name:",
+    "renameFileTooltip": "Rename File",
     "solutionLabel": "Expected Solution",
     "solutionPlaceholder": "Enter expected solution...",
     "solutionMaterial": "Solution Material",

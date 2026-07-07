@@ -151,6 +151,8 @@
     "pasteClipboard": "Aus Zwischenablage einfügen",
     "clickToPreview": "Zum Vorschau klicken",
     "remove": "Entfernen",
+    "renameFilePrompt": "Geben Sie den neuen Dateinamen ein:",
+    "renameFileTooltip": "Datei umbenennen",
     "solutionLabel": "Erwartete Lösung",
     "solutionPlaceholder": "Erwartete Lösung eingeben...",
     "solutionMaterial": "Lösungsmaterial",
