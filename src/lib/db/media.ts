@@ -83,7 +83,8 @@ export async function saveMediaToDb(dataUrl: string): Promise<string> {
     if (existingId) return existingId;
 
     const db = getDb();
-    const id = uuidv4();
+    const ext = getExtensionFromMime(parsed.mimeType);
+    const id = `${uuidv4()}.${ext}`;
 
     const mediaDir = await getMediaDir();
     const filePath = await join(mediaDir, id);
@@ -147,18 +148,24 @@ export async function saveMediaBytesToDb(id: string, bytes: Uint8Array, mimeType
     if (existingId) return existingId;
 
     const db = getDb();
+    const ext = getExtensionFromMime(mimeType);
+    let finalId = id;
+    if (!id.includes('.')) {
+      finalId = `${id}.${ext}`;
+    }
+
     const mediaDir = await getMediaDir();
-    const filePath = await join(mediaDir, id);
+    const filePath = await join(mediaDir, finalId);
     await writeFile(filePath, bytes);
     console.log('[media] wrote file from bytes:', filePath, 'bytes:', bytes.length);
 
     await db.execute(
       'INSERT INTO media (id, data, mime_type, sha256_hash) VALUES (?, ?, ?, ?)',
-      [id, `media/${id}`, mimeType, hash]
+      [finalId, `media/${finalId}`, mimeType, hash]
     );
-    console.log('[media] inserted DB entry for byte-saved:', id);
+    console.log('[media] inserted DB entry for byte-saved:', finalId);
 
-    return id;
+    return finalId;
   } catch (err) {
     console.error('[media] saveMediaBytesToDb failed:', err);
     throw err;
@@ -528,4 +535,171 @@ export async function openAttachmentInDefaultApp(file: { name: string; dataUrl?:
     console.error('[media] openAttachmentInDefaultApp failed:', err);
     throw err;
   }
+}
+
+export function getExtensionFromMime(mimeType: string): string {
+  const mimeMap: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/svg+xml': 'svg',
+    'image/x-icon': 'ico',
+    'audio/mpeg': 'mp3',
+    'audio/mp3': 'mp3',
+    'audio/wav': 'wav',
+    'audio/ogg': 'ogg',
+    'audio/aac': 'aac',
+    'audio/m4a': 'm4a',
+    'video/mp4': 'mp4',
+    'video/webm': 'webm',
+    'video/ogg': 'ogv',
+    'video/quicktime': 'mov',
+    'application/pdf': 'pdf',
+    'text/markdown': 'md',
+    'text/plain': 'txt',
+    'application/json': 'json',
+    'application/zip': 'zip',
+    'application/xml': 'xml',
+  };
+  return mimeMap[mimeType.toLowerCase()] || 'bin';
+}
+
+export async function migrateMediaExtensions(): Promise<void> {
+  const db = getDb();
+
+  // 1. Fetch all media entries
+  const rows: any[] = await db.select('SELECT id, mime_type FROM media');
+  const migrationMap = new Map<string, string>();
+
+  for (const row of rows) {
+    const oldId = row.id;
+    if (oldId && !oldId.includes('.')) {
+      const ext = getExtensionFromMime(row.mime_type);
+      const newId = `${oldId}.${ext}`;
+      migrationMap.set(oldId, newId);
+    }
+  }
+
+  if (migrationMap.size === 0) return;
+  console.log(`[media-migration] Found ${migrationMap.size} files to migrate.`);
+
+  const mediaDir = await getMediaDir();
+
+  // 2. Process each file migration
+  for (const [oldId, newId] of migrationMap.entries()) {
+    try {
+      const oldFilePath = await join(mediaDir, oldId);
+      const newFilePath = await join(mediaDir, newId);
+
+      if (await exists(oldFilePath)) {
+        const bytes = await readFile(oldFilePath);
+        await writeFile(newFilePath, bytes);
+        await remove(oldFilePath);
+      }
+
+      // Update media table
+      await db.execute(
+        'UPDATE media SET id = ?, data = ? WHERE id = ?',
+        [newId, `media/${newId}`, oldId]
+      );
+
+      // Update profiles
+      await db.execute(
+        'UPDATE profiles SET icon = ? WHERE icon = ?',
+        [newId, oldId]
+      );
+
+      // Update projects
+      await db.execute(
+        'UPDATE projects SET icon_media_path = ? WHERE icon_media_path = ?',
+        [newId, oldId]
+      );
+
+      // Update custom backgrounds
+      await db.execute(
+        'UPDATE custom_backgrounds SET relative_path = ? WHERE relative_path = ?',
+        [newId, oldId]
+      );
+      await db.execute(
+        'UPDATE custom_backgrounds SET icon = ? WHERE icon = ?',
+        [newId, oldId]
+      );
+    } catch (err) {
+      console.error(`[media-migration] Failed to migrate media entry ${oldId}:`, err);
+    }
+  }
+
+  // 3. Update task files (which are JSON structures)
+  try {
+    const tasks: any[] = await db.select('SELECT id, instruction_files_json, solution_files_json FROM tasks');
+    for (const task of tasks) {
+      let instUpdated = false;
+      let solUpdated = false;
+
+      let instFiles = [];
+      try {
+        instFiles = JSON.parse(task.instruction_files_json || '[]');
+      } catch (_) {}
+
+      let solFiles = [];
+      try {
+        solFiles = JSON.parse(task.solution_files_json || '[]');
+      } catch (_) {}
+
+      if (Array.isArray(instFiles)) {
+        instFiles.forEach((file: any) => {
+          if (file && file.mediaId && migrationMap.has(file.mediaId)) {
+            file.mediaId = migrationMap.get(file.mediaId)!;
+            instUpdated = true;
+          }
+        });
+      }
+
+      if (Array.isArray(solFiles)) {
+        solFiles.forEach((file: any) => {
+          if (file && file.mediaId && migrationMap.has(file.mediaId)) {
+            file.mediaId = migrationMap.get(file.mediaId)!;
+            solUpdated = true;
+          }
+        });
+      }
+
+      if (instUpdated || solUpdated) {
+        await db.execute(
+          'UPDATE tasks SET instruction_files_json = ?, solution_files_json = ? WHERE id = ?',
+          [JSON.stringify(instFiles), JSON.stringify(solFiles), task.id]
+        );
+      }
+    }
+  } catch (err) {
+    console.error('[media-migration] Failed to migrate tasks references:', err);
+  }
+
+  // 4. Update settings userIcons
+  try {
+    const settingsRows: any[] = await db.select('SELECT data_json FROM settings WHERE id = 1');
+    if (settingsRows.length > 0) {
+      const settings = JSON.parse(settingsRows[0].data_json);
+      if (settings.userIcons && Array.isArray(settings.userIcons)) {
+        let settingsUpdated = false;
+        settings.userIcons = settings.userIcons.map((iconId: string) => {
+          if (migrationMap.has(iconId)) {
+            settingsUpdated = true;
+            return migrationMap.get(iconId)!;
+          }
+          return iconId;
+        });
+
+        if (settingsUpdated) {
+          await db.execute('UPDATE settings SET data_json = ? WHERE id = 1', [JSON.stringify(settings)]);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[media-migration] Failed to migrate settings references:', err);
+  }
+
+  console.log('[media-migration] Completed successfully.');
 }
