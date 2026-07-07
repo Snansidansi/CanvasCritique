@@ -191,7 +191,7 @@
 <div 
   bind:this={paletteElement}
   class="fixed bg-surface-container/95 backdrop-blur-md shadow-lg border border-outline-variant/30 select-none z-20 flex items-center
-         {isCollapsed ? 'w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : (canvasMode === 'infinite' ? 'w-172' : 'w-162') + ' h-12 px-4 rounded-full'}
+         {isCollapsed ? 'w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : (canvasMode === 'infinite' ? 'w-177.5' : 'w-165') + ' h-12 px-4 rounded-full'}
          {isDragging ? '' : 'palette-transition'}"
   style="{positionStyle} touch-action: none;"
   onpointerdown={onPointerDown}
