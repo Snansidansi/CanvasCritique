@@ -463,6 +463,25 @@
         {/if}
       </div>
 
+      <!-- OpenRouter Reasoning Toggle -->
+      <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
+        <div class="flex flex-col gap-0.5 min-w-0 pr-4">
+          <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[18px] text-primary">psychology</span>
+            {t('settings.api.enableReasoning')}
+          </span>
+          <span class="text-[10px] text-on-surface-variant leading-tight">{t('settings.api.reasoningDesc')}</span>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
+          <input 
+            type="checkbox" 
+            bind:checked={settings.openRouterReasoning}
+            onchange={handleInputChange}
+            class="sr-only peer" 
+          />
+          <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+        </label>
+      </div>
 
     </div>
   {/if}
