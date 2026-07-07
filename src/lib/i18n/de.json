@@ -215,7 +215,11 @@
     "overrideEraserLabel": "Radiergummi-Einstellungen überschreiben",
     "overrideEraserDesc": "Verwende für diese Lektion eigene Radiergummi-Einstellungen statt der globalen Einstellungen",
     "eraserTitle": "Radiergummi-Einstellungen",
-    "usingGlobalEraserDesc": "Diese Lektion verwendet die globalen Radiergummi-Einstellungen."
+    "usingGlobalEraserDesc": "Diese Lektion verwendet die globalen Radiergummi-Einstellungen.",
+    "overrideEditorFontSizeLabel": "Texteditor-Schriftgröße überschreiben",
+    "overrideEditorFontSizeDesc": "Verwende für diese Lektion eine eigene Texteditor-Schriftgröße statt der globalen Einstellung",
+    "editorFontSizeTitle": "Texteditor-Schriftgröße",
+    "usingGlobalEditorFontSizeDesc": "Diese Lektion verwendet die globale Texteditor-Schriftgröße."
   },
   "practice": {
     "backToProject": "Zurück zum Projekt",

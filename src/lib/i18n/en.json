@@ -216,7 +216,11 @@
     "overrideEraserLabel": "Override Eraser Settings",
     "overrideEraserDesc": "Use custom eraser mode and size settings for this lesson instead of global settings",
     "eraserTitle": "Eraser Settings",
-    "usingGlobalEraserDesc": "This lesson is using the global eraser settings."
+    "usingGlobalEraserDesc": "This lesson is using the global eraser settings.",
+    "overrideEditorFontSizeLabel": "Override Text Editor Font Size",
+    "overrideEditorFontSizeDesc": "Use custom text editor font size settings for this lesson instead of global settings",
+    "editorFontSizeTitle": "Text Editor Font Size",
+    "usingGlobalEditorFontSizeDesc": "This lesson is using the global text editor font size."
   },
   "practice": {
     "backToProject": "Back to Project",
