@@ -168,6 +168,14 @@ export interface Settings {
   taskMediaFilterExtensions?: string;
   solutionMediaFilterMode?: string;
   solutionMediaFilterExtensions?: string;
+  webdavEnabled?: boolean;
+  webdavUrl?: string;
+  webdavUsername?: string;
+  webdavPassword?: string;
+  webdavAutoSync?: boolean;
+  webdavSyncIntervalMinutes?: number;
+  webdavSyncOnStartup?: boolean;
+  lastSyncedTimestamp?: string;
 }
 
 export interface Profile {
