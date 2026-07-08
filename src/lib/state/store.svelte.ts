@@ -2315,8 +2315,6 @@ class CanvasCritiqueStore {
           const { runCheckWork } = await import('../services/ai');
           const result = await runCheckWork(nextItem.options);
 
-          nextItem.status = 'completed';
-
           const feedbackText = result.feedbackText;
           const feedbackScore = result.feedbackScore;
           const feedbackMarkers = result.feedbackMarkers;
@@ -2336,6 +2334,10 @@ class CanvasCritiqueStore {
           } else {
             updatedData.completed = false;
           }
+
+          await this.updateTask(nextItem.projectId, nextItem.taskId, updatedData);
+
+          nextItem.status = 'completed';
 
           // Only show notification if the user is NOT currently on the practice canvas for this specific task
           const isOnCurrentTaskCanvas = this.currentView === 'practice' && this.activeTask?.id === nextItem.taskId;
