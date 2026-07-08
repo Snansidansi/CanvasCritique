@@ -909,6 +909,26 @@
         </div>
       {/if}
     </div>
+
+    <!-- Minimalist range summary list -->
+    <div class="mt-5 pt-4 border-t border-outline-variant/50 flex flex-col gap-1.5 max-w-64 select-none font-sans">
+      <div class="flex justify-between items-center text-xs">
+        <span class="text-on-surface-variant font-medium">{t('settings.stats.requests')}:</span>
+        <span class="font-bold text-on-surface">{aggregates.combined.requests}</span>
+      </div>
+      <div class="flex justify-between items-center text-xs">
+        <span class="text-on-surface-variant font-medium">{t('settings.stats.cost')}:</span>
+        <span class="font-bold text-on-surface">{formatCost(aggregates.combined.cost)}</span>
+      </div>
+      <div class="flex justify-between items-center text-xs">
+        <span class="text-on-surface-variant font-medium">{t('settings.stats.inputTokens')}:</span>
+        <span class="font-bold text-on-surface">{formatTokens(aggregates.combined.inputTokens)}</span>
+      </div>
+      <div class="flex justify-between items-center text-xs">
+        <span class="text-on-surface-variant font-medium">{t('settings.stats.outputTokens')}:</span>
+        <span class="font-bold text-on-surface">{formatTokens(aggregates.combined.outputTokens)}</span>
+      </div>
+    </div>
   </section>
 
   <!-- Requests History List Section -->
