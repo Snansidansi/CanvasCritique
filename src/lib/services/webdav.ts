@@ -3,7 +3,7 @@ import { store } from '../state/store.svelte';
 import { t } from './i18n';
 import { backupDatabase, replaceDatabase, getDb } from '../db';
 import { appLocalDataDir, appDataDir, join } from '@tauri-apps/api/path';
-import { readFile, remove, exists, mkdir } from '@tauri-apps/plugin-fs';
+import { readFile, remove, exists, mkdir, readDir, stat } from '@tauri-apps/plugin-fs';
 
 const SYNC_META_FILE = 'canvascritique_sync_meta.json';
 const BACKUP_DB_FILE = 'canvascritique_backup.db';
@@ -306,15 +306,28 @@ async function syncMedia(client: WebDAVClient) {
     remoteMap.set(item.basename, new Date(item.lastmod));
   }
 
-  // Get local media list
-  const localRows: any[] = await db.select('SELECT id, updated_at FROM media');
-  const localMap = new Map<string, Date>();
-  for (const row of localRows) {
-    let dateStr = row.updated_at;
-    if (!dateStr.includes('T')) {
-      dateStr = dateStr.replace(' ', 'T') + 'Z';
+  // Get local media list from the filesystem
+  let localEntries: any[] = [];
+  try {
+    if (await exists(mediaDir)) {
+      localEntries = await readDir(mediaDir);
     }
-    localMap.set(row.id, new Date(dateStr));
+  } catch (err) {
+    console.error('Failed to read local media directory:', err);
+  }
+
+  const localMap = new Map<string, Date>();
+  for (const entry of localEntries) {
+    if (entry.isFile && entry.name) {
+      try {
+        const filePath = await join(mediaDir, entry.name);
+        const fileInfo = await stat(filePath);
+        const mtime = fileInfo.mtime ? new Date(fileInfo.mtime) : new Date();
+        localMap.set(entry.name, mtime);
+      } catch (err) {
+        console.error(`Failed to stat local media file ${entry.name}:`, err);
+      }
+    }
   }
 
   // Upload new/newer local files
