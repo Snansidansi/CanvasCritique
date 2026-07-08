@@ -156,7 +156,20 @@
       <div class="h-px bg-outline-variant my-2"></div>
 
       <!-- Sync Settings -->
-      <div class="flex flex-col gap-3">
+      <div class="flex flex-col gap-4">
+        <label class="flex flex-col gap-1.5 text-xs font-semibold text-on-surface">
+          {t('settings.data.webdavSyncMode') || 'Sync Mode'}
+          <select
+            bind:value={store.settings.webdavSyncMode}
+            onchange={() => store.saveSettings()}
+            class="mt-1 px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg focus:outline-none focus:border-primary text-on-surface w-full sm:w-64 cursor-pointer"
+          >
+            <option value="bidirectional">{t('settings.data.webdavSyncModeBidirectional') || 'Bidirectional (Default)'}</option>
+            <option value="download">{t('settings.data.webdavSyncModeDownload') || 'Download Only'}</option>
+            <option value="upload">{t('settings.data.webdavSyncModeUpload') || 'Upload Only'}</option>
+          </select>
+        </label>
+
         <label class="flex items-center gap-3 cursor-pointer select-none">
           <div class="relative">
             <input

@@ -135,6 +135,7 @@ export const defaultSettings: Settings = {
   webdavAutoSync: false,
   webdavSyncIntervalMinutes: 30,
   webdavSyncOnStartup: false,
-  lastSyncedTimestamp: ''
+  lastSyncedTimestamp: '',
+  webdavSyncMode: 'bidirectional'
 };
 
