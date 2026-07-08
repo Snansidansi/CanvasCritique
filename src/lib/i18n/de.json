@@ -430,12 +430,17 @@
       "exportSettings": "Einstellungen exportieren",
       "importDb": "Datenbank importieren",
       "exportDb": "Datenbank exportieren",
+      "cleanMedia": "Medien bereinigen",
+      "cleanMediaDesc": "Bereinigt alle verwaisten Mediendateien aus der Datenbank und vom Datenträger, die nicht mehr von einem Profil, einer Lektion, einer Aufgabe oder einem Hintergrund referenziert werden.",
+      "cleanMediaBtn": "Medien jetzt bereinigen",
       "notifications": {
         "importSettingsSuccess": "Einstellungen erfolgreich importiert",
         "importSettingsError": "Einstellungen konnten nicht importiert werden",
         "importDbSuccess": "Datenbank erfolgreich importiert",
         "importDbError": "Datenbank konnte nicht importiert werden",
-        "importDbFailed": "Datenbank konnte nicht importiert werden"
+        "importDbFailed": "Datenbank konnte nicht importiert werden",
+        "cleanMediaSuccess": "Medienbereinigung abgeschlossen. {count} verwaiste Mediendatei(en) gelöscht.",
+        "cleanMediaNoOrphans": "Alle Medien sind sauber. Keine verwaisten Dateien gefunden."
       }
     },
     "stylus": {

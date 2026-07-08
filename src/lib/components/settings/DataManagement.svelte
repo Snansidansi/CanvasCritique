@@ -163,6 +163,29 @@
       store.showNotification(t('settings.data.notifications.importDbFailed'), 'error');
     }
   }
+
+  async function handleCleanMedia() {
+    store.showLoading(t('common.processing') || 'Verarbeite...');
+    try {
+      const deletedCount = await store.cleanOrphanedMedia();
+      if (deletedCount > 0) {
+        store.showNotification(
+          t('settings.data.notifications.cleanMediaSuccess', { count: deletedCount }),
+          'success'
+        );
+      } else {
+        store.showNotification(
+          t('settings.data.notifications.cleanMediaNoOrphans'),
+          'success'
+        );
+      }
+    } catch (e) {
+      console.error('Media cleanup failed:', e);
+      store.showNotification(t('common.error') || 'Ein Fehler ist aufgetreten', 'error');
+    } finally {
+      store.hideLoading();
+    }
+  }
 </script>
 
 <!-- Data Management Section -->
@@ -228,6 +251,21 @@
         >
           <span class="material-symbols-outlined text-[20px]">download</span> 
           {t('settings.data.importDb')}
+        </button>
+      </div>
+
+      <!-- Media Cleanup Section -->
+      <div class="mt-6 border-t border-outline-variant pt-6 flex flex-col gap-3">
+        <h4 class="text-sm font-bold text-on-surface">{t('settings.data.cleanMedia')}</h4>
+        <p class="text-xs text-on-surface-variant leading-relaxed">
+          {t('settings.data.cleanMediaDesc')}
+        </p>
+        <button 
+          onclick={handleCleanMedia}
+          class="sm:self-start bg-surface-container-high border border-outline-variant hover:bg-surface-variant text-on-surface transition-colors py-2 px-4 rounded-lg font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <span class="material-symbols-outlined text-[16px]">cleaning_services</span>
+          {t('settings.data.cleanMediaBtn')}
         </button>
       </div>
     </div>

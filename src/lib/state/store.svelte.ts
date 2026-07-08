@@ -764,6 +764,75 @@ class CanvasCritiqueStore {
     }
   }
 
+  async cleanOrphanedMedia(): Promise<number> {
+    const db = this.getDb();
+    try {
+      const rows: any[] = await db.select('SELECT id FROM media');
+      const allMediaIds = rows.map(r => r.id);
+      let deleteCount = 0;
+
+      for (const mediaId of allMediaIds) {
+        let isReferenced = false;
+
+        if (this.settings.userIcons && this.settings.userIcons.includes(mediaId)) {
+          isReferenced = true;
+        }
+
+        if (!isReferenced) {
+          for (const project of this.projects) {
+            if (this._projectIconMediaIds[project.id] === mediaId || project.icon === mediaId) {
+              isReferenced = true;
+              break;
+            }
+            if (project.tasks) {
+              for (const task of project.tasks) {
+                if (task.instructionFiles && task.instructionFiles.some(f => f.mediaId === mediaId)) {
+                  isReferenced = true;
+                  break;
+                }
+                if (task.solutionFiles && task.solutionFiles.some(f => f.mediaId === mediaId)) {
+                  isReferenced = true;
+                  break;
+                }
+              }
+            }
+            if (isReferenced) break;
+          }
+        }
+
+        if (!isReferenced) {
+          for (const profile of this.profiles) {
+            if (this._iconMediaIds[profile.id] === mediaId || profile.icon === mediaId) {
+              isReferenced = true;
+              break;
+            }
+          }
+        }
+
+        if (!isReferenced) {
+          for (const bg of this.customBackgrounds) {
+            if (bg.mediaId === mediaId || bg.iconMediaId === mediaId || bg.icon === mediaId) {
+              isReferenced = true;
+              break;
+            }
+          }
+        }
+
+        if (!isReferenced) {
+          console.log(`[store] Cleaning up orphaned media during global check: ${mediaId}`);
+          await deleteMediaFromDb(mediaId);
+          deleteCount++;
+        }
+      }
+
+      return deleteCount;
+    } catch (err) {
+      console.error('[store] cleanOrphanedMedia failed:', err);
+      throw err;
+    }
+  }
+
+
   async deleteUserIcon(mediaId: string): Promise<void> {
     if (this.settings.userIcons) {
       this.settings.userIcons = this.settings.userIcons.filter(id => id !== mediaId);

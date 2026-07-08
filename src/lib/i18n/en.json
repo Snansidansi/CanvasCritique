@@ -431,12 +431,17 @@
       "exportSettings": "Export Settings",
       "importDb": "Import Database",
       "exportDb": "Export Database",
+      "cleanMedia": "Clean Media",
+      "cleanMediaDesc": "Cleans up all orphaned media files from the database and disk that are no longer referenced by any profile, lesson, task, or background.",
+      "cleanMediaBtn": "Clean Media Now",
       "notifications": {
         "importSettingsSuccess": "Settings imported successfully",
         "importSettingsError": "Failed to import settings",
         "importDbSuccess": "Database imported successfully",
         "importDbError": "Failed to import database",
-        "importDbFailed": "Failed to import database"
+        "importDbFailed": "Failed to import database",
+        "cleanMediaSuccess": "Media cleanup completed. Deleted {count} orphaned media file(s).",
+        "cleanMediaNoOrphans": "All media is clean. No orphaned files found."
       }
     },
     "stylus": {
