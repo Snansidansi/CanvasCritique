@@ -566,7 +566,7 @@
         class="bg-surface-container-low text-on-surface p-2 rounded-lg border border-outline-variant hover:bg-surface-container-high transition-colors flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-50"
         title={t('settings.data.webdavTitle') || 'Sync'}
       >
-        <span class="material-symbols-outlined text-[20px] {store.isSyncing ? 'animate-spin' : ''}">sync</span>
+        <span class="material-symbols-outlined text-[20px] {store.isSyncing ? 'animate-spin-reverse' : ''}">sync</span>
       </button>
     {/if}
 
