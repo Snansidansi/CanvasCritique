@@ -381,10 +381,23 @@ async function syncMedia(client: WebDAVClient, syncMode: 'bidirectional' | 'down
     for (const id of dbIds) {
       if (!localFiles.has(id)) {
         console.log(`Downloading media ${id}...`);
-        const bytes = await client.getFileContents(`${REMOTE_MEDIA_DIR}/${id}`, { format: 'binary' }) as Uint8Array;
-        const filePath = await join(mediaDir, id);
-        const { writeFile } = await import('@tauri-apps/plugin-fs');
-        await writeFile(filePath, bytes);
+        try {
+          const bytes = await client.getFileContents(`${REMOTE_MEDIA_DIR}/${id}`, { format: 'binary' }) as Uint8Array;
+          const filePath = await join(mediaDir, id);
+          const { writeFile } = await import('@tauri-apps/plugin-fs');
+          await writeFile(filePath, bytes);
+        } catch (err) {
+          console.error(`Failed to download media ${id} from WebDAV:`, err);
+          // Create a local placeholder (0-byte file) to prevent repeated download attempts and sync failures
+          try {
+            const filePath = await join(mediaDir, id);
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            await writeFile(filePath, new Uint8Array(0));
+            console.log(`Created empty local placeholder file for missing remote media ${id}`);
+          } catch (writeErr) {
+            console.error(`Failed to write local placeholder for ${id}:`, writeErr);
+          }
+        }
       }
     }
   }
