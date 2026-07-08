@@ -593,7 +593,7 @@
 
   <!-- Interactive SVG Chart Section -->
   <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm">
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 {timeframe === 'custom' ? 'mb-0' : 'mb-6'}">
       <div class="flex flex-wrap items-center gap-2">
         <button
           onclick={() => activeMetric = 'cost'}
@@ -646,28 +646,30 @@
 
     <!-- Custom Date Range Pickers -->
     {#if timeframe === 'custom'}
-      <div class="flex flex-wrap items-center gap-4 bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/60 w-fit">
-        <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider" for="statsStartDate">
-            {t('settings.stats.startDate') || 'Start Date'}
-          </label>
-          <input
-            id="statsStartDate"
-            type="date"
-            bind:value={customStartDate}
-            class="bg-surface border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
-          />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider" for="statsEndDate">
-            {t('settings.stats.endDate') || 'End Date'}
-          </label>
-          <input
-            id="statsEndDate"
-            type="date"
-            bind:value={customEndDate}
-            class="bg-surface border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
-          />
+      <div class="flex justify-end mt-2 mb-8">
+        <div class="flex flex-wrap items-center gap-4 bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/60 w-fit">
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider" for="statsStartDate">
+              {t('settings.stats.startDate') || 'Start Date'}
+            </label>
+            <input
+              id="statsStartDate"
+              type="date"
+              bind:value={customStartDate}
+              class="bg-surface border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider" for="statsEndDate">
+              {t('settings.stats.endDate') || 'End Date'}
+            </label>
+            <input
+              id="statsEndDate"
+              type="date"
+              bind:value={customEndDate}
+              class="bg-surface border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+            />
+          </div>
         </div>
       </div>
     {/if}
