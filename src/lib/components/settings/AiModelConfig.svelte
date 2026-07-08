@@ -2,6 +2,7 @@
   import { store } from '../../state/store.svelte';
   import { onMount } from 'svelte';
   import { t } from '../../services/i18n';
+  import { getModelSupportedModalities } from '../../utils/modality';
 
   // Props
   let { 
@@ -21,7 +22,10 @@
 
   // Autocomplete search states
   let providerSearchTerm = $state('');
-  let showOnlyVisionModels = $state(true);
+  let filterImage = $state(true);
+  let filterPdf = $state(false);
+  let filterAudio = $state(false);
+  let filterVideo = $state(false);
 
   // Default models and providers list
   let geminiModelsList = $state(['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash-8b']);
@@ -182,30 +186,35 @@
   let filteredGeminiModels = $derived(
     geminiModelsList
       .filter(m => {
-        if (!showOnlyVisionModels) return true;
-        const name = m.toLowerCase();
-        return name.includes('1.5') || name.includes('2.0') || name.includes('vision') || name.includes('flash') || name.includes('pro');
-      })
-      .filter(m => {
         const name = m.toLowerCase();
         // Exclude image generation, embeddings, etc. (non-text output models)
-        return !name.includes('imagen') && !name.includes('embed') && !name.includes('similarity');
+        if (name.includes('imagen') || name.includes('embed') || name.includes('similarity')) {
+          return false;
+        }
+
+        const supported = getModelSupportedModalities('gemini', m);
+        if (filterImage && !supported.image) return false;
+        if (filterPdf && !supported.pdf) return false;
+        if (filterAudio && !supported.audio) return false;
+        if (filterVideo && !supported.video) return false;
+
+        return true;
       })
       .filter(m => fuzzyMatch(m, settings.geminiModel || ''))
   );
 
   let filteredOpenRouterModels = $derived(
     (openRouterModelsFullList.length > 0 ? openRouterModelsFullList : openRouterModelsList.map(id => ({ id, name: '', description: '', architecture: null })))
-      // Filter by Vision capability
+      // Filter by active capabilities
       .filter((m: any) => {
-        if (!showOnlyVisionModels) return true;
-        const id = m.id.toLowerCase();
-        const description = (m.description || '').toLowerCase();
-        const name = (m.name || '').toLowerCase();
-        const modality = m.architecture?.modality || '';
-        
-        if (modality.includes('image') || modality.includes('multimodal')) return true;
-        return id.includes('vision') || id.includes('gemini') || id.includes('claude-3') || id.includes('gpt-4o') || id.includes('pixtral') || id.includes('llava') || description.includes('vision') || description.includes('multimodal') || description.includes('image input') || name.includes('vision') || name.includes('vl') || id.includes('vl');
+        const supported = getModelSupportedModalities('openrouter', m.id, m);
+
+        if (filterImage && !supported.image) return false;
+        if (filterPdf && !supported.pdf) return false;
+        if (filterAudio && !supported.audio) return false;
+        if (filterVideo && !supported.video) return false;
+
+        return true;
       })
       // Filter to only display models that output text
       .filter((m: any) => {
@@ -304,20 +313,78 @@
         </div>
       {/if}
 
-      <!-- Vision Capabilities Toggle -->
-      <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
-        <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
-          <span class="material-symbols-outlined text-[18px] text-primary">visibility</span>
-          {t('settings.api.showOnlyVision')}
+      <!-- Model Filtering Options -->
+      <div class="flex flex-col gap-2.5 bg-surface-container-low p-3 rounded-lg border border-outline-variant select-none">
+        <span class="text-xs text-on-surface font-bold flex items-center gap-1.5 mb-1">
+          <span class="material-symbols-outlined text-[18px] text-primary">filter_list</span>
+          {store.settings.language === 'Deutsch' ? 'Modellfilter' : 'Model Filters'}
         </span>
-        <label class="relative inline-flex items-center cursor-pointer select-none">
-          <input 
-            type="checkbox" 
-            bind:checked={showOnlyVisionModels}
-            class="sr-only peer" 
-          />
-          <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-        </label>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+          <!-- Image (Vision) Toggle -->
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px] text-primary">image</span>
+              {t('settings.api.filterImage')}
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                bind:checked={filterImage}
+                class="sr-only peer" 
+              />
+              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          <!-- Files (PDF) Toggle -->
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px] text-primary">description</span>
+              {t('settings.api.filterPdf')}
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                bind:checked={filterPdf}
+                class="sr-only peer" 
+              />
+              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          <!-- Audio Toggle -->
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px] text-primary">audiotrack</span>
+              {t('settings.api.filterAudio')}
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                bind:checked={filterAudio}
+                class="sr-only peer" 
+              />
+              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          <!-- Video Toggle -->
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px] text-primary">videocam</span>
+              {t('settings.api.filterVideo')}
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                bind:checked={filterVideo}
+                class="sr-only peer" 
+              />
+              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+        </div>
       </div>
       
       <!-- Gemini Model (Searchable Autocomplete) -->
@@ -385,20 +452,78 @@
         </div>
       {/if}
 
-      <!-- Vision Capabilities Toggle -->
-      <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
-        <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
-          <span class="material-symbols-outlined text-[18px] text-primary">visibility</span>
-          {t('settings.api.showOnlyVision')}
+      <!-- Model Filtering Options -->
+      <div class="flex flex-col gap-2.5 bg-surface-container-low p-3 rounded-lg border border-outline-variant select-none">
+        <span class="text-xs text-on-surface font-bold flex items-center gap-1.5 mb-1">
+          <span class="material-symbols-outlined text-[18px] text-primary">filter_list</span>
+          {store.settings.language === 'Deutsch' ? 'Modellfilter' : 'Model Filters'}
         </span>
-        <label class="relative inline-flex items-center cursor-pointer select-none">
-          <input 
-            type="checkbox" 
-            bind:checked={showOnlyVisionModels}
-            class="sr-only peer" 
-          />
-          <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-        </label>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+          <!-- Image (Vision) Toggle -->
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px] text-primary">image</span>
+              {t('settings.api.filterImage')}
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                bind:checked={filterImage}
+                class="sr-only peer" 
+              />
+              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          <!-- Files (PDF) Toggle -->
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px] text-primary">description</span>
+              {t('settings.api.filterPdf')}
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                bind:checked={filterPdf}
+                class="sr-only peer" 
+              />
+              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          <!-- Audio Toggle -->
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px] text-primary">audiotrack</span>
+              {t('settings.api.filterAudio')}
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                bind:checked={filterAudio}
+                class="sr-only peer" 
+              />
+              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          <!-- Video Toggle -->
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[18px] text-primary">videocam</span>
+              {t('settings.api.filterVideo')}
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                bind:checked={filterVideo}
+                class="sr-only peer" 
+              />
+              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+        </div>
       </div>
 
       <!-- OpenRouter Model (Searchable Autocomplete) - PLACED FIRST -->
