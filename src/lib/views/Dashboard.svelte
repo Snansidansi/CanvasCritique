@@ -559,7 +559,7 @@
     </div>
 
     <!-- WebDAV Sync Button -->
-    {#if store.settings.webdavEnabled}
+    {#if store.settings.webdavEnabled && store.settings.webdavUrl && store.settings.webdavUrl.trim()}
       <button
         onclick={() => syncWebDav()}
         disabled={store.isSyncing}
