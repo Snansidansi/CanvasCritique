@@ -2336,14 +2336,16 @@ class CanvasCritiqueStore {
             updatedData.completed = false;
           }
 
-          await this.updateTask(nextItem.projectId, nextItem.taskId, updatedData);
-
-          const { t } = await import('../services/i18n');
-          const msg = t('practice.critique.correctedNotification', {
-            taskName: nextItem.taskName,
-            lessonName: nextItem.lessonName
-          });
-          this.showNotification(msg, 'success');
+          // Only show notification if the user is NOT currently on the practice canvas for this specific task
+          const isOnCurrentTaskCanvas = this.currentView === 'practice' && this.activeTask?.id === nextItem.taskId;
+          if (!isOnCurrentTaskCanvas) {
+            const { t } = await import('../services/i18n');
+            const msg = t('practice.critique.correctedNotification', {
+              taskName: nextItem.taskName,
+              lessonName: nextItem.lessonName
+            });
+            this.showNotification(msg, 'success');
+          }
 
         } catch (err: any) {
           console.error(`[store] Queue error checking task ${nextItem.taskId}:`, err);

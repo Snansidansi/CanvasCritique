@@ -7,10 +7,10 @@
   {#each store.notifications as item (item.id)}
     <div
       transition:fly={{ y: 20, duration: 250 }}
-      class="pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl border shadow-xl backdrop-blur-md transition-all duration-300
-             {item.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : ''}
-             {item.type === 'error' ? 'bg-error/10 border-error/30 text-error' : ''}
-             {item.type === 'info' ? 'bg-primary/10 border-primary/30 text-primary' : ''}"
+      class="pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl border shadow-xl backdrop-blur-md bg-surface-container-lowest/95 transition-all duration-300
+             {item.type === 'success' ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400' : ''}
+             {item.type === 'error' ? 'border-error/40 text-error' : ''}
+             {item.type === 'info' ? 'border-primary/40 text-primary' : ''}"
     >
       <span class="material-symbols-outlined text-[20px] shrink-0">
         {#if item.type === 'success'}
