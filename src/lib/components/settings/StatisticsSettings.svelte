@@ -5,7 +5,9 @@
 
   // State variables for statistics settings and visualization
   let timeframe = $state<'1' | '7' | '30' | 'custom'>('7'); // '1' | '7' | '30' | 'custom' days
-  let activeMetric = $state<'cost' | 'requests' | 'tokens'>('cost');
+  let showCost = $state(true);
+  let showRequests = $state(false);
+  let showTokens = $state(false);
   let hoverIndex = $state<number | null>(null);
 
   // Fallback structure to prevent runtime access errors
@@ -257,47 +259,83 @@
   // Calculate coordinates for the SVG chart
   const svgWidth = 600;
   const svgHeight = 200;
-  const padding = { top: 20, right: 20, bottom: 30, left: 50 };
-  const graphWidth = svgWidth - padding.left - padding.right;
-  const graphHeight = svgHeight - padding.top - padding.bottom;
+  
+  const activeMetrics = $derived([
+    ...(showCost ? ['cost'] : []),
+    ...(showRequests ? ['requests'] : []),
+    ...(showTokens ? ['tokens'] : [])
+  ]);
+  const activeCount = $derived(activeMetrics.length);
+  const paddingLeft = $derived(20 + activeCount * 42); // allocate 42px per active Y-axis label column
+  const padding = $derived({ top: 20, right: 20, bottom: 30, left: paddingLeft });
+  const graphWidth = $derived(svgWidth - padding.left - padding.right);
+  const graphHeight = $derived(svgHeight - padding.top - padding.bottom);
 
-  const points = $derived.by(() => {
+  const maxCost = $derived(Math.max(...chartData.map(d => d.totalCost), 0.001));
+  const maxRequests = $derived(Math.max(...chartData.map(d => d.totalRequests), 1));
+  const maxTokens = $derived(Math.max(...chartData.map(d => d.totalTokens), 1));
+
+  const costPoints = $derived.by(() => {
     if (chartData.length === 0) return [];
-    
-    // Determine active values based on metric selection
-    const values = chartData.map(d => {
-      if (activeMetric === 'cost') return d.totalCost;
-      if (activeMetric === 'requests') return d.totalRequests;
-      return d.totalTokens;
-    });
-
-    const maxValue = Math.max(...values, activeMetric === 'cost' ? 0.01 : 1);
-    
     return chartData.map((d, i) => {
-      const val = activeMetric === 'cost' ? d.totalCost : (activeMetric === 'requests' ? d.totalRequests : d.totalTokens);
       const x = padding.left + (i / (chartData.length - 1)) * graphWidth;
-      const y = padding.top + graphHeight - (val / maxValue) * graphHeight;
-      return { x, y, value: val, data: d };
+      const y = padding.top + graphHeight - (d.totalCost / maxCost) * graphHeight;
+      return { x, y, value: d.totalCost, data: d };
     });
   });
 
-  // SVG Paths
-  const linePath = $derived.by(() => {
-    if (points.length === 0) return '';
-    return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const requestsPoints = $derived.by(() => {
+    if (chartData.length === 0) return [];
+    return chartData.map((d, i) => {
+      const x = padding.left + (i / (chartData.length - 1)) * graphWidth;
+      const y = padding.top + graphHeight - (d.totalRequests / maxRequests) * graphHeight;
+      return { x, y, value: d.totalRequests, data: d };
+    });
   });
 
-  const areaPath = $derived.by(() => {
-    if (points.length === 0) return '';
-    const first = points[0];
-    const last = points[points.length - 1];
-    return `${linePath} L ${last.x} ${padding.top + graphHeight} L ${first.x} ${padding.top + graphHeight} Z`;
+  const tokensPoints = $derived.by(() => {
+    if (chartData.length === 0) return [];
+    return chartData.map((d, i) => {
+      const x = padding.left + (i / (chartData.length - 1)) * graphWidth;
+      const y = padding.top + graphHeight - (d.totalTokens / maxTokens) * graphHeight;
+      return { x, y, value: d.totalTokens, data: d };
+    });
   });
 
-  const maximumYVal = $derived.by(() => {
-    if (points.length === 0) return activeMetric === 'cost' ? 0.01 : 1;
-    const valuesList = points.map(p => p.value);
-    return Math.max(...valuesList, activeMetric === 'cost' ? 0.01 : 1);
+  // Default points reference for X coordinates and hover matching
+  const points = $derived(costPoints);
+
+  const costLinePath = $derived.by(() => {
+    if (costPoints.length === 0) return '';
+    return costPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  });
+  const costAreaPath = $derived.by(() => {
+    if (costPoints.length === 0) return '';
+    const first = costPoints[0];
+    const last = costPoints[costPoints.length - 1];
+    return `${costLinePath} L ${last.x} ${padding.top + graphHeight} L ${first.x} ${padding.top + graphHeight} Z`;
+  });
+
+  const requestsLinePath = $derived.by(() => {
+    if (requestsPoints.length === 0) return '';
+    return requestsPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  });
+  const requestsAreaPath = $derived.by(() => {
+    if (requestsPoints.length === 0) return '';
+    const first = requestsPoints[0];
+    const last = requestsPoints[requestsPoints.length - 1];
+    return `${requestsLinePath} L ${last.x} ${padding.top + graphHeight} L ${first.x} ${padding.top + graphHeight} Z`;
+  });
+
+  const tokensLinePath = $derived.by(() => {
+    if (tokensPoints.length === 0) return '';
+    return tokensPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  });
+  const tokensAreaPath = $derived.by(() => {
+    if (tokensPoints.length === 0) return '';
+    const first = tokensPoints[0];
+    const last = tokensPoints[tokensPoints.length - 1];
+    return `${tokensLinePath} L ${last.x} ${padding.top + graphHeight} L ${first.x} ${padding.top + graphHeight} Z`;
   });
 
   // Handle Chart Hover Index Calculation
@@ -372,6 +410,18 @@
     if (val >= 1000000) return (val / 1000000).toFixed(2) + 'M';
     if (val >= 1000) return (val / 1000).toFixed(1) + 'k';
     return val.toString();
+  }
+
+  function formatCostShort(val: number): string {
+    if (val === 0) return '$0';
+    if (val < 0.01) return `$${val.toFixed(4)}`;
+    return `$${val.toFixed(2)}`;
+  }
+
+  function formatTokensShort(val: number): string {
+    if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+    if (val >= 1000) return (val / 1000).toFixed(0) + 'k';
+    return String(val);
   }
 
   // Local state for paginated request history table
@@ -645,23 +695,29 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 {timeframe === 'custom' ? 'mb-0' : 'mb-6'}">
       <div class="flex flex-wrap items-center gap-2">
         <button
-          onclick={() => activeMetric = 'cost'}
-          class="px-3.5 py-1.5 text-xs rounded-full font-bold transition-all
-                 {activeMetric === 'cost' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}"
+          onclick={() => showCost = !showCost}
+          class="px-3.5 py-1.5 text-xs rounded-full font-bold transition-all select-none border border-outline-variant/30 cursor-pointer"
+          style={showCost 
+            ? 'background-color: #10b981; color: white; border-color: #059669;' 
+            : 'background-color: var(--color-surface-container-low); color: var(--color-on-surface-variant);'}
         >
           {t('settings.stats.costMetricBtn')}
         </button>
         <button
-          onclick={() => activeMetric = 'requests'}
-          class="px-3.5 py-1.5 text-xs rounded-full font-bold transition-all
-                 {activeMetric === 'requests' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}"
+          onclick={() => showRequests = !showRequests}
+          class="px-3.5 py-1.5 text-xs rounded-full font-bold transition-all select-none border border-outline-variant/30 cursor-pointer"
+          style={showRequests 
+            ? 'background-color: #3b82f6; color: white; border-color: #1d4ed8;' 
+            : 'background-color: var(--color-surface-container-low); color: var(--color-on-surface-variant);'}
         >
           {t('settings.stats.requestsMetricBtn')}
         </button>
         <button
-          onclick={() => activeMetric = 'tokens'}
-          class="px-3.5 py-1.5 text-xs rounded-full font-bold transition-all
-                 {activeMetric === 'tokens' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}"
+          onclick={() => showTokens = !showTokens}
+          class="px-3.5 py-1.5 text-xs rounded-full font-bold transition-all select-none border border-outline-variant/30 cursor-pointer"
+          style={showTokens 
+            ? 'background-color: #f59e0b; color: white; border-color: #d97706;' 
+            : 'background-color: var(--color-surface-container-low); color: var(--color-on-surface-variant);'}
         >
           {t('settings.stats.tokensMetricBtn')}
         </button>
@@ -746,9 +802,17 @@
         >
           <!-- Definitions for Gradients -->
           <defs>
-            <linearGradient id="chartAreaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.25" />
-              <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0.00" />
+            <linearGradient id="costAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#10b981" stop-opacity="0.15" />
+              <stop offset="100%" stop-color="#10b981" stop-opacity="0.00" />
+            </linearGradient>
+            <linearGradient id="requestsAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.15" />
+              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.00" />
+            </linearGradient>
+            <linearGradient id="tokensAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.15" />
+              <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.00" />
             </linearGradient>
           </defs>
 
@@ -766,11 +830,27 @@
             />
           {/each}
 
-          <!-- Area under the curve -->
-          <path d={areaPath} fill="url(#chartAreaGrad)" />
-
-          <!-- Main line -->
-          <path d={linePath} fill="none" stroke="var(--color-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          <!-- Areas under the curves -->
+          {#if showCost && costPoints.length > 0}
+            <path d={costAreaPath} fill="url(#costAreaGrad)" />
+          {/if}
+          {#if showRequests && requestsPoints.length > 0}
+            <path d={requestsAreaPath} fill="url(#requestsAreaGrad)" />
+          {/if}
+          {#if showTokens && tokensPoints.length > 0}
+            <path d={tokensAreaPath} fill="url(#tokensAreaGrad)" />
+          {/if}
+ 
+          <!-- Main lines -->
+          {#if showCost && costPoints.length > 0}
+            <path d={costLinePath} fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          {/if}
+          {#if showRequests && requestsPoints.length > 0}
+            <path d={requestsLinePath} fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          {/if}
+          {#if showTokens && tokensPoints.length > 0}
+            <path d={tokensLinePath} fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          {/if}
 
           <!-- Hover indicators (Vertical line & dots) -->
           {#if hoverIndex !== null}
@@ -780,15 +860,27 @@
               y1={padding.top} 
               x2={p.x} 
               y2={padding.top + graphHeight} 
-              stroke="var(--color-primary)" 
+              stroke="var(--color-outline)" 
               stroke-opacity="0.4" 
               stroke-width="1.5" 
               stroke-dasharray="2,2"
+              pointer-events="none"
             />
-            <!-- Outer Glow dot -->
-            <circle cx={p.x} cy={p.y} r="6" fill="var(--color-primary)" fill-opacity="0.25" />
-            <!-- Inner crisp dot -->
-            <circle cx={p.x} cy={p.y} r="3.5" fill="var(--color-surface)" stroke="var(--color-primary)" stroke-width="2" />
+            {#if showCost && costPoints[hoverIndex]}
+              {@const cp = costPoints[hoverIndex]}
+              <circle cx={cp.x} cy={cp.y} r="6" fill="#10b981" fill-opacity="0.25" />
+              <circle cx={cp.x} cy={cp.y} r="3.5" fill="var(--color-surface)" stroke="#10b981" stroke-width="2" />
+            {/if}
+            {#if showRequests && requestsPoints[hoverIndex]}
+              {@const rp = requestsPoints[hoverIndex]}
+              <circle cx={rp.x} cy={rp.y} r="6" fill="#3b82f6" fill-opacity="0.25" />
+              <circle cx={rp.x} cy={rp.y} r="3.5" fill="var(--color-surface)" stroke="#3b82f6" stroke-width="2" />
+            {/if}
+            {#if showTokens && tokensPoints[hoverIndex]}
+              {@const tp = tokensPoints[hoverIndex]}
+              <circle cx={tp.x} cy={tp.y} r="6" fill="#f59e0b" fill-opacity="0.25" />
+              <circle cx={tp.x} cy={tp.y} r="3.5" fill="var(--color-surface)" stroke="#f59e0b" stroke-width="2" />
+            {/if}
           {/if}
 
           <!-- Dragging range overlay -->
@@ -847,58 +939,61 @@
             {/if}
           {/each}
 
-          <!-- Y-Axis (Draw dynamic labels based on metric) -->
-          {#each [0, 0.5, 1] as fraction}
-            {@const val = (1 - fraction) * maximumYVal}
-            {@const yPos = padding.top + fraction * graphHeight}
-            <text 
-              x={padding.left - 10} 
-              y={yPos + 3} 
-              fill="var(--color-on-surface-variant)" 
-              font-size="9" 
-              text-anchor="end"
-              class="font-medium opacity-80"
-            >
-              {activeMetric === 'cost' ? formatCost(val) : formatTokens(val)}
-            </text>
+          <!-- Y-Axis Columns for Active Metrics -->
+          {#each activeMetrics as metric, metricIdx}
+            {@const maxVal = metric === 'cost' ? maxCost : (metric === 'requests' ? maxRequests : maxTokens)}
+            {@const color = metric === 'cost' ? '#10b981' : (metric === 'requests' ? '#3b82f6' : '#f59e0b')}
+            {@const xPos = padding.left - 10 - (activeCount - 1 - metricIdx) * 42}
+            {#each [0, 0.5, 1] as fraction}
+              {@const val = (1 - fraction) * maxVal}
+              {@const yPos = padding.top + fraction * graphHeight}
+              <text 
+                x={xPos} 
+                y={yPos + 3} 
+                fill={color}
+                font-size="8" 
+                text-anchor="end"
+                class="font-bold opacity-95"
+              >
+                {metric === 'cost' ? formatCostShort(val) : (metric === 'requests' ? String(Math.round(val)) : formatTokensShort(val))}
+              </text>
+            {/each}
           {/each}
         </svg>
 
         <!-- Dynamic Chart Floating Tooltip Card -->
-        {#if hoverIndex !== null}
+        {#if hoverIndex !== null && activeCount > 0}
           {@const p = points[hoverIndex]}
           <div 
-            class="absolute pointer-events-none bg-surface-container-high border border-outline-variant/80 p-3.5 rounded-lg shadow-xl text-left text-xs z-20 space-y-1.5 min-w-42.5"
+            class="absolute pointer-events-none bg-surface-container-high border border-outline-variant/80 p-3 rounded-lg shadow-xl text-left text-xs z-20 space-y-1.5 min-w-36"
             style="
               left: {Math.min(Math.max((p.x / svgWidth) * 100 - 15, 2), 70)}%;
               top: {Math.max((p.y / svgHeight) * 100 - 55, -20)}%;
             "
           >
-            <div class="font-bold border-b border-outline-variant pb-1.5 text-on-surface">
-              {p.data.label}, {p.data.date.split('-')[0]}
+            <div class="font-bold border-b border-outline-variant pb-1.5 text-on-surface select-none">
+              {p.data.label}{#if timeframe !== '1'}, {p.data.date.split('-')[0]}{/if}
             </div>
             
             <div class="space-y-1 text-on-surface-variant font-medium">
-              <div class="flex justify-between gap-6">
-                <span>{t('settings.stats.cost')}:</span>
-                <span class="font-bold text-on-surface">{formatCost(p.data.totalCost)}</span>
-              </div>
-              <div class="flex justify-between gap-6">
-                <span>{t('settings.stats.requests')}:</span>
-                <span class="font-bold text-on-surface">{p.data.totalRequests}</span>
-              </div>
-              <div class="flex justify-between gap-6">
-                <span>{t('settings.stats.tokensMetricBtn')}:</span>
-                <span class="font-bold text-on-surface">{formatTokens(p.data.totalTokens)}</span>
-              </div>
-              <div class="text-[10px] text-primary font-semibold pt-1 border-t border-outline-variant/40 flex justify-between">
-                <span>Gemini:</span>
-                <span>{formatCost(p.data.geminiCost)}</span>
-              </div>
-              <div class="text-[10px] text-primary font-semibold flex justify-between">
-                <span>OpenRouter:</span>
-                <span>{formatCost(p.data.openRouterCost)}</span>
-              </div>
+              {#if showCost}
+                <div class="flex justify-between gap-6" style="color: #10b981;">
+                  <span>{t('settings.stats.cost')}:</span>
+                  <span class="font-bold">{formatCost(p.data.totalCost)}</span>
+                </div>
+              {/if}
+              {#if showRequests}
+                <div class="flex justify-between gap-6" style="color: #3b82f6;">
+                  <span>{t('settings.stats.requests')}:</span>
+                  <span class="font-bold">{p.data.totalRequests}</span>
+                </div>
+              {/if}
+              {#if showTokens}
+                <div class="flex justify-between gap-6" style="color: #f59e0b;">
+                  <span>{t('settings.stats.tokensMetricBtn')}:</span>
+                  <span class="font-bold">{formatTokens(p.data.totalTokens)}</span>
+                </div>
+              {/if}
             </div>
           </div>
         {/if}
