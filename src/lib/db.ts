@@ -28,6 +28,12 @@ export async function initDb(): Promise<Database> {
   }
 
   try {
+    await db.execute('ALTER TABLE media ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP');
+  } catch (_) {
+    // Column already exists
+  }
+
+  try {
     await db.execute('ALTER TABLE tasks ADD COLUMN settings_override_json TEXT');
   } catch (_) {
     // Column already exists
@@ -162,6 +168,37 @@ export async function initDb(): Promise<Database> {
 export function getDb(): Database {
   if (!dbInstance) throw new Error('Database not initialized. Call initDb() first.');
   return dbInstance;
+}
+
+export async function closeDb(): Promise<void> {
+  if (dbInstance) {
+    await dbInstance.close();
+    dbInstance = null;
+  }
+}
+
+export async function backupDatabase(destAbsoluteOrRelativePath: string): Promise<void> {
+  const db = getDb();
+  // We need to delete the file first if it exists, otherwise VACUUM INTO fails.
+  try {
+    const { remove } = await import('@tauri-apps/plugin-fs');
+    await remove(destAbsoluteOrRelativePath);
+  } catch (_) {} // ignore if it doesn't exist
+  await db.execute(`VACUUM INTO '${destAbsoluteOrRelativePath}'`);
+}
+
+export async function replaceDatabase(sourceAbsolutePath: string): Promise<void> {
+  await closeDb();
+  
+  const { appDataDir, join } = await import('@tauri-apps/api/path');
+  const { copyFile } = await import('@tauri-apps/plugin-fs');
+  
+  const dir = await appDataDir();
+  const dbPath = await join(dir, 'canvascritique.db');
+  
+  await copyFile(sourceAbsolutePath, dbPath);
+  
+  await initDb();
 }
 
 // ── Profiles ──

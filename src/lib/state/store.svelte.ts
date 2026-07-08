@@ -64,6 +64,7 @@ class CanvasCritiqueStore {
   importDialog = $state<ImportDialog | null>(null);
   isLoading = $state(false);
   loadingText = $state("");
+  isSyncing = $state(false);
   deletingProjectIds = $state<string[]>([]);
   canvasSaves = $state<Record<string, any>>({});
   editorTexts = $state<Record<string, string>>({});

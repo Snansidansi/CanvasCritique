@@ -127,6 +127,14 @@ export const defaultSettings: Settings = {
   taskMediaFilterMode: 'blacklist',
   taskMediaFilterExtensions: '',
   solutionMediaFilterMode: 'blacklist',
-  solutionMediaFilterExtensions: ''
+  solutionMediaFilterExtensions: '',
+  webdavEnabled: false,
+  webdavUrl: '',
+  webdavUsername: '',
+  webdavPassword: '',
+  webdavAutoSync: false,
+  webdavSyncIntervalMinutes: 30,
+  webdavSyncOnStartup: false,
+  lastSyncedTimestamp: ''
 };
 
