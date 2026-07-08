@@ -142,6 +142,7 @@ body {
 
 /* Dark theme overrides */
 .dark {
+  color-scheme: dark;
   --color-background: #121314;
   --color-on-background: #eff1f3;
   --color-surface: #1e1f21;
@@ -163,6 +164,10 @@ body {
   --color-primary: #6b9cff;
   --color-outline: #8e9099;
   --color-outline-variant: #3e4045;
+}
+
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
 }
 
 /* Custom cursor for drawing/writing */
