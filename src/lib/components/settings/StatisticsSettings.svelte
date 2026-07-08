@@ -993,7 +993,7 @@
 
         <div class="flex items-center gap-1">
           <!-- Quick jump back to page 1 -->
-          {#if tablePage > 2}
+          {#if tablePage > 1}
             <button
               onclick={() => tablePage = 1}
               class="px-2 py-1 bg-surface-container hover:bg-surface-container-high rounded text-on-surface cursor-pointer focus:outline-none border-0 text-[11px] font-semibold transition-colors flex items-center gap-0.5"
@@ -1039,7 +1039,7 @@
       <span class="material-symbols-outlined text-primary text-base shrink-0">info</span>
       <span>
         {store.settings.language === 'Deutsch' 
-          ? 'Tipp: Du kannst im Diagramm oben mit der Maus klicken und ziehen (drag), um direkt einen Zeitraum für diese Tabelle auszuwählen.'
+          ? 'Tipp: Du kannst im Diagramm oben mit der Maus klicken und ziehen, um direkt einen Zeitraum für diese Tabelle auszuwählen.'
           : 'Tip: You can click and drag in the chart above with your mouse to select a time range for this table.'}
       </span>
     </div>
