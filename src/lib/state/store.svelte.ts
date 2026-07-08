@@ -280,7 +280,7 @@ class CanvasCritiqueStore {
         this.settings = data.settings;
       } else {
         this.settings = defaultSettings;
-        await dbSaveSettings(database, this.settings);
+        await dbSaveSettings(database, $state.snapshot(this.settings));
       }
 
       // Normalize settings
@@ -326,7 +326,7 @@ class CanvasCritiqueStore {
             });
           }
         }
-        await dbSaveSettings(database, this.settings);
+        await dbSaveSettings(database, $state.snapshot(this.settings));
       }
       if (!this.settings.stylusButtons || !Array.isArray(this.settings.stylusButtons)) {
         this.settings.stylusButtons = [];
@@ -502,7 +502,7 @@ class CanvasCritiqueStore {
 
   async saveSettings() {
     const db = this.getDb();
-    await dbSaveSettings(db, this.settings);
+    await dbSaveSettings(db, $state.snapshot(this.settings));
     this.applyTheme(this.settings.theme);
   }
 
@@ -2197,7 +2197,7 @@ class CanvasCritiqueStore {
       reasoningTokens,
       cost
     };
-    this.settings.stats.history.push(log);
+    this.settings.stats.history = [...this.settings.stats.history, log];
 
     if (!this.settings.stats.daily) {
       this.settings.stats.daily = {};
@@ -2221,11 +2221,13 @@ class CanvasCritiqueStore {
     }
 
     const dayStats = this.settings.stats.daily[today][provider];
-    dayStats.requests += 1;
-    dayStats.inputTokens += inputTokens;
-    dayStats.outputTokens += outputTokens;
-    dayStats.reasoningTokens += reasoningTokens;
-    dayStats.cost += cost;
+    this.settings.stats.daily[today][provider] = {
+      requests: dayStats.requests + 1,
+      inputTokens: dayStats.inputTokens + inputTokens,
+      outputTokens: dayStats.outputTokens + outputTokens,
+      reasoningTokens: dayStats.reasoningTokens + reasoningTokens,
+      cost: dayStats.cost + cost
+    };
 
     await this.saveSettings();
   }
