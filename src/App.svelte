@@ -4,6 +4,7 @@
   import { onMount, onDestroy } from "svelte";
   import { t } from "./lib/services/i18n";
   import { syncWebDav } from "./lib/services/webdav";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
 
   // Local state variables for export popup checkboxes
   let exportIncludeCritique = $state(true);
@@ -73,6 +74,7 @@
     window.addEventListener("contextmenu", handleGlobalContextMenu);
     window.addEventListener("keydown", handleGlobalKeyDown);
     let syncIntervalId: number | undefined;
+    let unlistenClose: (() => void) | undefined;
 
     const setupSync = () => {
       if (syncIntervalId) clearInterval(syncIntervalId);
@@ -92,10 +94,30 @@
       }, 1000);
     }
 
+    const setupCloseHandler = async () => {
+      const appWindow = getCurrentWindow();
+      unlistenClose = await appWindow.onCloseRequested(async (event) => {
+        if (store.settings.webdavEnabled && store.settings.webdavSyncOnShutdown) {
+          event.preventDefault();
+          try {
+            await appWindow.hide();
+            await syncWebDav();
+          } catch (err) {
+            console.error("Error during shutdown sync:", err);
+          } finally {
+            await appWindow.destroy();
+          }
+        }
+      });
+    };
+
+    setupCloseHandler();
+
     return () => {
       window.removeEventListener("contextmenu", handleGlobalContextMenu);
       window.removeEventListener("keydown", handleGlobalKeyDown);
       if (syncIntervalId) clearInterval(syncIntervalId);
+      if (unlistenClose) unlistenClose();
     };
   });
 </script>

@@ -446,6 +446,7 @@
       "webdavAutoSync": "Auto-Sync",
       "webdavSyncInterval": "Sync-Intervall (Minuten)",
       "webdavSyncOnStartup": "Beim Start synchronisieren",
+      "webdavSyncOnShutdown": "Beim Beenden synchronisieren",
       "webdavSyncMode": "Synchronisierungsmodus",
       "webdavSyncModeBidirectional": "Bidirektional (Standard)",
       "webdavSyncModeDownload": "Nur Download",

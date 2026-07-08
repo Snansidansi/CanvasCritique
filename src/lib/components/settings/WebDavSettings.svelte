@@ -208,6 +208,19 @@
           </div>
           <span class="text-sm font-semibold text-on-surface">{t('settings.data.webdavSyncOnStartup')}</span>
         </label>
+
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+          <div class="relative">
+            <input
+              type="checkbox"
+              bind:checked={store.settings.webdavSyncOnShutdown}
+              onchange={() => store.saveSettings()}
+              class="sr-only peer"
+            />
+            <div class="w-9 h-5 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+          </div>
+          <span class="text-sm font-semibold text-on-surface">{t('settings.data.webdavSyncOnShutdown')}</span>
+        </label>
       </div>
 
       <div class="h-px bg-outline-variant my-2"></div>

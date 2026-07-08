@@ -241,6 +241,7 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
         webdavAutoSync: store.settings.webdavAutoSync,
         webdavSyncIntervalMinutes: store.settings.webdavSyncIntervalMinutes,
         webdavSyncOnStartup: store.settings.webdavSyncOnStartup,
+        webdavSyncOnShutdown: store.settings.webdavSyncOnShutdown,
         webdavSyncMode: store.settings.webdavSyncMode,
         lastSyncedTimestamp: remoteTimestamp >= localTimestamp ? remoteTimestamp : localTimestamp
       };
