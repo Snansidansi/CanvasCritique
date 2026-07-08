@@ -186,6 +186,11 @@
         const name = m.toLowerCase();
         return name.includes('1.5') || name.includes('2.0') || name.includes('vision') || name.includes('flash') || name.includes('pro');
       })
+      .filter(m => {
+        const name = m.toLowerCase();
+        // Exclude image generation, embeddings, etc. (non-text output models)
+        return !name.includes('imagen') && !name.includes('embed') && !name.includes('similarity');
+      })
       .filter(m => fuzzyMatch(m, settings.geminiModel || ''))
   );
 
@@ -201,6 +206,40 @@
         
         if (modality.includes('image') || modality.includes('multimodal')) return true;
         return id.includes('vision') || id.includes('gemini') || id.includes('claude-3') || id.includes('gpt-4o') || id.includes('pixtral') || id.includes('llava') || description.includes('vision') || description.includes('multimodal') || description.includes('image input') || name.includes('vision') || name.includes('vl') || id.includes('vl');
+      })
+      // Filter to only display models that output text
+      .filter((m: any) => {
+        const arch = m.architecture;
+        if (arch) {
+          // Check outputModalities array if present
+          if (Array.isArray(arch.outputModalities)) {
+            return arch.outputModalities.includes('text');
+          }
+          // Check modality string if present (e.g. "text->text", "text->image", "text")
+          const modality = (arch.modality || '').toLowerCase();
+          if (modality) {
+            if (modality.includes('->')) {
+              const parts = modality.split('->');
+              const outputs = parts[1] || '';
+              return outputs.includes('text');
+            }
+            return modality.includes('text');
+          }
+        }
+        
+        // Fallback check by model ID if no modality details are present
+        const id = m.id.toLowerCase();
+        const isNonText = id.includes('/stable-diffusion') || 
+                           id.includes('/flux') || 
+                           id.includes('/midjourney') || 
+                           id.includes('/dall-e') ||
+                           id.includes('/suno') ||
+                           id.includes('/luma-') ||
+                           id.includes('text-to-image') ||
+                           id.includes('text-to-video') ||
+                           id.includes('/tts-') ||
+                           id.includes('/elevenlabs');
+        return !isNonText;
       })
       // Search query fuzzy match
       .map(m => m.id)
