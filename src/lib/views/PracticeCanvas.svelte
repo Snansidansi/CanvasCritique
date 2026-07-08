@@ -7,6 +7,7 @@
   import html2canvas from 'html2canvas';
   import { save } from '@tauri-apps/plugin-dialog';
   import { writeFile } from '@tauri-apps/plugin-fs';
+  import { getFileModality, getModelSupportedModalities } from '../utils/modality';
 
   // Subcomponents
   import PracticeHeader from '../components/practice/PracticeHeader.svelte';
@@ -2531,9 +2532,141 @@
   }
 
   // Multimodal AI Grading using Cropped PNG bounding box
+  // Multimodal AI Grading using Cropped PNG bounding box
   async function checkWork() {
     if (!store.activeProject || !store.activeTask) return;
 
+    const effectiveSettings = store.activeProject
+      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
+      : store.settings;
+
+    const selectedModelId = effectiveSettings.apiProvider === 'gemini' 
+      ? effectiveSettings.geminiModel 
+      : effectiveSettings.openRouterModel;
+
+    const sendTaskMedia = effectiveSettings.sendTaskMedia ?? true;
+    const sendSolutionMedia = effectiveSettings.sendSolutionMedia ?? true;
+
+    function shouldIncludeFile(filename: string, isSolution: boolean): boolean {
+      const mode = isSolution
+        ? (effectiveSettings.solutionMediaFilterMode ?? 'blacklist')
+        : (effectiveSettings.taskMediaFilterMode ?? 'blacklist');
+      const extensionsStr = isSolution
+        ? (effectiveSettings.solutionMediaFilterExtensions ?? '')
+        : (effectiveSettings.taskMediaFilterExtensions ?? '');
+      
+      const extensions = extensionsStr
+        .split(',')
+        .map((ext: string) => ext.trim().toLowerCase())
+        .filter((ext: string) => ext.length > 0)
+        .map((ext: string) => ext.startsWith('.') ? ext : '.' + ext);
+        
+      if (extensions.length === 0) {
+        return mode === 'blacklist';
+      }
+      
+      const fileExt = '.' + filename.split('.').pop()!.toLowerCase();
+      
+      if (mode === 'whitelist') {
+        return extensions.includes(fileExt);
+      } else {
+        return !extensions.includes(fileExt);
+      }
+    }
+
+    const filesToSend: Array<{ name: string; source: 'instruction' | 'solution'; modality: string }> = [];
+
+    if (sendTaskMedia) {
+      if (task.instructionFiles && Array.isArray(task.instructionFiles)) {
+        task.instructionFiles.forEach(f => {
+          if (shouldIncludeFile(f.name, false)) {
+            const modality = getFileModality(f.name);
+            if (modality !== 'text') {
+              filesToSend.push({ name: f.name, source: 'instruction', modality });
+            }
+          }
+        });
+      } else if (task.instructionFile) {
+        const f = task.instructionFile;
+        if (shouldIncludeFile(f.name, false)) {
+          const modality = getFileModality(f.name);
+          if (modality !== 'text') {
+            filesToSend.push({ name: f.name, source: 'instruction', modality });
+          }
+        }
+      }
+    }
+
+    if (sendSolutionMedia) {
+      if (task.solutionFiles && Array.isArray(task.solutionFiles)) {
+        task.solutionFiles.forEach(f => {
+          if (shouldIncludeFile(f.name, true)) {
+            const modality = getFileModality(f.name);
+            if (modality !== 'text') {
+              filesToSend.push({ name: f.name, source: 'solution', modality });
+            }
+          }
+        });
+      } else if (task.solutionFile) {
+        const f = task.solutionFile;
+        if (shouldIncludeFile(f.name, true)) {
+          const modality = getFileModality(f.name);
+          if (modality !== 'text') {
+            filesToSend.push({ name: f.name, source: 'solution', modality });
+          }
+        }
+      }
+    }
+
+    const supported = getModelSupportedModalities(effectiveSettings.apiProvider, selectedModelId);
+    const unsupportedFiles = filesToSend.filter(f => 
+      (f.modality === 'image' && !supported.image) ||
+      (f.modality === 'audio' && !supported.audio) ||
+      (f.modality === 'video' && !supported.video) ||
+      (f.modality === 'pdf' && !supported.pdf)
+    );
+
+    if (unsupportedFiles.length > 0) {
+      const intro = t('dialogs.unsupportedMediaIntro', { modelName: selectedModelId });
+      const outro = t('dialogs.unsupportedMediaOutro');
+      
+      const fileListStr = unsupportedFiles.map(f => {
+        const sourceLabel = f.source === 'instruction' 
+          ? t('dialogs.unsupportedMediaInstruction') 
+          : t('dialogs.unsupportedMediaSolution');
+        const typeLabel = f.modality.toUpperCase();
+        return `• ${f.name} (${sourceLabel}, ${typeLabel})`;
+      }).join('\n');
+
+      const fullMessage = `${intro}\n\n${fileListStr}\n\n${outro}`;
+
+      store.confirm(
+        t('dialogs.unsupportedMediaTitle'),
+        fullMessage,
+        () => {
+          const unsupportedNames = unsupportedFiles.map(f => f.name);
+          const filteredTask = {
+            ...task,
+            section: task.category,
+            instructionFiles: task.instructionFiles ? task.instructionFiles.filter(f => !unsupportedNames.includes(f.name)) : undefined,
+            solutionFiles: task.solutionFiles ? task.solutionFiles.filter(f => !unsupportedNames.includes(f.name)) : undefined,
+            instructionFile: task.instructionFile && unsupportedNames.includes(task.instructionFile.name) ? null : task.instructionFile,
+            solutionFile: task.solutionFile && unsupportedNames.includes(task.solutionFile.name) ? null : task.solutionFile
+          };
+          proceedWithChecking(effectiveSettings, filteredTask);
+        },
+        () => {},
+        false,
+        t('dialogs.unsupportedMediaConfirm'),
+        t('dialogs.unsupportedMediaCancel')
+      );
+      return;
+    }
+
+    proceedWithChecking(effectiveSettings, { ...task, section: task.category });
+  }
+
+  function proceedWithChecking(effectiveSettings: any, taskDataToSend: any) {
     feedbackMarkers = [];
     activeTooltipMarker = null;
     showFeedback = true;
@@ -2543,19 +2676,15 @@
     feedbackScore = null;
 
     try {
-      const effectiveSettings = store.activeProject
-        ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
-        : store.settings;
-
-      store.queueTaskChecking(store.activeProject.id, store.activeTask.id, {
+      store.queueTaskChecking(store.activeProject!.id, store.activeTask!.id, {
         canvasMode: canvasMode as 'infinite' | 'a4',
         pages,
         infiniteStrokes,
         currentBgUrl,
         bgOpacity,
         activeBg,
-        task: { ...task, section: task.category },
-        projectGuidelines: store.activeProject.guidelines?.trim(),
+        task: taskDataToSend,
+        projectGuidelines: store.activeProject!.guidelines?.trim(),
         settings: {
           apiProvider: effectiveSettings.apiProvider,
           geminiApiKey: effectiveSettings.geminiApiKey,

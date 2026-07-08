@@ -573,6 +573,13 @@
     "importErrorTitle": "Import Error",
     "importErrorTasksOnlyInLesson": "Tasks can only be imported into a lesson.",
     "importErrorLessonsOnlyOnHome": "Lessons can only be imported on the home screen.",
-    "importMultipleAsNew": "{count} lessons will be imported as new lessons"
+    "importMultipleAsNew": "{count} lessons will be imported as new lessons",
+    "unsupportedMediaTitle": "Unsupported Media",
+    "unsupportedMediaIntro": "The selected model '{modelName}' does not support some media files from this task. The following files cannot be processed:",
+    "unsupportedMediaOutro": "Do you want to send the request anyway without these media files, or cancel?",
+    "unsupportedMediaConfirm": "Send anyway",
+    "unsupportedMediaCancel": "Cancel",
+    "unsupportedMediaInstruction": "Instructions",
+    "unsupportedMediaSolution": "Solution"
   }
 }

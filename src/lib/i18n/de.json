@@ -572,6 +572,13 @@
     "importErrorTitle": "Importfehler",
     "importErrorTasksOnlyInLesson": "Tasks können nur in eine Lektion importiert werden.",
     "importErrorLessonsOnlyOnHome": "Lektionen können nur auf dem Hauptbildschirm importiert werden.",
-    "importMultipleAsNew": "{count} Lektionen werden als neue Lektionen importiert"
+    "importMultipleAsNew": "{count} Lektionen werden als neue Lektionen importiert",
+    "unsupportedMediaTitle": "Nicht unterstützte Medien",
+    "unsupportedMediaIntro": "Das ausgewählte Modell '{modelName}' unterstützt einige Medien aus dieser Aufgabe nicht. Die folgenden Dateien können nicht verarbeitet werden:",
+    "unsupportedMediaOutro": "Möchtest du die Anfrage trotzdem ohne diese Medien senden oder abbrechen?",
+    "unsupportedMediaConfirm": "Trotzdem senden",
+    "unsupportedMediaCancel": "Abbrechen",
+    "unsupportedMediaInstruction": "Aufgabenstellung",
+    "unsupportedMediaSolution": "Lösung"
   }
 }
