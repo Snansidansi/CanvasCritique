@@ -145,6 +145,56 @@
     <!-- Reusable AI Model selection component -->
     <AiModelConfig settings={store.settings} showKeys={true} onchange={handleInputChange} />
 
+    {#if store.settings.apiProvider === 'gemini' && store.settings.statsEnabled}
+      <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
+        <h4 class="text-sm font-bold text-on-surface flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-lg">payments</span>
+          {t('settings.stats.geminiCostTitle')} <span class="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">{t('settings.stats.onlyForStats')}</span>
+        </h4>
+        <p class="text-xs text-on-surface-variant leading-relaxed">
+          {t('settings.stats.geminiCostDesc')}
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-1">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-semibold text-on-surface" for="geminiInputCost">
+              {t('settings.stats.geminiInputCostLabel')}
+            </label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">$</span>
+              <input
+                type="number"
+                id="geminiInputCost"
+                bind:value={store.settings.geminiInputCostPerMillion}
+                onchange={handleInputChange}
+                step="0.001"
+                min="0"
+                class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-7 pr-3 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+              />
+            </div>
+            <span class="text-[10px] text-on-surface-variant">{t('settings.stats.perMillionTokens')}</span>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-semibold text-on-surface" for="geminiOutputCost">
+              {t('settings.stats.geminiOutputCostLabel')}
+            </label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">$</span>
+              <input
+                type="number"
+                id="geminiOutputCost"
+                bind:value={store.settings.geminiOutputCostPerMillion}
+                onchange={handleInputChange}
+                step="0.001"
+                min="0"
+                class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-7 pr-3 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+              />
+            </div>
+            <span class="text-[10px] text-on-surface-variant">{t('settings.stats.perMillionTokens')}</span>
+          </div>
+        </div>
+      </div>
+    {/if}
+
     <!-- Evaluation Payload Settings -->
     <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
       <h4 class="text-sm font-bold text-on-surface">{t('settings.api.evaluationDetailsTitle')}</h4>
