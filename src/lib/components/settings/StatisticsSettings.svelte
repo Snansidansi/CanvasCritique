@@ -4,7 +4,7 @@
   import { t } from '../../services/i18n';
 
   // State variables for statistics settings and visualization
-  let timeframe = $state<'7' | '30' | 'custom'>('7'); // '7' | '30' | 'custom' days
+  let timeframe = $state<'1' | '7' | '30' | 'custom'>('7'); // '1' | '7' | '30' | 'custom' days
   let activeMetric = $state<'cost' | 'requests' | 'tokens'>('cost');
   let hoverIndex = $state<number | null>(null);
 
@@ -16,13 +16,18 @@
     let startD = new Date();
     let endD = new Date();
 
-    if (timeframe === '7') {
+    if (timeframe === '1') {
+      startD.setHours(0, 0, 0, 0);
+    } else if (timeframe === '7') {
       startD.setDate(endD.getDate() - 6);
+      startD.setHours(0, 0, 0, 0);
     } else if (timeframe === '30') {
       startD.setDate(endD.getDate() - 29);
+      startD.setHours(0, 0, 0, 0);
     } else {
       startD = new Date(customStartDate);
       endD = new Date(customEndDate);
+      startD.setHours(0, 0, 0, 0);
     }
 
     if (startD > endD) {
@@ -31,7 +36,6 @@
       endD = tmp;
     }
 
-    startD.setHours(0, 0, 0, 0);
     endD.setHours(23, 59, 59, 999);
 
     return { start: startD, end: endD };
@@ -147,6 +151,51 @@
 
     const { start, end } = activeRangeDates;
     const history = store.settings.stats?.history || [];
+
+    if (timeframe === '1') {
+      // Group by hour of the current day (since 0:00)
+      for (let hour = 0; hour < 24; hour++) {
+        const d = new Date(start);
+        d.setHours(hour, 0, 0, 0);
+        const label = `${hour}:00`;
+        list.push({
+          date: d.toISOString(),
+          label,
+          geminiCost: 0,
+          openRouterCost: 0,
+          geminiRequests: 0,
+          openRouterRequests: 0,
+          geminiTokens: 0,
+          openRouterTokens: 0,
+          totalCost: 0,
+          totalRequests: 0,
+          totalTokens: 0
+        });
+      }
+
+      for (const log of history) {
+        const logDate = new Date(log.timestamp);
+        if (logDate >= start && logDate <= end) {
+          const hour = logDate.getHours();
+          const item = list[hour];
+          if (item) {
+            if (log.provider === 'gemini') {
+              item.geminiCost += log.cost || 0;
+              item.geminiRequests += 1;
+              item.geminiTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
+            } else {
+              item.openRouterCost += log.cost || 0;
+              item.openRouterRequests += 1;
+              item.openRouterTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
+            }
+            item.totalCost = item.geminiCost + item.openRouterCost;
+            item.totalRequests = item.geminiRequests + item.openRouterRequests;
+            item.totalTokens = item.geminiTokens + item.openRouterTokens;
+          }
+        }
+      }
+      return list;
+    }
 
     // Group logs by exact YYYY-MM-DD date string within start & end
     const dailyLogs: Record<string, typeof history> = {};
@@ -621,6 +670,13 @@
       <!-- Timeframe Capsules -->
       <div class="bg-surface-container-low border border-outline-variant/60 rounded-lg p-0.5 flex">
         <button
+          onclick={() => timeframe = '1'}
+          class="px-3 py-1 text-xs rounded-md font-semibold transition-all
+                 {timeframe === '1' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
+        >
+          {t('settings.stats.today')}
+        </button>
+        <button
           onclick={() => timeframe = '7'}
           class="px-3 py-1 text-xs rounded-md font-semibold transition-all
                  {timeframe === '7' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
@@ -777,7 +833,7 @@
 
           <!-- X-Axis Labels (Date Labels - Sparse selection for 30 days) -->
           {#each points as p, i}
-            {#if timeframe === '7' || i % 5 === 0 || i === points.length - 1}
+            {#if timeframe === '1' ? (i % 4 === 0 || i === points.length - 1) : (timeframe === '7' || i % 5 === 0 || i === points.length - 1)}
               <text 
                 x={p.x} 
                 y={svgHeight - 10} 

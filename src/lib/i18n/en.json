@@ -538,6 +538,7 @@
       "costMetricBtn": "Cost",
       "requestsMetricBtn": "Requests",
       "tokensMetricBtn": "Tokens",
+      "today": "Today",
       "days7": "7 Days",
       "days30": "30 Days",
       "chartAria": "Usage chart",
