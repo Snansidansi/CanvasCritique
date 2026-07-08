@@ -450,6 +450,8 @@
       "webdavTestConnection": "Test Connection",
       "webdavForceDownload": "Force Download (Overwrite Local)",
       "webdavForceUpload": "Force Upload (Overwrite Remote)",
+      "webdavShowDetails": "Show details",
+      "webdavHideDetails": "Hide details",
       "webdavLastSync": "Last Synced: {time}",
       "webdavNeverSynced": "Never",
       "notifications": {

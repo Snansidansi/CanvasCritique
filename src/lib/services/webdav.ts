@@ -4,6 +4,7 @@ import { t } from './i18n';
 import { backupDatabase, replaceDatabase, getDb } from '../db';
 import { appLocalDataDir, appDataDir, join } from '@tauri-apps/api/path';
 import { readFile, remove, exists, mkdir } from '@tauri-apps/plugin-fs';
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
 const SYNC_META_FILE = 'canvascritique_sync_meta.json';
 const BACKUP_DB_FILE = 'canvascritique_backup.db';
@@ -18,19 +19,20 @@ export function getWebDavClient(): WebDAVClient | null {
   return createClient(settings.webdavUrl, {
     username: settings.webdavUsername,
     password: settings.webdavPassword,
-  });
+    fetch: tauriFetch,
+  } as any);
 }
 
-export async function testConnection(): Promise<boolean> {
+export async function testConnection(): Promise<{ success: boolean; error?: string }> {
   const client = getWebDavClient();
   if (!client) throw new Error('WebDAV is not configured');
 
   try {
     const isConnected = await client.exists('/');
-    return isConnected;
-  } catch (err) {
+    return { success: isConnected };
+  } catch (err: any) {
     console.error('WebDAV connection failed:', err);
-    return false;
+    return { success: false, error: err?.message || String(err) };
   }
 }
 

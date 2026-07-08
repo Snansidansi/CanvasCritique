@@ -449,6 +449,8 @@
       "webdavTestConnection": "Verbindung testen",
       "webdavForceDownload": "Erzwungener Download (Lokale überschreiben)",
       "webdavForceUpload": "Erzwungener Upload (Remote überschreiben)",
+      "webdavShowDetails": "Details anzeigen",
+      "webdavHideDetails": "Details ausblenden",
       "webdavLastSync": "Zuletzt synchronisiert: {time}",
       "webdavNeverSynced": "Nie",
       "notifications": {
