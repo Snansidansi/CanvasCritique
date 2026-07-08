@@ -102,6 +102,22 @@ class CustomWebDAVClient {
     }
   }
 
+  async deleteFile(path: string): Promise<void> {
+    const targetUrl = this.getUrl(path);
+    console.log(`[Custom WebDAV Client] Deleting file: ${targetUrl}`);
+    const response = await tauriFetch(targetUrl, {
+      method: 'DELETE',
+      headers: {
+        ...(this.authHeader ? { 'Authorization': this.authHeader } : {})
+      }
+    });
+    console.log(`[Custom WebDAV Client] deleteFile response: ${response.status}`);
+    if (response.status !== 200 && response.status !== 204 && response.status !== 404) {
+      throw new Error(`Failed to delete file: ${response.status} ${response.statusText}`);
+    }
+  }
+
+
   async getDirectoryContents(path: string): Promise<Array<{ basename: string; lastmod: string; type: 'file' | 'directory' }>> {
     const targetUrl = this.getUrl(path);
     console.log(`[Custom WebDAV Client] Getting directory contents: ${targetUrl}`);
@@ -351,9 +367,11 @@ async function syncMedia(client: WebDAVClient, syncMode: 'bidirectional' | 'down
   const remoteMap = new Map<string, Date>();
   if (syncMode === 'bidirectional' || syncMode === 'upload') {
     try {
-      const remoteItems = await client.getDirectoryContents(REMOTE_MEDIA_DIR) as Array<{ basename: string, lastmod: string }>;
+      const remoteItems = await client.getDirectoryContents(REMOTE_MEDIA_DIR);
       for (const item of remoteItems) {
-        remoteMap.set(item.basename, new Date(item.lastmod));
+        if (item.type === 'file') {
+          remoteMap.set(item.basename, new Date(item.lastmod));
+        }
       }
     } catch (err) {
       console.warn('Failed to retrieve remote media list:', err);
@@ -412,6 +430,20 @@ async function syncMedia(client: WebDAVClient, syncMode: 'bidirectional' | 'down
         await remove(filePath);
       } catch (err) {
         console.error(`Failed to delete local orphaned media ${entry.name}:`, err);
+      }
+    }
+  }
+
+  // Cleanup remote files that are not registered in the SQLite database
+  if (syncMode === 'bidirectional' || syncMode === 'upload') {
+    for (const [basename] of remoteMap.entries()) {
+      if (!dbIds.has(basename)) {
+        console.log(`Deleting remote orphaned media ${basename}...`);
+        try {
+          await client.deleteFile(`${REMOTE_MEDIA_DIR}/${basename}`);
+        } catch (err) {
+          console.error(`Failed to delete remote orphaned media ${basename}:`, err);
+        }
       }
     }
   }
