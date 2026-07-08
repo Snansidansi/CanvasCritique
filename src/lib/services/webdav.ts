@@ -1,7 +1,8 @@
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { store } from '../state/store.svelte';
 import { t } from './i18n';
-import { backupDatabase, replaceDatabase, getDb } from '../db';
+import { backupDatabase, replaceDatabase, getDb, getSettings, saveSettings } from '../db';
+import { defaultSettings } from '../state/defaults';
 import { appLocalDataDir, appDataDir, join } from '@tauri-apps/api/path';
 import { readFile, remove, exists, mkdir, readDir, stat } from '@tauri-apps/plugin-fs';
 
@@ -217,8 +218,11 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
     const localTimestamp = settings.lastSyncedTimestamp || '0';
     const remoteTimestamp = remoteMeta?.lastSyncedTimestamp || '0';
 
+    const effectiveMode = forceMode || settings.webdavSyncMode || 'bidirectional';
+
     // 2. If remote DB is newer (or forced download), download and replace local DB
-    if (forceMode === 'download' || (forceMode !== 'upload' && remoteTimestamp > localTimestamp)) {
+    const shouldDownload = (effectiveMode === 'download' || effectiveMode === 'bidirectional') && (forceMode === 'download' || remoteTimestamp > localTimestamp);
+    if (shouldDownload) {
       console.log('Remote DB is newer (or forced download). Downloading...');
       
       const appData = await appDataDir();
@@ -228,23 +232,40 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       const { writeFile } = await import('@tauri-apps/plugin-fs');
       await writeFile(localBackupPath, dbContent);
 
+      // Keep local client-specific WebDAV settings to restore after replace
+      const localWebDavSettings = {
+        webdavEnabled: store.settings.webdavEnabled,
+        webdavUrl: store.settings.webdavUrl,
+        webdavUsername: store.settings.webdavUsername,
+        webdavPassword: store.settings.webdavPassword,
+        webdavAutoSync: store.settings.webdavAutoSync,
+        webdavSyncIntervalMinutes: store.settings.webdavSyncIntervalMinutes,
+        webdavSyncOnStartup: store.settings.webdavSyncOnStartup,
+        webdavSyncMode: store.settings.webdavSyncMode,
+        lastSyncedTimestamp: remoteTimestamp >= localTimestamp ? remoteTimestamp : localTimestamp
+      };
+
       // Replace active DB
       await replaceDatabase(localBackupPath);
       
       // Clean up temp file
       await remove(localBackupPath);
 
+      // Load downloaded settings, merge local WebDAV settings, and save to DB
+      const db = getDb();
+      const downloadedSettings = await getSettings(db);
+      const mergedSettings = {
+        ...(downloadedSettings || defaultSettings),
+        ...localWebDavSettings
+      };
+      await saveSettings(db, mergedSettings);
+      store.settings = mergedSettings;
+
       // Media Sync - download missing media referenced by the new DB
       try {
-        await syncMedia(client);
+        await syncMedia(client, effectiveMode);
       } catch (mediaErr) {
         console.error('Failed to sync media after DB replace:', mediaErr);
-      }
-
-      // Update local timestamp so we don't redownload immediately
-      if (remoteTimestamp >= localTimestamp) {
-        store.settings.lastSyncedTimestamp = remoteTimestamp;
-        await store.saveSettings();
       }
 
       // Trigger full app reload because DB changed fundamentally
@@ -255,31 +276,36 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       return; // Stop here, reload will handle the rest
     }
 
-    // 3. Media Sync (2-way)
+    // 3. Media Sync
     try {
-      await syncMedia(client);
+      await syncMedia(client, effectiveMode);
     } catch (mediaErr) {
       console.error('Failed to sync media:', mediaErr);
     }
 
     // 4. Upload Local DB to WebDAV
-    console.log('Uploading local DB to WebDAV...');
-    const appData = await appDataDir();
-    const localBackupPath = await join(appData, BACKUP_DB_FILE);
-    
-    await backupDatabase(localBackupPath);
-    const dbBytes = await readFile(localBackupPath);
-    await client.putFileContents('/' + BACKUP_DB_FILE, dbBytes, { overwrite: true });
-    await remove(localBackupPath);
+    if (effectiveMode === 'bidirectional' || effectiveMode === 'upload') {
+      console.log('Uploading local DB to WebDAV...');
+      const appData = await appDataDir();
+      const localBackupPath = await join(appData, BACKUP_DB_FILE);
+      
+      await backupDatabase(localBackupPath);
+      const dbBytes = await readFile(localBackupPath);
+      await client.putFileContents('/' + BACKUP_DB_FILE, dbBytes, { overwrite: true });
+      await remove(localBackupPath);
 
-    // Update metadata
-    const newTimestamp = new Date().toISOString();
-    await client.putFileContents('/' + SYNC_META_FILE, JSON.stringify({ lastSyncedTimestamp: newTimestamp }), { overwrite: true });
+      // Update metadata
+      const newTimestamp = new Date().toISOString();
+      await client.putFileContents('/' + SYNC_META_FILE, JSON.stringify({ lastSyncedTimestamp: newTimestamp }), { overwrite: true });
 
-    // Save locally
-    store.settings.lastSyncedTimestamp = newTimestamp;
-    await store.saveSettings();
-    store.showNotification(t('settings.data.notifications.syncSuccess') || 'Sync completed.', 'success');
+      // Save locally
+      store.settings.lastSyncedTimestamp = newTimestamp;
+      await store.saveSettings();
+      store.showNotification(t('settings.data.notifications.syncSuccess') || 'Sync completed.', 'success');
+    } else {
+      // In download-only mode where no new remote data was available, we just finish
+      store.showNotification(t('settings.data.notifications.syncSuccess') || 'Sync completed.', 'success');
+    }
 
   } catch (err) {
     console.error('WebDAV Sync Error:', err);
@@ -289,7 +315,7 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
   }
 }
 
-async function syncMedia(client: WebDAVClient) {
+async function syncMedia(client: WebDAVClient, syncMode: 'bidirectional' | 'download' | 'upload') {
   const db = getDb();
   const localAppDir = await appLocalDataDir();
   const mediaDir = await join(localAppDir, 'media');
@@ -331,42 +357,46 @@ async function syncMedia(client: WebDAVClient) {
   }
 
   // Upload new/newer local files
-  for (const [id, localDate] of localMap.entries()) {
-    const remoteDate = remoteMap.get(id);
-    if (!remoteDate || localDate > remoteDate) {
-      console.log(`Uploading media ${id}...`);
-      const filePath = await join(mediaDir, id);
-      if (await exists(filePath)) {
-        const bytes = await readFile(filePath);
-        await client.putFileContents(`${REMOTE_MEDIA_DIR}/${id}`, bytes, { overwrite: true });
+  if (syncMode === 'bidirectional' || syncMode === 'upload') {
+    for (const [id, localDate] of localMap.entries()) {
+      const remoteDate = remoteMap.get(id);
+      if (!remoteDate || localDate > remoteDate) {
+        console.log(`Uploading media ${id}...`);
+        const filePath = await join(mediaDir, id);
+        if (await exists(filePath)) {
+          const bytes = await readFile(filePath);
+          await client.putFileContents(`${REMOTE_MEDIA_DIR}/${id}`, bytes, { overwrite: true });
+        }
       }
     }
   }
 
   // Download new/newer remote files
-  for (const [id, remoteDate] of remoteMap.entries()) {
-    const localDate = localMap.get(id);
-    if (!localDate || remoteDate > localDate) {
-      console.log(`Downloading media ${id}...`);
-      const bytes = await client.getFileContents(`${REMOTE_MEDIA_DIR}/${id}`, { format: 'binary' }) as Uint8Array;
-      const filePath = await join(mediaDir, id);
-      
-      const { writeFile } = await import('@tauri-apps/plugin-fs');
-      await writeFile(filePath, bytes);
+  if (syncMode === 'bidirectional' || syncMode === 'download') {
+    for (const [id, remoteDate] of remoteMap.entries()) {
+      const localDate = localMap.get(id);
+      if (!localDate || remoteDate > localDate) {
+        console.log(`Downloading media ${id}...`);
+        const bytes = await client.getFileContents(`${REMOTE_MEDIA_DIR}/${id}`, { format: 'binary' }) as Uint8Array;
+        const filePath = await join(mediaDir, id);
+        
+        const { writeFile } = await import('@tauri-apps/plugin-fs');
+        await writeFile(filePath, bytes);
 
-      if (!localDate) {
-        const ext = id.split('.').pop()?.toLowerCase() || 'bin';
-        const mimeMap: Record<string, string> = {
-          'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
-          'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml',
-          'mp3': 'audio/mpeg', 'mp4': 'video/mp4', 'pdf': 'application/pdf'
-        };
-        const mimeType = mimeMap[ext] || 'application/octet-stream';
+        if (!localDate) {
+          const ext = id.split('.').pop()?.toLowerCase() || 'bin';
+          const mimeMap: Record<string, string> = {
+            'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+            'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml',
+            'mp3': 'audio/mpeg', 'mp4': 'video/mp4', 'pdf': 'application/pdf'
+          };
+          const mimeType = mimeMap[ext] || 'application/octet-stream';
 
-        await db.execute(
-          'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-          [id, `media/${id}`, mimeType]
-        );
+          await db.execute(
+            'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
+            [id, `media/${id}`, mimeType]
+          );
+        }
       }
     }
   }
