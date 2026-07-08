@@ -205,20 +205,11 @@
           {t('settings.data.webdavLastSync', { time: formatLastSync(store.settings.lastSyncedTimestamp) })}
         </p>
 
-        <div class="flex flex-wrap gap-3">
-          <button
-            onclick={() => syncWebDav()}
-            disabled={store.isSyncing}
-            class="px-4 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center gap-2 cursor-pointer"
-          >
-            <span class="material-symbols-outlined text-[18px] {store.isSyncing ? 'animate-spin' : ''}">sync</span>
-            Normal Sync
-          </button>
-
+        <div class="flex gap-3">
           <button
             onclick={() => syncWebDav('download')}
             disabled={store.isSyncing}
-            class="px-4 py-2 bg-surface-container-high border border-outline-variant text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container-highest disabled:opacity-50 transition-opacity flex items-center gap-2 cursor-pointer"
+            class="flex-1 px-4 py-2 bg-surface-container-high border border-outline-variant text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container-highest disabled:opacity-50 transition-opacity flex items-center justify-center gap-2 cursor-pointer"
           >
             <span class="material-symbols-outlined text-[18px]">cloud_download</span>
             {t('settings.data.webdavForceDownload')}
@@ -227,7 +218,7 @@
           <button
             onclick={() => syncWebDav('upload')}
             disabled={store.isSyncing}
-            class="px-4 py-2 bg-surface-container-high border border-outline-variant text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container-highest disabled:opacity-50 transition-opacity flex items-center gap-2 cursor-pointer"
+            class="flex-1 px-4 py-2 bg-surface-container-high border border-outline-variant text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container-highest disabled:opacity-50 transition-opacity flex items-center justify-center gap-2 cursor-pointer"
           >
             <span class="material-symbols-outlined text-[18px]">cloud_upload</span>
             {t('settings.data.webdavForceUpload')}
