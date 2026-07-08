@@ -551,6 +551,7 @@ class CanvasCritiqueStore {
   async updateProfile(id: string, updated: { name?: string; icon?: string | null; color?: string }) {
     const profile = this.profiles.find(p => p.id === id);
     if (!profile) return;
+    const oldIconMediaId = this._iconMediaIds[id];
     if (updated.name !== undefined) profile.name = updated.name;
     if (updated.icon !== undefined) {
       if (updated.icon && !updated.icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(updated.icon)) {
@@ -572,25 +573,70 @@ class CanvasCritiqueStore {
     }
     if (updated.color !== undefined) profile.color = updated.color;
     await this.saveProfiles();
+
+    if (oldIconMediaId && oldIconMediaId !== this._iconMediaIds[id]) {
+      await this.cleanupOrphanedMedia(oldIconMediaId);
+    }
   }
 
   async deleteProfile(id: string) {
     if (this.profiles.length <= 1) return;
 
-    // Remove projects for this profile
     const db = this.getDb();
+    const projectsToDelete = this.projects.filter(p => p.profileId === id);
+    const mediaIds: string[] = [];
+
+    // Collect all task media IDs and project icon media IDs for the projects of this profile
+    for (const project of projectsToDelete) {
+      if (project.tasks) {
+        for (const t of project.tasks) {
+          mediaIds.push(...collectMediaIds(t.instructionFiles || []));
+          mediaIds.push(...collectMediaIds(t.solutionFiles || []));
+          if (this.canvasSaves[t.id]) {
+            delete this.canvasSaves[t.id];
+          }
+          if (this.editorTexts[t.id]) {
+            delete this.editorTexts[t.id];
+          }
+        }
+      }
+      const projIcon = this._projectIconMediaIds[project.id];
+      if (projIcon) {
+        mediaIds.push(projIcon);
+      }
+    }
+
+    const profileIcon = this._iconMediaIds[id];
+    if (profileIcon) {
+      mediaIds.push(profileIcon);
+    }
+
+    // Remove projects for this profile from memory first
     this.projects = this.projects.filter(p => p.profileId !== id);
+    for (const project of projectsToDelete) {
+      delete this._projectIconMediaIds[project.id];
+    }
+
+    // Delete profile (cascades to projects/tasks in SQLite)
     await dbDeleteProfile(db, id);
     await this.saveProjects();
 
-    // Remove profile
+    // Remove profile from memory
     this.profiles = this.profiles.filter(p => p.id !== id);
+    delete this._iconMediaIds[id];
 
     if (this.activeProfileId === id) {
       this.activeProfileId = this.profiles[0].id;
     }
 
     await this.saveProfiles();
+
+    // Clean up all orphaned media
+    if (mediaIds.length > 0) {
+      for (const mediaId of mediaIds) {
+        await this.cleanupOrphanedMedia(mediaId);
+      }
+    }
   }
 
   async selectProfile(id: string) {
@@ -651,12 +697,24 @@ class CanvasCritiqueStore {
   }
 
   async deleteCustomBackground(id: string): Promise<void> {
+    const bg = this.customBackgrounds.find(b => b.id === id);
+    const mediaId = bg?.mediaId;
+    const iconMediaId = bg?.iconMediaId;
+
     this.customBackgrounds = this.customBackgrounds.filter(bg => bg.id !== id);
     const db = this.getDb();
     await dbDeleteCustomBackground(db, id);
+
+    if (mediaId) {
+      await this.cleanupOrphanedMedia(mediaId);
+    }
+    if (iconMediaId && iconMediaId !== mediaId) {
+      await this.cleanupOrphanedMedia(iconMediaId);
+    }
   }
 
   async cleanupOrphanedMedia(mediaId: string): Promise<void> {
+    if (!mediaId) return;
     if (this.settings.userIcons && this.settings.userIcons.includes(mediaId)) {
       return;
     }
@@ -667,11 +725,33 @@ class CanvasCritiqueStore {
         isReferenced = true;
         break;
       }
+      if (project.tasks) {
+        for (const task of project.tasks) {
+          if (task.instructionFiles && task.instructionFiles.some(f => f.mediaId === mediaId)) {
+            isReferenced = true;
+            break;
+          }
+          if (task.solutionFiles && task.solutionFiles.some(f => f.mediaId === mediaId)) {
+            isReferenced = true;
+            break;
+          }
+        }
+      }
+      if (isReferenced) break;
     }
 
     if (!isReferenced) {
       for (const profile of this.profiles) {
         if (this._iconMediaIds[profile.id] === mediaId || profile.icon === mediaId) {
+          isReferenced = true;
+          break;
+        }
+      }
+    }
+
+    if (!isReferenced) {
+      for (const bg of this.customBackgrounds) {
+        if (bg.mediaId === mediaId || bg.iconMediaId === mediaId || bg.icon === mediaId) {
           isReferenced = true;
           break;
         }
@@ -835,6 +915,11 @@ class CanvasCritiqueStore {
     const db = this.getDb();
     const tasksToDelete = project.tasks ? project.tasks.filter(t => (t.category || 'Basics') === categoryName) : [];
 
+    // Filter tasks from memory first so they are not considered referenced in cleanup check
+    if (project.tasks) {
+      project.tasks = project.tasks.filter(t => (t.category || 'Basics') !== categoryName);
+    }
+
     for (const t of tasksToDelete) {
       const taskMediaIds: string[] = [];
       taskMediaIds.push(...collectMediaIds(t.instructionFiles || []));
@@ -842,7 +927,9 @@ class CanvasCritiqueStore {
       try {
         await dbDeleteTask(db, t.id);
         if (taskMediaIds.length > 0) {
-          await deleteMediaForTask(taskMediaIds);
+          for (const mediaId of taskMediaIds) {
+            await this.cleanupOrphanedMedia(mediaId);
+          }
         }
       } catch (err) {
         console.error('[store] Failed to delete task/media in category deletion', t.id, err);
@@ -856,10 +943,6 @@ class CanvasCritiqueStore {
       if (this.editingTask && this.editingTask.id === t.id) {
         this.editingTask = null;
       }
-    }
-
-    if (project.tasks) {
-      project.tasks = project.tasks.filter(t => (t.category || 'Basics') !== categoryName);
     }
 
     await this.saveProjects();
@@ -919,6 +1002,14 @@ class CanvasCritiqueStore {
     const task = project.tasks.find(t => t.id === taskId);
     if (!task) return;
 
+    const oldMediaIds: string[] = [];
+    if (updatedData.instructionFiles !== undefined && task.instructionFiles) {
+      oldMediaIds.push(...collectMediaIds(task.instructionFiles));
+    }
+    if (updatedData.solutionFiles !== undefined && task.solutionFiles) {
+      oldMediaIds.push(...collectMediaIds(task.solutionFiles));
+    }
+
     if (updatedData.name !== undefined) task.name = updatedData.name;
     if (updatedData.instructions !== undefined) task.instructions = updatedData.instructions;
     if (updatedData.solution !== undefined) task.solution = updatedData.solution;
@@ -952,6 +1043,21 @@ class CanvasCritiqueStore {
       settingsOverride: task.settingsOverride || null
     });
     await this.saveProjects();
+
+    const newMediaIds: string[] = [];
+    if (updatedData.instructionFiles !== undefined && task.instructionFiles) {
+      newMediaIds.push(...collectMediaIds(task.instructionFiles));
+    }
+    if (updatedData.solutionFiles !== undefined && task.solutionFiles) {
+      newMediaIds.push(...collectMediaIds(task.solutionFiles));
+    }
+
+    const orphanedMediaIds = oldMediaIds.filter(id => !newMediaIds.includes(id));
+    if (orphanedMediaIds.length > 0) {
+      for (const mediaId of orphanedMediaIds) {
+        await this.cleanupOrphanedMedia(mediaId);
+      }
+    }
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
@@ -1064,19 +1170,26 @@ class CanvasCritiqueStore {
       mediaIds.push(...collectMediaIds(task.solutionFiles || []));
     }
 
+    // Filter task from memory first so they are not considered referenced in cleanup check
     project.tasks = project.tasks.filter(t => t.id !== taskId);
 
     const db = this.getDb();
     await dbDeleteTask(db, taskId);
-    if (mediaIds.length > 0) {
-      await deleteMediaForTask(mediaIds);
-    }
 
     if (this.canvasSaves[taskId]) {
       delete this.canvasSaves[taskId];
     }
+    if (this.editorTexts[taskId]) {
+      delete this.editorTexts[taskId];
+    }
 
     await this.saveProjects();
+
+    if (mediaIds.length > 0) {
+      for (const mediaId of mediaIds) {
+        await this.cleanupOrphanedMedia(mediaId);
+      }
+    }
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
@@ -1102,21 +1215,28 @@ class CanvasCritiqueStore {
       }
     }
 
+    // Filter tasks from memory first so they are not considered referenced in cleanup check
     project.tasks = project.tasks.filter(t => !taskIds.includes(t.id));
 
     const db = this.getDb();
     await dbDeleteTasks(db, taskIds);
-    if (mediaIds.length > 0) {
-      await deleteMediaForTask(mediaIds);
-    }
 
     for (const taskId of taskIds) {
       if (this.canvasSaves[taskId]) {
         delete this.canvasSaves[taskId];
       }
+      if (this.editorTexts[taskId]) {
+        delete this.editorTexts[taskId];
+      }
     }
 
     await this.saveProjects();
+
+    if (mediaIds.length > 0) {
+      for (const mediaId of mediaIds) {
+        await this.cleanupOrphanedMedia(mediaId);
+      }
+    }
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
@@ -1185,6 +1305,9 @@ class CanvasCritiqueStore {
           if (this.canvasSaves[t.id]) {
             delete this.canvasSaves[t.id];
           }
+          if (this.editorTexts[t.id]) {
+            delete this.editorTexts[t.id];
+          }
         }
       }
 
@@ -1192,12 +1315,16 @@ class CanvasCritiqueStore {
 
       const db = this.getDb();
       await dbDeleteProject(db, projectId);
-      if (mediaIds.length > 0) {
-        await deleteMediaForTask(mediaIds);
-      }
 
+      // Filter out the project from memory first so they are not considered referenced in cleanup check
       this.projects = this.projects.filter(p => p.id !== projectId);
       delete this._projectIconMediaIds[projectId];
+
+      if (mediaIds.length > 0) {
+        for (const mediaId of mediaIds) {
+          await this.cleanupOrphanedMedia(mediaId);
+        }
+      }
 
       if (oldIconMediaId) {
         await this.cleanupOrphanedMedia(oldIconMediaId);
