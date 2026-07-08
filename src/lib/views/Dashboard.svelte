@@ -4,6 +4,7 @@
   import ProfileModal from "../components/dashboard/ProfileModal.svelte";
   import DeleteProfileConfirm from "../components/dashboard/DeleteProfileConfirm.svelte";
   import { t } from "../services/i18n";
+  import { syncWebDav } from "../services/webdav";
   import { open } from '@tauri-apps/plugin-dialog';
   import { readFile } from '@tauri-apps/plugin-fs';
 
@@ -556,6 +557,18 @@
         type="text"
       />
     </div>
+
+    <!-- WebDAV Sync Button -->
+    {#if store.settings.webdavEnabled}
+      <button
+        onclick={() => syncWebDav()}
+        disabled={store.isSyncing}
+        class="bg-surface-container-low text-on-surface p-2 rounded-lg border border-outline-variant hover:bg-surface-container-high transition-colors flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-50"
+        title={t('settings.data.webdavTitle') || 'Sync'}
+      >
+        <span class="material-symbols-outlined text-[20px] {store.isSyncing ? 'animate-spin' : ''}">sync</span>
+      </button>
+    {/if}
 
     <!-- Import Lesson Button -->
     <button

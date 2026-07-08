@@ -3,6 +3,7 @@
   import { t } from '../../services/i18n';
   import { getDb } from '../../db';
   import { getMediaDataUrl, saveMediaToDb } from '../../db/media';
+  import WebDavSettings from './WebDavSettings.svelte';
 
   import { open } from '@tauri-apps/plugin-dialog';
   import { readFile } from '@tauri-apps/plugin-fs';
@@ -210,6 +211,13 @@
     >
       {t('settings.data.tabData')}
     </button>
+    <button 
+      onclick={() => activeTab = 'sync'}
+      class="px-5 py-2.5 font-semibold text-sm border-b-2 rounded-t-lg transition-colors
+             {activeTab === 'sync' ? 'text-primary border-primary bg-primary/5' : 'text-on-surface-variant border-transparent hover:bg-surface-variant/30'}"
+    >
+      {t('settings.data.webdavTitle') || 'Sync'}
+    </button>
   </div>
 
   <!-- Settings Tab Content -->
@@ -269,5 +277,10 @@
         </button>
       </div>
     </div>
+  {/if}
+
+  <!-- Sync Tab Content -->
+  {#if activeTab === 'sync'}
+    <WebDavSettings />
   {/if}
 </section>

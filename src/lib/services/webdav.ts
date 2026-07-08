@@ -34,7 +34,7 @@ export async function testConnection(): Promise<boolean> {
   }
 }
 
-export async function syncWebDav(): Promise<void> {
+export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<void> {
   const client = getWebDavClient();
   const settings = store.settings;
 
@@ -43,6 +43,8 @@ export async function syncWebDav(): Promise<void> {
 
   store.isSyncing = true;
   try {
+    store.showNotification(t('settings.data.notifications.syncStarted') || 'Syncing...', 'info');
+
     // 1. Check sync metadata
     let remoteMeta: { lastSyncedTimestamp: string } | null = null;
     try {
@@ -57,9 +59,9 @@ export async function syncWebDav(): Promise<void> {
     const localTimestamp = settings.lastSyncedTimestamp || '0';
     const remoteTimestamp = remoteMeta?.lastSyncedTimestamp || '0';
 
-    // 2. If remote DB is newer, download and replace local DB
-    if (remoteTimestamp > localTimestamp) {
-      console.log('Remote DB is newer. Downloading...');
+    // 2. If remote DB is newer (or forced download), download and replace local DB
+    if (forceMode === 'download' || (forceMode !== 'upload' && remoteTimestamp > localTimestamp)) {
+      console.log('Remote DB is newer (or forced download). Downloading...');
       
       const appData = await appDataDir();
       const localBackupPath = await join(appData, BACKUP_DB_FILE);
@@ -74,9 +76,18 @@ export async function syncWebDav(): Promise<void> {
       // Clean up temp file
       await remove(localBackupPath);
 
+      // Media Sync - download missing media referenced by the new DB
+      try {
+        await syncMedia(client);
+      } catch (mediaErr) {
+        console.error('Failed to sync media after DB replace:', mediaErr);
+      }
+
       // Update local timestamp so we don't redownload immediately
-      store.settings.lastSyncedTimestamp = remoteTimestamp;
-      await store.saveSettings();
+      if (remoteTimestamp >= localTimestamp) {
+        store.settings.lastSyncedTimestamp = remoteTimestamp;
+        await store.saveSettings();
+      }
 
       // Trigger full app reload because DB changed fundamentally
       store.showNotification(t('settings.data.notifications.syncDbDownloaded') || 'Database synced. Reloading...', 'success');
@@ -110,6 +121,7 @@ export async function syncWebDav(): Promise<void> {
     // Save locally
     store.settings.lastSyncedTimestamp = newTimestamp;
     await store.saveSettings();
+    store.showNotification(t('settings.data.notifications.syncSuccess') || 'Sync completed.', 'success');
 
   } catch (err) {
     console.error('WebDAV Sync Error:', err);

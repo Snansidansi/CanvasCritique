@@ -438,6 +438,19 @@
       "cleanMedia": "Medien bereinigen",
       "cleanMediaDesc": "Bereinigt alle verwaisten Mediendateien aus der Datenbank und vom Datenträger, die nicht mehr von einem Profil, einer Lektion, einer Aufgabe oder einem Hintergrund referenziert werden.",
       "cleanMediaBtn": "Medien jetzt bereinigen",
+      "webdavTitle": "WebDAV Synchronisation",
+      "webdavEnable": "WebDAV-Sync aktivieren",
+      "webdavUrl": "Server-URL",
+      "webdavUsername": "Benutzername",
+      "webdavPassword": "Passwort",
+      "webdavAutoSync": "Auto-Sync",
+      "webdavSyncInterval": "Sync-Intervall (Minuten)",
+      "webdavSyncOnStartup": "Beim Start synchronisieren",
+      "webdavTestConnection": "Verbindung testen",
+      "webdavForceDownload": "Erzwungener Download (Lokale überschreiben)",
+      "webdavForceUpload": "Erzwungener Upload (Remote überschreiben)",
+      "webdavLastSync": "Zuletzt synchronisiert: {time}",
+      "webdavNeverSynced": "Nie",
       "notifications": {
         "importSettingsSuccess": "Einstellungen erfolgreich importiert",
         "importSettingsError": "Einstellungen konnten nicht importiert werden",
@@ -445,7 +458,11 @@
         "importDbError": "Datenbank konnte nicht importiert werden",
         "importDbFailed": "Datenbank konnte nicht importiert werden",
         "cleanMediaSuccess": "Medienbereinigung abgeschlossen. {count} verwaiste Mediendatei(en) gelöscht.",
-        "cleanMediaNoOrphans": "Alle Medien sind sauber. Keine verwaisten Dateien gefunden."
+        "cleanMediaNoOrphans": "Alle Medien sind sauber. Keine verwaisten Dateien gefunden.",
+        "syncStarted": "Synchronisiere mit WebDAV...",
+        "syncSuccess": "WebDAV-Synchronisation erfolgreich abgeschlossen.",
+        "syncError": "WebDAV-Synchronisation fehlgeschlagen.",
+        "syncDbDownloaded": "Datenbank von WebDAV heruntergeladen. App wird neu geladen..."
       }
     },
     "stylus": {

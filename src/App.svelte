@@ -1,8 +1,9 @@
 <script lang="ts">
   import { store } from "./lib/state/store.svelte";
   import Sidebar from "./lib/components/Sidebar.svelte";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { t } from "./lib/services/i18n";
+  import { syncWebDav } from "./lib/services/webdav";
 
   // Local state variables for export popup checkboxes
   let exportIncludeCritique = $state(true);
@@ -71,9 +72,30 @@
     };
     window.addEventListener("contextmenu", handleGlobalContextMenu);
     window.addEventListener("keydown", handleGlobalKeyDown);
+    let syncIntervalId: number | undefined;
+
+    const setupSync = () => {
+      if (syncIntervalId) clearInterval(syncIntervalId);
+      if (store.settings.webdavEnabled && store.settings.webdavAutoSync && store.settings.webdavSyncIntervalMinutes) {
+        const intervalMs = store.settings.webdavSyncIntervalMinutes * 60 * 1000;
+        syncIntervalId = window.setInterval(() => {
+          syncWebDav();
+        }, intervalMs);
+      }
+    };
+
+    setupSync();
+
+    if (store.settings.webdavEnabled && store.settings.webdavSyncOnStartup) {
+      setTimeout(() => {
+        syncWebDav();
+      }, 1000);
+    }
+
     return () => {
       window.removeEventListener("contextmenu", handleGlobalContextMenu);
       window.removeEventListener("keydown", handleGlobalKeyDown);
+      if (syncIntervalId) clearInterval(syncIntervalId);
     };
   });
 </script>

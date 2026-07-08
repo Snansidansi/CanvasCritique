@@ -439,6 +439,19 @@
       "cleanMedia": "Clean Media",
       "cleanMediaDesc": "Cleans up all orphaned media files from the database and disk that are no longer referenced by any profile, lesson, task, or background.",
       "cleanMediaBtn": "Clean Media Now",
+      "webdavTitle": "WebDAV Synchronization",
+      "webdavEnable": "Enable WebDAV Sync",
+      "webdavUrl": "Server URL",
+      "webdavUsername": "Username",
+      "webdavPassword": "Password",
+      "webdavAutoSync": "Auto-Sync",
+      "webdavSyncInterval": "Sync Interval (Minutes)",
+      "webdavSyncOnStartup": "Sync on Startup",
+      "webdavTestConnection": "Test Connection",
+      "webdavForceDownload": "Force Download (Overwrite Local)",
+      "webdavForceUpload": "Force Upload (Overwrite Remote)",
+      "webdavLastSync": "Last Synced: {time}",
+      "webdavNeverSynced": "Never",
       "notifications": {
         "importSettingsSuccess": "Settings imported successfully",
         "importSettingsError": "Failed to import settings",
@@ -446,7 +459,11 @@
         "importDbError": "Failed to import database",
         "importDbFailed": "Failed to import database",
         "cleanMediaSuccess": "Media cleanup completed. Deleted {count} orphaned media file(s).",
-        "cleanMediaNoOrphans": "All media is clean. No orphaned files found."
+        "cleanMediaNoOrphans": "All media is clean. No orphaned files found.",
+        "syncStarted": "Syncing with WebDAV...",
+        "syncSuccess": "WebDAV sync completed successfully.",
+        "syncError": "WebDAV sync failed.",
+        "syncDbDownloaded": "Database downloaded from WebDAV. Reloading app..."
       }
     },
     "stylus": {
