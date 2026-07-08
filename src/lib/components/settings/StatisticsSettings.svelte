@@ -37,8 +37,16 @@
     return { start: startD, end: endD };
   });
 
-  let customStartDate = $state(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-  let customEndDate = $state(new Date().toISOString().split('T')[0]);
+  // Helper to get local date string YYYY-MM-DD
+  function getLocalDateStr(d: Date): string {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  let customStartDate = $state(getLocalDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
+  let customEndDate = $state(getLocalDateStr(new Date()));
 
   // 1. Calculate range aggregate statistics
   const aggregates = $derived.by(() => {
@@ -143,14 +151,17 @@
     // Group logs by exact YYYY-MM-DD date string within start & end
     const dailyLogs: Record<string, typeof history> = {};
     const curr = new Date(start);
-    while (curr <= end) {
-      const dateStr = curr.toISOString().split('T')[0];
+    let safety = 0;
+    while (curr <= end && safety < 100) {
+      const dateStr = getLocalDateStr(curr);
       dailyLogs[dateStr] = [];
       curr.setDate(curr.getDate() + 1);
+      safety++;
     }
 
     for (const log of history) {
-      const dateStr = log.timestamp.split('T')[0];
+      const logDate = new Date(log.timestamp);
+      const dateStr = getLocalDateStr(logDate);
       if (dailyLogs[dateStr]) {
         dailyLogs[dateStr].push(log);
       }
