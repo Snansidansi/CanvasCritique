@@ -19,7 +19,7 @@
     }
   }
 
-  function formatLastSync(isoStr?: string): string {
+  function formatLastSync(isoStr: string | undefined): string {
     if (!isoStr || isoStr === '0') return t('settings.data.webdavNeverSynced') || 'Never';
     try {
       const d = new Date(isoStr);
