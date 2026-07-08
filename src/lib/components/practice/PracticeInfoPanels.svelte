@@ -594,7 +594,7 @@
                 <div class="flex flex-col gap-3">
                   {#each task.instructionFiles as file, idx}
                     {@const mediaId = `task-inst-${idx}`}
-                    {@const open = isMediaExpanded(mediaId, isTaskTextEmpty)}
+                    {@const open = isMediaExpanded(mediaId, true)}
                     <div class="bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-sm flex flex-col transition-all">
                       <!-- svelte-ignore a11y_click_events_have_key_events -->
                       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -729,7 +729,7 @@
                 <div class="flex flex-col gap-3">
                   {#each task.solutionFiles as file, idx}
                     {@const mediaId = `sol-sol-${idx}`}
-                    {@const open = isMediaExpanded(mediaId, isSolutionTextEmpty)}
+                    {@const open = isMediaExpanded(mediaId, true)}
                     <div class="bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-sm flex flex-col transition-all">
                       <!-- svelte-ignore a11y_click_events_have_key_events -->
                       <!-- svelte-ignore a11y_no_static_element_interactions -->
