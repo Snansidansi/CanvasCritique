@@ -71,7 +71,18 @@ class CanvasCritiqueStore {
   lastDetectedButton = $state<{ button: number; buttons: number; pointerType: string } | null>(null);
   profiles = $state<Profile[]>([]);
   activeProfileId = $state<string>('');
-  notification = $state<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  notifications = $state<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  checkingQueue = $state<{
+    id: string;
+    projectId: string;
+    taskId: string;
+    taskName: string;
+    lessonName: string;
+    options: any;
+    status: 'waiting' | 'checking' | 'completed' | 'failed';
+    error?: string;
+  }[]>([]);
+  private _isProcessingQueue = false;
   openRouterPrices = $state<Record<string, { prompt: number; completion: number }>>({});
   openRouterModels = $state<any[]>([]);
 
@@ -2253,12 +2264,110 @@ class CanvasCritiqueStore {
   }
 
   showNotification(message: string, type: 'success' | 'error' | 'info' = 'success', duration = 3000): void {
-    this.notification = { message, type };
+    const id = Math.random().toString(36).substring(2, 9);
+    this.notifications.push({ id, message, type });
     setTimeout(() => {
-      if (this.notification && this.notification.message === message) {
-        this.notification = null;
-      }
+      this.notifications = this.notifications.filter(n => n.id !== id);
     }, duration);
+  }
+
+  isTaskChecking(taskId: string): boolean {
+    return this.checkingQueue.some(item => item.taskId === taskId && (item.status === 'waiting' || item.status === 'checking'));
+  }
+
+  queueTaskChecking(projectId: string, taskId: string, options: any): void {
+    const project = this.projects.find(p => p.id === projectId);
+    const task = project?.tasks.find(t => t.id === taskId);
+    if (!project || !task) return;
+
+    // Remove any existing queue item for this task to avoid duplicates
+    this.checkingQueue = this.checkingQueue.filter(item => item.taskId !== taskId);
+
+    const id = Math.random().toString(36).substring(2, 9);
+    this.checkingQueue.push({
+      id,
+      projectId,
+      taskId,
+      taskName: task.name,
+      lessonName: project.name,
+      options,
+      status: 'waiting'
+    });
+
+    this.processQueue();
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this._isProcessingQueue) return;
+    this._isProcessingQueue = true;
+
+    try {
+      while (true) {
+        const nextItem = this.checkingQueue.find(item => item.status === 'waiting');
+        if (!nextItem) break;
+
+        nextItem.status = 'checking';
+
+        try {
+          const { runCheckWork } = await import('../services/ai');
+          const result = await runCheckWork(nextItem.options);
+
+          nextItem.status = 'completed';
+
+          const feedbackText = result.feedbackText;
+          const feedbackScore = result.feedbackScore;
+          const feedbackMarkers = result.feedbackMarkers;
+
+          const updatedData: any = {
+            critique: {
+              feedbackText,
+              feedbackScore,
+              feedbackMarkers,
+              canvasCritique: result.canvasCritique || null,
+              textCritique: result.textCritique || null
+            }
+          };
+
+          if (feedbackScore === 100 && this.settings.autoCompleteOnSuccess) {
+            updatedData.completed = true;
+          } else {
+            updatedData.completed = false;
+          }
+
+          await this.updateTask(nextItem.projectId, nextItem.taskId, updatedData);
+
+          const { t } = await import('../services/i18n');
+          const msg = t('practice.critique.correctedNotification', {
+            taskName: nextItem.taskName,
+            lessonName: nextItem.lessonName
+          });
+          this.showNotification(msg, 'success');
+
+        } catch (err: any) {
+          console.error(`[store] Queue error checking task ${nextItem.taskId}:`, err);
+          nextItem.status = 'failed';
+          nextItem.error = err.message || String(err);
+
+          const updatedData = {
+            critique: {
+              feedbackText: `❌ **Error:**\n\n${err.message || err}`,
+              feedbackScore: null,
+              feedbackMarkers: []
+            }
+          };
+          await this.updateTask(nextItem.projectId, nextItem.taskId, updatedData);
+
+          const { t } = await import('../services/i18n');
+          const msg = `${t('common.error') || 'Error'}: ${err.message || err}`;
+          this.showNotification(msg, 'error');
+        }
+
+        // Remove from queue
+        this.checkingQueue = this.checkingQueue.filter(item => item.id !== nextItem.id);
+      }
+    } finally {
+      this._isProcessingQueue = false;
+    }
   }
 
   async getSettingsExportPayload(): Promise<string> {

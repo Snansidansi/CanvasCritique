@@ -251,7 +251,7 @@
   });
 
   // AI feedback overlay states
-  let isChecking = $state(false);
+  let isChecking = $derived(store.isTaskChecking(task.id));
   let feedbackText = $state('');
   let feedbackScore = $state(null);
   let showFeedback = $state(false);
@@ -719,6 +719,16 @@
 
   function loadCritiqueForActiveMode() {
     if (!task || !task.id) return;
+
+    if (store.isTaskChecking(task.id)) {
+      feedbackText = "Analyzing stroke geometries and guidelines alignment...";
+      feedbackScore = null;
+      feedbackMarkers = [];
+      hasCheckedWork = true;
+      showFeedback = true;
+      showCritiqueBanner = true;
+      return;
+    }
     
     const critique = task.critique;
     if (critique) {
@@ -862,11 +872,25 @@
   }
 
   $effect(() => {
-    // Reload critique when switching editor activeMode
+    // Reload critique when switching editor activeMode, task critique updates, or checking status updates
     const mode = activeMode;
+    const crit = task?.critique;
+    const isCheckingStatus = store.isTaskChecking(task.id);
     if (task && task.id) {
       loadCritiqueForActiveMode();
     }
+  });
+
+  let lastCritiqueScore = $state<number | null | undefined>(undefined);
+  $effect(() => {
+    const newScore = task?.critique?.feedbackScore;
+    if (newScore === 100 && lastCritiqueScore !== 100 && !isInitializingTask) {
+      showSuccessNotification = true;
+      setTimeout(() => {
+        showSuccessNotification = false;
+      }, 3500);
+    }
+    lastCritiqueScore = newScore;
   });
 
   let isInitializingTask = false;
@@ -877,6 +901,7 @@
       lastTaskId = task.id;
       loadCritiqueForActiveMode();
       showSolution = false;
+      lastCritiqueScore = task?.critique?.feedbackScore;
       
       const targetBg = task.background || store.activeProject?.default_background || 'grid';
       activeBg = targetBg;
@@ -2507,9 +2532,10 @@
 
   // Multimodal AI Grading using Cropped PNG bounding box
   async function checkWork() {
+    if (!store.activeProject || !store.activeTask) return;
+
     feedbackMarkers = [];
     activeTooltipMarker = null;
-    isChecking = true;
     showFeedback = true;
     showCritiqueBanner = true;
     hasCheckedWork = true;
@@ -2521,7 +2547,7 @@
         ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
         : store.settings;
 
-      const result = await runCheckWork({
+      store.queueTaskChecking(store.activeProject.id, store.activeTask.id, {
         canvasMode: canvasMode as 'infinite' | 'a4',
         pages,
         infiniteStrokes,
@@ -2529,7 +2555,7 @@
         bgOpacity,
         activeBg,
         task: { ...task, section: task.category },
-        projectGuidelines: store.activeProject?.guidelines?.trim(),
+        projectGuidelines: store.activeProject.guidelines?.trim(),
         settings: {
           apiProvider: effectiveSettings.apiProvider,
           geminiApiKey: effectiveSettings.geminiApiKey,
@@ -2556,46 +2582,15 @@
         alwaysSendBothCanvasAndText: effectiveSettings.alwaysSendBothCanvasAndText
       });
 
-      feedbackText = result.feedbackText;
-      feedbackScore = result.feedbackScore;
-      feedbackMarkers = result.feedbackMarkers;
-
-      // Auto-toggle to Preview mode when feedback is received
+      // Auto-toggle to Preview mode when feedback is submitted
       store.settings.editorShowAllRaw = false;
       store.saveSettings();
       activeLineIndex = null;
-
-      if (store.activeProject && store.activeTask) {
-        const updatedData: any = {
-          critique: {
-            feedbackText,
-            feedbackScore,
-            feedbackMarkers,
-            canvasCritique: result.canvasCritique || null,
-            textCritique: result.textCritique || null
-          }
-        };
-        if (feedbackScore === 100 && store.settings.autoCompleteOnSuccess) {
-          updatedData.completed = true;
-        } else {
-          updatedData.completed = false;
-        }
-        store.updateTask(store.activeProject.id, store.activeTask.id, updatedData);
-      }
-
-      if (feedbackScore === 100) {
-        showSuccessNotification = true;
-        setTimeout(() => {
-          showSuccessNotification = false;
-        }, 3500);
-      }
 
     } catch (err: any) {
       feedbackText = `❌ **Error:**\n\n${err.message}`;
       feedbackScore = null;
       feedbackMarkers = [];
-    } finally {
-      isChecking = false;
     }
   }
 
