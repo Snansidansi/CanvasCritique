@@ -853,56 +853,6 @@
     </div>
   </section>
 
-  <!-- Usage by Model Section -->
-  {#if store.settings.stats?.history && store.settings.stats.history.length > 0}
-    <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm space-y-4">
-      <div class="flex items-center justify-between border-b border-outline-variant pb-3">
-        <div class="flex flex-col gap-0.5">
-          <h4 class="font-bold text-sm text-on-surface">
-            {store.settings.language === 'Deutsch' ? 'Nutzung nach Modell' : 'Usage by Model'}
-          </h4>
-          <p class="text-xs text-on-surface-variant">
-            {store.settings.language === 'Deutsch' ? 'Detaillierte Aufschlüsselung der Anfragen pro KI-Modell' : 'Detailed breakdown of requests per AI model'}
-          </p>
-        </div>
-        <span class="text-xs font-semibold px-2 py-1 bg-surface-container rounded-full text-primary">
-          {modelStats.length} {store.settings.language === 'Deutsch' ? 'Modelle' : 'Models'}
-        </span>
-      </div>
-
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr class="border-b border-outline-variant/60 text-on-surface-variant font-semibold">
-              <th class="py-2 pr-4">{store.settings.language === 'Deutsch' ? 'Modellname' : 'Model Name'}</th>
-              <th class="py-2 px-4">{store.settings.language === 'Deutsch' ? 'Anbieter' : 'Provider'}</th>
-              <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Anfragen' : 'Requests'}</th>
-              <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Tokens (In/Out)' : 'Tokens (In/Out)'}</th>
-              <th class="py-2 pl-4 text-right">{store.settings.language === 'Deutsch' ? 'Kosten' : 'Cost'}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-outline-variant/30 text-on-surface">
-            {#each modelStats as m}
-              <tr class="hover:bg-surface-container-low/30 transition-colors">
-                <td class="py-2.5 pr-4 font-mono font-medium truncate max-w-50" title={m.name}>{m.name}</td>
-                <td class="py-2.5 px-4 capitalize">
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold {m.provider === 'gemini' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}">
-                    {m.provider}
-                  </span>
-                </td>
-                <td class="py-2.5 px-4 text-right font-medium">{m.requests}</td>
-                <td class="py-2.5 px-4 text-right text-on-surface-variant font-mono">
-                  {formatTokens(m.inputTokens)} / {formatTokens(m.outputTokens)}
-                </td>
-                <td class="py-2.5 pl-4 text-right font-semibold font-mono text-primary">{formatCost(m.cost)}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  {/if}
-
   <!-- Requests History List Section -->
   <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm space-y-4">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant pb-4">
@@ -1055,6 +1005,56 @@
       </span>
     </div>
   </section>
+
+  <!-- Usage by Model Section -->
+  {#if store.settings.stats?.history && store.settings.stats.history.length > 0}
+    <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm space-y-4">
+      <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+        <div class="flex flex-col gap-0.5">
+          <h4 class="font-bold text-sm text-on-surface">
+            {store.settings.language === 'Deutsch' ? 'Nutzung nach Modell' : 'Usage by Model'}
+          </h4>
+          <p class="text-xs text-on-surface-variant">
+            {store.settings.language === 'Deutsch' ? 'Detaillierte Aufschlüsselung der Anfragen pro KI-Modell' : 'Detailed breakdown of requests per AI model'}
+          </p>
+        </div>
+        <span class="text-xs font-semibold px-2 py-1 bg-surface-container rounded-full text-primary">
+          {modelStats.length} {store.settings.language === 'Deutsch' ? 'Modelle' : 'Models'}
+        </span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-outline-variant/60 text-on-surface-variant font-semibold">
+              <th class="py-2 pr-4">{store.settings.language === 'Deutsch' ? 'Modellname' : 'Model Name'}</th>
+              <th class="py-2 px-4">{store.settings.language === 'Deutsch' ? 'Anbieter' : 'Provider'}</th>
+              <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Anfragen' : 'Requests'}</th>
+              <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Tokens (In/Out)' : 'Tokens (In/Out)'}</th>
+              <th class="py-2 pl-4 text-right">{store.settings.language === 'Deutsch' ? 'Kosten' : 'Cost'}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-outline-variant/30 text-on-surface">
+            {#each modelStats as m}
+              <tr class="hover:bg-surface-container-low/30 transition-colors">
+                <td class="py-2.5 pr-4 font-mono font-medium truncate max-w-50" title={m.name}>{m.name}</td>
+                <td class="py-2.5 px-4 capitalize">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold {m.provider === 'gemini' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}">
+                    {m.provider}
+                  </span>
+                </td>
+                <td class="py-2.5 px-4 text-right font-medium">{m.requests}</td>
+                <td class="py-2.5 px-4 text-right text-on-surface-variant font-mono">
+                  {formatTokens(m.inputTokens)} / {formatTokens(m.outputTokens)}
+                </td>
+                <td class="py-2.5 pl-4 text-right font-semibold font-mono text-primary">{formatCost(m.cost)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {/if}
 
   <!-- Danger / Management Section -->
   <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm">
