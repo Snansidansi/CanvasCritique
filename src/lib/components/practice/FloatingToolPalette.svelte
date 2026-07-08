@@ -191,7 +191,7 @@
 <div 
   bind:this={paletteElement}
   class="fixed bg-surface-container/95 backdrop-blur-md shadow-lg border border-outline-variant/30 select-none z-20 flex items-center
-         {isCollapsed ? 'w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : (canvasMode === 'infinite' ? 'w-177.5' : 'w-165') + ' h-12 px-4 rounded-full'}
+         {isCollapsed ? 'w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : (canvasMode === 'infinite' ? 'w-[738px]' : 'w-[688px]') + ' h-12 pl-4 pr-7 rounded-full'}
          {isDragging ? '' : 'palette-transition'}"
   style="{positionStyle} touch-action: none;"
   onpointerdown={onPointerDown}
@@ -273,7 +273,7 @@
     </div>
 
     <!-- Tool selectors (Pen / Eraser / Hand / Select) and Brush slider -->
-    <div class="flex items-center gap-4 text-xs font-semibold grow justify-between">
+    <div class="flex items-center gap-4 text-xs font-semibold grow justify-between pl-4">
       <div class="flex items-center gap-3">
         <button 
           onclick={() => activeTool = 'pen'}
