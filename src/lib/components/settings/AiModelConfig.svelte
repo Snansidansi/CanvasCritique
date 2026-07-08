@@ -394,6 +394,11 @@
           <input 
             type="text" 
             id="geminiModel"
+            name="gemini-model-autocomplete-off"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
             bind:value={settings.geminiModel}
             onfocus={() => geminiModelOpen = true}
             oninput={handleInputChange}
@@ -533,6 +538,11 @@
           <input 
             type="text" 
             id="openRouterModel"
+            name="openrouter-model-autocomplete-off"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
             bind:value={settings.openRouterModel}
             onfocus={() => openRouterModelOpen = true}
             oninput={handleInputChange}
@@ -609,6 +619,11 @@
           <input 
             type="text" 
             id="openRouterProvider"
+            name="openrouter-provider-autocomplete-off"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
             bind:value={providerSearchTerm}
             onfocus={() => openRouterProviderOpen = true}
             placeholder={t('settings.api.providerSearchPlaceholder')}
