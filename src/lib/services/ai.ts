@@ -727,19 +727,56 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
           const bodyJson = JSON.parse(bodyText);
           
           const reasoningSetting = settings.openRouterReasoning;
-          if (reasoningSetting === 'none' || reasoningSetting === false) {
-            bodyJson.reasoning = {
-              exclude: true
-            };
-          } else if (typeof reasoningSetting === 'string' && reasoningSetting !== 'auto') {
-            bodyJson.reasoning = {
-              exclude: false,
-              effort: reasoningSetting
-            };
+          
+          // Check if model supports reasoning from store
+          const modelInfo = store.openRouterModels.find((m: any) => m.id === model);
+          let supportsReasoning = false;
+          let isMandatory = false;
+          if (modelInfo) {
+            supportsReasoning = !!modelInfo.reasoning;
+            isMandatory = !!modelInfo.reasoning?.mandatory;
           } else {
-            bodyJson.reasoning = {
-              exclude: false
-            };
+            // Fallback keywords if openRouterModels isn't loaded/cached yet
+            const modelLower = model.toLowerCase();
+            if (
+              modelLower.includes('deepseek-r1') ||
+              modelLower.includes('o1-') ||
+              modelLower.includes('o3-') ||
+              modelLower.includes('thinking') ||
+              modelLower.includes('qwq')
+            ) {
+              supportsReasoning = true;
+              if (modelLower.includes('deepseek-r1') || modelLower.includes('qwq')) {
+                isMandatory = true;
+              }
+            }
+          }
+
+          if (supportsReasoning) {
+            if (reasoningSetting === 'none' || reasoningSetting === false) {
+              if (isMandatory) {
+                bodyJson.reasoning = {
+                  exclude: true
+                };
+              } else {
+                bodyJson.reasoning = {
+                  effort: 'none',
+                  exclude: true
+                };
+              }
+            } else if (typeof reasoningSetting === 'string' && reasoningSetting !== 'auto') {
+              bodyJson.reasoning = {
+                exclude: false,
+                effort: reasoningSetting
+              };
+            } else {
+              bodyJson.reasoning = {
+                exclude: false
+              };
+            }
+          } else {
+            // Must not send reasoning parameter to non-reasoning models
+            delete bodyJson.reasoning;
           }
           
           return new Request(req.url, {

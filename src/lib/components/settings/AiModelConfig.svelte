@@ -127,6 +127,7 @@
         const data = await response.json();
         if (data.data && data.data.length > 0) {
           openRouterModelsFullList = data.data;
+          store.openRouterModels = data.data;
           const models = data.data.map((m: any) => m.id);
           if (models.length > 0) {
             openRouterModelsList = models;
@@ -138,7 +139,14 @@
     }
   }
 
-  // Hook dynamic model listing triggers
+  // Hook dynamic model listing triggers and synchronize store models if available
+  $effect(() => {
+    if (store.openRouterModels && store.openRouterModels.length > 0 && openRouterModelsFullList.length === 0) {
+      openRouterModelsFullList = store.openRouterModels;
+      openRouterModelsList = store.openRouterModels.map((m: any) => m.id);
+    }
+  });
+
   $effect(() => {
     if (store.settings.geminiApiKey) {
       fetchGeminiModels();

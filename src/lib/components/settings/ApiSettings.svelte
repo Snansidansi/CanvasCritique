@@ -49,18 +49,59 @@
       } else {
         const url = 'https://openrouter.ai/api/v1/chat/completions';
         const reasoningSetting = store.settings.openRouterReasoning;
-        let reasoningObj: any = { exclude: false };
-        if (reasoningSetting === 'none' || reasoningSetting === false) {
-          reasoningObj = { exclude: true };
-        } else if (typeof reasoningSetting === 'string' && reasoningSetting !== 'auto') {
-          reasoningObj = { exclude: false, effort: reasoningSetting };
+        
+        // Check if model supports reasoning from store
+        const modelInfo = store.openRouterModels.find((m: any) => m.id === model);
+        let supportsReasoning = false;
+        let isMandatory = false;
+        if (modelInfo) {
+          supportsReasoning = !!modelInfo.reasoning;
+          isMandatory = !!modelInfo.reasoning?.mandatory;
+        } else {
+          // Fallback keywords if openRouterModels isn't loaded/cached yet
+          const modelLower = model.toLowerCase();
+          if (
+            modelLower.includes('deepseek-r1') ||
+            modelLower.includes('o1-') ||
+            modelLower.includes('o3-') ||
+            modelLower.includes('thinking') ||
+            modelLower.includes('qwq')
+          ) {
+            supportsReasoning = true;
+            if (modelLower.includes('deepseek-r1') || modelLower.includes('qwq')) {
+              isMandatory = true;
+            }
+          }
         }
 
         const requestBody: any = {
           model: model,
-          messages: [{ role: "user", content: "Hello! Reply in one short word." }],
-          reasoning: reasoningObj
+          messages: [{ role: "user", content: "Hello! Reply in one short word." }]
         };
+
+        if (supportsReasoning) {
+          if (reasoningSetting === 'none' || reasoningSetting === false) {
+            if (isMandatory) {
+              requestBody.reasoning = {
+                exclude: true
+              };
+            } else {
+              requestBody.reasoning = {
+                effort: 'none',
+                exclude: true
+              };
+            }
+          } else if (typeof reasoningSetting === 'string' && reasoningSetting !== 'auto') {
+            requestBody.reasoning = {
+              exclude: false,
+              effort: reasoningSetting
+            };
+          } else {
+            requestBody.reasoning = {
+              exclude: false
+            };
+          }
+        }
         const selectedProviders = store.settings.openRouterProvider || [];
         if (selectedProviders.length > 0) {
           requestBody.provider = {

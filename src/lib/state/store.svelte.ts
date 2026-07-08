@@ -73,6 +73,7 @@ class CanvasCritiqueStore {
   activeProfileId = $state<string>('');
   notification = $state<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   openRouterPrices = $state<Record<string, { prompt: number; completion: number }>>({});
+  openRouterModels = $state<any[]>([]);
 
   private _dbReady = false;
   private _iconMediaIds: Record<string, string> = {};
@@ -2224,6 +2225,7 @@ class CanvasCritiqueStore {
       if (response.ok) {
         const data = await response.json();
         if (data.data && Array.isArray(data.data)) {
+          this.openRouterModels = data.data;
           const prices: Record<string, { prompt: number; completion: number }> = {};
           for (const model of data.data) {
             prices[model.id] = {
