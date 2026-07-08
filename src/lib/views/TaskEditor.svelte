@@ -111,18 +111,6 @@
 
   function handleToggleOverride(category: 'overrideModel' | 'overrideCanvas' | 'overrideEditorFontSize' | 'overrideEraser' | 'overrideEvaluation' | 'overrideSystemPrompt' | 'overrideTaskNumbering' | 'overrideMediaFilter', checked: boolean) {
     settingsOverride[category] = checked;
-    
-    // Keep overall overrideSettings in sync
-    settingsOverride.overrideSettings = !!(
-      settingsOverride.overrideModel ||
-      settingsOverride.overrideCanvas ||
-      settingsOverride.overrideEditorFontSize ||
-      settingsOverride.overrideEraser ||
-      settingsOverride.overrideEvaluation ||
-      settingsOverride.overrideSystemPrompt ||
-      settingsOverride.overrideTaskNumbering ||
-      settingsOverride.overrideMediaFilter
-    );
 
     if (checked) {
       const parent = store.getEffectiveSettings(targetProjectId);
