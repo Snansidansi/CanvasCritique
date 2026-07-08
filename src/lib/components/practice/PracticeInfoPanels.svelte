@@ -113,6 +113,8 @@
   // Cache loaded media URLs with loading state
   let loadedMedia = $state<Record<string, { url: string; loading: boolean; error: boolean }>>({});
 
+  let imageRatios = $state<Record<string, number>>({});
+
   // Inline image zoom/pan state (keyed by mediaId)
   let inlineStates = $state<Record<string, { zoom: number; panX: number; panY: number; isDragging: boolean; dragStartX: number; dragStartY: number; panBaseX: number; panBaseY: number; dragged: boolean; activePointers: Map<number, PointerEvent>; isPinching: boolean; initialPinchDistance: number; initialPinchZoom: number; initialPinchMidpointX: number; initialPinchMidpointY: number; initialPinchPanX: number; initialPinchPanY: number; initialPinchCenterX: number; initialPinchCenterY: number }>>({});
 
@@ -667,7 +669,10 @@
                               </div>
                             </div>
                           {:else}
-                            <div class="w-full aspect-[4/3] max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10">
+                            <div 
+                              class="w-full max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10"
+                              style="aspect-ratio: {isImageFile(file.name) ? (imageRatios[mediaId] || '4/3') : '4/3'};"
+                            >
                               {#if file.name.toLowerCase().endsWith('.pdf')}
                                 <iframe 
                                   src={fileUrl} 
@@ -688,6 +693,12 @@
                                   src={fileUrl} 
                                   alt={file.name} 
                                   data-media-id={mediaId}
+                                  onload={(e) => {
+                                    const img = e.currentTarget as HTMLImageElement;
+                                    if (img.naturalWidth && img.naturalHeight) {
+                                      imageRatios[mediaId] = img.naturalWidth / img.naturalHeight;
+                                    }
+                                  }}
                                   onclick={(e) => handleInlineClick(e, file, mediaId)}
                                   onwheel={handleInlineWheel}
                                   onpointerdown={handleInlinePointerDown}
@@ -793,7 +804,10 @@
                               </div>
                             </div>
                           {:else}
-                            <div class="w-full aspect-[4/3] max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10">
+                            <div 
+                              class="w-full max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10"
+                              style="aspect-ratio: {isImageFile(file.name) ? (imageRatios[mediaId] || '4/3') : '4/3'};"
+                            >
                               {#if file.name.toLowerCase().endsWith('.pdf')}
                                 <iframe 
                                   src={fileUrl} 
@@ -814,6 +828,12 @@
                                   src={fileUrl} 
                                   alt={file.name} 
                                   data-media-id={mediaId}
+                                  onload={(e) => {
+                                    const img = e.currentTarget as HTMLImageElement;
+                                    if (img.naturalWidth && img.naturalHeight) {
+                                      imageRatios[mediaId] = img.naturalWidth / img.naturalHeight;
+                                    }
+                                  }}
                                   onclick={(e) => handleInlineClick(e, file, mediaId)}
                                   onwheel={handleInlineWheel}
                                   onpointerdown={handleInlinePointerDown}
