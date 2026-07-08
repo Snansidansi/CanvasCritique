@@ -1,6 +1,24 @@
 // Prevents additional console window on Windows in release, do not remove!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::sync::Mutex;
+use tauri::{State, Manager, Emitter};
+
+struct AppState {
+    sync_on_shutdown: Mutex<bool>,
+}
+
+#[tauri::command]
+fn set_sync_on_shutdown(state: State<'_, AppState>, enabled: bool) {
+    let mut sync = state.sync_on_shutdown.lock().unwrap();
+    *sync = enabled;
+}
+
+#[tauri::command]
+fn exit_app(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
+}
+
 #[tauri::command]
 fn open_file(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
@@ -29,11 +47,29 @@ fn open_file(path: String) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
+        .manage(AppState {
+            sync_on_shutdown: Mutex::new(false),
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_sql::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![open_file])
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let state = window.state::<AppState>();
+                let sync_on_shutdown = *state.sync_on_shutdown.lock().unwrap();
+                if sync_on_shutdown {
+                    api.prevent_close();
+                    let _ = window.hide();
+                    let _ = window.emit("trigger-shutdown-sync", ());
+                }
+            }
+        })
+        .invoke_handler(tauri::generate_handler![
+            open_file,
+            set_sync_on_shutdown,
+            exit_app
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

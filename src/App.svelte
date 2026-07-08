@@ -4,7 +4,8 @@
   import { onMount, onDestroy } from "svelte";
   import { t } from "./lib/services/i18n";
   import { syncWebDav } from "./lib/services/webdav";
-  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
 
   // Local state variables for export popup checkboxes
   let exportIncludeCritique = $state(true);
@@ -55,6 +56,11 @@
   import Notification from "./lib/components/Notification.svelte";
   import { initTouchDragPolyfill } from "./lib/utils/touchDragPolyfill";
 
+  $effect(() => {
+    const enabled = !!(store.settings.webdavEnabled && store.settings.webdavSyncOnShutdown);
+    invoke("set_sync_on_shutdown", { enabled }).catch(err => console.error("set_sync_on_shutdown failed:", err));
+  });
+
   onMount(() => {
     initTouchDragPolyfill();
     const handleGlobalContextMenu = (e: MouseEvent) => {
@@ -74,7 +80,7 @@
     window.addEventListener("contextmenu", handleGlobalContextMenu);
     window.addEventListener("keydown", handleGlobalKeyDown);
     let syncIntervalId: number | undefined;
-    let unlistenClose: (() => void) | undefined;
+    let unlistenShutdownSync: (() => void) | undefined;
 
     const setupSync = () => {
       if (syncIntervalId) clearInterval(syncIntervalId);
@@ -94,30 +100,25 @@
       }, 1000);
     }
 
-    const setupCloseHandler = async () => {
-      const appWindow = getCurrentWindow();
-      unlistenClose = await appWindow.onCloseRequested(async (event) => {
-        if (store.settings.webdavEnabled && store.settings.webdavSyncOnShutdown) {
-          event.preventDefault();
-          try {
-            await appWindow.hide();
-            await syncWebDav();
-          } catch (err) {
-            console.error("Error during shutdown sync:", err);
-          } finally {
-            await appWindow.destroy();
-          }
+    const setupShutdownSyncListener = async () => {
+      unlistenShutdownSync = await listen("trigger-shutdown-sync", async () => {
+        try {
+          await syncWebDav();
+        } catch (err) {
+          console.error("Shutdown sync failed:", err);
+        } finally {
+          await invoke("exit_app");
         }
       });
     };
 
-    setupCloseHandler();
+    setupShutdownSyncListener();
 
     return () => {
       window.removeEventListener("contextmenu", handleGlobalContextMenu);
       window.removeEventListener("keydown", handleGlobalKeyDown);
       if (syncIntervalId) clearInterval(syncIntervalId);
-      if (unlistenClose) unlistenClose();
+      if (unlistenShutdownSync) unlistenShutdownSync();
     };
   });
 </script>
