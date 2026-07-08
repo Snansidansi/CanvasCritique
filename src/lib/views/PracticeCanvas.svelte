@@ -885,11 +885,13 @@
   let lastCritiqueScore = $state<number | null | undefined>(undefined);
   $effect(() => {
     const newScore = task?.critique?.feedbackScore;
-    if (newScore === 100 && lastCritiqueScore !== 100 && !isInitializingTask) {
-      showSuccessNotification = true;
-      setTimeout(() => {
-        showSuccessNotification = false;
-      }, 3500);
+    if (task && task.id === lastTaskId) {
+      if (newScore === 100 && lastCritiqueScore !== 100 && !isInitializingTask) {
+        showSuccessNotification = true;
+        setTimeout(() => {
+          showSuccessNotification = false;
+        }, 3500);
+      }
     }
     lastCritiqueScore = newScore;
   });
