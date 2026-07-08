@@ -68,6 +68,7 @@
 
   function handleDragOver(e: DragEvent) {
     e.preventDefault();
+    e.stopPropagation();
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'copy';
     }
@@ -75,16 +76,19 @@
 
   function handleDragEnter(e: DragEvent) {
     e.preventDefault();
+    e.stopPropagation();
     isDragging = true;
   }
 
   function handleDragLeave(e: DragEvent) {
     e.preventDefault();
+    e.stopPropagation();
     isDragging = false;
   }
 
   function handleDrop(e: DragEvent) {
     e.preventDefault();
+    e.stopPropagation();
     isDragging = false;
     const file = e.dataTransfer?.files?.[0];
     if (file) {
@@ -105,7 +109,14 @@
 </script>
 
 {#if isOpen}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div 
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+    ondragover={(e) => { e.preventDefault(); e.stopPropagation(); }}
+    ondragenter={(e) => { e.preventDefault(); e.stopPropagation(); }}
+    ondragleave={(e) => { e.preventDefault(); e.stopPropagation(); }}
+    ondrop={(e) => { e.preventDefault(); e.stopPropagation(); }}
+  >
     <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-md max-h-[85vh] shadow-xl flex flex-col gap-4 overflow-y-auto">
       <h3 class="font-bold text-lg text-on-surface">
         {t('projectDetail.iconSelectionModalTitle')}

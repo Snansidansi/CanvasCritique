@@ -87,6 +87,9 @@
   let isDragging = $state(false);
 
   function handleDragOver(e: DragEvent) {
+    if (isAddProjectOpen || isProfileModalOpen || isDeleteProfileConfirmOpen) {
+      return;
+    }
     e.preventDefault();
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = "copy";
@@ -94,6 +97,9 @@
   }
 
   function handleDragEnter(e: DragEvent) {
+    if (isAddProjectOpen || isProfileModalOpen || isDeleteProfileConfirmOpen) {
+      return;
+    }
     e.preventDefault();
     if (e.dataTransfer?.types.includes("Files")) {
       isDragging = true;
@@ -101,6 +107,9 @@
   }
 
   function handleDragLeave(e: DragEvent) {
+    if (isAddProjectOpen || isProfileModalOpen || isDeleteProfileConfirmOpen) {
+      return;
+    }
     e.preventDefault();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = e.clientX;
@@ -111,6 +120,9 @@
   }
 
   async function handleDrop(e: DragEvent) {
+    if (isAddProjectOpen || isProfileModalOpen || isDeleteProfileConfirmOpen) {
+      return;
+    }
     e.preventDefault();
     isDragging = false;
     const files = e.dataTransfer?.files;

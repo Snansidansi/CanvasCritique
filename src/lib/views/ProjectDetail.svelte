@@ -186,6 +186,9 @@
   let isDragging = $state(false);
 
   function handleMainDragOver(e: DragEvent) {
+    if (isIconModalOpen || showSettingsOverrideModal || isAddCategoryOpen) {
+      return;
+    }
     e.preventDefault();
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'copy';
@@ -193,6 +196,9 @@
   }
 
   function handleMainDragEnter(e: DragEvent) {
+    if (isIconModalOpen || showSettingsOverrideModal || isAddCategoryOpen) {
+      return;
+    }
     e.preventDefault();
     if (e.dataTransfer?.types.includes('Files')) {
       isDragging = true;
@@ -200,6 +206,9 @@
   }
 
   function handleMainDragLeave(e: DragEvent) {
+    if (isIconModalOpen || showSettingsOverrideModal || isAddCategoryOpen) {
+      return;
+    }
     e.preventDefault();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = e.clientX;
@@ -210,6 +219,9 @@
   }
 
   function handleMainDrop(e: DragEvent) {
+    if (isIconModalOpen || showSettingsOverrideModal || isAddCategoryOpen) {
+      return;
+    }
     e.preventDefault();
     isDragging = false;
     const files = e.dataTransfer?.files;
