@@ -1,14 +1,170 @@
-import { createClient, WebDAVClient } from 'webdav';
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { store } from '../state/store.svelte';
 import { t } from './i18n';
 import { backupDatabase, replaceDatabase, getDb } from '../db';
 import { appLocalDataDir, appDataDir, join } from '@tauri-apps/api/path';
 import { readFile, remove, exists, mkdir } from '@tauri-apps/plugin-fs';
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
 const SYNC_META_FILE = 'canvascritique_sync_meta.json';
 const BACKUP_DB_FILE = 'canvascritique_backup.db';
 const REMOTE_MEDIA_DIR = '/media';
+
+class CustomWebDAVClient {
+  private url: string;
+  private authHeader: string;
+
+  constructor(url: string, username?: string, password?: string) {
+    this.url = url.endsWith('/') ? url.slice(0, -1) : url;
+    if (username || password) {
+      const credentialsStr = (username || '') + ':' + (password || '');
+      const base64Credentials = btoa(unescape(encodeURIComponent(credentialsStr)));
+      this.authHeader = 'Basic ' + base64Credentials;
+    } else {
+      this.authHeader = '';
+    }
+  }
+
+  private getUrl(path: string): string {
+    const p = path.startsWith('/') ? path : '/' + path;
+    return this.url + p;
+  }
+
+  async exists(path: string): Promise<boolean> {
+    const targetUrl = this.getUrl(path);
+    console.log(`[Custom WebDAV Client] Checking exists: ${targetUrl}`);
+    try {
+      const response = await tauriFetch(targetUrl, {
+        method: 'PROPFIND',
+        headers: {
+          ...(this.authHeader ? { 'Authorization': this.authHeader } : {}),
+          'Depth': '0'
+        }
+      });
+      console.log(`[Custom WebDAV Client] exists response: ${response.status}`);
+      return response.status >= 200 && response.status < 300;
+    } catch (err) {
+      console.error(`[Custom WebDAV Client] exists check failed:`, err);
+      return false;
+    }
+  }
+
+  async createDirectory(path: string): Promise<void> {
+    const targetUrl = this.getUrl(path);
+    console.log(`[Custom WebDAV Client] Creating directory: ${targetUrl}`);
+    const response = await tauriFetch(targetUrl, {
+      method: 'MKCOL',
+      headers: {
+        ...(this.authHeader ? { 'Authorization': this.authHeader } : {})
+      }
+    });
+    console.log(`[Custom WebDAV Client] createDirectory response: ${response.status}`);
+    if (response.status !== 201 && response.status !== 405) { // 405 means already exists
+      throw new Error(`Failed to create directory: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  async getFileContents(path: string, options?: { format?: 'text' | 'binary' }): Promise<string | Uint8Array> {
+    const targetUrl = this.getUrl(path);
+    console.log(`[Custom WebDAV Client] Getting file: ${targetUrl}, format: ${options?.format || 'binary'}`);
+    const response = await tauriFetch(targetUrl, {
+      method: 'GET',
+      headers: {
+        ...(this.authHeader ? { 'Authorization': this.authHeader } : {})
+      }
+    });
+    console.log(`[Custom WebDAV Client] getFileContents response: ${response.status}`);
+    if (response.status !== 200) {
+      throw new Error(`Failed to get file: ${response.status} ${response.statusText}`);
+    }
+    if (options?.format === 'text') {
+      return await response.text();
+    } else {
+      const buffer = await response.arrayBuffer();
+      return new Uint8Array(buffer);
+    }
+  }
+
+  async putFileContents(path: string, content: string | Uint8Array, options?: { overwrite?: boolean }): Promise<void> {
+    const targetUrl = this.getUrl(path);
+    console.log(`[Custom WebDAV Client] Putting file: ${targetUrl}`);
+    const response = await tauriFetch(targetUrl, {
+      method: 'PUT',
+      headers: {
+        ...(this.authHeader ? { 'Authorization': this.authHeader } : {}),
+        'Content-Type': 'application/octet-stream'
+      },
+      body: content as any
+    });
+    console.log(`[Custom WebDAV Client] putFileContents response: ${response.status}`);
+    if (response.status !== 200 && response.status !== 201 && response.status !== 204) {
+      throw new Error(`Failed to put file: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  async getDirectoryContents(path: string): Promise<Array<{ basename: string; lastmod: string; type: 'file' | 'directory' }>> {
+    const targetUrl = this.getUrl(path);
+    console.log(`[Custom WebDAV Client] Getting directory contents: ${targetUrl}`);
+    const response = await tauriFetch(targetUrl, {
+      method: 'PROPFIND',
+      headers: {
+        ...(this.authHeader ? { 'Authorization': this.authHeader } : {}),
+        'Depth': '1'
+      }
+    });
+    console.log(`[Custom WebDAV Client] getDirectoryContents response: ${response.status}`);
+    if (response.status !== 207) {
+      throw new Error(`Failed to get directory contents: ${response.status} ${response.statusText}`);
+    }
+    const xmlText = await response.text();
+    
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+    const responses = xmlDoc.getElementsByTagNameNS('*', 'response');
+    const items: Array<{ basename: string; lastmod: string; type: 'file' | 'directory' }> = [];
+    
+    const targetUrlObj = new URL(targetUrl.startsWith('http') ? targetUrl : 'http://localhost' + targetUrl);
+    const targetPath = decodeURIComponent(targetUrlObj.pathname).replace(/\/$/, '');
+    
+    for (let i = 0; i < responses.length; i++) {
+      const resp = responses[i];
+      const hrefEl = resp.getElementsByTagNameNS('*', 'href')[0];
+      if (!hrefEl) continue;
+      
+      const href = decodeURIComponent(hrefEl.textContent || '');
+      
+      let hrefPath = href;
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        try {
+          hrefPath = new URL(href).pathname;
+        } catch {}
+      }
+      hrefPath = hrefPath.replace(/\/$/, '');
+      
+      if (hrefPath === targetPath) {
+        continue;
+      }
+      
+      const parts = hrefPath.split('/').filter(Boolean);
+      const basename = parts[parts.length - 1] || '';
+      
+      const resourceTypeEl = resp.getElementsByTagNameNS('*', 'resourcetype')[0];
+      const isDir = resourceTypeEl && resourceTypeEl.getElementsByTagNameNS('*', 'collection').length > 0;
+      
+      const lastModEl = resp.getElementsByTagNameNS('*', 'getlastmodified')[0];
+      const lastmod = lastModEl ? lastModEl.textContent || '' : '';
+      
+      items.push({
+        basename,
+        lastmod,
+        type: isDir ? 'directory' : 'file'
+      });
+    }
+    
+    return items;
+  }
+}
+
+export type WebDAVClient = CustomWebDAVClient;
 
 export function getWebDavClient(): WebDAVClient | null {
   const settings = store.settings;
@@ -16,11 +172,11 @@ export function getWebDavClient(): WebDAVClient | null {
     return null;
   }
 
-  return createClient(settings.webdavUrl, {
-    username: settings.webdavUsername,
-    password: settings.webdavPassword,
-    fetch: tauriFetch,
-  } as any);
+  return new CustomWebDAVClient(
+    settings.webdavUrl,
+    settings.webdavUsername,
+    settings.webdavPassword
+  );
 }
 
 export async function testConnection(): Promise<{ success: boolean; error?: string }> {
