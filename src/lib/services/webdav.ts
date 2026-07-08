@@ -325,12 +325,9 @@ async function syncMedia(client: WebDAVClient, syncMode: 'bidirectional' | 'down
     await client.createDirectory(REMOTE_MEDIA_DIR);
   }
 
-  // Get remote media list
-  const remoteItems = await client.getDirectoryContents(REMOTE_MEDIA_DIR) as Array<{ basename: string, lastmod: string }>;
-  const remoteMap = new Map<string, Date>();
-  for (const item of remoteItems) {
-    remoteMap.set(item.basename, new Date(item.lastmod));
-  }
+  // Get all media IDs registered in the local SQLite database
+  const dbRows = await db.select('SELECT id FROM media') as Array<{ id: string }>;
+  const dbIds = new Set(dbRows.map(r => r.id));
 
   // Get local media list from the filesystem
   let localEntries: any[] = [];
@@ -342,61 +339,65 @@ async function syncMedia(client: WebDAVClient, syncMode: 'bidirectional' | 'down
     console.error('Failed to read local media directory:', err);
   }
 
-  const localMap = new Map<string, Date>();
+  const localFiles = new Set<string>();
   for (const entry of localEntries) {
     if (entry.isFile && entry.name) {
-      try {
-        const filePath = await join(mediaDir, entry.name);
-        const fileInfo = await stat(filePath);
-        const mtime = fileInfo.mtime ? new Date(fileInfo.mtime) : new Date();
-        localMap.set(entry.name, mtime);
-      } catch (err) {
-        console.error(`Failed to stat local media file ${entry.name}:`, err);
-      }
+      localFiles.add(entry.name);
     }
   }
 
-  // Upload new/newer local files
+  // Get remote media list (only if upload is needed to determine what to upload)
+  const remoteMap = new Map<string, Date>();
   if (syncMode === 'bidirectional' || syncMode === 'upload') {
-    for (const [id, localDate] of localMap.entries()) {
-      const remoteDate = remoteMap.get(id);
-      if (!remoteDate || localDate > remoteDate) {
-        console.log(`Uploading media ${id}...`);
-        const filePath = await join(mediaDir, id);
-        if (await exists(filePath)) {
-          const bytes = await readFile(filePath);
-          await client.putFileContents(`${REMOTE_MEDIA_DIR}/${id}`, bytes, { overwrite: true });
+    try {
+      const remoteItems = await client.getDirectoryContents(REMOTE_MEDIA_DIR) as Array<{ basename: string, lastmod: string }>;
+      for (const item of remoteItems) {
+        remoteMap.set(item.basename, new Date(item.lastmod));
+      }
+    } catch (err) {
+      console.warn('Failed to retrieve remote media list:', err);
+    }
+  }
+
+  // Upload missing/newer local files
+  if (syncMode === 'bidirectional' || syncMode === 'upload') {
+    for (const id of dbIds) {
+      if (localFiles.has(id)) {
+        const remoteDate = remoteMap.get(id);
+        if (!remoteDate) {
+          console.log(`Uploading media ${id}...`);
+          const filePath = await join(mediaDir, id);
+          if (await exists(filePath)) {
+            const bytes = await readFile(filePath);
+            await client.putFileContents(`${REMOTE_MEDIA_DIR}/${id}`, bytes, { overwrite: true });
+          }
         }
       }
     }
   }
 
-  // Download new/newer remote files
+  // Download missing remote files
   if (syncMode === 'bidirectional' || syncMode === 'download') {
-    for (const [id, remoteDate] of remoteMap.entries()) {
-      const localDate = localMap.get(id);
-      if (!localDate || remoteDate > localDate) {
+    for (const id of dbIds) {
+      if (!localFiles.has(id)) {
         console.log(`Downloading media ${id}...`);
         const bytes = await client.getFileContents(`${REMOTE_MEDIA_DIR}/${id}`, { format: 'binary' }) as Uint8Array;
         const filePath = await join(mediaDir, id);
-        
         const { writeFile } = await import('@tauri-apps/plugin-fs');
         await writeFile(filePath, bytes);
+      }
+    }
+  }
 
-        if (!localDate) {
-          const ext = id.split('.').pop()?.toLowerCase() || 'bin';
-          const mimeMap: Record<string, string> = {
-            'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
-            'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml',
-            'mp3': 'audio/mpeg', 'mp4': 'video/mp4', 'pdf': 'application/pdf'
-          };
-          const mimeType = mimeMap[ext] || 'application/octet-stream';
-
-          await db.execute(
-            'INSERT OR IGNORE INTO media (id, data, mime_type) VALUES (?, ?, ?)',
-            [id, `media/${id}`, mimeType]
-          );
-        }
+  // Cleanup local files that are not registered in the SQLite database
+  for (const entry of localEntries) {
+    if (entry.isFile && entry.name && !dbIds.has(entry.name)) {
+      console.log(`Deleting local orphaned media ${entry.name}...`);
+      try {
+        const filePath = await join(mediaDir, entry.name);
+        await remove(filePath);
+      } catch (err) {
+        console.error(`Failed to delete local orphaned media ${entry.name}:`, err);
       }
     }
   }
