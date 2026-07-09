@@ -527,17 +527,23 @@ async function getOpenTmpDir(): Promise<string> {
 
 export async function openAttachmentInDefaultApp(file: { name: string; dataUrl?: string; mediaId?: string }): Promise<void> {
   try {
-    let bytes: Uint8Array;
-
     if (file.mediaId) {
       const mediaDir = await getMediaDir();
       const filePath = await join(mediaDir, file.mediaId);
-      const rawBytes = await readFile(filePath);
-      bytes = new Uint8Array(rawBytes);
-    } else if (file.dataUrl) {
+      if (await exists(filePath)) {
+        await invoke('open_file', { path: filePath });
+        return;
+      }
+    }
+
+    let bytes: Uint8Array;
+
+    if (file.dataUrl) {
       const parsed = getMimeAndBase64(file.dataUrl);
       if (!parsed) throw new Error('Invalid data URL');
       bytes = base64ToBytes(parsed.base64);
+    } else if (file.mediaId) {
+      throw new Error(`Media file ${file.mediaId} not found on disk`);
     } else {
       throw new Error('No media ID or data URL provided');
     }
