@@ -516,43 +516,19 @@ export function isIntegratedFile(name: string): boolean {
   );
 }
 
-async function getOpenTmpDir(): Promise<string> {
-  const localDataDir = await appLocalDataDir();
-  const tmpDir = await join(localDataDir, 'open_tmp');
-  if (!(await exists(tmpDir))) {
-    await mkdir(tmpDir, { recursive: true });
-  }
-  return tmpDir;
-}
-
 export async function openAttachmentInDefaultApp(file: { name: string; dataUrl?: string; mediaId?: string }): Promise<void> {
   try {
-    if (file.mediaId) {
-      const mediaDir = await getMediaDir();
-      const filePath = await join(mediaDir, file.mediaId);
-      if (await exists(filePath)) {
-        await invoke('open_file', { path: filePath });
-        return;
-      }
+    if (!file.mediaId) {
+      throw new Error('No media ID provided');
     }
 
-    let bytes: Uint8Array;
-
-    if (file.dataUrl) {
-      const parsed = getMimeAndBase64(file.dataUrl);
-      if (!parsed) throw new Error('Invalid data URL');
-      bytes = base64ToBytes(parsed.base64);
-    } else if (file.mediaId) {
+    const mediaDir = await getMediaDir();
+    const filePath = await join(mediaDir, file.mediaId);
+    if (!(await exists(filePath))) {
       throw new Error(`Media file ${file.mediaId} not found on disk`);
-    } else {
-      throw new Error('No media ID or data URL provided');
     }
 
-    const appTempDir = await getOpenTmpDir();
-    const tempFilePath = await join(appTempDir, file.name);
-    await writeFile(tempFilePath, bytes);
-
-    await invoke('open_file', { path: tempFilePath });
+    await invoke('open_file', { path: filePath });
   } catch (err) {
     console.error('[media] openAttachmentInDefaultApp failed:', err);
     throw err;
