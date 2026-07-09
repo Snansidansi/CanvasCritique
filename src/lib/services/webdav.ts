@@ -210,36 +210,10 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
   }
 }
 
-async function getDatabaseChangeCounter(customPath?: string): Promise<number> {
-  try {
-    let dbPath = customPath;
-    if (!dbPath) {
-      const appData = await appDataDir();
-      dbPath = await join(appData, 'canvascritique.db');
-    }
-    if (!(await exists(dbPath))) {
-      return 0;
-    }
-    const bytes = await readFile(dbPath);
-    if (bytes.length < 28) return 0;
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    return view.getUint32(24, false);
-  } catch (err) {
-    console.error('Failed to get SQLite change counter:', err);
-    return 0;
-  }
-}
-
-async function compressGzip(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Response(data as any).body!.pipeThrough(new CompressionStream('gzip'));
-  const buffer = await new Response(stream).arrayBuffer();
-  return new Uint8Array(buffer);
-}
-
-async function decompressGzip(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Response(data as any).body!.pipeThrough(new DecompressionStream('gzip'));
-  const buffer = await new Response(stream).arrayBuffer();
-  return new Uint8Array(buffer);
+async function computeSha256(bytes: Uint8Array): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', bytes as any);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<void> {
@@ -254,7 +228,7 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
     store.showNotification(t('settings.data.notifications.syncStarted') || 'Syncing...', 'info');
 
     // 1. Check sync metadata
-    let remoteMeta: { lastSyncedTimestamp: string } | null = null;
+    let remoteMeta: { lastSyncedTimestamp: string; dbHash?: string } | null = null;
     try {
       if (await client.exists('/' + SYNC_META_FILE)) {
         const metaContent = await client.getFileContents('/' + SYNC_META_FILE, { format: 'text' }) as string;
@@ -266,37 +240,40 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
 
     const localTimestamp = settings.lastSyncedTimestamp || '0';
     const remoteTimestamp = remoteMeta?.lastSyncedTimestamp || '0';
+    const remoteDbHash = remoteMeta?.dbHash;
 
     const effectiveMode = forceMode || settings.webdavSyncMode || 'bidirectional';
 
-    const localChangeCounter = await getDatabaseChangeCounter();
-    const lastSyncedChangeCounter = settings.lastSyncedChangeCounter || 0;
-    const hasLocalChanges = localChangeCounter !== lastSyncedChangeCounter;
+    // Get SHA-256 hash of the local database by backing it up first
+    const appData = await appDataDir();
+    const localBackupPath = await join(appData, BACKUP_DB_FILE);
+    await backupDatabase(localBackupPath);
+    const dbBytes = await readFile(localBackupPath);
+    const localDbHash = await computeSha256(dbBytes);
 
+    const hasDbChanges = remoteDbHash !== localDbHash;
     let dbTransferred = false;
 
-    // 2. If remote DB is newer (or forced download), download and replace local DB
-    const shouldDownload = (effectiveMode === 'download' || effectiveMode === 'bidirectional') && (forceMode === 'download' || remoteTimestamp > localTimestamp);
+    // 2. If remote DB is newer (or forced download) AND has changes, download and replace local DB
+    const shouldDownload = (effectiveMode === 'download' || effectiveMode === 'bidirectional') && 
+      (forceMode === 'download' || (remoteTimestamp > localTimestamp && hasDbChanges));
+
     if (shouldDownload) {
-      console.log('Remote DB is newer (or forced download). Downloading...');
+      console.log('Remote DB is newer and has changes (or forced download). Downloading...');
       
-      const appData = await appDataDir();
-      const localBackupPath = await join(appData, BACKUP_DB_FILE);
-      
-      let dbBytes: Uint8Array;
+      let downloadedBytes: Uint8Array;
       if (await client.exists('/' + REMOTE_DB_FILE_GZ)) {
         console.log('Downloading compressed remote DB...');
         const compressed = await client.getFileContents('/' + REMOTE_DB_FILE_GZ, { format: 'binary' }) as Uint8Array;
-        dbBytes = await decompressGzip(compressed);
+        downloadedBytes = await decompressGzip(compressed);
       } else {
         console.log('Downloading uncompressed remote DB (fallback)...');
-        dbBytes = await client.getFileContents('/' + BACKUP_DB_FILE, { format: 'binary' }) as Uint8Array;
+        downloadedBytes = await client.getFileContents('/' + BACKUP_DB_FILE, { format: 'binary' }) as Uint8Array;
       }
 
+      // Write download to the backup path
       const { writeFile } = await import('@tauri-apps/plugin-fs');
-      await writeFile(localBackupPath, dbBytes);
-
-      const downloadedDbChangeCounter = await getDatabaseChangeCounter(localBackupPath);
+      await writeFile(localBackupPath, downloadedBytes);
 
       // Keep local client-specific WebDAV settings to restore after replace
       const localWebDavSettings = {
@@ -310,7 +287,7 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
         webdavSyncOnShutdown: store.settings.webdavSyncOnShutdown,
         webdavSyncMode: store.settings.webdavSyncMode,
         lastSyncedTimestamp: remoteTimestamp >= localTimestamp ? remoteTimestamp : localTimestamp,
-        lastSyncedChangeCounter: downloadedDbChangeCounter
+        lastSyncedDbHash: remoteDbHash || localDbHash
       };
 
       // Replace active DB
@@ -351,6 +328,9 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       return; // Stop here, reload will handle the rest
     }
 
+    // Since we did not download, we clean up the local temp backup file created for hashing
+    await remove(localBackupPath);
+
     // 3. Media Sync
     try {
       await syncMedia(client, effectiveMode);
@@ -365,18 +345,14 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       console.error('Failed to sync canvas data:', canvasErr);
     }
 
-    // 4. Upload Local DB to WebDAV
-    const shouldUpload = (effectiveMode === 'bidirectional' || effectiveMode === 'upload') && (forceMode === 'upload' || hasLocalChanges);
+    // 4. Upload Local DB to WebDAV if it has changes (and mode allows it)
+    const shouldUpload = (effectiveMode === 'bidirectional' || effectiveMode === 'upload') && 
+      (forceMode === 'upload' || (remoteTimestamp <= localTimestamp && hasDbChanges));
+
     if (shouldUpload) {
       console.log('Uploading local DB to WebDAV...');
-      const appData = await appDataDir();
-      const localBackupPath = await join(appData, BACKUP_DB_FILE);
-      
-      await backupDatabase(localBackupPath);
-      const dbBytes = await readFile(localBackupPath);
       const compressedBytes = await compressGzip(dbBytes);
       await client.putFileContents('/' + REMOTE_DB_FILE_GZ, compressedBytes, { overwrite: true });
-      await remove(localBackupPath);
 
       // Clean up old uncompressed DB file if it exists on server
       try {
@@ -389,13 +365,25 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
 
       // Update metadata
       const newTimestamp = new Date().toISOString();
-      await client.putFileContents('/' + SYNC_META_FILE, JSON.stringify({ lastSyncedTimestamp: newTimestamp }), { overwrite: true });
+      await client.putFileContents('/' + SYNC_META_FILE, JSON.stringify({ 
+        lastSyncedTimestamp: newTimestamp,
+        dbHash: localDbHash 
+      }), { overwrite: true });
 
       // Save locally
       store.settings.lastSyncedTimestamp = newTimestamp;
-      store.settings.lastSyncedChangeCounter = localChangeCounter;
+      store.settings.lastSyncedDbHash = localDbHash;
       await store.saveSettings();
       dbTransferred = true;
+    } else {
+      // If we skipped both download and upload because the database hashes match, 
+      // we still update the local settings' lastSyncedTimestamp to remoteTimestamp (if remote is equal)
+      // to keep local and remote sync status in alignment.
+      if (!hasDbChanges && remoteTimestamp !== '0') {
+        store.settings.lastSyncedTimestamp = remoteTimestamp;
+        store.settings.lastSyncedDbHash = localDbHash;
+        await store.saveSettings();
+      }
     }
 
     if (dbTransferred) {
@@ -410,6 +398,18 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
   } finally {
     store.isSyncing = false;
   }
+}
+
+async function compressGzip(data: Uint8Array): Promise<Uint8Array> {
+  const stream = new Response(data as any).body!.pipeThrough(new CompressionStream('gzip'));
+  const buffer = await new Response(stream).arrayBuffer();
+  return new Uint8Array(buffer);
+}
+
+async function decompressGzip(data: Uint8Array): Promise<Uint8Array> {
+  const stream = new Response(data as any).body!.pipeThrough(new DecompressionStream('gzip'));
+  const buffer = await new Response(stream).arrayBuffer();
+  return new Uint8Array(buffer);
 }
 
 async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 'download' | 'upload') {
