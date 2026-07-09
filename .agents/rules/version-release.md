@@ -9,3 +9,5 @@ Bei dem releasen einer neuen Programmversion gehen wir wie folgt vor:
 3. Commite die geänderten files aus Schritt 1 und nenne den commit "Bumped to version Vx.x.x" (fülle Versionsnummer aus).
 4. Erstelle auf dem gerade eben erstellten commit einen annotierten tag (vx.x.x)  und packst du in den details commit message body des tags gesamten changelog aus Schrit 1.
 5. Pushe den commit und den tag auf den remote origin.
+
+Allgemein: Bitte versuche umbedingt beim changelog darauf zu achten, das du Änderungen nicht als "Miscellaneous" oder "Bugfix" aufnimmst, wenn sie erst seit dem letzen version bump eingeführt wurden. Hier ein Beispiel. Wir führen das Feature WebDAV sync ein. Dies sind mehrere commits. In einem dieser commits fixxen wir ein Problem, weswegen Webdav bisher nicht richtig funktioniert hat. Wenn du jetzt die version bumpen sollst und den changelog erstellst, darf es keinen bugfix geben, das webdav sync gefixt wurder oder etwas in dieser art, da es ja zur letzen version garkein webdav gab und somit der changelog nur für interne nutzung sinvoll wäre aber er ist ja für den endnutzer.
