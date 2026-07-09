@@ -162,6 +162,8 @@ export async function initDb(): Promise<Database> {
     }
   }
 
+  await migrateSolutionsFromDbToFs(db);
+
   return db;
 }
 
@@ -343,11 +345,121 @@ export async function deleteProject(db: Database, id: string): Promise<void> {
 
 // ── Tasks ──
 
+let cachedCanvasDataDir: string | null = null;
+export async function getCanvasDataDir(): Promise<string> {
+  if (cachedCanvasDataDir) return cachedCanvasDataDir;
+  const { appLocalDataDir, join } = await import('@tauri-apps/api/path');
+  const { exists, mkdir } = await import('@tauri-apps/plugin-fs');
+  const appData = await appLocalDataDir();
+  const canvasDataPath = await join(appData, 'canvas_data');
+  if (!(await exists(canvasDataPath))) {
+    await mkdir(canvasDataPath, { recursive: true });
+  }
+  cachedCanvasDataDir = canvasDataPath;
+  return canvasDataPath;
+}
+
+export async function saveTaskSolutionToDisk(taskId: string, solutionData: { canvasData?: any; editorText?: string }): Promise<void> {
+  try {
+    const canvasDataDir = await getCanvasDataDir();
+    const { join } = await import('@tauri-apps/api/path');
+    const { exists, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
+    const filePath = await join(canvasDataDir, `${taskId}.json`);
+
+    let currentData: { canvasData: any; editorText: string } = { canvasData: null, editorText: '' };
+    if (await exists(filePath)) {
+      try {
+        const raw = await readFile(filePath);
+        const text = new TextDecoder().decode(raw);
+        currentData = JSON.parse(text);
+      } catch (e) {
+        console.warn(`Failed to read/parse existing solution file for task ${taskId}:`, e);
+      }
+    }
+
+    if (solutionData.canvasData !== undefined) {
+      currentData.canvasData = solutionData.canvasData;
+    }
+    if (solutionData.editorText !== undefined) {
+      currentData.editorText = solutionData.editorText;
+    }
+
+    const text = JSON.stringify(currentData, null, 2);
+    const bytes = new TextEncoder().encode(text);
+    await writeFile(filePath, bytes);
+  } catch (err) {
+    console.error(`Failed to save task solution to disk for task ${taskId}:`, err);
+  }
+}
+
+export async function loadTaskSolutionFromDisk(taskId: string): Promise<{ canvasData: any; editorText: string }> {
+  try {
+    const canvasDataDir = await getCanvasDataDir();
+    const { join } = await import('@tauri-apps/api/path');
+    const { exists, readFile } = await import('@tauri-apps/plugin-fs');
+    const filePath = await join(canvasDataDir, `${taskId}.json`);
+    if (await exists(filePath)) {
+      const raw = await readFile(filePath);
+      const text = new TextDecoder().decode(raw);
+      const parsed = JSON.parse(text);
+      return {
+        canvasData: parsed.canvasData || null,
+        editorText: parsed.editorText || ''
+      };
+    }
+  } catch (err) {
+    // Don't warn for missing solution files as new tasks won't have one
+  }
+  return { canvasData: null, editorText: '' };
+}
+
+export async function deleteTaskSolutionFile(taskId: string): Promise<void> {
+  try {
+    const canvasDataDir = await getCanvasDataDir();
+    const { join } = await import('@tauri-apps/api/path');
+    const { exists, remove } = await import('@tauri-apps/plugin-fs');
+    const filePath = await join(canvasDataDir, `${taskId}.json`);
+    if (await exists(filePath)) {
+      await remove(filePath);
+    }
+  } catch (err) {
+    console.error(`Failed to delete solution file for task ${taskId}:`, err);
+  }
+}
+
+export async function migrateSolutionsFromDbToFs(db: Database): Promise<void> {
+  try {
+    const rows: any[] = await db.select(
+      'SELECT id, canvas_data_json, editor_text FROM tasks WHERE canvas_data_json IS NOT NULL OR (editor_text IS NOT NULL AND editor_text != "")'
+    );
+    if (rows.length > 0) {
+      console.log(`Migrating ${rows.length} task solutions from SQLite to disk files...`);
+      for (const row of rows) {
+        let canvasData = null;
+        if (row.canvas_data_json) {
+          try {
+            canvasData = JSON.parse(row.canvas_data_json);
+          } catch (e) {
+            console.warn(`Failed to parse canvas_data_json for migration of task ${row.id}:`, e);
+          }
+        }
+        const editorText = row.editor_text || '';
+        await saveTaskSolutionToDisk(row.id, { canvasData, editorText });
+      }
+      await db.execute('UPDATE tasks SET canvas_data_json = NULL, editor_text = ""');
+      console.log('Task solutions migrated successfully. Running VACUUM to reclaim space...');
+      await db.execute('VACUUM');
+    }
+  } catch (err) {
+    console.error('Failed to migrate task solutions from DB to FS:', err);
+  }
+}
+
 export async function getTasks(db: Database): Promise<Task[]> {
   const rows: any[] = await db.select(
-    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json FROM tasks'
+    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, project_id, background, settings_override_json FROM tasks'
   );
-  return rows.map(r => {
+  const tasks = rows.map(r => {
     const task: Task = {
       id: r.id,
       name: r.name,
@@ -359,7 +471,7 @@ export async function getTasks(db: Database): Promise<Task[]> {
       solutionFiles: JSON.parse(r.solution_files_json || '[]'),
       projectId: r.project_id,
       background: r.background || null,
-      editorText: r.editor_text || ''
+      editorText: ''
     };
     if (r.settings_override_json) {
       try { task.settingsOverride = JSON.parse(r.settings_override_json); } catch (_) {}
@@ -367,15 +479,23 @@ export async function getTasks(db: Database): Promise<Task[]> {
     if (r.critique_json) {
       try { task.critique = JSON.parse(r.critique_json); } catch (_) {}
     }
-    if (r.canvas_data_json) {
-      try { (task as any).canvasData = JSON.parse(r.canvas_data_json); } catch (_) {}
-    }
     return task;
   });
+
+  await Promise.all(tasks.map(async (task) => {
+    const solution = await loadTaskSolutionFromDisk(task.id);
+    (task as any).canvasData = solution.canvasData;
+    task.editorText = solution.editorText;
+  }));
+
+  return tasks;
 }
 
 export async function insertTask(db: Database, task: Task, projectId: string): Promise<void> {
   const canvasData = (task as any).canvasData;
+  if (canvasData || task.editorText) {
+    await saveTaskSolutionToDisk(task.id, { canvasData, editorText: task.editorText });
+  }
   await db.execute(
     `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -389,10 +509,10 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
       JSON.stringify(task.instructionFiles || []),
       JSON.stringify(task.solutionFiles || []),
       task.critique ? JSON.stringify(task.critique) : null,
-      canvasData ? JSON.stringify(canvasData) : null,
+      null,
       projectId,
       task.background || null,
-      task.editorText || '',
+      '',
       task.settingsOverride ? JSON.stringify(task.settingsOverride) : null
     ]
   );
@@ -409,22 +529,27 @@ export async function updateTask(db: Database, id: string, updates: Partial<any>
   if (updates.instructionFiles !== undefined) { fields.push('instruction_files_json = ?'); values.push(JSON.stringify(updates.instructionFiles)); }
   if (updates.solutionFiles !== undefined) { fields.push('solution_files_json = ?'); values.push(JSON.stringify(updates.solutionFiles)); }
   if (updates.critique !== undefined) { fields.push('critique_json = ?'); values.push(updates.critique ? JSON.stringify(updates.critique) : null); }
-  if (updates.canvasData !== undefined) { fields.push('canvas_data_json = ?'); values.push(updates.canvasData ? JSON.stringify(updates.canvasData) : null); }
   if (updates.projectId !== undefined) { fields.push('project_id = ?'); values.push(updates.projectId); }
   if (updates.background !== undefined) { fields.push('background = ?'); values.push(updates.background); }
-  if (updates.editorText !== undefined) { fields.push('editor_text = ?'); values.push(updates.editorText); }
   if (updates.settingsOverride !== undefined) { fields.push('settings_override_json = ?'); values.push(updates.settingsOverride ? JSON.stringify(updates.settingsOverride) : null); }
+
+  if (updates.canvasData !== undefined || updates.editorText !== undefined) {
+    await saveTaskSolutionToDisk(id, { canvasData: updates.canvasData, editorText: updates.editorText });
+  }
+
   if (fields.length === 0) return;
   values.push(id);
   await db.execute(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ?`, values);
 }
 
 export async function deleteTask(db: Database, id: string): Promise<void> {
+  await deleteTaskSolutionFile(id);
   await db.execute('DELETE FROM tasks WHERE id = ?', [id]);
 }
 
 export async function deleteTasks(db: Database, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
+  await Promise.all(ids.map(id => deleteTaskSolutionFile(id)));
   const placeholders = ids.map(() => '?').join(',');
   await db.execute(`DELETE FROM tasks WHERE id IN (${placeholders})`, ids);
 }
@@ -432,16 +557,12 @@ export async function deleteTasks(db: Database, ids: string[]): Promise<void> {
 // ── Canvas State ──
 
 export async function getCanvasState(db: Database, taskId: string): Promise<any> {
-  const rows: any[] = await db.select('SELECT canvas_data_json FROM tasks WHERE id = ?', [taskId]);
-  if (rows.length === 0 || !rows[0].canvas_data_json) return null;
-  return JSON.parse(rows[0].canvas_data_json);
+  const solution = await loadTaskSolutionFromDisk(taskId);
+  return solution.canvasData;
 }
 
 export async function setCanvasState(db: Database, taskId: string, data: any): Promise<void> {
-  await db.execute('UPDATE tasks SET canvas_data_json = ? WHERE id = ?', [
-    data ? JSON.stringify(data) : null,
-    taskId
-  ]);
+  await saveTaskSolutionToDisk(taskId, { canvasData: data });
 }
 
 // ── Custom Backgrounds ──

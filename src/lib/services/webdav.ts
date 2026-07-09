@@ -1,13 +1,14 @@
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { store } from '../state/store.svelte';
 import { t } from './i18n';
-import { backupDatabase, replaceDatabase, getDb, getSettings, saveSettings } from '../db';
+import { backupDatabase, replaceDatabase, getDb, getSettings, saveSettings, getCanvasDataDir } from '../db';
 import { defaultSettings } from '../state/defaults';
 import { appLocalDataDir, appDataDir, join } from '@tauri-apps/api/path';
 import { readFile, remove, exists, mkdir, readDir, stat } from '@tauri-apps/plugin-fs';
 
 const SYNC_META_FILE = 'canvascritique_sync_meta.json';
 const BACKUP_DB_FILE = 'canvascritique_backup.db';
+const REMOTE_DB_FILE_GZ = 'canvascritique_backup.db.gz';
 const REMOTE_MEDIA_DIR = '/media';
 
 class CustomWebDAVClient {
@@ -229,6 +230,18 @@ async function getDatabaseChangeCounter(customPath?: string): Promise<number> {
   }
 }
 
+async function compressGzip(data: Uint8Array): Promise<Uint8Array> {
+  const stream = new Response(data as any).body!.pipeThrough(new CompressionStream('gzip'));
+  const buffer = await new Response(stream).arrayBuffer();
+  return new Uint8Array(buffer);
+}
+
+async function decompressGzip(data: Uint8Array): Promise<Uint8Array> {
+  const stream = new Response(data as any).body!.pipeThrough(new DecompressionStream('gzip'));
+  const buffer = await new Response(stream).arrayBuffer();
+  return new Uint8Array(buffer);
+}
+
 export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<void> {
   const client = getWebDavClient();
   const settings = store.settings;
@@ -270,9 +283,18 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       const appData = await appDataDir();
       const localBackupPath = await join(appData, BACKUP_DB_FILE);
       
-      const dbContent = await client.getFileContents('/' + BACKUP_DB_FILE, { format: 'binary' }) as Uint8Array;
+      let dbBytes: Uint8Array;
+      if (await client.exists('/' + REMOTE_DB_FILE_GZ)) {
+        console.log('Downloading compressed remote DB...');
+        const compressed = await client.getFileContents('/' + REMOTE_DB_FILE_GZ, { format: 'binary' }) as Uint8Array;
+        dbBytes = await decompressGzip(compressed);
+      } else {
+        console.log('Downloading uncompressed remote DB (fallback)...');
+        dbBytes = await client.getFileContents('/' + BACKUP_DB_FILE, { format: 'binary' }) as Uint8Array;
+      }
+
       const { writeFile } = await import('@tauri-apps/plugin-fs');
-      await writeFile(localBackupPath, dbContent);
+      await writeFile(localBackupPath, dbBytes);
 
       const downloadedDbChangeCounter = await getDatabaseChangeCounter(localBackupPath);
 
@@ -314,6 +336,13 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
         console.error('Failed to sync media after DB replace:', mediaErr);
       }
 
+      // Canvas Data Sync - download missing canvas data referenced by the new DB
+      try {
+        await syncCanvasData(client, effectiveMode);
+      } catch (canvasErr) {
+        console.error('Failed to sync canvas data after DB replace:', canvasErr);
+      }
+
       // Trigger full app reload because DB changed fundamentally
       store.showNotification(t('settings.data.notifications.syncDbDownloaded') || 'Database synced. Reloading...', 'success');
       setTimeout(() => {
@@ -329,6 +358,13 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       console.error('Failed to sync media:', mediaErr);
     }
 
+    // 3.5. Canvas Data Sync
+    try {
+      await syncCanvasData(client, effectiveMode);
+    } catch (canvasErr) {
+      console.error('Failed to sync canvas data:', canvasErr);
+    }
+
     // 4. Upload Local DB to WebDAV
     const shouldUpload = (effectiveMode === 'bidirectional' || effectiveMode === 'upload') && (forceMode === 'upload' || hasLocalChanges);
     if (shouldUpload) {
@@ -338,8 +374,18 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       
       await backupDatabase(localBackupPath);
       const dbBytes = await readFile(localBackupPath);
-      await client.putFileContents('/' + BACKUP_DB_FILE, dbBytes, { overwrite: true });
+      const compressedBytes = await compressGzip(dbBytes);
+      await client.putFileContents('/' + REMOTE_DB_FILE_GZ, compressedBytes, { overwrite: true });
       await remove(localBackupPath);
+
+      // Clean up old uncompressed DB file if it exists on server
+      try {
+        if (await client.exists('/' + BACKUP_DB_FILE)) {
+          await client.deleteFile('/' + BACKUP_DB_FILE);
+        }
+      } catch (err) {
+        console.warn('Failed to delete old uncompressed remote DB file:', err);
+      }
 
       // Update metadata
       const newTimestamp = new Date().toISOString();
@@ -363,6 +409,152 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
     store.showNotification(t('settings.data.notifications.syncError') || 'Sync failed', 'error');
   } finally {
     store.isSyncing = false;
+  }
+}
+
+async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 'download' | 'upload') {
+  const db = getDb();
+  const localCanvasDir = await getCanvasDataDir();
+  const REMOTE_CANVAS_DIR = '/canvas_data';
+
+  // Ensure remote canvas_data dir exists
+  if (!(await client.exists(REMOTE_CANVAS_DIR))) {
+    await client.createDirectory(REMOTE_CANVAS_DIR);
+  }
+
+  // Get all task IDs registered in the local SQLite database
+  const dbRows = await db.select('SELECT id FROM tasks') as Array<{ id: string }>;
+  const dbIds = new Set(dbRows.map(r => r.id));
+
+  // Get local canvas_data list from the filesystem
+  let localEntries: any[] = [];
+  try {
+    if (await exists(localCanvasDir)) {
+      localEntries = await readDir(localCanvasDir);
+    }
+  } catch (err) {
+    console.error('Failed to read local canvas_data directory:', err);
+  }
+
+  const localFiles = new Map<string, { name: string; mtime: Date }>();
+  for (const entry of localEntries) {
+    if (entry.isFile && entry.name && entry.name.endsWith('.json')) {
+      const taskId = entry.name.substring(0, entry.name.length - 5);
+      try {
+        const info = await stat(await join(localCanvasDir, entry.name));
+        const mtime = info.mtime ? new Date(info.mtime) : new Date();
+        localFiles.set(taskId, { name: entry.name, mtime });
+      } catch (_) {
+        localFiles.set(taskId, { name: entry.name, mtime: new Date() });
+      }
+    }
+  }
+
+  // Get remote canvas_data list
+  const remoteMap = new Map<string, { basename: string; lastmod: Date }>();
+  try {
+    const remoteItems = await client.getDirectoryContents(REMOTE_CANVAS_DIR);
+    for (const item of remoteItems) {
+      if (item.type === 'file' && item.basename.endsWith('.json.gz')) {
+        const taskId = item.basename.substring(0, item.basename.length - 8);
+        remoteMap.set(taskId, { basename: item.basename, lastmod: new Date(item.lastmod) });
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to retrieve remote canvas_data list:', err);
+  }
+
+  // Sync active task files
+  for (const id of dbIds) {
+    const localInfo = localFiles.get(id);
+    const remoteInfo = remoteMap.get(id);
+
+    const hasLocal = !!localInfo;
+    const hasRemote = !!remoteInfo;
+
+    if (hasLocal && !hasRemote) {
+      if (syncMode === 'bidirectional' || syncMode === 'upload') {
+        console.log(`Uploading canvas ${id}...`);
+        try {
+          const filePath = await join(localCanvasDir, `${id}.json`);
+          const rawBytes = await readFile(filePath);
+          const compressed = await compressGzip(rawBytes);
+          await client.putFileContents(`${REMOTE_CANVAS_DIR}/${id}.json.gz`, compressed, { overwrite: true });
+        } catch (err) {
+          console.error(`Failed to upload canvas ${id}:`, err);
+        }
+      }
+    } else if (!hasLocal && hasRemote) {
+      if (syncMode === 'bidirectional' || syncMode === 'download') {
+        console.log(`Downloading canvas ${id}...`);
+        try {
+          const compressed = await client.getFileContents(`${REMOTE_CANVAS_DIR}/${id}.json.gz`, { format: 'binary' }) as Uint8Array;
+          const decompressed = await decompressGzip(compressed);
+          const filePath = await join(localCanvasDir, `${id}.json`);
+          const { writeFile } = await import('@tauri-apps/plugin-fs');
+          await writeFile(filePath, decompressed);
+        } catch (err) {
+          console.error(`Failed to download canvas ${id}:`, err);
+        }
+      }
+    } else if (hasLocal && hasRemote) {
+      const localTime = localInfo.mtime.getTime();
+      const remoteTime = remoteInfo.lastmod.getTime();
+
+      if (remoteTime > localTime + 1000) {
+        if (syncMode === 'bidirectional' || syncMode === 'download') {
+          console.log(`Downloading newer canvas ${id}...`);
+          try {
+            const compressed = await client.getFileContents(`${REMOTE_CANVAS_DIR}/${id}.json.gz`, { format: 'binary' }) as Uint8Array;
+            const decompressed = await decompressGzip(compressed);
+            const filePath = await join(localCanvasDir, `${id}.json`);
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            await writeFile(filePath, decompressed);
+          } catch (err) {
+            console.error(`Failed to download canvas ${id}:`, err);
+          }
+        }
+      } else if (localTime > remoteTime + 1000) {
+        if (syncMode === 'bidirectional' || syncMode === 'upload') {
+          console.log(`Uploading newer canvas ${id}...`);
+          try {
+            const filePath = await join(localCanvasDir, `${id}.json`);
+            const rawBytes = await readFile(filePath);
+            const compressed = await compressGzip(rawBytes);
+            await client.putFileContents(`${REMOTE_CANVAS_DIR}/${id}.json.gz`, compressed, { overwrite: true });
+          } catch (err) {
+            console.error(`Failed to upload canvas ${id}:`, err);
+          }
+        }
+      }
+    }
+  }
+
+  // Cleanup local orphaned files
+  for (const [id, localInfo] of localFiles.entries()) {
+    if (!dbIds.has(id)) {
+      console.log(`Deleting local orphaned canvas/editor data ${localInfo.name}...`);
+      try {
+        const filePath = await join(localCanvasDir, localInfo.name);
+        await remove(filePath);
+      } catch (err) {
+        console.error(`Failed to delete local orphaned canvas ${localInfo.name}:`, err);
+      }
+    }
+  }
+
+  // Cleanup remote orphaned files
+  if (syncMode === 'bidirectional' || syncMode === 'upload') {
+    for (const [id, remoteInfo] of remoteMap.entries()) {
+      if (!dbIds.has(id)) {
+        console.log(`Deleting remote orphaned canvas/editor data ${remoteInfo.basename}...`);
+        try {
+          await client.deleteFile(`${REMOTE_CANVAS_DIR}/${remoteInfo.basename}`);
+        } catch (err) {
+          console.error(`Failed to delete remote orphaned canvas ${remoteInfo.basename}:`, err);
+        }
+      }
+    }
   }
 }
 
