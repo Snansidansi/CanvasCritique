@@ -209,6 +209,26 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
   }
 }
 
+async function getDatabaseChangeCounter(customPath?: string): Promise<number> {
+  try {
+    let dbPath = customPath;
+    if (!dbPath) {
+      const appData = await appDataDir();
+      dbPath = await join(appData, 'canvascritique.db');
+    }
+    if (!(await exists(dbPath))) {
+      return 0;
+    }
+    const bytes = await readFile(dbPath);
+    if (bytes.length < 28) return 0;
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    return view.getUint32(24, false);
+  } catch (err) {
+    console.error('Failed to get SQLite change counter:', err);
+    return 0;
+  }
+}
+
 export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<void> {
   const client = getWebDavClient();
   const settings = store.settings;
@@ -236,6 +256,12 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
 
     const effectiveMode = forceMode || settings.webdavSyncMode || 'bidirectional';
 
+    const localChangeCounter = await getDatabaseChangeCounter();
+    const lastSyncedChangeCounter = settings.lastSyncedChangeCounter || 0;
+    const hasLocalChanges = localChangeCounter !== lastSyncedChangeCounter;
+
+    let dbTransferred = false;
+
     // 2. If remote DB is newer (or forced download), download and replace local DB
     const shouldDownload = (effectiveMode === 'download' || effectiveMode === 'bidirectional') && (forceMode === 'download' || remoteTimestamp > localTimestamp);
     if (shouldDownload) {
@@ -248,6 +274,8 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       const { writeFile } = await import('@tauri-apps/plugin-fs');
       await writeFile(localBackupPath, dbContent);
 
+      const downloadedDbChangeCounter = await getDatabaseChangeCounter(localBackupPath);
+
       // Keep local client-specific WebDAV settings to restore after replace
       const localWebDavSettings = {
         webdavEnabled: store.settings.webdavEnabled,
@@ -259,7 +287,8 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
         webdavSyncOnStartup: store.settings.webdavSyncOnStartup,
         webdavSyncOnShutdown: store.settings.webdavSyncOnShutdown,
         webdavSyncMode: store.settings.webdavSyncMode,
-        lastSyncedTimestamp: remoteTimestamp >= localTimestamp ? remoteTimestamp : localTimestamp
+        lastSyncedTimestamp: remoteTimestamp >= localTimestamp ? remoteTimestamp : localTimestamp,
+        lastSyncedChangeCounter: downloadedDbChangeCounter
       };
 
       // Replace active DB
@@ -301,7 +330,8 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
     }
 
     // 4. Upload Local DB to WebDAV
-    if (effectiveMode === 'bidirectional' || effectiveMode === 'upload') {
+    const shouldUpload = (effectiveMode === 'bidirectional' || effectiveMode === 'upload') && (forceMode === 'upload' || hasLocalChanges);
+    if (shouldUpload) {
       console.log('Uploading local DB to WebDAV...');
       const appData = await appDataDir();
       const localBackupPath = await join(appData, BACKUP_DB_FILE);
@@ -317,11 +347,15 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
 
       // Save locally
       store.settings.lastSyncedTimestamp = newTimestamp;
+      store.settings.lastSyncedChangeCounter = localChangeCounter;
       await store.saveSettings();
+      dbTransferred = true;
+    }
+
+    if (dbTransferred) {
       store.showNotification(t('settings.data.notifications.syncSuccess') || 'Sync completed.', 'success');
     } else {
-      // In download-only mode where no new remote data was available, we just finish
-      store.showNotification(t('settings.data.notifications.syncSuccess') || 'Sync completed.', 'success');
+      store.showNotification(t('settings.data.notifications.syncNoChanges') || 'Sync completed. No changes detected.', 'success');
     }
 
   } catch (err) {

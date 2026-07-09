@@ -177,6 +177,7 @@ export interface Settings {
   webdavSyncOnStartup?: boolean;
   webdavSyncOnShutdown?: boolean;
   lastSyncedTimestamp?: string;
+  lastSyncedChangeCounter?: number;
   webdavSyncMode?: 'bidirectional' | 'download' | 'upload';
 }
 

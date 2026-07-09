@@ -468,6 +468,7 @@
         "cleanMediaNoOrphans": "Alle Medien sind sauber. Keine verwaisten Dateien gefunden.",
         "syncStarted": "Synchronisiere mit WebDAV...",
         "syncSuccess": "WebDAV-Synchronisation erfolgreich abgeschlossen.",
+        "syncNoChanges": "WebDAV-Synchronisation abgeschlossen. Keine Änderungen vorhanden.",
         "syncError": "WebDAV-Synchronisation fehlgeschlagen.",
         "syncDbDownloaded": "Datenbank von WebDAV heruntergeladen. App wird neu geladen..."
       }

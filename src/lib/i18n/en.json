@@ -469,6 +469,7 @@
         "cleanMediaNoOrphans": "All media is clean. No orphaned files found.",
         "syncStarted": "Syncing with WebDAV...",
         "syncSuccess": "WebDAV sync completed successfully.",
+        "syncNoChanges": "WebDAV sync completed. No changes detected.",
         "syncError": "WebDAV sync failed.",
         "syncDbDownloaded": "Database downloaded from WebDAV. Reloading app..."
       }
