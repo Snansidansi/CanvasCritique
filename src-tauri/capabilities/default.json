@@ -37,6 +37,12 @@
     "sql:allow-execute",
     "sql:allow-select",
     "sql:allow-close",
-    "core:webview:allow-set-webview-zoom"
+    "core:webview:allow-set-webview-zoom",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
+    "core:window:allow-available-monitors"
   ]
 }

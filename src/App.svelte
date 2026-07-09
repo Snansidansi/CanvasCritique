@@ -55,6 +55,7 @@
   import TaskEditor from "./lib/views/TaskEditor.svelte";
   import Notification from "./lib/components/Notification.svelte";
   import { initTouchDragPolyfill } from "./lib/utils/touchDragPolyfill";
+  import { isWindowsPlatform, restoreWindowState, setupWindowStateListeners } from "./lib/services/windowState";
 
   $effect(() => {
     const enabled = !!(store.settings.webdavEnabled && store.settings.webdavSyncOnShutdown);
@@ -63,6 +64,14 @@
 
   onMount(() => {
     initTouchDragPolyfill();
+
+    let cleanupWindowState: (() => void) | undefined;
+    if (isWindowsPlatform()) {
+      restoreWindowState();
+      setupWindowStateListeners().then((cleanup) => {
+        cleanupWindowState = cleanup;
+      });
+    }
     const handleGlobalContextMenu = (e: MouseEvent) => {
       e.preventDefault();
     };
@@ -119,6 +128,7 @@
       window.removeEventListener("keydown", handleGlobalKeyDown);
       if (syncIntervalId) clearInterval(syncIntervalId);
       if (unlistenShutdownSync) unlistenShutdownSync();
+      if (cleanupWindowState) cleanupWindowState();
     };
   });
 </script>
