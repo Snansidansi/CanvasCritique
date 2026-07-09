@@ -35,6 +35,7 @@ export interface Task {
   } | null;
   background?: string | null;
   editorText?: string;
+  aiInstructions?: string;
   settingsOverride?: ProjectSettingsOverride;
 }
 

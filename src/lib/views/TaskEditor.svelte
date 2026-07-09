@@ -17,6 +17,8 @@
   let nameInput = $state<HTMLInputElement | null>(null);
   let instructions = $state('');
   let solution = $state('');
+  let aiInstructions = $state('');
+  let aiInstructionsExpanded = $state(false);
   let category = $state('Basics');
   let showInstructionsRaw = $state(true);
   let showSolutionRaw = $state(true);
@@ -165,6 +167,8 @@
       taskName = store.editingTask.name;
       instructions = store.editingTask.instructions;
       solution = store.editingTask.solution;
+      aiInstructions = store.editingTask.aiInstructions || '';
+      aiInstructionsExpanded = !!aiInstructions;
       category = store.editingTask.category || 'Basics';
       targetProjectId = store.activeProject?.id || '';
 
@@ -434,6 +438,7 @@
         name: taskName.trim(),
         instructions: instructions.trim(),
         solution: solution.trim(),
+        aiInstructions: aiInstructions.trim(),
         category,
         instructionFiles,
         solutionFiles,
@@ -452,7 +457,8 @@
         category,
         instructionFiles,
         solutionFiles,
-        { ...settingsOverride }
+        { ...settingsOverride },
+        aiInstructions.trim()
       );
     }
 
@@ -461,12 +467,17 @@
     taskName = '';
     instructions = '';
     solution = '';
+    aiInstructions = '';
     store.setView('project-detail');
   }
 
   function handleCancel() {
     store.pendingScrollCategory = category;
     store.editingTask = null;
+    taskName = '';
+    instructions = '';
+    solution = '';
+    aiInstructions = '';
     store.setView(store.activeProject ? 'project-detail' : 'dashboard');
   }
 
@@ -1298,6 +1309,45 @@
 
       <!-- Task Settings Overrides -->
       <div class="border-t border-outline-variant/30 pt-6 mt-4 flex flex-col gap-4">
+        <!-- AI Guidelines / AI Instructions Section -->
+        <section class="bg-surface-container-low border border-outline-variant/60 rounded-xl overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onclick={() => aiInstructionsExpanded = !aiInstructionsExpanded}
+            class="w-full flex items-center justify-between px-6 py-4 cursor-pointer bg-transparent border-0 text-left focus:outline-none hover:bg-surface-container-lowest/50 transition-colors"
+          >
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-[20px] text-primary">description</span>
+              <div>
+                <h3 class="font-bold text-sm text-on-surface">{t('taskEditor.aiInstructionsTitle')}</h3>
+                <p class="text-[11px] text-on-surface-variant mt-0.5">
+                  {t('taskEditor.aiInstructionsSubtitle')}
+                </p>
+              </div>
+            </div>
+            <span class="material-symbols-outlined text-on-surface-variant text-[20px] transition-transform" 
+                  style="transform: rotate({aiInstructionsExpanded ? '180' : '0'}deg)">
+              expand_more
+            </span>
+          </button>
+
+          {#if aiInstructionsExpanded}
+            <div class="px-6 pb-5 border-t border-outline-variant/30 pt-4">
+              <textarea
+                use:autoResize={aiInstructions}
+                bind:value={aiInstructions}
+                placeholder={t('taskEditor.aiInstructionsPlaceholder')}
+                rows="4"
+                class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-none min-h-20"
+              ></textarea>
+              <p class="text-[10px] text-on-surface-variant mt-2 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[12px]">info</span>
+                {t('taskEditor.aiInstructionsFooter')}
+              </p>
+            </div>
+          {/if}
+        </section>
+
         <div class="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant">
           <div class="flex flex-col gap-0.5">
             <span class="text-sm font-bold text-on-surface">Task-spezifische Einstellungen / Task-Specific Overrides</span>
@@ -1333,7 +1383,7 @@
             </div>
 
             <!-- Right Content Pane -->
-            <div class="grow overflow-y-auto py-1 pr-1 flex flex-col gap-4 custom-scrollbar min-h-[300px]">
+            <div class="grow overflow-y-auto py-1 pr-1 flex flex-col gap-4 custom-scrollbar min-h-75">
               {#if activeTaskTab === 'model'}
                 <!-- Model Override Toggle -->
                 <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">

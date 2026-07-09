@@ -53,6 +53,7 @@ export interface CheckWorkTask {
   section?: string;
   instructions?: string;
   solution?: string;
+  aiInstructions?: string;
   instructionFiles?: Array<{ name: string; dataUrl?: string; mediaId?: string }>;
   solutionFiles?: Array<{ name: string; dataUrl?: string; mediaId?: string }>;
   instructionFile?: { name: string; dataUrl?: string; mediaId?: string }; // legacy
@@ -398,9 +399,13 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   ).join('\n');
 
   // Get project-level guidelines if available
-  const guidelinesPrompt = projectGuidelines 
+  let guidelinesPrompt = projectGuidelines 
     ? `\nAdditional grading guidelines from the teacher:\n"${projectGuidelines}"\nPlease take these guidelines into account when evaluating the student's work.\n`
     : '';
+
+  if (task.aiInstructions && task.aiInstructions.trim()) {
+    guidelinesPrompt += `\nAdditional grading guidelines for this specific task:\n"${task.aiInstructions.trim()}"\nPlease take these guidelines into account when evaluating the student's work.\n`;
+  }
 
   const promptTemplate = settings.customSystemPrompt || defaultSystemPrompt;
   const sendTaskMedia = settings.sendTaskMedia ?? true;

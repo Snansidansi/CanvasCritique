@@ -86,6 +86,7 @@ export async function initDb(): Promise<Database> {
       project_id TEXT NOT NULL,
       background TEXT,
       editor_text TEXT DEFAULT '',
+      ai_instructions TEXT DEFAULT '',
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
   `);
@@ -110,6 +111,10 @@ export async function initDb(): Promise<Database> {
 
   try {
     await db.execute('ALTER TABLE tasks ADD COLUMN editor_text TEXT DEFAULT ""');
+  } catch (_) {}
+
+  try {
+    await db.execute('ALTER TABLE tasks ADD COLUMN ai_instructions TEXT DEFAULT ""');
   } catch (_) {}
 
   try {
@@ -460,7 +465,7 @@ export async function migrateSolutionsFromDbToFs(db: Database): Promise<void> {
 
 export async function getTasks(db: Database): Promise<Task[]> {
   const rows: any[] = await db.select(
-    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, project_id, background, settings_override_json FROM tasks'
+    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, project_id, background, settings_override_json, ai_instructions FROM tasks'
   );
   const tasks = rows.map(r => {
     const task: Task = {
@@ -469,6 +474,7 @@ export async function getTasks(db: Database): Promise<Task[]> {
       completed: !!r.completed,
       instructions: r.instructions || '',
       solution: r.solution || '',
+      aiInstructions: r.ai_instructions || '',
       category: r.category || 'Basics',
       instructionFiles: JSON.parse(r.instruction_files_json || '[]'),
       solutionFiles: JSON.parse(r.solution_files_json || '[]'),
@@ -500,8 +506,8 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
     await saveTaskSolutionToDisk(task.id, { canvasData, editorText: task.editorText });
   }
   await db.execute(
-    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json, ai_instructions)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       task.id,
       task.name,
@@ -516,7 +522,8 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
       projectId,
       task.background || null,
       '',
-      task.settingsOverride ? JSON.stringify(task.settingsOverride) : null
+      task.settingsOverride ? JSON.stringify(task.settingsOverride) : null,
+      task.aiInstructions || ''
     ]
   );
 }
@@ -528,6 +535,7 @@ export async function updateTask(db: Database, id: string, updates: Partial<any>
   if (updates.completed !== undefined) { fields.push('completed = ?'); values.push(updates.completed ? 1 : 0); }
   if (updates.instructions !== undefined) { fields.push('instructions = ?'); values.push(updates.instructions); }
   if (updates.solution !== undefined) { fields.push('solution = ?'); values.push(updates.solution); }
+  if (updates.aiInstructions !== undefined) { fields.push('ai_instructions = ?'); values.push(updates.aiInstructions); }
   if (updates.category !== undefined) { fields.push('category = ?'); values.push(updates.category); }
   if (updates.instructionFiles !== undefined) { fields.push('instruction_files_json = ?'); values.push(JSON.stringify(updates.instructionFiles)); }
   if (updates.solutionFiles !== undefined) { fields.push('solution_files_json = ?'); values.push(JSON.stringify(updates.solutionFiles)); }

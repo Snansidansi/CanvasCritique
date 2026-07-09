@@ -1060,7 +1060,8 @@ class CanvasCritiqueStore {
     category: string = 'Basics',
     instructionFiles: any[] = [],
     solutionFiles: any[] = [],
-    settingsOverride?: any
+    settingsOverride?: any,
+    aiInstructions: string = ''
   ): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
@@ -1071,6 +1072,7 @@ class CanvasCritiqueStore {
       completed: false,
       instructions,
       solution,
+      aiInstructions,
       category,
       instructionFiles: this.stripDataUrls(instructionFiles),
       solutionFiles: this.stripDataUrls(solutionFiles),
@@ -1113,6 +1115,7 @@ class CanvasCritiqueStore {
     if (updatedData.name !== undefined) task.name = updatedData.name;
     if (updatedData.instructions !== undefined) task.instructions = updatedData.instructions;
     if (updatedData.solution !== undefined) task.solution = updatedData.solution;
+    if (updatedData.aiInstructions !== undefined) task.aiInstructions = updatedData.aiInstructions;
     if (updatedData.category !== undefined) task.category = updatedData.category;
     if (updatedData.instructionFiles !== undefined) task.instructionFiles = this.stripDataUrls(updatedData.instructionFiles);
     if (updatedData.solutionFiles !== undefined) task.solutionFiles = this.stripDataUrls(updatedData.solutionFiles);
@@ -1135,6 +1138,7 @@ class CanvasCritiqueStore {
       completed: task.completed,
       instructions: task.instructions,
       solution: task.solution,
+      aiInstructions: task.aiInstructions || '',
       category: task.category,
       instructionFiles: task.instructionFiles || [],
       solutionFiles: task.solutionFiles || [],
@@ -1725,6 +1729,7 @@ class CanvasCritiqueStore {
                   completed: options.importCompleted ? !!t.completed : false,
                   instructions: t.instructions || '',
                   solution: t.solution || '',
+                  aiInstructions: t.aiInstructions || '',
                   category: taskCategory,
                   instructionFiles,
                   solutionFiles,
@@ -1786,6 +1791,7 @@ class CanvasCritiqueStore {
               completed: options.importCompleted ? !!t.completed : false,
               instructions: t.instructions || '',
               solution: t.solution || '',
+              aiInstructions: t.aiInstructions || '',
               category: taskCategory,
               instructionFiles,
               solutionFiles,
