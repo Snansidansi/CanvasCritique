@@ -109,8 +109,8 @@ export function parseMarkdown(md: string | null | undefined): string {
     }
 
     // Check List Item
-    if (/^\s*-\s+(.*?)$/.test(line)) {
-      const match = line.match(/^\s*-\s+(.*?)$/);
+    if (/^\s*[-*]\s+(.*?)$/.test(line)) {
+      const match = line.match(/^\s*[-*]\s+(.*?)$/);
       if (match) {
         parsedLines.push(`<li class="ml-4 list-disc my-1 text-[11px]">${match[1]}</li>`);
         continue;
