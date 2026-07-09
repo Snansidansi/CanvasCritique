@@ -87,14 +87,14 @@
                 if (task.instructionFiles) {
                   for (const f of task.instructionFiles) {
                     if (f.dataUrl && !f.mediaId) {
-                      try { f.mediaId = await saveMediaToDb(f.dataUrl); } catch (_) {}
+                      try { f.mediaId = await saveMediaToDb(f.dataUrl, f.name); } catch (_) {}
                     }
                   }
                 }
                 if (task.solutionFiles) {
                   for (const f of task.solutionFiles) {
                     if (f.dataUrl && !f.mediaId) {
-                      try { f.mediaId = await saveMediaToDb(f.dataUrl); } catch (_) {}
+                      try { f.mediaId = await saveMediaToDb(f.dataUrl, f.name); } catch (_) {}
                     }
                   }
                 }

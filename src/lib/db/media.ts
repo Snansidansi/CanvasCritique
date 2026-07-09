@@ -72,7 +72,7 @@ async function getMediaDir(): Promise<string> {
   }
 }
 
-export async function saveMediaToDb(dataUrl: string): Promise<string> {
+export async function saveMediaToDb(dataUrl: string, originalName?: string): Promise<string> {
   const parsed = getMimeAndBase64(dataUrl);
   if (!parsed) throw new Error('Invalid data URL');
 
@@ -83,7 +83,23 @@ export async function saveMediaToDb(dataUrl: string): Promise<string> {
     if (existingId) return existingId;
 
     const db = getDb();
-    const ext = getExtensionFromMime(parsed.mimeType);
+    
+    let ext = '';
+    let mimeType = parsed.mimeType;
+
+    if (originalName) {
+      const parts = originalName.split('.');
+      if (parts.length > 1) {
+        ext = parts.pop()?.toLowerCase() || '';
+      }
+    }
+
+    if (ext) {
+      mimeType = getMimeFromExtension(ext);
+    } else {
+      ext = getExtensionFromMime(mimeType);
+    }
+
     const id = `${uuidv4()}.${ext}`;
 
     const mediaDir = await getMediaDir();
@@ -94,7 +110,7 @@ export async function saveMediaToDb(dataUrl: string): Promise<string> {
 
     await db.execute(
       'INSERT INTO media (id, data, mime_type, sha256_hash) VALUES (?, ?, ?, ?)',
-      [id, `media/${id}`, parsed.mimeType, hash]
+      [id, `media/${id}`, mimeType, hash]
     );
     console.log('[media] inserted DB entry for:', id);
 
@@ -537,7 +553,38 @@ export async function openAttachmentInDefaultApp(file: { name: string; dataUrl?:
   }
 }
 
+export function getMimeFromExtension(ext: string): string {
+  const extMap: Record<string, string> = {
+    'png': 'image/png',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'svg': 'image/svg+xml',
+    'ico': 'image/x-icon',
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'ogg': 'audio/ogg',
+    'aac': 'audio/aac',
+    'm4a': 'audio/m4a',
+    'mp4': 'video/mp4',
+    'webm': 'video/webm',
+    'ogv': 'video/ogg',
+    'mov': 'video/quicktime',
+    'pdf': 'application/pdf',
+    'md': 'text/markdown',
+    'txt': 'text/plain',
+    'json': 'application/json',
+    'zip': 'application/zip',
+    'xml': 'application/xml',
+  };
+  return extMap[ext.toLowerCase()] || `custom/${ext.toLowerCase()}`;
+}
+
 export function getExtensionFromMime(mimeType: string): string {
+  if (mimeType.toLowerCase().startsWith('custom/')) {
+    return mimeType.split('/').pop() || 'bin';
+  }
   const mimeMap: Record<string, string> = {
     'image/png': 'png',
     'image/jpeg': 'jpg',

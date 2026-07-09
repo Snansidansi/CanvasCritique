@@ -486,7 +486,7 @@
         const dataUrl = event.target?.result as string;
         let mediaId = '';
         try {
-          mediaId = await saveMediaToDb(dataUrl);
+          mediaId = await saveMediaToDb(dataUrl, file.name);
         } catch (e) {
           console.error('Failed to save media file:', e);
           mediaId = '';
@@ -670,7 +670,7 @@
           const ext = imageType.split('/')[1] || 'png';
           const base64Data = await blobToBase64(blob);
           let mediaId = '';
-          try { mediaId = await saveMediaToDb(base64Data); } catch (_) {}
+          try { mediaId = await saveMediaToDb(base64Data, `clipboard_image_${Date.now()}.${ext}`); } catch (_) {}
           const newFile = {
             name: `clipboard_image_${Date.now()}.${ext}`,
             dataUrl: base64Data,
@@ -692,7 +692,7 @@
           const text = await blob.text();
           const base64Data = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
           let mediaId = '';
-          try { mediaId = await saveMediaToDb(base64Data); } catch (_) {}
+          try { mediaId = await saveMediaToDb(base64Data, `clipboard_text_${Date.now()}.txt`); } catch (_) {}
           const newFile = {
             name: `clipboard_text_${Date.now()}.txt`,
             dataUrl: base64Data,
@@ -720,7 +720,7 @@
         if (text && text.trim()) {
           const base64Data = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
           let mediaId = '';
-          try { mediaId = await saveMediaToDb(base64Data); } catch (_) {}
+          try { mediaId = await saveMediaToDb(base64Data, `clipboard_text_${Date.now()}.txt`); } catch (_) {}
           const newFile = {
             name: `clipboard_text_${Date.now()}.txt`,
             dataUrl: base64Data,
@@ -905,7 +905,7 @@
         const dataUrl = event.target?.result as string;
         let mediaId = '';
         try {
-          mediaId = await saveMediaToDb(dataUrl);
+          mediaId = await saveMediaToDb(dataUrl, file.name);
         } catch (e) {
           console.error('Failed to save media file:', e);
           mediaId = '';

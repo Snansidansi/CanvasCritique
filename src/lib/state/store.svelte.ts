@@ -1578,7 +1578,7 @@ class CanvasCritiqueStore {
       const file = { ...f };
       if (file.dataUrl && !file.mediaId) {
         try {
-          file.mediaId = await saveMediaToDb(file.dataUrl);
+          file.mediaId = await saveMediaToDb(file.dataUrl, file.name);
         } catch (err) { console.error('[store] Failed to save imported file to media:', err); }
       }
       result.push(file);
