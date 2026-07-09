@@ -144,7 +144,7 @@
     "instructionsLabel": "Instructions",
     "instructionsPlaceholder": "Enter task instructions...",
     "apiCostWarningTitle": "API Context Size & Cost Warning",
-    "apiCostWarningDesc": "Large files or long text may exceed API limits and increase costs. Keep instructions concise.",
+    "apiCostWarningDesc": "Large files or long text may exceed API limits and increase costs.",
     "instructionMaterial": "Instruction Material",
     "uploadPrompt": "Click to upload instruction materials",
     "uploadSupportInfo": "Supports all file types",
