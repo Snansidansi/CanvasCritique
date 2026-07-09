@@ -138,6 +138,7 @@ export const defaultSettings: Settings = {
   webdavSyncOnShutdown: false,
   lastSyncedTimestamp: '',
   lastSyncedDbHash: '',
-  webdavSyncMode: 'bidirectional'
+  webdavSyncMode: 'bidirectional',
+  rememberWindowState: true
 };
 

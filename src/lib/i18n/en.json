@@ -347,7 +347,9 @@
       "title": "Appearance",
       "light": "Light",
       "dark": "Dark",
-      "system": "System"
+      "system": "System",
+      "rememberWindowState": "Remember Window State",
+      "rememberWindowStateDesc": "Save and restore the window size, position, monitor, and zoom level when closing/reopening the app."
     },
     "canvas": {
       "title": "Canvas",

@@ -346,7 +346,9 @@
       "title": "Erscheinungsbild",
       "light": "Hell",
       "dark": "Dunkel",
-      "system": "System"
+      "system": "System",
+      "rememberWindowState": "Fensterposition speichern",
+      "rememberWindowStateDesc": "Größe, Position, Monitor und Zoomstufe des Fensters beim Schließen/Erneuten Öffnen speichern und wiederherstellen."
     },
     "canvas": {
       "title": "Leinwand",

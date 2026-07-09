@@ -180,6 +180,7 @@ export interface Settings {
   lastSyncedTimestamp?: string;
   lastSyncedDbHash?: string;
   webdavSyncMode?: 'bidirectional' | 'download' | 'upload';
+  rememberWindowState?: boolean;
 }
 
 export interface Profile {

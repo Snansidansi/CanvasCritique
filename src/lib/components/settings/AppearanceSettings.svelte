@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
+  import { isWindowsPlatform } from '../../services/windowState';
 
   function setTheme(theme) {
     store.settings.theme = theme;
@@ -77,5 +78,23 @@
       <p class="text-center text-sm font-semibold {store.settings.theme === 'system' ? 'text-primary' : 'text-on-surface-variant'}">{t('settings.appearance.system')}</p>
     </button>
   </div>
+
+  {#if isWindowsPlatform()}
+    <div class="mt-6 border-t border-outline-variant/40 pt-5 flex items-center justify-between gap-4">
+      <div>
+        <h4 class="font-bold text-sm text-on-surface mb-0.5">{t('settings.appearance.rememberWindowState')}</h4>
+        <p class="text-xs text-on-surface-variant">{t('settings.appearance.rememberWindowStateDesc')}</p>
+      </div>
+      <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
+        <input 
+          type="checkbox" 
+          bind:checked={store.settings.rememberWindowState}
+          onchange={() => store.saveSettings()}
+          class="sr-only peer" 
+        />
+        <div class="w-11 h-6 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+      </label>
+    </div>
+  {/if}
 </section>
 

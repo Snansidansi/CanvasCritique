@@ -1,6 +1,7 @@
 import { getCurrentWindow, availableMonitors } from '@tauri-apps/api/window';
 import { PhysicalSize, PhysicalPosition } from '@tauri-apps/api/dpi';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { store } from '../state/store.svelte';
 
 /**
  * Checks if the application is running inside Tauri on a Windows platform.
@@ -19,6 +20,7 @@ let saveTimeoutId: any = null;
  * If the window is maximized or fullscreen, it keeps the last known normal size and position.
  */
 async function saveWindowState() {
+  if (!store.settings.rememberWindowState) return;
   try {
     const appWindow = getCurrentWindow();
 
@@ -84,6 +86,7 @@ async function saveWindowStateImmediately() {
  * Restores the window state from localStorage, verifying that the coordinates are valid and on a connected monitor.
  */
 export async function restoreWindowState() {
+  if (!store.settings.rememberWindowState) return;
   try {
     const savedStateStr = localStorage.getItem('window_state');
     if (!savedStateStr) return;
