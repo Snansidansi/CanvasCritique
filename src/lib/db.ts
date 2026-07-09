@@ -258,7 +258,10 @@ export async function getSettings(db: Database): Promise<Settings | null> {
 }
 
 export async function saveSettings(db: Database, settings: Settings): Promise<void> {
-  const json = JSON.stringify(settings);
+  const settingsCopy = { ...settings };
+  delete settingsCopy.lastSyncedTimestamp;
+  delete settingsCopy.lastSyncedDbHash;
+  const json = JSON.stringify(settingsCopy);
   await db.execute(
     'INSERT OR REPLACE INTO settings (id, data_json) VALUES (1, ?)',
     [json]

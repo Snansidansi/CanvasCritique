@@ -216,6 +216,19 @@ async function computeSha256(bytes: Uint8Array): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+async function saveLocalSyncState(timestamp: string, dbHash: string): Promise<void> {
+  try {
+    const appData = await appDataDir();
+    const path = await join(appData, 'canvascritique_sync_state.json');
+    const state = { lastSyncedTimestamp: timestamp, lastSyncedDbHash: dbHash };
+    const bytes = new TextEncoder().encode(JSON.stringify(state, null, 2));
+    const { writeFile } = await import('@tauri-apps/plugin-fs');
+    await writeFile(path, bytes);
+  } catch (err) {
+    console.error('Failed to save local sync state file:', err);
+  }
+}
+
 export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<void> {
   const client = getWebDavClient();
   const settings = store.settings;
@@ -252,6 +265,23 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
     const localDbHash = await computeSha256(dbBytes);
 
     const hasDbChanges = remoteDbHash !== localDbHash;
+    const isForced = !!forceMode;
+
+    // A. If no changes exist and it's not a forced sync, bypass everything immediately
+    if (!hasDbChanges && !isForced) {
+      console.log('No database changes detected. Bypassing sync entirely.');
+      await remove(localBackupPath);
+
+      if (remoteTimestamp !== '0') {
+        store.settings.lastSyncedTimestamp = remoteTimestamp;
+        store.settings.lastSyncedDbHash = localDbHash;
+        await saveLocalSyncState(remoteTimestamp, localDbHash);
+      }
+
+      store.showNotification(t('settings.data.notifications.syncNoChanges') || 'Sync completed. No changes detected.', 'success');
+      return;
+    }
+
     let dbTransferred = false;
 
     // 2. If remote DB is newer (or forced download) AND has changes, download and replace local DB
@@ -285,9 +315,7 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
         webdavSyncIntervalMinutes: store.settings.webdavSyncIntervalMinutes,
         webdavSyncOnStartup: store.settings.webdavSyncOnStartup,
         webdavSyncOnShutdown: store.settings.webdavSyncOnShutdown,
-        webdavSyncMode: store.settings.webdavSyncMode,
-        lastSyncedTimestamp: remoteTimestamp >= localTimestamp ? remoteTimestamp : localTimestamp,
-        lastSyncedDbHash: remoteDbHash || localDbHash
+        webdavSyncMode: store.settings.webdavSyncMode
       };
 
       // Replace active DB
@@ -305,6 +333,12 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       };
       await saveSettings(db, mergedSettings);
       store.settings = mergedSettings;
+
+      // Update sync parameters in memory and AppData file
+      const finalTimestamp = remoteTimestamp >= localTimestamp ? remoteTimestamp : localTimestamp;
+      await saveLocalSyncState(finalTimestamp, remoteDbHash || localDbHash);
+      store.settings.lastSyncedTimestamp = finalTimestamp;
+      store.settings.lastSyncedDbHash = remoteDbHash || localDbHash;
 
       // Media Sync - download missing media referenced by the new DB
       try {
@@ -370,10 +404,10 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
         dbHash: localDbHash 
       }), { overwrite: true });
 
-      // Save locally
+      // Save locally (in memory and file only)
       store.settings.lastSyncedTimestamp = newTimestamp;
       store.settings.lastSyncedDbHash = localDbHash;
-      await store.saveSettings();
+      await saveLocalSyncState(newTimestamp, localDbHash);
       dbTransferred = true;
     } else {
       // If we skipped both download and upload because the database hashes match, 
@@ -382,7 +416,7 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       if (!hasDbChanges && remoteTimestamp !== '0') {
         store.settings.lastSyncedTimestamp = remoteTimestamp;
         store.settings.lastSyncedDbHash = localDbHash;
-        await store.saveSettings();
+        await saveLocalSyncState(remoteTimestamp, localDbHash);
       }
     }
 

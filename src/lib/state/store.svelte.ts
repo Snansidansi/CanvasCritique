@@ -284,6 +284,24 @@ class CanvasCritiqueStore {
         await dbSaveSettings(database, $state.snapshot(this.settings));
       }
 
+      this.settings.lastSyncedTimestamp = '';
+      this.settings.lastSyncedDbHash = '';
+      try {
+        const { appDataDir, join } = await import('@tauri-apps/api/path');
+        const { exists, readFile } = await import('@tauri-apps/plugin-fs');
+        const appDir = await appDataDir();
+        const syncStatePath = await join(appDir, 'canvascritique_sync_state.json');
+        if (await exists(syncStatePath)) {
+          const content = await readFile(syncStatePath);
+          const text = new TextDecoder().decode(content);
+          const parsed = JSON.parse(text);
+          this.settings.lastSyncedTimestamp = parsed.lastSyncedTimestamp || '';
+          this.settings.lastSyncedDbHash = parsed.lastSyncedDbHash || '';
+        }
+      } catch (err) {
+        console.error('Failed to load local sync state from file:', err);
+      }
+
       // Normalize settings
       if (!this.settings.statsEnabled) {
         this.settings.statsEnabled = true;
