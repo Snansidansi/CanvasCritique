@@ -22,6 +22,9 @@
   let category = $state('Basics');
   let showInstructionsRaw = $state(true);
   let showSolutionRaw = $state(true);
+  let defaultEditMode = $state<'canvas' | 'text' | 'both'>('both');
+  let contextFiles = $state<any[]>([]);
+  let isDragOverContext = $state(false);
 
   // Task specific override settings
   let settingsOverride = $state<any>({
@@ -171,6 +174,8 @@
       aiInstructionsExpanded = !!aiInstructions;
       category = store.editingTask.category || 'Basics';
       targetProjectId = store.activeProject?.id || '';
+      defaultEditMode = store.editingTask.defaultEditMode || 'both';
+      contextFiles = [...(store.editingTask.contextFiles || [])];
 
       const parentSettings = store.getEffectiveSettings(targetProjectId);
 
@@ -445,7 +450,9 @@
         // Reset single legacy files to keep database clean
         instructionFile: null,
         solutionFile: null,
-        settingsOverride: { ...settingsOverride }
+        settingsOverride: { ...settingsOverride },
+        defaultEditMode,
+        contextFiles
       });
       store.editingTask = null;
     } else {
@@ -458,7 +465,9 @@
         instructionFiles,
         solutionFiles,
         { ...settingsOverride },
-        aiInstructions.trim()
+        aiInstructions.trim(),
+        defaultEditMode,
+        contextFiles
       );
     }
 
@@ -468,6 +477,9 @@
     instructions = '';
     solution = '';
     aiInstructions = '';
+    defaultEditMode = 'both';
+    contextFiles = [];
+    isDragOverContext = false;
     store.setView('project-detail');
   }
 
@@ -478,6 +490,9 @@
     instructions = '';
     solution = '';
     aiInstructions = '';
+    defaultEditMode = 'both';
+    contextFiles = [];
+    isDragOverContext = false;
     store.setView(store.activeProject ? 'project-detail' : 'dashboard');
   }
 
@@ -1305,6 +1320,40 @@
             {/each}
           </div>
         {/if}
+      </div>
+
+      <!-- Default Edit Mode Selector -->
+      <div class="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant mt-4">
+        <div class="flex flex-col gap-0.5">
+          <span class="text-xs font-bold text-on-surface">{t('taskEditor.defaultEditModeTitle')}</span>
+          <span class="text-[10.5px] text-on-surface-variant">{t('taskEditor.defaultEditModeSubtitle')}</span>
+        </div>
+        <div class="flex bg-surface-container-high rounded-lg border border-outline-variant p-0.5 shrink-0 select-none">
+          <button
+            type="button"
+            onclick={() => defaultEditMode = 'canvas'}
+            class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer border-0 focus:outline-none
+                   {defaultEditMode === 'canvas' ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-highest'}"
+          >
+            {t('taskEditor.defaultEditModeCanvas')}
+          </button>
+          <button
+            type="button"
+            onclick={() => defaultEditMode = 'text'}
+            class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer border-0 focus:outline-none
+                   {defaultEditMode === 'text' ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-highest'}"
+          >
+            {t('taskEditor.defaultEditModeText')}
+          </button>
+          <button
+            type="button"
+            onclick={() => defaultEditMode = 'both'}
+            class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer border-0 focus:outline-none
+                   {defaultEditMode === 'both' ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-highest'}"
+          >
+            {t('taskEditor.defaultEditModeBoth')}
+          </button>
+        </div>
       </div>
 
       <!-- Task Settings Overrides -->

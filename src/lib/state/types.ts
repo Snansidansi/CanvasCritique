@@ -37,6 +37,8 @@ export interface Task {
   editorText?: string;
   aiInstructions?: string;
   settingsOverride?: ProjectSettingsOverride;
+  defaultEditMode?: 'canvas' | 'text' | 'both';
+  contextFiles?: MediaFile[];
 }
 
 export interface ProjectSettingsOverride {
@@ -60,6 +62,9 @@ export interface ProjectSettingsOverride {
   sendCanvasBackground?: boolean;
   sendTaskText?: boolean;
   sendSolutionText?: boolean;
+  sendContextText?: boolean;
+  sendContextMedia?: boolean;
+  maxOutputTokens?: number;
   alwaysSendBothCanvasAndText?: boolean;
   customSystemPrompt?: string;
   language?: string;
@@ -136,6 +141,9 @@ export interface Settings {
   sendCanvasBackground: boolean;
   sendTaskText: boolean;
   sendSolutionText: boolean;
+  sendContextText: boolean;
+  sendContextMedia: boolean;
+  maxOutputTokens: number;
   alwaysSendBothCanvasAndText: boolean;
   canvasMode: string;
   canvasFontSize: number;

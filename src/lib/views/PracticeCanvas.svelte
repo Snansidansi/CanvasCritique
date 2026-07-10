@@ -989,6 +989,19 @@
   $effect(() => {
     const taskId = task.id;
     if (taskId) {
+      // Set edit mode based on task's default edit mode
+      const defaultMode = task.defaultEditMode || 'both';
+      if (defaultMode === 'canvas') {
+        showCanvas = true;
+        showText = false;
+      } else if (defaultMode === 'text') {
+        showCanvas = false;
+        showText = true;
+      } else {
+        showCanvas = true;
+        showText = true;
+      }
+
       const saved = untrack(() => store.getCanvasState(taskId));
       if (saved) {
         pages = saved.pages || [
