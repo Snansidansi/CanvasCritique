@@ -477,7 +477,9 @@
         "syncSuccess": "WebDAV sync completed successfully.",
         "syncNoChanges": "WebDAV sync completed. No changes detected.",
         "syncError": "WebDAV sync failed.",
-        "syncDbDownloaded": "Database downloaded from WebDAV. Local data updated."
+        "syncDbDownloaded": "Database downloaded from WebDAV. Local data updated.",
+        "syncVersionMismatchTitle": "Version Conflict",
+        "syncVersionMismatchMsg": "Synchronization denied. The version of your app ({local}) is older than the version on the WebDAV server ({remote}). Please update your app to continue syncing."
       }
     },
     "stylus": {

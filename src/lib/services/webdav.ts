@@ -5,6 +5,7 @@ import { backupDatabase, replaceDatabase, getDb, getSettings, saveSettings, getC
 import { defaultSettings } from '../state/defaults';
 import { appLocalDataDir, appDataDir, join } from '@tauri-apps/api/path';
 import { readFile, remove, exists, mkdir, readDir, stat } from '@tauri-apps/plugin-fs';
+import pkg from '../../../package.json';
 
 const SYNC_META_FILE = 'canvascritique_sync_meta.json';
 const BACKUP_DB_FILE = 'canvascritique_backup.db';
@@ -229,6 +230,19 @@ async function saveLocalSyncState(timestamp: string, dbHash: string): Promise<vo
   }
 }
 
+function compareVersions(v1: string, v2: string): number {
+  const parts1 = v1.split('.').map(Number);
+  const parts2 = v2.split('.').map(Number);
+  const maxLength = Math.max(parts1.length, parts2.length);
+  for (let i = 0; i < maxLength; i++) {
+    const num1 = parts1[i] || 0;
+    const num2 = parts2[i] || 0;
+    if (num1 > num2) return 1;
+    if (num1 < num2) return -1;
+  }
+  return 0;
+}
+
 export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<void> {
   const client = getWebDavClient();
   const settings = store.settings;
@@ -241,7 +255,7 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
     store.showNotification(t('settings.data.notifications.syncStarted') || 'Syncing...', 'info');
 
     // 1. Check sync metadata
-    let remoteMeta: { lastSyncedTimestamp: string; dbHash?: string } | null = null;
+    let remoteMeta: { lastSyncedTimestamp: string; dbHash?: string; version?: string } | null = null;
     try {
       if (await client.exists('/' + SYNC_META_FILE)) {
         const metaContent = await client.getFileContents('/' + SYNC_META_FILE, { format: 'text' }) as string;
@@ -249,6 +263,24 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       }
     } catch (err) {
       console.warn('Could not read remote metadata, it might not exist yet.', err);
+    }
+
+    const localVersion = pkg.version;
+    const remoteVersion = remoteMeta?.version || '0.0.0';
+    const versionComparison = compareVersions(localVersion, remoteVersion);
+    const localVersionIsNewer = versionComparison > 0;
+
+    if (versionComparison < 0) {
+      console.warn(`Sync denied: Local version ${localVersion} is older than remote version ${remoteVersion}`);
+      store.confirm(
+        t('settings.data.notifications.syncVersionMismatchTitle') || 'Versionskonflikt',
+        t('settings.data.notifications.syncVersionMismatchMsg', { local: localVersion, remote: remoteVersion }) || `Die Synchronisation wurde verweigert. Die Version deiner App (${localVersion}) ist älter als die Version auf dem WebDAV-Server (${remoteVersion}). Bitte aktualisiere deine App, um die Synchronisation fortzusetzen.`,
+        () => {},
+        null,
+        true
+      );
+      store.isSyncing = false;
+      return;
     }
 
     const localTimestamp = settings.lastSyncedTimestamp || '0';
@@ -267,8 +299,8 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
     const hasDbChanges = remoteDbHash !== localDbHash;
     const isForced = !!forceMode;
 
-    // A. If no changes exist and it's not a forced sync, bypass everything immediately
-    if (!hasDbChanges && !isForced) {
+    // A. If no changes exist, it's not a forced sync, and versions match, bypass everything immediately
+    if (!hasDbChanges && !isForced && !localVersionIsNewer) {
       console.log('No database changes detected. Bypassing sync entirely.');
       await remove(localBackupPath);
 
@@ -357,6 +389,19 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       // Reload store state in-place to update UI without window reload
       await store.loadState();
 
+      // If the local version is newer, update the remote version metadata on WebDAV
+      if (localVersionIsNewer) {
+        try {
+          await client.putFileContents('/' + SYNC_META_FILE, JSON.stringify({ 
+            lastSyncedTimestamp: finalTimestamp,
+            dbHash: remoteDbHash || localDbHash,
+            version: localVersion
+          }), { overwrite: true });
+        } catch (err) {
+          console.warn('Failed to update remote metadata version after download:', err);
+        }
+      }
+
       store.showNotification(t('settings.data.notifications.syncDbDownloaded') || 'Database synced and updated.', 'success');
       return; // Stop here
     }
@@ -400,7 +445,8 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
       const newTimestamp = new Date().toISOString();
       await client.putFileContents('/' + SYNC_META_FILE, JSON.stringify({ 
         lastSyncedTimestamp: newTimestamp,
-        dbHash: localDbHash 
+        dbHash: localDbHash,
+        version: localVersion
       }), { overwrite: true });
 
       // Save locally (in memory and file only)
@@ -416,6 +462,16 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
         store.settings.lastSyncedTimestamp = remoteTimestamp;
         store.settings.lastSyncedDbHash = localDbHash;
         await saveLocalSyncState(remoteTimestamp, localDbHash);
+      }
+
+      // If the local version is newer, update the remote version metadata on WebDAV
+      if (localVersionIsNewer) {
+        const metaTimestamp = remoteTimestamp !== '0' ? remoteTimestamp : new Date().toISOString();
+        await client.putFileContents('/' + SYNC_META_FILE, JSON.stringify({ 
+          lastSyncedTimestamp: metaTimestamp,
+          dbHash: localDbHash,
+          version: localVersion
+        }), { overwrite: true });
       }
     }
 
