@@ -56,6 +56,7 @@
 
   let infoPanelsLayout = $state<'vertical' | 'horizontal'>('vertical');
   let workspaceLayout = $state<'vertical' | 'horizontal'>('horizontal');
+  let sidebarPosition = $state<'left' | 'right' | 'top' | 'bottom'>('left');
 
   // Load layout preferences from localStorage on mount
   $effect(() => {
@@ -67,6 +68,10 @@
     if (savedWorkLayout === 'vertical' || savedWorkLayout === 'horizontal') {
       workspaceLayout = savedWorkLayout;
     }
+    const savedSidebarPos = localStorage.getItem('sidebar_position');
+    if (savedSidebarPos === 'left' || savedSidebarPos === 'right' || savedSidebarPos === 'top' || savedSidebarPos === 'bottom') {
+      sidebarPosition = savedSidebarPos;
+    }
   });
 
   // Persist layout changes
@@ -75,6 +80,9 @@
   });
   $effect(() => {
     localStorage.setItem('workspace_layout', workspaceLayout);
+  });
+  $effect(() => {
+    localStorage.setItem('sidebar_position', sidebarPosition);
   });
 
   let activeMode = $derived.by<'canvas' | 'text' | 'both' | 'none'>(() => {
@@ -1023,10 +1031,14 @@
 
 
 
+  let lastInitializedTaskId = '';
+
   // Load saved drawing state when active task shifts
   $effect(() => {
     const taskId = task.id;
     if (taskId) {
+      const isNewTask = taskId !== lastInitializedTaskId;
+      lastInitializedTaskId = taskId;
       const saved = untrack(() => store.getCanvasState(taskId));
       const text = untrack(() => store.getEditorText(taskId) || '');
       
@@ -1035,18 +1047,9 @@
         (saved.pages && saved.pages.some((p: any) => p.strokeHistory && p.strokeHistory.length > 0))
       );
       const hasText = text.trim() !== '';
-
-      if (hasDrawing && hasText) {
-        showCanvas = true;
-        showText = true;
-      } else if (hasDrawing) {
-        showCanvas = true;
-        showText = false;
-      } else if (hasText) {
-        showCanvas = false;
-        showText = true;
-      } else {
-        // Set edit mode based on task's default edit mode fallback
+      // Only set edit mode when opening a new/different task, not on every re-render
+      if (isNewTask) {
+        // Union logic: start with default edit mode, then additionally show any editor with existing data
         const defaultMode = task.defaultEditMode || 'both';
         if (defaultMode === 'canvas') {
           showCanvas = true;
@@ -1058,6 +1061,9 @@
           showCanvas = true;
           showText = true;
         }
+        // Additionally open editors that contain data (union, not intersection)
+        if (hasDrawing) showCanvas = true;
+        if (hasText) showText = true;
       }
       if (saved) {
         pages = saved.pages || [
@@ -2839,9 +2845,9 @@
   />
 
   <!-- Interactive practice screen split layout -->
-  <div class="grow flex overflow-hidden relative w-full">
+  <div class="grow flex overflow-hidden relative w-full {sidebarPosition === 'top' || sidebarPosition === 'bottom' ? 'flex-col' : 'flex-row'}">
     
-    <!-- Left side: dynamic split screen task, solution, and critique -->
+    <!-- Info panels: task, solution, and critique -->
     <PracticeInfoPanels
       bind:splitWidth
       {activeLeftPanels}
@@ -2854,9 +2860,10 @@
       textFontSize={canvasTextFontSize}
       isRightContentVisible={showCanvas || showText}
       infoPanelsLayout={infoPanelsLayout}
+      {sidebarPosition}
     />
 
-    <div class="grow h-full flex overflow-hidden relative {workspaceLayout === 'vertical' ? 'flex-col' : 'flex-row'}">
+    <div class="grow h-full flex overflow-hidden relative {workspaceLayout === 'vertical' ? 'flex-col' : 'flex-row'}" style="order: {sidebarPosition === 'right' || sidebarPosition === 'bottom' ? 0 : 1};">
 
     <!-- Right side: Drawing Workspace (Infinite or A4 Centered) -->
     {#if showCanvas}
@@ -3219,7 +3226,7 @@
               bind:value={editorText}
               oninput={handleEditorInput}
               placeholder=""
-              class="grow w-full h-full resize-none bg-transparent text-on-surface focus:outline-none leading-relaxed border border-outline-variant/30 rounded-xl p-6 font-mono shadow-inner bg-surface-container-low/20 animate-fade-in"
+              class="grow w-full h-full resize-none bg-transparent text-on-surface focus:outline-none leading-relaxed border border-outline-variant/30 rounded-xl p-6 font-sans shadow-inner bg-surface-container-low/20 animate-fade-in"
               style="font-size: {store.getEffectiveSettings(store.activeProject?.id || '', store.activeTask?.id).editorFontSize || 16}px;"
             ></textarea>
           {:else}
@@ -3503,9 +3510,36 @@
             class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
                    {workspaceLayout === 'horizontal' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
           >
-            <span class="material-symbols-outlined text-sm">columns</span>
+            <span class="material-symbols-outlined text-sm">view_column</span>
             <span>{t('practice.canvas.layoutHorizontal')}</span>
           </button>
+        </div>
+      </div>
+
+      <!-- Sidebar Position -->
+      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+            {t('practice.canvas.sidebarPositionTitle')}
+          </span>
+        </div>
+        <div class="grid grid-cols-4 gap-0.5 bg-surface-container rounded-lg border border-outline-variant p-0.5">
+          {#each [
+            { value: 'left', icon: 'dock_to_left', label: t('practice.canvas.posLeft') },
+            { value: 'right', icon: 'dock_to_right', label: t('practice.canvas.posRight') },
+            { value: 'top', icon: 'vertical_align_top', label: t('practice.canvas.posTop') },
+            { value: 'bottom', icon: 'vertical_align_bottom', label: t('practice.canvas.posBottom') }
+          ] as opt}
+            <button 
+              type="button"
+              onclick={() => sidebarPosition = opt.value as 'left' | 'right' | 'top' | 'bottom'}
+              class="py-1.5 px-1 rounded-md text-[10px] font-semibold cursor-pointer focus:outline-none transition-all border-0 flex flex-col items-center justify-center gap-0.5
+                     {sidebarPosition === opt.value ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
+            >
+              <span class="material-symbols-outlined text-sm">{opt.icon}</span>
+              <span>{opt.label}</span>
+            </button>
+          {/each}
         </div>
       </div>
 

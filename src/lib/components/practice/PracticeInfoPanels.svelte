@@ -14,11 +14,14 @@
     task,
     textFontSize = 13,
     isRightContentVisible = true,
-    infoPanelsLayout = 'vertical'
+    infoPanelsLayout = 'vertical',
+    sidebarPosition = 'left'
   } = $props();
 
+  let sidebarFlow = $derived((sidebarPosition === 'top' || sidebarPosition === 'bottom') ? 'column' : 'row');
+
   let isDraggingSplitter = $state(false);
-  let startX = 0;
+  let startPos = 0;
   let startWidth = 0;
 
   // Panel resizing states and effects
@@ -501,7 +504,7 @@
   function startSplitDrag(e: PointerEvent) {
     isDraggingSplitter = true;
     splitDragPointerId = e.pointerId;
-    startX = e.clientX;
+    startPos = sidebarFlow === 'column' ? e.clientY : e.clientX;
     startWidth = splitWidth;
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -510,12 +513,24 @@
 
   function handleSplitDrag(e: PointerEvent) {
     if (!isDraggingSplitter) return;
-    const deltaX = e.clientX - startX;
-    const newWidth = startWidth + deltaX;
-    const minWidth = 10;
-    const maxWidth = window.innerWidth - 20;
-    if (newWidth >= minWidth && newWidth <= maxWidth) {
-      splitWidth = newWidth;
+    if (sidebarFlow === 'column') {
+      const deltaY = e.clientY - startPos;
+      const sign = sidebarPosition === 'bottom' ? -1 : 1;
+      const newSize = startWidth + deltaY * sign;
+      const minSize = 10;
+      const maxSize = window.innerHeight - 100;
+      if (newSize >= minSize && newSize <= maxSize) {
+        splitWidth = newSize;
+      }
+    } else {
+      const deltaX = e.clientX - startPos;
+      const sign = sidebarPosition === 'right' ? -1 : 1;
+      const newWidth = startWidth + deltaX * sign;
+      const minWidth = 10;
+      const maxWidth = window.innerWidth - 20;
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
+        splitWidth = newWidth;
+      }
     }
   }
 
@@ -533,8 +548,11 @@
   <section 
     bind:clientHeight={containerHeight}
     bind:clientWidth={containerWidth}
-    class="bg-surface-container-low border-r border-outline-variant flex overflow-hidden h-full {isRightContentVisible ? 'shrink-0' : 'grow w-full'} {infoPanelsLayout === 'vertical' ? 'flex-col' : 'flex-row'}"
-    style={isRightContentVisible ? `width: ${splitWidth}px;` : ''}
+    class="bg-surface-container-low flex overflow-hidden {isRightContentVisible ? 'shrink-0' : 'grow w-full'} {infoPanelsLayout === 'vertical' ? 'flex-col' : 'flex-row'}
+           {sidebarFlow === 'column' ? 'w-full' : 'h-full'}
+           {sidebarPosition === 'left' || sidebarPosition === 'top' ? 'border-r border-outline-variant' : ''}
+           {sidebarPosition === 'right' || sidebarPosition === 'bottom' ? 'border-l border-outline-variant' : ''}"
+    style={isRightContentVisible ? (sidebarFlow === 'column' ? `height: ${splitWidth}px;` : `width: ${splitWidth}px;`) : ''}
   >
     {#each activeLeftPanels as panel, idx}
       {#if idx > 0}
@@ -873,7 +891,7 @@
     <div 
       role="separator"
       aria-valuenow={splitWidth}
-      class="w-1.5 hover:w-2 bg-outline-variant/60 hover:bg-primary cursor-col-resize select-none h-full z-20 transition-all active:bg-primary shrink-0"
+      class="{sidebarFlow === 'column' ? 'h-1.5 hover:h-2 w-full cursor-row-resize' : 'w-1.5 hover:w-2 h-full cursor-col-resize'} bg-outline-variant/60 hover:bg-primary select-none z-20 transition-all active:bg-primary shrink-0"
       style="touch-action: none;"
       onpointerdown={startSplitDrag}
       onpointermove={handleSplitDrag}

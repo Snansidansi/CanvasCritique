@@ -346,8 +346,13 @@
       "infoPanelsLayoutDesc": "Infobereiche vertikal stapeln oder nebeneinander anzeigen",
       "workspaceLayoutTitle": "Workspace-Layout",
       "workspaceLayoutDesc": "Leinwand und Texteditor vertikal stapeln oder nebeneinander anzeigen",
-      "layoutVertical": "Vertikal (untereinander)",
-      "layoutHorizontal": "Horizontal (nebeneinander)",
+      "layoutVertical": "untereinander",
+      "layoutHorizontal": "nebeneinander",
+      "sidebarPositionTitle": "Sidebar-Position",
+      "posLeft": "Links",
+      "posRight": "Rechts",
+      "posTop": "Oben",
+      "posBottom": "Unten",
       "paste": "Einfügen",
       "copy": "Kopieren"
     }

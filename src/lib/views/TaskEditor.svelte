@@ -1055,7 +1055,7 @@
             bind:value={instructions}
             use:autoResize={instructions}
             placeholder={t('taskEditor.instructionsPlaceholder')} 
-            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-none shadow-sm focus:outline-none overflow-hidden"
+            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-none shadow-sm focus:outline-none overflow-hidden font-sans"
           ></textarea>
         {:else}
           <div 
@@ -1216,7 +1216,7 @@
             bind:value={solution}
             use:autoResize={solution}
             placeholder={t('taskEditor.solutionPlaceholder')} 
-            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-none shadow-sm focus:outline-none overflow-hidden"
+            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-none shadow-sm focus:outline-none overflow-hidden font-sans"
           ></textarea>
         {:else}
           <div 
@@ -1413,7 +1413,7 @@
                   bind:value={aiInstructions}
                   placeholder={t('taskEditor.contextTextPlaceholder')}
                   rows="4"
-                  class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-none min-h-20"
+                  class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-none min-h-20 font-sans"
                 ></textarea>
               </div>
 

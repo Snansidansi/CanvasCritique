@@ -347,8 +347,13 @@
       "infoPanelsLayoutDesc": "Stack info panels vertically or horizontally",
       "workspaceLayoutTitle": "Workspace Layout",
       "workspaceLayoutDesc": "Stack canvas and text editor vertically or horizontally",
-      "layoutVertical": "Vertical (Stacked)",
-      "layoutHorizontal": "Horizontal (Side-by-Side)",
+      "layoutVertical": "Stacked",
+      "layoutHorizontal": "Side-by-Side",
+      "sidebarPositionTitle": "Sidebar Position",
+      "posLeft": "Left",
+      "posRight": "Right",
+      "posTop": "Top",
+      "posBottom": "Bottom",
       "paste": "Paste",
       "copy": "Copy"
     }
