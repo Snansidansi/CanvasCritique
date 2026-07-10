@@ -54,6 +54,29 @@
   let showCanvas = $state(true);
   let showText = $state(false);
 
+  let infoPanelsLayout = $state<'vertical' | 'horizontal'>('vertical');
+  let workspaceLayout = $state<'vertical' | 'horizontal'>('horizontal');
+
+  // Load layout preferences from localStorage on mount
+  $effect(() => {
+    const savedInfoLayout = localStorage.getItem('info_panels_layout');
+    if (savedInfoLayout === 'vertical' || savedInfoLayout === 'horizontal') {
+      infoPanelsLayout = savedInfoLayout;
+    }
+    const savedWorkLayout = localStorage.getItem('workspace_layout');
+    if (savedWorkLayout === 'vertical' || savedWorkLayout === 'horizontal') {
+      workspaceLayout = savedWorkLayout;
+    }
+  });
+
+  // Persist layout changes
+  $effect(() => {
+    localStorage.setItem('info_panels_layout', infoPanelsLayout);
+  });
+  $effect(() => {
+    localStorage.setItem('workspace_layout', workspaceLayout);
+  });
+
   let activeMode = $derived.by<'canvas' | 'text' | 'both' | 'none'>(() => {
     if (showCanvas && showText) return 'both';
     if (showCanvas) return 'canvas';
@@ -187,16 +210,21 @@
 
   // Resizable editor panel splitter state
   let editorSplitWidth = $state(500); // Default editor panel width when side-by-side
+  let editorSplitHeight = $state(300); // Default editor panel height when stacked vertically
   let isDraggingEditorSplitter = $state(false);
   let editorSplitStartX = 0;
+  let editorSplitStartY = 0;
   let editorSplitStartWidth = 0;
+  let editorSplitStartHeight = 0;
   let editorSplitDragPointerId = -1;
 
   function startEditorSplitDrag(e: PointerEvent) {
     isDraggingEditorSplitter = true;
     editorSplitDragPointerId = e.pointerId;
     editorSplitStartX = e.clientX;
+    editorSplitStartY = e.clientY;
     editorSplitStartWidth = editorSplitWidth;
+    editorSplitStartHeight = editorSplitHeight;
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     } catch (_) {}
@@ -204,12 +232,22 @@
 
   function handleEditorSplitDrag(e: PointerEvent) {
     if (!isDraggingEditorSplitter) return;
-    const deltaX = e.clientX - editorSplitStartX;
-    const newWidth = editorSplitStartWidth - deltaX; // drag right to shrink editor, left to expand
-    const minWidth = 150;
-    const maxWidth = window.innerWidth - splitWidth - 150;
-    if (newWidth >= minWidth && newWidth <= maxWidth) {
-      editorSplitWidth = newWidth;
+    if (workspaceLayout === 'vertical') {
+      const deltaY = e.clientY - editorSplitStartY;
+      const newHeight = editorSplitStartHeight - deltaY;
+      const minHeight = 100;
+      const maxHeight = window.innerHeight - 200;
+      if (newHeight >= minHeight && newHeight <= maxHeight) {
+        editorSplitHeight = newHeight;
+      }
+    } else {
+      const deltaX = e.clientX - editorSplitStartX;
+      const newWidth = editorSplitStartWidth - deltaX; // drag right to shrink editor, left to expand
+      const minWidth = 150;
+      const maxWidth = window.innerWidth - splitWidth - 150;
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
+        editorSplitWidth = newWidth;
+      }
     }
   }
 
@@ -2815,7 +2853,10 @@
       {task}
       textFontSize={canvasTextFontSize}
       isRightContentVisible={showCanvas || showText}
+      infoPanelsLayout={infoPanelsLayout}
     />
+
+    <div class="grow h-full flex overflow-hidden relative {workspaceLayout === 'vertical' ? 'flex-col' : 'flex-row'}">
 
     <!-- Right side: Drawing Workspace (Infinite or A4 Centered) -->
     {#if showCanvas}
@@ -2823,8 +2864,9 @@
       bind:this={canvasContainer} 
       bind:clientWidth={containerWidth}
       bind:clientHeight={containerHeight}
-      class="grow relative h-full w-full select-none
-             {canvasMode === 'infinite' ? 'overflow-hidden bg-surface-container-lowest cursor-crosshair' : 'overflow-hidden bg-surface-container-lowest flex justify-center items-center'}"
+      class="grow relative select-none
+             {canvasMode === 'infinite' ? 'overflow-hidden bg-surface-container-lowest cursor-crosshair' : 'overflow-hidden bg-surface-container-lowest flex justify-center items-center'}
+             {workspaceLayout === 'vertical' ? 'w-full grow' : 'h-full w-full'}"
     >
 
 
@@ -3116,23 +3158,36 @@
 
     {#if showCanvas && showText}
       <!-- Adjustable Split Separator -->
-      <div 
-        role="separator"
-        aria-valuenow={editorSplitWidth}
-        class="w-1.5 hover:w-2 bg-outline-variant/60 hover:bg-primary cursor-col-resize select-none h-full z-20 transition-all active:bg-primary shrink-0"
-        style="touch-action: none;"
-        onpointerdown={startEditorSplitDrag}
-        onpointermove={handleEditorSplitDrag}
-        onpointerup={stopEditorSplitDrag}
-        onpointercancel={stopEditorSplitDrag}
-      ></div>
+      {#if workspaceLayout === 'vertical'}
+        <div 
+          role="separator"
+          aria-valuenow={editorSplitHeight}
+          class="h-1.5 hover:h-2 bg-outline-variant/60 hover:bg-primary cursor-row-resize select-none w-full z-20 transition-all active:bg-primary shrink-0"
+          style="touch-action: none;"
+          onpointerdown={startEditorSplitDrag}
+          onpointermove={handleEditorSplitDrag}
+          onpointerup={stopEditorSplitDrag}
+          onpointercancel={stopEditorSplitDrag}
+        ></div>
+      {:else}
+        <div 
+          role="separator"
+          aria-valuenow={editorSplitWidth}
+          class="w-1.5 hover:w-2 bg-outline-variant/60 hover:bg-primary cursor-col-resize select-none h-full z-20 transition-all active:bg-primary shrink-0"
+          style="touch-action: none;"
+          onpointerdown={startEditorSplitDrag}
+          onpointermove={handleEditorSplitDrag}
+          onpointerup={stopEditorSplitDrag}
+          onpointercancel={stopEditorSplitDrag}
+        ></div>
+      {/if}
     {/if}
 
     {#if showText}
       <!-- Right side: Text Editor Workspace (LaTeX / Markdown Live Preview / Raw Editor) -->
       <section 
-        class="text-editor-workspace flex flex-col h-full bg-surface-container-lowest overflow-hidden select-text font-sans relative {showCanvas ? 'shrink-0' : 'grow w-full'}"
-        style={showCanvas ? `width: ${editorSplitWidth}px;` : ''}
+        class="text-editor-workspace flex flex-col bg-surface-container-lowest overflow-hidden select-text font-sans relative {showCanvas ? 'shrink-0' : 'grow'} {workspaceLayout === 'vertical' ? 'w-full' : 'h-full'}"
+        style={showCanvas ? (workspaceLayout === 'vertical' ? `height: ${editorSplitHeight}px;` : `width: ${editorSplitWidth}px;`) : ''}
       >
         
         <div class="flex flex-col grow h-full w-full overflow-hidden p-6">
@@ -3191,6 +3246,7 @@
         />
       </section>
     {/if}
+    </div>
   </div>
 </div>
 
@@ -3392,6 +3448,64 @@
             />
             <div class="w-11 h-6 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
           </label>
+        </div>
+      </div>
+
+      <!-- Info Panels Layout -->
+      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+            {t('practice.canvas.infoPanelsLayoutTitle')}
+          </span>
+        </div>
+        <div class="flex bg-surface-container rounded-lg border border-outline-variant p-0.5 grow">
+          <button 
+            type="button"
+            onclick={() => infoPanelsLayout = 'vertical'}
+            class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
+                   {infoPanelsLayout === 'vertical' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
+          >
+            <span class="material-symbols-outlined text-sm">view_stream</span>
+            <span>{t('practice.canvas.layoutVertical')}</span>
+          </button>
+          <button 
+            type="button"
+            onclick={() => infoPanelsLayout = 'horizontal'}
+            class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
+                   {infoPanelsLayout === 'horizontal' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
+          >
+            <span class="material-symbols-outlined text-sm">view_week</span>
+            <span>{t('practice.canvas.layoutHorizontal')}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Workspace Layout -->
+      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+            {t('practice.canvas.workspaceLayoutTitle')}
+          </span>
+        </div>
+        <div class="flex bg-surface-container rounded-lg border border-outline-variant p-0.5 grow">
+          <button 
+            type="button"
+            onclick={() => workspaceLayout = 'vertical'}
+            class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
+                   {workspaceLayout === 'vertical' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
+          >
+            <span class="material-symbols-outlined text-sm">table_rows</span>
+            <span>{t('practice.canvas.layoutVertical')}</span>
+          </button>
+          <button 
+            type="button"
+            onclick={() => workspaceLayout = 'horizontal'}
+            class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
+                   {workspaceLayout === 'horizontal' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
+          >
+            <span class="material-symbols-outlined text-sm">columns</span>
+            <span>{t('practice.canvas.layoutHorizontal')}</span>
+          </button>
         </div>
       </div>
 

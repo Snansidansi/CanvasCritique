@@ -342,6 +342,12 @@
       "clearCanvas": "Leinwand leeren",
       "editorFontSize": "Texteditor-Schriftgröße",
       "editorShowAllRaw": "Immer Raw-Markdown anzeigen",
+      "infoPanelsLayoutTitle": "Layout der Infobereiche",
+      "infoPanelsLayoutDesc": "Infobereiche vertikal stapeln oder nebeneinander anzeigen",
+      "workspaceLayoutTitle": "Workspace-Layout",
+      "workspaceLayoutDesc": "Leinwand und Texteditor vertikal stapeln oder nebeneinander anzeigen",
+      "layoutVertical": "Vertikal (untereinander)",
+      "layoutHorizontal": "Horizontal (nebeneinander)",
       "paste": "Einfügen",
       "copy": "Kopieren"
     }
