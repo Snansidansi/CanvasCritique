@@ -439,6 +439,31 @@
           </div>
         {/if}
       </div>
+
+      <!-- Max Output Tokens -->
+      <div class="flex flex-col gap-1.5 mt-2">
+        <div class="flex items-center gap-1.5">
+          <label class="text-xs font-semibold text-on-surface flex items-center gap-1" for="geminiMaxTokens">
+            {t('settings.api.maxOutputTokens')}
+            <span class="text-[10px] text-on-surface-variant font-normal">({t('settings.api.maxOutputTokensDesc')})</span>
+          </label>
+          <div class="group relative flex items-center">
+            <span class="material-symbols-outlined text-[15px] text-outline cursor-help select-none">help</span>
+            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-64 bg-surface-container-high text-on-surface border border-outline-variant text-[10.5px] p-2.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 leading-relaxed normal-case select-text font-normal">
+              {t('settings.api.maxOutputTokensTooltip')}
+            </div>
+          </div>
+        </div>
+        <input 
+          type="number" 
+          id="geminiMaxTokens"
+          min="0"
+          placeholder="0"
+          bind:value={settings.maxOutputTokens}
+          oninput={handleInputChange}
+          class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+        />
+      </div>
     </div>
   {:else}
     <div class="space-y-4 animate-fade-in">
@@ -582,6 +607,31 @@
             {/if}
           </div>
         {/if}
+      </div>
+
+      <!-- Max Output Tokens -->
+      <div class="flex flex-col gap-1.5 mt-2">
+        <div class="flex items-center gap-1.5">
+          <label class="text-xs font-semibold text-on-surface flex items-center gap-1" for="openRouterMaxTokens">
+            {t('settings.api.maxOutputTokens')}
+            <span class="text-[10px] text-on-surface-variant font-normal">({t('settings.api.maxOutputTokensDesc')})</span>
+          </label>
+          <div class="group relative flex items-center">
+            <span class="material-symbols-outlined text-[15px] text-outline cursor-help select-none">help</span>
+            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-64 bg-surface-container-high text-on-surface border border-outline-variant text-[10.5px] p-2.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 leading-relaxed normal-case select-text font-normal">
+              {t('settings.api.maxOutputTokensTooltip')}
+            </div>
+          </div>
+        </div>
+        <input 
+          type="number" 
+          id="openRouterMaxTokens"
+          min="0"
+          placeholder="0"
+          bind:value={settings.maxOutputTokens}
+          oninput={handleInputChange}
+          class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+        />
       </div>
 
       <!-- OpenRouter Provider (Searchable Multiple Tag Autocomplete) - PLACED SECOND -->

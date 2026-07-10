@@ -751,7 +751,8 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
           }
         ],
         generationConfig: {
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          ...(settings.maxOutputTokens && settings.maxOutputTokens > 0 ? { maxOutputTokens: settings.maxOutputTokens } : {})
         }
       })
     });
@@ -872,7 +873,8 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
           role: 'user',
           content: contentParts
         }
-      ]
+      ],
+      ...(settings.maxOutputTokens && settings.maxOutputTokens > 0 ? { max_tokens: settings.maxOutputTokens } : {})
     };
 
     const selectedProviders = settings.openRouterProvider || [];
