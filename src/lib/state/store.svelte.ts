@@ -247,6 +247,9 @@ class CanvasCritiqueStore {
 
   async loadState(db?: ReturnType<typeof getDb>) {
     const database = db || this.getDb();
+    const activeProjId = this.activeProject?.id;
+    const activeTaskId = this.activeTask?.id;
+    const editingTaskId = this.editingTask?.id;
 
     try {
       // Load all data from DB
@@ -449,6 +452,25 @@ class CanvasCritiqueStore {
       }
 
       this.applyTheme(this.settings.theme);
+
+      // Restore active project and task references to the new objects loaded from DB
+      if (activeProjId) {
+        this.activeProject = this.projects.find(p => p.id === activeProjId) || null;
+      } else {
+        this.activeProject = null;
+      }
+
+      if (this.activeProject && activeTaskId) {
+        this.activeTask = this.activeProject.tasks?.find(t => t.id === activeTaskId) || null;
+      } else {
+        this.activeTask = null;
+      }
+
+      if (this.activeProject && editingTaskId) {
+        this.editingTask = this.activeProject.tasks?.find(t => t.id === editingTaskId) || null;
+      } else {
+        this.editingTask = null;
+      }
     } catch (e) {
       console.error('Error loading state from DB', e);
       this.profiles = [{ id: 'default-profile', name: 'General', icon: null, color: '#3b82f6' }];

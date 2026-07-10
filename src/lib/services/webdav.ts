@@ -354,12 +354,11 @@ export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<voi
         console.error('Failed to sync canvas data after DB replace:', canvasErr);
       }
 
-      // Trigger full app reload because DB changed fundamentally
-      store.showNotification(t('settings.data.notifications.syncDbDownloaded') || 'Database synced. Reloading...', 'success');
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-      return; // Stop here, reload will handle the rest
+      // Reload store state in-place to update UI without window reload
+      await store.loadState();
+
+      store.showNotification(t('settings.data.notifications.syncDbDownloaded') || 'Database synced and updated.', 'success');
+      return; // Stop here
     }
 
     // Since we did not download, we clean up the local temp backup file created for hashing

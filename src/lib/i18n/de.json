@@ -474,7 +474,7 @@
         "syncSuccess": "WebDAV-Synchronisation erfolgreich abgeschlossen.",
         "syncNoChanges": "WebDAV-Synchronisation abgeschlossen. Keine Änderungen vorhanden.",
         "syncError": "WebDAV-Synchronisation fehlgeschlagen.",
-        "syncDbDownloaded": "Datenbank von WebDAV heruntergeladen. App wird neu geladen..."
+        "syncDbDownloaded": "Datenbank von WebDAV heruntergeladen. Lokale Daten aktualisiert."
       }
     },
     "stylus": {
