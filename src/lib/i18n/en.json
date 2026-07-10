@@ -341,7 +341,8 @@
       "stylus": "Stylus",
       "ai": "AI",
       "data": "Data",
-      "stats": "Stats"
+      "stats": "Stats",
+      "update": "Update"
     },
     "appearance": {
       "title": "Appearance",
@@ -477,10 +478,27 @@
         "syncSuccess": "WebDAV sync completed successfully.",
         "syncNoChanges": "WebDAV sync completed. No changes detected.",
         "syncError": "WebDAV sync failed.",
-        "syncDbDownloaded": "Database downloaded from WebDAV. Local data updated.",
-        "syncVersionMismatchTitle": "Version Conflict",
-        "syncVersionMismatchMsg": "Synchronization denied. The version of your app ({local}) is older than the version on the WebDAV server ({remote}). Please update your app to continue syncing."
+        "syncDbDownloaded": "Database downloaded from WebDAV. Local data updated."
       }
+    },
+    "update": {
+      "title": "Update Settings",
+      "desc": "Configure automatic updates and search manually for new versions.",
+      "autoCheckEnabled": "Automatically search for updates",
+      "autoCheckEnabledDesc": "Automatically check for new versions on GitHub when the app starts.",
+      "checkButton": "Check for Updates",
+      "checking": "Checking for updates...",
+      "noUpdates": "You already have the latest version.",
+      "downloadStarted": "Downloading update...",
+      "downloadFinished": "Download complete. Starting installer...",
+      "error": "Failed to download or run the update.",
+      "checkError": "Error searching for updates.",
+      "popupTitle": "Update Available",
+      "popupMsg": "A new version ({version}) is available. Do you want to install it now?",
+      "btnYes": "Yes",
+      "btnNo": "No",
+      "btnSkip": "Skip version",
+      "noInstallerFound": "No installation file (.exe) found in this release."
     },
     "stylus": {
       "title": "Stylus",

@@ -340,7 +340,8 @@
       "stylus": "Stift",
       "ai": "KI",
       "data": "Daten",
-      "stats": "Statistiken"
+      "stats": "Statistiken",
+      "update": "Update"
     },
     "appearance": {
       "title": "Erscheinungsbild",
@@ -476,10 +477,27 @@
         "syncSuccess": "WebDAV-Synchronisation erfolgreich abgeschlossen.",
         "syncNoChanges": "WebDAV-Synchronisation abgeschlossen. Keine Änderungen vorhanden.",
         "syncError": "WebDAV-Synchronisation fehlgeschlagen.",
-        "syncDbDownloaded": "Datenbank von WebDAV heruntergeladen. Lokale Daten aktualisiert.",
-        "syncVersionMismatchTitle": "Versionskonflikt",
-        "syncVersionMismatchMsg": "Die Synchronisation wurde verweigert. Die Version deiner App ({local}) ist älter als die Version auf dem WebDAV-Server ({remote}). Bitte aktualisiere deine App, um die Synchronisation fortzusetzen."
+        "syncDbDownloaded": "Datenbank von WebDAV heruntergeladen. Lokale Daten aktualisiert."
       }
+    },
+    "update": {
+      "title": "Update-Einstellungen",
+      "desc": "Konfiguriere automatische Updates und suche manuell nach neuen Versionen.",
+      "autoCheckEnabled": "Automatisch nach Updates suchen",
+      "autoCheckEnabledDesc": "Beim Programmstart automatisch prüfen, ob eine neue Version auf GitHub verfügbar ist.",
+      "checkButton": "Nach Updates suchen",
+      "checking": "Prüfe auf Updates...",
+      "noUpdates": "Du hast bereits die neueste Version.",
+      "downloadStarted": "Herunterladen des Updates gestartet...",
+      "downloadFinished": "Download abgeschlossen. Der Installer wird jetzt gestartet...",
+      "error": "Fehler beim Herunterladen oder Starten des Updates.",
+      "checkError": "Fehler beim Suchen nach Updates.",
+      "popupTitle": "Update verfügbar",
+      "popupMsg": "Eine neue Version ({version}) ist verfügbar. Möchtest du sie jetzt installieren?",
+      "btnYes": "Ja",
+      "btnNo": "Nein",
+      "btnSkip": "Version überspringen",
+      "noInstallerFound": "Keine Installationsdatei (.exe) in diesem Release gefunden."
     },
     "stylus": {
       "title": "Stift",

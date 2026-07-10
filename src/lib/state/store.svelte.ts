@@ -1492,7 +1492,10 @@ class CanvasCritiqueStore {
     onCancel: (() => void) | null = null,
     isAlert: boolean = false,
     confirmLabel?: string,
-    cancelLabel?: string
+    cancelLabel?: string,
+    thirdLabel?: string,
+    onThird: (() => void) | null = null,
+    isPrimary: boolean = false
   ): void {
     this.confirmDialog = {
       title,
@@ -1500,6 +1503,8 @@ class CanvasCritiqueStore {
       isAlert,
       confirmLabel,
       cancelLabel,
+      thirdLabel,
+      isPrimary,
       onConfirm: () => {
         onConfirm();
         this.confirmDialog = null;
@@ -1507,7 +1512,11 @@ class CanvasCritiqueStore {
       onCancel: () => {
         if (onCancel) onCancel();
         this.confirmDialog = null;
-      }
+      },
+      onThird: onThird ? () => {
+        onThird();
+        this.confirmDialog = null;
+      } : undefined
     };
   }
 

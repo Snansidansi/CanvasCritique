@@ -8,11 +8,12 @@
   import ApiSettings from '../components/settings/ApiSettings.svelte';
   import SystemPromptSettings from '../components/settings/SystemPromptSettings.svelte';
   import StatisticsSettings from '../components/settings/StatisticsSettings.svelte';
+  import UpdateSettings from '../components/settings/UpdateSettings.svelte';
   import { t } from '../services/i18n';
   import pkg from '../../../package.json';
   import { store } from '../state/store.svelte';
 
-  type TabId = 'general' | 'stylus' | 'ai' | 'data' | 'stats';
+  type TabId = 'general' | 'stylus' | 'ai' | 'data' | 'stats' | 'update';
 
   const tabs: { id: TabId; labelKey: string; icon: string }[] = [
     { id: 'general',  labelKey: 'settings.tabs.general',   icon: 'tune'           },
@@ -20,6 +21,7 @@
     { id: 'ai',       labelKey: 'settings.tabs.ai',        icon: 'smart_toy'      },
     { id: 'data',     labelKey: 'settings.tabs.data',      icon: 'database'       },
     { id: 'stats',    labelKey: 'settings.tabs.stats',     icon: 'bar_chart'      },
+    { id: 'update',   labelKey: 'settings.tabs.update',    icon: 'update'         },
   ];
 
   let activeTab = $state<TabId>('general');
@@ -83,6 +85,8 @@
 
       {:else if activeTab === 'stats'}
         <StatisticsSettings />
+      {:else if activeTab === 'update'}
+        <UpdateSettings />
       {/if}
 
       <!-- App Version & GitHub Link -->

@@ -181,6 +181,7 @@ export interface Settings {
   lastSyncedDbHash?: string;
   webdavSyncMode?: 'bidirectional' | 'download' | 'upload';
   rememberWindowState?: boolean;
+  autoUpdateCheckEnabled?: boolean;
 }
 
 export interface Profile {
@@ -207,6 +208,9 @@ export interface ConfirmDialog {
   isAlert?: boolean;
   confirmLabel?: string;
   cancelLabel?: string;
+  thirdLabel?: string;
+  onThird?: () => void;
+  isPrimary?: boolean;
 }
 
 export interface ExportDialog {

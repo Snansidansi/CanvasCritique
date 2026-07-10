@@ -6,6 +6,7 @@
   import { syncWebDav } from "./lib/services/webdav";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
+  import { cleanupInstaller, checkForUpdates } from "./lib/services/update";
 
   // Local state variables for export popup checkboxes
   let exportIncludeCritique = $state(true);
@@ -64,6 +65,16 @@
 
   onMount(() => {
     initTouchDragPolyfill();
+
+    // Clean up installer if it was left behind
+    cleanupInstaller();
+
+    // Check for updates automatically if enabled
+    if (store.settings.autoUpdateCheckEnabled) {
+      setTimeout(() => {
+        checkForUpdates(false).catch(err => console.error("Auto update check failed:", err));
+      }, 3000);
+    }
 
     let cleanupWindowState: (() => void) | undefined;
     if (isWindowsPlatform()) {
@@ -163,8 +174,8 @@
     <div
       class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-90 shadow-2xl flex flex-col gap-4"
     >
-      <div class="flex items-center gap-3 {store.confirmDialog.isAlert ? 'text-primary' : 'text-error'}">
-        <span class="material-symbols-outlined text-2xl">{store.confirmDialog.isAlert ? 'info' : 'warning'}</span>
+      <div class="flex items-center gap-3 {(store.confirmDialog.isAlert || store.confirmDialog.isPrimary) ? 'text-primary' : 'text-error'}">
+        <span class="material-symbols-outlined text-2xl">{(store.confirmDialog.isAlert || store.confirmDialog.isPrimary) ? 'info' : 'warning'}</span>
         <h3 class="font-bold text-base text-on-surface">
           {store.confirmDialog.title || t('dialogs.confirmTitleDefault')}
         </h3>
@@ -175,6 +186,14 @@
       </p>
 
       <div class="flex justify-end gap-3 mt-2">
+        {#if store.confirmDialog.thirdLabel && store.confirmDialog.onThird}
+          <button
+            onclick={store.confirmDialog.onThird}
+            class="px-4 py-2 border border-outline-variant text-on-surface-variant text-xs font-semibold rounded-lg hover:bg-surface-container-high cursor-pointer focus:outline-none"
+          >
+            {store.confirmDialog.thirdLabel}
+          </button>
+        {/if}
         {#if !store.confirmDialog.isAlert}
           <button
             onclick={store.confirmDialog.onCancel}
@@ -185,7 +204,7 @@
         {/if}
         <button
           onclick={store.confirmDialog.onConfirm}
-          class="px-4 py-2 text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none {store.confirmDialog.isAlert ? 'bg-primary text-on-primary' : 'bg-error text-white'}"
+          class="px-4 py-2 text-xs font-semibold rounded-lg hover:opacity-90 cursor-pointer focus:outline-none {(store.confirmDialog.isAlert || store.confirmDialog.isPrimary) ? 'bg-primary text-on-primary' : 'bg-error text-white'}"
         >
           {store.confirmDialog.confirmLabel || (store.confirmDialog.isAlert ? 'OK' : t('common.confirm'))}
         </button>

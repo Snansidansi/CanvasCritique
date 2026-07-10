@@ -139,6 +139,7 @@ export const defaultSettings: Settings = {
   lastSyncedTimestamp: '',
   lastSyncedDbHash: '',
   webdavSyncMode: 'bidirectional',
-  rememberWindowState: true
+  rememberWindowState: true,
+  autoUpdateCheckEnabled: true
 };
 
