@@ -1626,7 +1626,7 @@
 
                 {#if settingsOverride.overrideEvaluation}
                   <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
-                    <EvaluationDetailsSettings settings={settingsOverride} />
+                    <EvaluationDetailsSettings settings={settingsOverride} hideContextFilters={true} />
                   </div>
                 {:else}
                   <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
