@@ -989,20 +989,38 @@
   $effect(() => {
     const taskId = task.id;
     if (taskId) {
-      // Set edit mode based on task's default edit mode
-      const defaultMode = task.defaultEditMode || 'both';
-      if (defaultMode === 'canvas') {
+      const saved = untrack(() => store.getCanvasState(taskId));
+      const text = untrack(() => store.getEditorText(taskId) || '');
+      
+      const hasDrawing = saved && (
+        (saved.infiniteStrokes && saved.infiniteStrokes.length > 0) || 
+        (saved.pages && saved.pages.some((p: any) => p.strokeHistory && p.strokeHistory.length > 0))
+      );
+      const hasText = text.trim() !== '';
+
+      if (hasDrawing && hasText) {
+        showCanvas = true;
+        showText = true;
+      } else if (hasDrawing) {
         showCanvas = true;
         showText = false;
-      } else if (defaultMode === 'text') {
+      } else if (hasText) {
         showCanvas = false;
         showText = true;
       } else {
-        showCanvas = true;
-        showText = true;
+        // Set edit mode based on task's default edit mode fallback
+        const defaultMode = task.defaultEditMode || 'both';
+        if (defaultMode === 'canvas') {
+          showCanvas = true;
+          showText = false;
+        } else if (defaultMode === 'text') {
+          showCanvas = false;
+          showText = true;
+        } else {
+          showCanvas = true;
+          showText = true;
+        }
       }
-
-      const saved = untrack(() => store.getCanvasState(taskId));
       if (saved) {
         pages = saved.pages || [
           {
