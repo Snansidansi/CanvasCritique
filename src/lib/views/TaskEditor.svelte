@@ -24,7 +24,6 @@
   let showSolutionRaw = $state(true);
   let defaultEditMode = $state<'canvas' | 'text' | 'both'>('both');
   let contextFiles = $state<any[]>([]);
-  let isDragOverContext = $state(false);
 
   // Task specific override settings
   let settingsOverride = $state<any>({
@@ -69,7 +68,7 @@
 
   // Inline rename state for media attachments
   let editingFileIndex = $state<number | null>(null);
-  let editingFileType = $state<'instruction' | 'solution' | null>(null);
+  let editingFileType = $state<'instruction' | 'solution' | 'context' | null>(null);
   let editingFileNameValue = $state<string>('');
   let renameInputEl = $state<HTMLInputElement | null>(null);
 
@@ -88,10 +87,14 @@
         const files = [...instructionFiles];
         files[editingFileIndex] = { ...files[editingFileIndex], name };
         instructionFiles = files;
-      } else {
+      } else if (editingFileType === 'solution') {
         const files = [...solutionFiles];
         files[editingFileIndex] = { ...files[editingFileIndex], name };
         solutionFiles = files;
+      } else if (editingFileType === 'context') {
+        const files = [...contextFiles];
+        files[editingFileIndex] = { ...files[editingFileIndex], name };
+        contextFiles = files;
       }
     }
     cancelInlineRename();
@@ -399,8 +402,8 @@
     };
   }
 
-  function handleRenameFile(index: number, type: 'instruction' | 'solution') {
-    const files = type === 'instruction' ? instructionFiles : solutionFiles;
+  function handleRenameFile(index: number, type: 'instruction' | 'solution' | 'context') {
+    const files = type === 'instruction' ? instructionFiles : (type === 'solution' ? solutionFiles : contextFiles);
     const file = files[index];
     if (!file) return;
 
@@ -683,7 +686,7 @@
   }
 
   // Paste from clipboard logic
-  async function handlePasteFromClipboard(type: 'instruction' | 'solution') {
+  async function handlePasteFromClipboard(type: 'instruction' | 'solution' | 'context') {
     try {
       const clipboardItems = await navigator.clipboard.read();
       let addedAny = false;
@@ -704,8 +707,10 @@
           };
           if (type === 'instruction') {
             instructionFiles = [...instructionFiles, newFile];
-          } else {
+          } else if (type === 'solution') {
             solutionFiles = [...solutionFiles, newFile];
+          } else if (type === 'context') {
+            contextFiles = [...contextFiles, newFile];
           }
           addedAny = true;
           continue;
@@ -726,8 +731,10 @@
           };
           if (type === 'instruction') {
             instructionFiles = [...instructionFiles, newFile];
-          } else {
+          } else if (type === 'solution') {
             solutionFiles = [...solutionFiles, newFile];
+          } else if (type === 'context') {
+            contextFiles = [...contextFiles, newFile];
           }
           addedAny = true;
         }
@@ -754,8 +761,10 @@
           };
           if (type === 'instruction') {
             instructionFiles = [...instructionFiles, newFile];
-          } else {
+          } else if (type === 'solution') {
             solutionFiles = [...solutionFiles, newFile];
+          } else if (type === 'context') {
+            contextFiles = [...contextFiles, newFile];
           }
           store.showNotification(t('taskEditor.pasteTextSuccess'), 'success');
         } else {
@@ -782,10 +791,11 @@
   // Filesystem drag-and-drop onto upload areas
   let isDragOverInstruction = $state(false);
   let isDragOverSolution = $state(false);
+  let isDragOverContext = $state(false);
 
   // Pointer-based media drag state
   let draggedFileIndex = $state<number | null>(null);
-  let draggedFileType = $state<'instruction' | 'solution' | null>(null);
+  let draggedFileType = $state<'instruction' | 'solution' | 'context' | null>(null);
   let hoveredFileIndex = $state<number | null>(null);
   let isMediaDragActive = $state(false);
   
@@ -795,7 +805,7 @@
   let mediaDragGhostOffsetX = 0;
   let mediaDragGhostOffsetY = 0;
 
-  function handleFilePointerDown(e: PointerEvent, index: number, type: 'instruction' | 'solution') {
+  function handleFilePointerDown(e: PointerEvent, index: number, type: 'instruction' | 'solution' | 'context') {
     if (e.button !== 0 && e.button !== -1) return;
     const target = e.currentTarget as HTMLElement;
     
@@ -883,43 +893,54 @@
     target.addEventListener('pointercancel', onUp);
   }
 
-  function reorderFiles(type: 'instruction' | 'solution', from: number, to: number) {
+  function reorderFiles(type: 'instruction' | 'solution' | 'context', from: number, to: number) {
     if (type === 'instruction') {
       const list = [...instructionFiles];
       const [moved] = list.splice(from, 1);
       list.splice(to, 0, moved);
       instructionFiles = list;
-    } else {
+    } else if (type === 'solution') {
       const list = [...solutionFiles];
       const [moved] = list.splice(from, 1);
       list.splice(to, 0, moved);
       solutionFiles = list;
+    } else if (type === 'context') {
+      const list = [...contextFiles];
+      const [moved] = list.splice(from, 1);
+      list.splice(to, 0, moved);
+      contextFiles = list;
     }
   }
 
-  function handleDragOver(type: 'instruction' | 'solution', e: DragEvent) {
+  function handleDragOver(type: 'instruction' | 'solution' | 'context', e: DragEvent) {
     e.preventDefault();
     if (type === 'instruction') {
       isDragOverInstruction = true;
-    } else {
+    } else if (type === 'solution') {
       isDragOverSolution = true;
+    } else if (type === 'context') {
+      isDragOverContext = true;
     }
   }
 
-  function handleDragLeave(type: 'instruction' | 'solution') {
+  function handleDragLeave(type: 'instruction' | 'solution' | 'context') {
     if (type === 'instruction') {
       isDragOverInstruction = false;
-    } else {
+    } else if (type === 'solution') {
       isDragOverSolution = false;
+    } else if (type === 'context') {
+      isDragOverContext = false;
     }
   }
 
-  function handleFileDrop(type: 'instruction' | 'solution', e: DragEvent) {
+  function handleFileDrop(type: 'instruction' | 'solution' | 'context', e: DragEvent) {
     e.preventDefault();
     if (type === 'instruction') {
       isDragOverInstruction = false;
-    } else {
+    } else if (type === 'solution') {
       isDragOverSolution = false;
+    } else if (type === 'context') {
+      isDragOverContext = false;
     }
     const files = e.dataTransfer?.files;
     if (!files || files.length === 0) return;
@@ -943,8 +964,10 @@
         };
         if (type === 'instruction') {
           instructionFiles = [...instructionFiles, fileData];
-        } else {
+        } else if (type === 'solution') {
           solutionFiles = [...solutionFiles, fileData];
+        } else if (type === 'context') {
+          contextFiles = [...contextFiles, fileData];
         }
       };
       reader.readAsDataURL(file);
@@ -1358,7 +1381,7 @@
 
       <!-- Task Settings Overrides -->
       <div class="border-t border-outline-variant/30 pt-6 mt-4 flex flex-col gap-4">
-        <!-- AI Guidelines / AI Instructions Section -->
+        <!-- Aufgabenkontext / Task Context Collapsible Section -->
         <section class="bg-surface-container-low border border-outline-variant/60 rounded-xl overflow-hidden shrink-0">
           <button 
             type="button"
@@ -1366,11 +1389,11 @@
             class="w-full flex items-center justify-between px-6 py-4 cursor-pointer bg-transparent border-0 text-left focus:outline-none hover:bg-surface-container-lowest/50 transition-colors"
           >
             <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-[20px] text-primary">description</span>
+              <span class="material-symbols-outlined text-[20px] text-primary">folder_shared</span>
               <div>
-                <h3 class="font-bold text-sm text-on-surface">{t('taskEditor.aiInstructionsTitle')}</h3>
+                <h3 class="font-bold text-sm text-on-surface">{t('taskEditor.contextTitle')}</h3>
                 <p class="text-[11px] text-on-surface-variant mt-0.5">
-                  {t('taskEditor.aiInstructionsSubtitle')}
+                  {t('taskEditor.contextSubtitle')}
                 </p>
               </div>
             </div>
@@ -1381,18 +1404,136 @@
           </button>
 
           {#if aiInstructionsExpanded}
-            <div class="px-6 pb-5 border-t border-outline-variant/30 pt-4">
-              <textarea
-                use:autoResize={aiInstructions}
-                bind:value={aiInstructions}
-                placeholder={t('taskEditor.aiInstructionsPlaceholder')}
-                rows="4"
-                class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-none min-h-20"
-              ></textarea>
-              <p class="text-[10px] text-on-surface-variant mt-2 flex items-center gap-1">
-                <span class="material-symbols-outlined text-[12px]">info</span>
-                {t('taskEditor.aiInstructionsFooter')}
-              </p>
+            <div class="px-6 pb-5 border-t border-outline-variant/30 pt-4 flex flex-col gap-4">
+              <!-- Text Guidelines -->
+              <div class="flex flex-col gap-1.5">
+                <span class="text-xs font-semibold text-on-surface">{t('taskEditor.contextTextLabel')}</span>
+                <textarea
+                  use:autoResize={aiInstructions}
+                  bind:value={aiInstructions}
+                  placeholder={t('taskEditor.contextTextPlaceholder')}
+                  rows="4"
+                  class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-none min-h-20"
+                ></textarea>
+              </div>
+
+              <!-- Context Media Upload -->
+              <div class="flex flex-col gap-2">
+                <span class="text-xs font-semibold text-on-surface">{t('taskEditor.contextMediaLabel')}</span>
+                <input 
+                  type="file" 
+                  id="contextFileInput" 
+                  class="hidden" 
+                  multiple
+                  onchange={(e) => handleFileSelect(e, 'context')}
+                />
+                <button 
+                  type="button"
+                  onclick={() => triggerUpload('context')}
+                  ondragover={(e) => handleDragOver('context', e)}
+                  ondragleave={() => handleDragLeave('context')}
+                  ondrop={(e) => handleFileDrop('context', e)}
+                  class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer {isDragOverContext ? 'border-primary bg-primary/5' : ''}"
+                >
+                  <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+                    <span class="material-symbols-outlined text-[24px]">upload_file</span>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-xs font-semibold text-on-surface">
+                      {contextFiles.length > 0 ? t('taskEditor.contextFilesSelected', { count: contextFiles.length }) : t('taskEditor.contextUploadPrompt')}
+                    </p>
+                    <p class="text-[10px] text-on-surface-variant mt-1">{t('taskEditor.contextUploadSupportInfo')}</p>
+                  </div>
+                </button>
+
+                <!-- Paste from Clipboard button -->
+                <button
+                  type="button"
+                  onclick={() => handlePasteFromClipboard('context')}
+                  class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
+                >
+                  <span class="material-symbols-outlined text-[16px]">content_paste</span>
+                  {t('taskEditor.contextClipboardButton')}
+                </button>
+
+                {#if contextFiles.length > 0}
+                  <div class="mt-2 flex flex-col gap-1.5">
+                    {#each contextFiles as file, index}
+                      {#if isMediaDragActive && draggedFileType === 'context' && hoveredFileIndex === index}
+                        <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
+                      {/if}
+                      <!-- svelte-ignore a11y_no_static_element_interactions -->
+                      <div 
+                        data-file-index={index}
+                        data-file-type="context"
+                        onpointerdown={(e) => handleFilePointerDown(e, index, 'context')}
+                        class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none {isMediaDragActive && draggedFileType === 'context' && draggedFileIndex === index ? 'opacity-40 scale-95' : ''}"
+                      >
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                        <div 
+                          onclick={() => {
+                            if (editingFileIndex !== index || editingFileType !== 'context') {
+                              openPreview(file);
+                            }
+                          }}
+                          class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
+                          title={t('taskEditor.clickToPreview')}
+                        >
+                          <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
+                            drag_indicator
+                          </span>
+                          <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
+                            {getFileIcon(file.name)}
+                          </span>
+                          {#if editingFileIndex === index && editingFileType === 'context'}
+                            <!-- svelte-ignore a11y_click_events_have_key_events -->
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                            <input
+                              bind:this={renameInputEl}
+                              type="text"
+                              bind:value={editingFileNameValue}
+                              onclick={(e) => e.stopPropagation()}
+                              onkeydown={(e) => {
+                                e.stopPropagation();
+                                if (e.key === 'Enter') {
+                                  saveInlineRename();
+                                } else if (e.key === 'Escape') {
+                                  cancelInlineRename();
+                                }
+                              }}
+                              onblur={saveInlineRename}
+                              class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
+                            />
+                          {:else}
+                            <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
+                          {/if}
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                          <button 
+                            type="button"
+                            onclick={() => handleRenameFile(index, 'context')}
+                            class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
+                            title={t('taskEditor.renameFileTooltip') || 'Rename File'}
+                          >
+                            edit
+                          </button>
+                          <button 
+                            type="button"
+                            onclick={() => {
+                              contextFiles = contextFiles.filter((_, i) => i !== index);
+                            }}
+                            class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
+                            title={t('taskEditor.remove')}
+                          >
+                            close
+                          </button>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
             </div>
           {/if}
         </section>

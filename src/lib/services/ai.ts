@@ -56,6 +56,8 @@ export interface CheckWorkTask {
   aiInstructions?: string;
   instructionFiles?: Array<{ name: string; dataUrl?: string; mediaId?: string }>;
   solutionFiles?: Array<{ name: string; dataUrl?: string; mediaId?: string }>;
+  contextFiles?: Array<{ name: string; dataUrl?: string; mediaId?: string }>;
+  defaultEditMode?: 'canvas' | 'text' | 'both';
   instructionFile?: { name: string; dataUrl?: string; mediaId?: string }; // legacy
   solutionFile?: { name: string; dataUrl?: string; mediaId?: string }; // legacy
 }
@@ -73,6 +75,9 @@ export interface CheckWorkSettings {
   sendCanvasBackground?: boolean;
   sendTaskText?: boolean;
   sendSolutionText?: boolean;
+  sendContextText?: boolean;
+  sendContextMedia?: boolean;
+  maxOutputTokens?: number;
   language?: string;
   customSystemPrompt?: string;
   taskMediaFilterMode?: string;
@@ -186,6 +191,18 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
       })
     );
     task.instructionFiles = task.instructionFiles.filter(f => shouldIncludeFile(f.name, false));
+  }
+  if (task.contextFiles) {
+    task.contextFiles = await Promise.all(
+      task.contextFiles.map(async (f) => {
+        if (!f.dataUrl && f.mediaId) {
+          try {
+            return { ...f, dataUrl: await getMediaDataUrl(f.mediaId) };
+          } catch (_) {}
+        }
+        return { ...f };
+      })
+    );
   }
   if (task.solutionFiles) {
     task.solutionFiles = await Promise.all(
@@ -403,7 +420,10 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     ? `\nAdditional grading guidelines from the teacher:\n"${projectGuidelines}"\nPlease take these guidelines into account when evaluating the student's work.\n`
     : '';
 
-  if (task.aiInstructions && task.aiInstructions.trim()) {
+  const sendContextText = settings.sendContextText ?? true;
+  const sendContextMedia = settings.sendContextMedia ?? true;
+
+  if (sendContextText && task.aiInstructions && task.aiInstructions.trim()) {
     guidelinesPrompt += `\nAdditional grading guidelines for this specific task:\n"${task.aiInstructions.trim()}"\nPlease take these guidelines into account when evaluating the student's work.\n`;
   }
 
@@ -470,11 +490,29 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     }
   }
 
+  let contextTextFilesContent = '';
+  if (sendContextMedia && sendContextText) {
+    if (task.contextFiles && Array.isArray(task.contextFiles)) {
+      task.contextFiles.forEach(file => {
+        if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
+          try {
+            const base64Data = file.dataUrl!.split(',')[1];
+            const decodedText = decodeURIComponent(escape(atob(base64Data)));
+            contextTextFilesContent += `\n\n[Context Document - ${file.name}]:\n${decodedText}`;
+          } catch (e) {
+            console.error('Failed to decode context text file', file.name, e);
+          }
+        }
+      });
+    }
+  }
+
   const rawInstructionsText = sendTaskText ? ((task.instructions || '') + instructionsTextFilesContent) : '';
   const rawSolutionText = sendSolutionText ? ((task.solution || '') + solutionTextFilesContent) : '';
 
   const taskInstructionsText = rawInstructionsText.trim() ? `Task instructions: "${rawInstructionsText.trim()}"` : '';
   const expectedSolutionText = rawSolutionText.trim() ? `Expected correct solution: "${rawSolutionText.trim()}"` : '';
+  const taskContextText = sendContextText && contextTextFilesContent.trim() ? `Task context documents:\n"${contextTextFilesContent.trim()}"` : '';
 
   let prompt = promptTemplate;
   
@@ -494,6 +532,10 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     prompt = prompt.replace(/\{\{task_solution\}\}/g, expectedSolutionText);
   } else if (expectedSolutionText) {
     prompt += `\n\n${expectedSolutionText}`;
+  }
+
+  if (taskContextText) {
+    prompt += `\n\n${taskContextText}`;
   }
   
   prompt = prompt
@@ -668,6 +710,20 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       }
+    }
+  }
+
+  if (sendContextMedia) {
+    if (task.contextFiles && Array.isArray(task.contextFiles)) {
+      task.contextFiles.forEach(file => {
+        if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
+          return;
+        }
+        const geminiPart = getInlineDataFromMedia(file);
+        if (geminiPart) additionalGeminiParts.push(geminiPart);
+        const orPart = getOpenRouterMedia(file);
+        if (orPart) additionalOpenRouterParts.push(orPart);
+      });
     }
   }
 
