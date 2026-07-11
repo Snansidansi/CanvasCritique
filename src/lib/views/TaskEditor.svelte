@@ -23,7 +23,7 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
   let category = $state('Basics');
   let showInstructionsRaw = $state(true);
   let showSolutionRaw = $state(true);
-  let defaultEditMode = $state<'canvas' | 'text' | 'both'>('both');
+  let defaultEditMode = $state<'canvas' | 'text' | 'both'>('canvas');
   let contextFiles = $state<any[]>([]);
   let templateCanvasData = $state<string | null>(null);
   let isTemplateModalOpen = $state(false);
@@ -490,7 +490,7 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
     templateCanvasData = null;
     solution = '';
     aiInstructions = '';
-    defaultEditMode = 'both';
+    defaultEditMode = 'canvas';
     contextFiles = [];
     isDragOverContext = false;
     store.setView('project-detail');
@@ -503,7 +503,7 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
     instructions = '';
     solution = '';
     aiInstructions = '';
-    defaultEditMode = 'both';
+    defaultEditMode = 'canvas';
     contextFiles = [];
     isDragOverContext = false;
     store.setView(store.activeProject ? 'project-detail' : 'dashboard');
@@ -2003,6 +2003,7 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
             <AudioPlayer dataUrl={previewFile.dataUrl} />
           </div>
         {:else if previewIsVideo}
+          <!-- svelte-ignore a11y_media_has_caption -->
           <video 
             src={previewFile.dataUrl} 
             controls 
