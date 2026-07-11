@@ -13,7 +13,8 @@
     redoStack,
     eraserUndoStack,
     handleUndo,
-    handleRedo
+    handleRedo,
+    onInsertImage = null
   } = $props();
 
   let recentColors = $state(['#000000', '#1d4ed8', '#dc2626', '#059669']);
@@ -191,7 +192,7 @@
 <div 
   bind:this={paletteElement}
   class="fixed bg-surface-container/95 backdrop-blur-md shadow-lg border border-outline-variant/30 select-none z-20 flex items-center
-         {isCollapsed ? 'w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : (canvasMode === 'infinite' ? 'w-[738px]' : 'w-[688px]') + ' h-12 pl-4 pr-7 rounded-full'}
+         {isCollapsed ? 'w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : (canvasMode === 'infinite' ? 'w-[788px]' : 'w-[738px]') + ' h-12 pl-4 pr-7 rounded-full'}
          {isDragging ? '' : 'palette-transition'}"
   style="{positionStyle} touch-action: none;"
   onpointerdown={onPointerDown}
@@ -327,7 +328,7 @@
           </button>
 
           {#if shapePopupOpen && activeTool === 'shape'}
-            <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-surface-container-high border border-outline-variant shadow-xl rounded-xl py-1.5 flex flex-col min-w-32 z-30">
+            <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-surface-container-high border border-outline-variant shadow-xl rounded-xl py-1.5 flex flex-col min-w-32 z-30 animate-fade-in">
               {#each shapeOptions as shape}
                 <button
                   onclick={() => { shapeType = shape; shapePopupOpen = false; }}
@@ -348,6 +349,15 @@
             </div>
           {/if}
         </div>
+
+        <button 
+          onclick={() => { if (onInsertImage) onInsertImage(); }}
+          class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors border-0 bg-transparent cursor-pointer text-on-surface-variant hover:text-on-surface"
+          title={t('practice.palette.imageTooltip')}
+        >
+          <span class="material-symbols-outlined text-[20px]">image</span>
+          <span class="text-[9px]">{t('practice.palette.image')}</span>
+        </button>
       </div>
 
       <!-- Floating Undo / Redo Buttons -->

@@ -90,6 +90,7 @@ export interface CheckWorkOptions {
   canvasMode: 'infinite' | 'a4';
   pages: Array<{ strokeHistory: Stroke[] }>;
   infiniteStrokes: Stroke[];
+  canvasImages?: any[];
   currentBgUrl: string | null;
   bgOpacity: number;
   activeBg: string;
@@ -241,14 +242,16 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     return history.some(s => s.color !== 'eraser' && s.color !== '#FFFFFF' && s.points.length > 0);
   };
 
+  const canvasImages = options.canvasImages || [];
+
   // 1. Gather all non-empty pages to evaluate
   let activePagesWithIndex: Array<{ strokeHistory: Stroke[]; originalIndex: number }> = [];
   if (canvasMode === 'a4') {
     activePagesWithIndex = pages
       .map((p, idx) => ({ strokeHistory: p.strokeHistory, originalIndex: idx }))
-      .filter(item => hasVisibleStrokes(item.strokeHistory));
+      .filter(item => hasVisibleStrokes(item.strokeHistory) || canvasImages.some(img => img.pageIndex === item.originalIndex));
   } else {
-    if (hasVisibleStrokes(infiniteStrokes)) {
+    if (hasVisibleStrokes(infiniteStrokes) || canvasImages.length > 0) {
       activePagesWithIndex = [{ strokeHistory: infiniteStrokes, originalIndex: 0 }];
     }
   }
@@ -286,7 +289,8 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
   
   if (sendCanvas) {
     for (const item of activePagesWithIndex) {
-      const box = getStrokesBoundingBox(item.strokeHistory, canvasMode);
+      const pageImagesForThisPage = canvasImages.filter(img => canvasMode === 'infinite' || img.pageIndex === item.originalIndex);
+      const box = getPageBoundingBox(item.strokeHistory, pageImagesForThisPage, canvasMode);
       let base64Data = '';
       let widthVal = 800;
       let heightVal = 1130;
@@ -341,6 +345,17 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
               }
             }
             drawGuidelinesInWorld(tempCtx, box.x, box.y, box.width, box.height, activeBg, bgOpacity);
+          }
+
+          // Draw inserted canvas images
+          for (const canvasImg of pageImagesForThisPage) {
+            try {
+              const dataUrl = await getMediaDataUrl(canvasImg.mediaId);
+              const img = await loadImage(dataUrl);
+              tempCtx.drawImage(img, canvasImg.x, canvasImg.y, canvasImg.width, canvasImg.height);
+            } catch (err) {
+              console.error('Error drawing canvas image on crop:', err);
+            }
           }
           tempCtx.restore();
         }
@@ -1047,5 +1062,44 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
     feedbackMarkers: canvasMarkers,
     canvasCritique,
     textCritique
+  };
+}
+
+function getPageBoundingBox(history: Stroke[], pageImages: any[], canvasMode: 'infinite' | 'a4'): BoundingBox | null {
+  const strokeBox = getStrokesBoundingBox(history, canvasMode);
+  if (pageImages.length === 0) return strokeBox;
+  
+  let minX = strokeBox ? strokeBox.x : Infinity;
+  let minY = strokeBox ? strokeBox.y : Infinity;
+  let maxX = strokeBox ? strokeBox.x + strokeBox.width : -Infinity;
+  let maxY = strokeBox ? strokeBox.y + strokeBox.height : -Infinity;
+  
+  for (const img of pageImages) {
+    if (img.x < minX) minX = img.x;
+    if (img.y < minY) minY = img.y;
+    if (img.x + img.width > maxX) maxX = img.x + img.width;
+    if (img.y + img.height > maxY) maxY = img.y + img.height;
+  }
+  
+  if (minX === Infinity) return null;
+  
+  const padding = 20;
+  if (canvasMode === 'a4') {
+    minX = Math.max(0, minX - padding);
+    minY = Math.max(0, minY - padding);
+    maxX = Math.min(800, maxX + padding);
+    maxY = Math.min(1130, maxY + padding);
+  } else {
+    minX = minX - padding;
+    minY = minY - padding;
+    maxX = maxX + padding;
+    maxY = maxY + padding;
+  }
+  
+  return { 
+    x: Math.round(minX), 
+    y: Math.round(minY), 
+    width: Math.round(maxX - minX), 
+    height: Math.round(maxY - minY) 
   };
 }

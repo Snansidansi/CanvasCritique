@@ -28,7 +28,7 @@
     type Point
   } from '../utils/canvas';
   import { runCheckWork } from '../services/ai';
-  import { getMediaDataUrl } from '../db/media';
+  import { getMediaDataUrl, saveMediaToDb } from '../db/media';
 
 
   // Active task details from store
@@ -475,7 +475,33 @@
   let contextMenu = $state(null); // { x, y, canvasX, canvasY }
   let longPressTimer = null;
 
+  // Canvas Image states
+  interface CanvasImage {
+    id: string;
+    mediaId: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    pageIndex: number;
+  }
+  let canvasImages = $state<CanvasImage[]>([]);
+  let selectedImage = $state<CanvasImage | null>(null);
+  let isMovingImage = $state(false);
+  let isResizingImage = $state(false);
+  let imageDragStart = { x: 0, y: 0 };
+  let imageStartRect = { x: 0, y: 0, width: 0, height: 0 };
+  let imageElementCache = $state<Record<string, HTMLImageElement>>({});
+
   let selectionBoundingBox = $derived.by(() => {
+    if (selectedImage) {
+      return {
+        minX: selectedImage.x,
+        minY: selectedImage.y,
+        maxX: selectedImage.x + selectedImage.width,
+        maxY: selectedImage.y + selectedImage.height
+      };
+    }
     if (selectedStrokes.length === 0) return null;
     let minX = Infinity;
     let minY = Infinity;
@@ -710,6 +736,30 @@
     }
   });
 
+  // Load and cache canvas image media files asynchronously when canvasImages updates
+  $effect(() => {
+    for (const canvasImg of canvasImages) {
+      const mediaId = canvasImg.mediaId;
+      if (mediaId && !imageElementCache[mediaId]) {
+        // Create an Image object placeholder to prevent double loading
+        imageElementCache[mediaId] = new Image();
+        getMediaDataUrl(mediaId).then(dataUrl => {
+          const img = new Image();
+          img.src = dataUrl;
+          img.onload = () => {
+            imageElementCache[mediaId] = img;
+            redraw();
+          };
+          img.onerror = () => {
+            console.error('Failed to load canvas image: ' + mediaId);
+          };
+        }).catch(err => {
+          console.error(err);
+        });
+      }
+    }
+  });
+
   let activeLeftPanels = $derived([
     showTask && { id: 'task', title: `${task.category && task.category !== 'Basics' ? task.category + ' - ' : ''}${task.name}`, content: task.instructions },
     showSolution && { id: 'solution', title: t('practice.evaluationGoal'), content: task.solution },
@@ -772,6 +822,13 @@
     const isStr = isStraightening;
     const strStart = straightLineStart;
     const strEnd = straightLineEnd;
+
+    // Image triggers
+    const imgs = canvasImages;
+    const selImg = selectedImage;
+    const imgCache = imageElementCache;
+    const isMovImg = isMovingImage;
+    const isResImg = isResizingImage;
 
     if (ctx && canvasElement) {
       requestRedraw();
@@ -1039,7 +1096,8 @@
       infiniteEraserUndo: JSON.parse(JSON.stringify(infiniteEraserUndo)),
       panOffset: { ...panOffset },
       zoomScale,
-      activePageIndex
+      activePageIndex,
+      canvasImages: JSON.parse(JSON.stringify(canvasImages))
     });
   }
 
@@ -1058,7 +1116,8 @@
       
       const hasDrawing = saved && (
         (saved.infiniteStrokes && saved.infiniteStrokes.length > 0) || 
-        (saved.pages && saved.pages.some((p: any) => p.strokeHistory && p.strokeHistory.length > 0))
+        (saved.pages && saved.pages.some((p: any) => p.strokeHistory && p.strokeHistory.length > 0)) ||
+        (saved.canvasImages && saved.canvasImages.length > 0)
       );
       const hasText = text.trim() !== '';
       // Only set edit mode when opening a new/different task, not on every re-render
@@ -1097,6 +1156,8 @@
         panOffset = saved.panOffset || { x: 0, y: 0 };
         zoomScale = saved.zoomScale || 1;
         activePageIndex = saved.activePageIndex || 0;
+        canvasImages = saved.canvasImages || [];
+        selectedImage = null;
       } else {
         // Clear canvas if no state was previously saved
         pages = [
@@ -1113,6 +1174,8 @@
         panOffset = { x: 0, y: 0 };
         zoomScale = 1;
         activePageIndex = 0;
+        canvasImages = [];
+        selectedImage = null;
       }
     }
   });
@@ -1493,6 +1556,45 @@
       }, 600);
     }
 
+    // Check if clicked near the active selected image's resize handle
+    const handleSize = 15 / (canvasMode === 'infinite' ? zoomScale : 1);
+    const isNearBottomRight = selectedImage &&
+      Math.abs(coords.x - (selectedImage.x + selectedImage.width)) <= handleSize &&
+      Math.abs(coords.y - (selectedImage.y + selectedImage.height)) <= handleSize;
+      
+    // Check if clicked inside any image body
+    const clickedImage = canvasImages.find(img => {
+      if (canvasMode === 'a4' && img.pageIndex !== activePageIndex) return false;
+      return coords.x >= img.x && coords.x <= img.x + img.width &&
+             coords.y >= img.y && coords.y <= img.y + img.height;
+    });
+
+    if (isNearBottomRight && selectedImage) {
+      isResizingImage = true;
+      imageDragStart = { x: coords.x, y: coords.y };
+      imageStartRect = { x: selectedImage.x, y: selectedImage.y, width: selectedImage.width, height: selectedImage.height };
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      e.preventDefault();
+      return;
+    }
+
+    if (clickedImage && (activeTool === 'select' || activeTool === 'pan')) {
+      selectedImage = clickedImage;
+      selectedStrokes = []; // Clear stroke selection
+      isMovingImage = true;
+      imageDragStart = { x: coords.x, y: coords.y };
+      imageStartRect = { x: clickedImage.x, y: clickedImage.y, width: clickedImage.width, height: clickedImage.height };
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      e.preventDefault();
+      return;
+    }
+
     if (isClickInSelection) {
       isMovingSelection = true;
       selectionDragStart = { x: coords.x, y: coords.y };
@@ -1503,6 +1605,7 @@
       }
     } else if (activeTool === 'shape' && !isPointerEraser && !isPointerSelect && !isPointerPan) {
       if (selectedStrokes.length > 0) selectedStrokes = [];
+      selectedImage = null;
       isShapeDrawing = true;
       shapeAnchorX = coords.x;
       shapeAnchorY = coords.y;
@@ -1510,10 +1613,12 @@
       shapePreviewY = coords.y;
     } else if (activeTool === 'select' || isPointerSelect) {
       selectedStrokes = [];
+      selectedImage = null;
       selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
       isMovingSelection = false;
     } else {
       if (selectedStrokes.length > 0) selectedStrokes = [];
+      selectedImage = null;
       isDrawing = true;
       currentStroke = [coords];
       startStraightenTimer(coords, e.clientX, e.clientY);
@@ -1652,7 +1757,27 @@
     }
 
     const coords = getCoords(e);
-    
+
+    if (isMovingImage && selectedImage) {
+      const dx = coords.x - imageDragStart.x;
+      const dy = coords.y - imageDragStart.y;
+      selectedImage.x = imageStartRect.x + dx;
+      selectedImage.y = imageStartRect.y + dy;
+      canvasImages = [...canvasImages];
+      requestRedraw();
+      return;
+    }
+
+    if (isResizingImage && selectedImage) {
+      const dx = coords.x - imageDragStart.x;
+      const dy = coords.y - imageDragStart.y;
+      selectedImage.width = Math.max(20, imageStartRect.width + dx);
+      selectedImage.height = Math.max(20, imageStartRect.height + dy);
+      canvasImages = [...canvasImages];
+      requestRedraw();
+      return;
+    }
+
     if (isMovingSelection && selectedStrokes.length > 0) {
       const dx = coords.x - selectionDragStart.x;
       const dy = coords.y - selectionDragStart.y;
@@ -1743,6 +1868,14 @@
       return;
     }
     
+    if (isMovingImage || isResizingImage) {
+      isMovingImage = false;
+      isResizingImage = false;
+      saveToStore();
+      requestRedraw();
+      return;
+    }
+
     if (isMovingSelection) {
       saveToStore();
       isMovingSelection = false;
@@ -1973,6 +2106,16 @@
     }
   }
 
+  function drawCanvasImages(ctxTarget: CanvasRenderingContext2D) {
+    for (const canvasImg of canvasImages) {
+      if (canvasMode === 'a4' && canvasImg.pageIndex !== activePageIndex) continue;
+      const imgEl = imageElementCache[canvasImg.mediaId];
+      if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
+        ctxTarget.drawImage(imgEl, canvasImg.x, canvasImg.y, canvasImg.width, canvasImg.height);
+      }
+    }
+  }
+
   function redraw() {
     if (!ctx || !canvasElement) return;
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -2005,6 +2148,7 @@
       }
       
       drawGuidelinesInWorld(ctx, xStart, yStart, wVisible, hVisible, activeBg, bgOpacity);
+      drawCanvasImages(ctx);
     } else {
       // A4 mode
       if (currentBgImage) {
@@ -2018,6 +2162,7 @@
         ctx.restore();
       }
       drawGuidelinesInWorld(ctx, 0, 0, 800, 1130, activeBg, bgOpacity);
+      drawCanvasImages(ctx);
     }
     ctx.restore();
     
@@ -2108,6 +2253,31 @@
       ctx.strokeRect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
       ctx.fillStyle = 'rgba(37, 99, 235, 0.05)';
       ctx.fillRect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+      ctx.restore();
+    }
+
+    // Draw selected image border & handles
+    if (selectedImage) {
+      ctx.save();
+      if (canvasMode === 'infinite') {
+        ctx.translate(panOffset.x, panOffset.y);
+        ctx.scale(zoomScale, zoomScale);
+      }
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 2 / (canvasMode === 'infinite' ? zoomScale : 1);
+      ctx.setLineDash([4, 2]);
+      ctx.strokeRect(selectedImage.x, selectedImage.y, selectedImage.width, selectedImage.height);
+      
+      // Draw resize handle at bottom-right corner
+      ctx.fillStyle = '#2563eb';
+      ctx.setLineDash([]);
+      const handleSize = 10 / (canvasMode === 'infinite' ? zoomScale : 1);
+      ctx.fillRect(
+        selectedImage.x + selectedImage.width - handleSize / 2,
+        selectedImage.y + selectedImage.height - handleSize / 2,
+        handleSize,
+        handleSize
+      );
       ctx.restore();
     }
 
@@ -2426,6 +2596,13 @@
   }
 
   function deleteSelected() {
+    if (selectedImage) {
+      canvasImages = canvasImages.filter(img => img.id !== selectedImage.id);
+      selectedImage = null;
+      saveToStore();
+      redraw();
+      return;
+    }
     if (selectedStrokes.length === 0) return;
     
     if (canvasMode === 'a4') {
@@ -2445,6 +2622,125 @@
     selectedStrokes = [];
     contextMenu = null;
     saveToStore();
+  }
+
+  let fileInputEl = $state<HTMLInputElement | null>(null);
+
+  function triggerImageUpload() {
+    fileInputEl?.click();
+  }
+
+  async function handleCanvasImageUpload(e: Event) {
+    const target = e.target as HTMLInputElement;
+    if (target.files && target.files.length > 0) {
+      const file = target.files[0];
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        try {
+          const mediaId = await saveMediaToDb(dataUrl, file.name);
+          
+          const centerX = canvasMode === 'infinite'
+            ? (containerWidth / 2 - panOffset.x) / zoomScale
+            : 400;
+          const centerY = canvasMode === 'infinite'
+            ? (containerHeight / 2 - panOffset.y) / zoomScale
+            : 565;
+            
+          const img = new Image();
+          img.src = dataUrl;
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 400;
+            if (width > maxDim || height > maxDim) {
+              const scale = Math.min(maxDim / width, maxDim / height);
+              width = Math.round(width * scale);
+              height = Math.round(height * scale);
+            }
+            
+            const newImage: CanvasImage = {
+              id: 'img-' + Date.now(),
+              mediaId,
+              x: centerX - width / 2,
+              y: centerY - height / 2,
+              width,
+              height,
+              pageIndex: canvasMode === 'a4' ? activePageIndex : 0
+            };
+            
+            canvasImages = [...canvasImages, newImage];
+            selectedImage = newImage;
+            saveToStore();
+            redraw();
+          };
+        } catch (err) {
+          console.error(err);
+          alert('Failed to insert canvas image.');
+        }
+      };
+      reader.readAsDataURL(file);
+      target.value = '';
+    }
+  }
+
+  async function handlePaste(targetX: number, targetY: number) {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const item of clipboardItems) {
+        const imageType = item.types.find(t => t.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const base64Data = await blobToBase64(blob);
+          const ext = imageType.split('/')[1] || 'png';
+          const mediaId = await saveMediaToDb(base64Data, `canvas_image_${Date.now()}.${ext}`);
+          
+          const img = new Image();
+          img.src = base64Data;
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 400;
+            if (width > maxDim || height > maxDim) {
+              const scale = Math.min(maxDim / width, maxDim / height);
+              width = Math.round(width * scale);
+              height = Math.round(height * scale);
+            }
+            
+            const newImage: CanvasImage = {
+              id: 'img-' + Date.now(),
+              mediaId,
+              x: targetX - width / 2,
+              y: targetY - height / 2,
+              width,
+              height,
+              pageIndex: canvasMode === 'a4' ? activePageIndex : 0
+            };
+            
+            canvasImages = [...canvasImages, newImage];
+            selectedImage = newImage;
+            saveToStore();
+            redraw();
+          };
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Clipboard read error or not permitted: ', err);
+    }
+    
+    if (copiedStrokes && copiedStrokes.length > 0) {
+      pasteStrokes(targetX, targetY);
+    }
+  }
+
+  function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
 
   function pasteStrokes(targetX, targetY) {
@@ -2512,16 +2808,14 @@
           e.preventDefault();
         }
       } else if (e.ctrlKey && e.key.toLowerCase() === 'v') {
-        if (copiedStrokes.length > 0) {
-          if (canvasMode === 'infinite') {
-            const centerX = (containerWidth / 2 - panOffset.x) / zoomScale;
-            const centerY = (containerHeight / 2 - panOffset.y) / zoomScale;
-            pasteStrokes(centerX, centerY);
-          } else {
-            pasteStrokes(400, 565); // A4 center
-          }
-          e.preventDefault();
-        }
+        const centerX = canvasMode === 'infinite'
+          ? (containerWidth / 2 - panOffset.x) / zoomScale
+          : 400;
+        const centerY = canvasMode === 'infinite'
+          ? (containerHeight / 2 - panOffset.y) / zoomScale
+          : 565;
+        handlePaste(centerX, centerY);
+        e.preventDefault();
       } else if (e.ctrlKey && e.key.toLowerCase() === 'z') {
         if (e.shiftKey) {
           handleRedo();
@@ -2533,7 +2827,7 @@
         handleRedo();
         e.preventDefault();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedStrokes.length > 0) {
+        if (selectedImage || selectedStrokes.length > 0) {
           deleteSelected();
           e.preventDefault();
         }
@@ -2771,6 +3065,7 @@
         canvasMode: canvasMode as 'infinite' | 'a4',
         pages,
         infiniteStrokes,
+        canvasImages: JSON.parse(JSON.stringify(canvasImages)),
         currentBgUrl,
         bgOpacity,
         activeBg,
@@ -3074,15 +3369,17 @@
           class="absolute z-30 bg-surface-container-high border border-outline-variant shadow-lg rounded-lg px-2 py-1 flex items-center gap-1 -mt-2.5 font-sans"
           style="left: {constrainedX}px; top: {constrainedY}px; transform: {transformStyle};"
         >
-          <button 
-            onclick={copySelected}
-            class="px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent"
-            title={t('practice.canvas.copy')}
-          >
-            <span class="material-symbols-outlined text-[14px]">content_copy</span>
-            <span>{t('practice.canvas.copy')}</span>
-          </button>
-          <div class="w-px h-3 bg-outline-variant/50"></div>
+          {#if !selectedImage}
+            <button 
+              onclick={copySelected}
+              class="px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent"
+              title={t('practice.canvas.copy')}
+            >
+              <span class="material-symbols-outlined text-[14px]">content_copy</span>
+              <span>{t('practice.canvas.copy')}</span>
+            </button>
+            <div class="w-px h-3 bg-outline-variant/50"></div>
+          {/if}
           <button 
             onclick={deleteSelected}
             class="px-2.5 py-1 text-[10px] font-bold text-error hover:bg-error/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent"
@@ -3093,7 +3390,7 @@
           </button>
           <div class="w-px h-3 bg-outline-variant/50"></div>
           <button 
-            onclick={() => selectedStrokes = []}
+            onclick={() => { selectedStrokes = []; selectedImage = null; }}
             class="px-2.5 py-1 text-[10px] font-bold text-outline hover:bg-surface-container rounded cursor-pointer transition-colors border-0 bg-transparent"
             title={t('project.cancelSelection')}
           >
@@ -3162,6 +3459,15 @@
         {eraserUndoStack}
         {handleUndo}
         {handleRedo}
+        onInsertImage={triggerImageUpload}
+      />
+
+      <input 
+        type="file" 
+        bind:this={fileInputEl} 
+        class="hidden" 
+        accept="image/*"
+        onchange={handleCanvasImageUpload}
       />
 
       <!-- AI Grading / Critique Overlay -->
