@@ -1180,10 +1180,9 @@
 
   let lastInitializedTaskId = '';
 
-  // Load saved drawing state when active task shifts or template data updates
+  // Load saved drawing state when active task shifts
   $effect(() => {
     const taskId = task.id;
-    const templateData = task.templateCanvasData; // Reactivity dependency trace
     if (taskId) {
       const isNewTask = taskId !== lastInitializedTaskId;
       lastInitializedTaskId = taskId;
@@ -1235,45 +1234,16 @@
         canvasImages = saved.canvasImages || [];
         selectedImage = null;
       } else {
-        // Clear canvas if no state was previously saved, OR load from template!
-        if (task.templateCanvasData) {
-          try {
-            const template = JSON.parse(task.templateCanvasData);
-            pages = template.pages || [
-              {
-                id: 'page-' + Date.now(),
-                strokeHistory: [],
-                redoStack: [],
-                eraserUndoStack: []
-              }
-            ];
-            infiniteStrokes = template.infiniteStrokes || [];
-            canvasImages = template.canvasImages || [];
-          } catch (e) {
-            console.error('Failed to parse templateCanvasData:', e);
-            pages = [
-              {
-                id: 'page-' + Date.now(),
-                strokeHistory: [],
-                redoStack: [],
-                eraserUndoStack: []
-              }
-            ];
-            infiniteStrokes = [];
-            canvasImages = [];
+        pages = [
+          {
+            id: 'page-' + Date.now(),
+            strokeHistory: [],
+            redoStack: [],
+            eraserUndoStack: []
           }
-        } else {
-          pages = [
-            {
-              id: 'page-' + Date.now(),
-              strokeHistory: [],
-              redoStack: [],
-              eraserUndoStack: []
-            }
-          ];
-          infiniteStrokes = [];
-          canvasImages = [];
-        }
+        ];
+        infiniteStrokes = [];
+        canvasImages = [];
         infiniteRedo = [];
         infiniteEraserUndo = [];
         panOffset = { x: 0, y: 0 };
@@ -2673,44 +2643,16 @@
       t('practice.canvas.clear'),
       'Are you sure you want to clear your drawing canvas? This will discard your current calligraphy sketch and AI feedback.',
       () => {
-        if (task.templateCanvasData) {
-          try {
-            const template = JSON.parse(task.templateCanvasData);
-            pages = template.pages || [
-              {
-                id: 'page-' + Date.now(),
-                strokeHistory: [],
-                redoStack: [],
-                eraserUndoStack: []
-              }
-            ];
-            infiniteStrokes = template.infiniteStrokes || [];
-            canvasImages = template.canvasImages || [];
-          } catch (e) {
-            console.error('Failed to clear canvas to template layout:', e);
-            if (canvasMode === 'a4') {
-              if (pages[activePageIndex]) {
-                pages[activePageIndex].strokeHistory = [];
-                pages[activePageIndex].redoStack = [];
-                pages[activePageIndex].eraserUndoStack = [];
-              }
-            } else {
-              infiniteStrokes = [];
-            }
-            canvasImages = [];
+        if (canvasMode === 'a4') {
+          if (pages[activePageIndex]) {
+            pages[activePageIndex].strokeHistory = [];
+            pages[activePageIndex].redoStack = [];
+            pages[activePageIndex].eraserUndoStack = [];
           }
         } else {
-          if (canvasMode === 'a4') {
-            if (pages[activePageIndex]) {
-              pages[activePageIndex].strokeHistory = [];
-              pages[activePageIndex].redoStack = [];
-              pages[activePageIndex].eraserUndoStack = [];
-            }
-          } else {
-            infiniteStrokes = [];
-          }
-          canvasImages = [];
+          infiniteStrokes = [];
         }
+        canvasImages = [];
 
         infiniteRedo = [];
         infiniteEraserUndo = [];

@@ -1090,7 +1090,7 @@ class CanvasCritiqueStore {
     defaultEditMode: 'canvas' | 'text' | 'both' = 'both',
     contextFiles: any[] = [],
     background: string | null = null,
-    templateCanvasData: string | null = null
+    providedFiles: any[] = []
   ): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
@@ -1109,7 +1109,7 @@ class CanvasCritiqueStore {
       defaultEditMode,
       contextFiles: this.stripDataUrls(contextFiles),
       background,
-      templateCanvasData
+      providedFiles: this.stripDataUrls(providedFiles)
     };
 
     project.tasks.push(newTask);
@@ -1147,6 +1147,9 @@ class CanvasCritiqueStore {
     if (updatedData.contextFiles !== undefined && task.contextFiles) {
       oldMediaIds.push(...collectMediaIds(task.contextFiles));
     }
+    if (updatedData.providedFiles !== undefined && task.providedFiles) {
+      oldMediaIds.push(...collectMediaIds(task.providedFiles));
+    }
 
     if (updatedData.name !== undefined) task.name = updatedData.name;
     if (updatedData.instructions !== undefined) task.instructions = updatedData.instructions;
@@ -1163,7 +1166,7 @@ class CanvasCritiqueStore {
     if (updatedData.settingsOverride !== undefined) task.settingsOverride = updatedData.settingsOverride;
     if (updatedData.defaultEditMode !== undefined) task.defaultEditMode = updatedData.defaultEditMode;
     if (updatedData.contextFiles !== undefined) task.contextFiles = this.stripDataUrls(updatedData.contextFiles);
-    if (updatedData.templateCanvasData !== undefined) task.templateCanvasData = updatedData.templateCanvasData;
+    if (updatedData.providedFiles !== undefined) task.providedFiles = this.stripDataUrls(updatedData.providedFiles);
 
     // Auto-add category if it isn't listed
     if (task.category && project.categories && !project.categories.includes(task.category)) {
@@ -1186,7 +1189,7 @@ class CanvasCritiqueStore {
       settingsOverride: task.settingsOverride || null,
       defaultEditMode: task.defaultEditMode || 'both',
       contextFiles: task.contextFiles || [],
-      templateCanvasData: task.templateCanvasData || null
+      providedFiles: task.providedFiles || []
     });
     await this.saveProjects();
 
@@ -1199,6 +1202,9 @@ class CanvasCritiqueStore {
     }
     if (updatedData.contextFiles !== undefined && task.contextFiles) {
       newMediaIds.push(...collectMediaIds(task.contextFiles));
+    }
+    if (updatedData.providedFiles !== undefined && task.providedFiles) {
+      newMediaIds.push(...collectMediaIds(task.providedFiles));
     }
 
     const orphanedMediaIds = oldMediaIds.filter(id => !newMediaIds.includes(id));
@@ -1745,6 +1751,9 @@ class CanvasCritiqueStore {
                   } else if (t.solutionFile) {
                     matchedTask.solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
                   }
+                  if (t.providedFiles !== undefined) {
+                    matchedTask.providedFiles = this.stripDataUrls(await this.convertImportedFiles(t.providedFiles));
+                  }
                   if (options.importCompleted && t.completed !== undefined) matchedTask.completed = !!t.completed;
                   if (options.importCritique && t.critique !== undefined) matchedTask.critique = t.critique;
                   if (t.settingsOverride !== undefined) matchedTask.settingsOverride = t.settingsOverride;
@@ -1776,6 +1785,7 @@ class CanvasCritiqueStore {
                 if (t.solutionFile && solutionFiles.length === 0) {
                   solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
                 }
+                let providedFiles = this.stripDataUrls(await this.convertImportedFiles(t.providedFiles || []));
 
                 const newTask: Task = {
                   id: taskId,
@@ -1787,6 +1797,7 @@ class CanvasCritiqueStore {
                   category: taskCategory,
                   instructionFiles,
                   solutionFiles,
+                  providedFiles,
                   editorText: t.editorText || '',
                   settingsOverride: t.settingsOverride || null
                 };
@@ -1836,6 +1847,7 @@ class CanvasCritiqueStore {
             if (t.solutionFile && solutionFiles.length === 0) {
               solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
             }
+            let providedFiles = this.stripDataUrls(await this.convertImportedFiles(t.providedFiles || []));
 
             const taskCategory = options.targetCategory || t.category || 'Basics';
 
@@ -1849,6 +1861,7 @@ class CanvasCritiqueStore {
               category: taskCategory,
               instructionFiles,
               solutionFiles,
+              providedFiles,
               editorText: t.editorText || '',
               settingsOverride: t.settingsOverride || null
             };
@@ -2493,6 +2506,16 @@ class CanvasCritiqueStore {
                   file.dataUrl = await getMediaDataUrl(file.mediaId);
                   delete file.mediaId;
                 } catch (err) { console.error('[store] Failed to inline solution file for full export:', err); }
+              }
+            }
+          }
+          if (task.providedFiles) {
+            for (const file of task.providedFiles) {
+              if (file.mediaId && !file.dataUrl) {
+                try {
+                  file.dataUrl = await getMediaDataUrl(file.mediaId);
+                  delete file.mediaId;
+                } catch (err) { console.error('[store] Failed to inline provided file for full export:', err); }
               }
             }
           }

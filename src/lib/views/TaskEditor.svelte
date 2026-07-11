@@ -10,7 +10,6 @@
   import CanvasModeSelector from '../components/settings/CanvasModeSelector.svelte';
   import MediaFilterSettings from '../components/settings/MediaFilterSettings.svelte';
   import TaskNumberingConfig from '../components/settings/TaskNumberingConfig.svelte';
-import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svelte';
 
   // Form states
   let taskName = $state('');
@@ -25,8 +24,9 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
   let showSolutionRaw = $state(true);
   let defaultEditMode = $state<'canvas' | 'text' | 'both'>('canvas');
   let contextFiles = $state<any[]>([]);
-  let templateCanvasData = $state<string | null>(null);
-  let isTemplateModalOpen = $state(false);
+  let providedFiles = $state<any[]>([]);
+  let isDragOverProvided = $state(false);
+  let providedFilesExpanded = $state(false);
 
   // Task specific override settings
   let settingsOverride = $state<any>({
@@ -182,7 +182,8 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
       targetProjectId = store.editingTask.projectId || store.activeProject?.id || '';
       defaultEditMode = store.editingTask.defaultEditMode || 'both';
       contextFiles = [...(store.editingTask.contextFiles || [])];
-      templateCanvasData = store.editingTask.templateCanvasData || null;
+      providedFiles = [...(store.editingTask.providedFiles || [])];
+      providedFilesExpanded = providedFiles.length > 0;
 
       const parentSettings = store.getEffectiveSettings(targetProjectId);
 
@@ -367,7 +368,7 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
       };
 
       taskName = '';
-      templateCanvasData = null;
+      providedFiles = [];
     }
 
     setTimeout(() => {
@@ -462,7 +463,7 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
         defaultEditMode,
         contextFiles,
         background: null,
-        templateCanvasData
+        providedFiles
       });
       store.editingTask = null;
     } else {
@@ -479,7 +480,7 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
         defaultEditMode,
         contextFiles,
         null,
-        templateCanvasData
+        providedFiles
       );
     }
 
@@ -487,11 +488,11 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
     store.pendingScrollCategory = category;
     taskName = '';
     instructions = '';
-    templateCanvasData = null;
     solution = '';
     aiInstructions = '';
     defaultEditMode = 'canvas';
     contextFiles = [];
+    providedFiles = [];
     isDragOverContext = false;
     store.setView('project-detail');
   }
@@ -505,6 +506,7 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
     aiInstructions = '';
     defaultEditMode = 'canvas';
     contextFiles = [];
+    providedFiles = [];
     isDragOverContext = false;
     store.setView(store.activeProject ? 'project-detail' : 'dashboard');
   }
@@ -1391,23 +1393,6 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
         </div>
       </div>
 
-      <!-- Canvas Template Builder Button -->
-      <div class="flex flex-col gap-2 p-4 rounded-xl border border-outline-variant/60 bg-surface-container-low shrink-0 mt-2">
-        <div class="flex flex-col gap-0.5">
-          <span class="text-xs font-bold text-on-surface">{t('taskEditor.designTemplate')}</span>
-          <span class="text-[10.5px] text-on-surface-variant">{t('taskEditor.designTemplateSubtitle')}</span>
-        </div>
-        <div class="flex flex-col gap-2 mt-1">
-          <button
-            type="button"
-            onclick={() => isTemplateModalOpen = true}
-            class="w-full flex items-center justify-center gap-2 py-2.5 border border-primary/30 rounded-xl bg-primary/5 text-xs font-bold text-primary hover:bg-primary/10 transition-all cursor-pointer focus:outline-none"
-          >
-            <span class="material-symbols-outlined text-[18px]">view_quilt</span>
-            {templateCanvasData ? 'Canvas-Template bearbeiten' : 'Canvas-Template gestalten'}
-          </button>
-        </div>
-      </div>
 
       <!-- Task Settings Overrides -->
       <div class="border-t border-outline-variant/30 pt-6 mt-4 flex flex-col gap-4">
@@ -2035,9 +2020,3 @@ import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svel
   </div>
 {/if}
 
-<TemplateCanvasModal
-  bind:isOpen={isTemplateModalOpen}
-  settingsOverride={settingsOverride}
-  targetProjectId={targetProjectId}
-  bind:templateCanvasData={templateCanvasData}
-/>

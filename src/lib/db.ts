@@ -90,6 +90,7 @@ export async function initDb(): Promise<Database> {
       default_edit_mode TEXT DEFAULT 'both',
       context_files_json TEXT DEFAULT '[]',
       template_canvas_data TEXT,
+      provided_files_json TEXT DEFAULT '[]',
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
   `);
@@ -134,6 +135,10 @@ export async function initDb(): Promise<Database> {
 
   try {
     await db.execute('ALTER TABLE tasks ADD COLUMN context_files_json TEXT DEFAULT "[]"');
+  } catch (_) {}
+
+  try {
+    await db.execute('ALTER TABLE tasks ADD COLUMN provided_files_json TEXT DEFAULT "[]"');
   } catch (_) {}
 
   // Seed defaults if database is fresh (no profiles)
@@ -480,7 +485,7 @@ export async function migrateSolutionsFromDbToFs(db: Database): Promise<void> {
 
 export async function getTasks(db: Database): Promise<Task[]> {
   const rows: any[] = await db.select(
-    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, project_id, background, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data FROM tasks'
+    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, project_id, background, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data, provided_files_json FROM tasks'
   );
   const tasks = rows.map(r => {
     const task: Task = {
@@ -498,7 +503,8 @@ export async function getTasks(db: Database): Promise<Task[]> {
       editorText: '',
       defaultEditMode: r.default_edit_mode || 'both',
       contextFiles: JSON.parse(r.context_files_json || '[]'),
-      templateCanvasData: r.template_canvas_data || null
+      templateCanvasData: r.template_canvas_data || null,
+      providedFiles: JSON.parse(r.provided_files_json || '[]')
     };
     if (r.settings_override_json) {
       try { task.settingsOverride = JSON.parse(r.settings_override_json); } catch (_) {}
@@ -524,8 +530,8 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
     await saveTaskSolutionToDisk(task.id, { canvasData, editorText: task.editorText });
   }
   await db.execute(
-    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data, provided_files_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       task.id,
       task.name,
@@ -544,7 +550,8 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
       task.aiInstructions || '',
       task.defaultEditMode || 'both',
       JSON.stringify(task.contextFiles || []),
-      task.templateCanvasData || null
+      task.templateCanvasData || null,
+      JSON.stringify(task.providedFiles || [])
     ]
   );
 }
@@ -567,6 +574,7 @@ export async function updateTask(db: Database, id: string, updates: Partial<any>
   if (updates.defaultEditMode !== undefined) { fields.push('default_edit_mode = ?'); values.push(updates.defaultEditMode); }
   if (updates.contextFiles !== undefined) { fields.push('context_files_json = ?'); values.push(JSON.stringify(updates.contextFiles)); }
   if (updates.templateCanvasData !== undefined) { fields.push('template_canvas_data = ?'); values.push(updates.templateCanvasData); }
+  if (updates.providedFiles !== undefined) { fields.push('provided_files_json = ?'); values.push(JSON.stringify(updates.providedFiles)); }
 
   if (updates.canvasData !== undefined || updates.editorText !== undefined) {
     await saveTaskSolutionToDisk(id, { canvasData: updates.canvasData, editorText: updates.editorText });
