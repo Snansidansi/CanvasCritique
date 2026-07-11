@@ -491,6 +491,7 @@
   let isResizingImage = $state(false);
   let imageDragStart = { x: 0, y: 0 };
   let imageStartRect = { x: 0, y: 0, width: 0, height: 0 };
+  let imageStartAspectRatio = 1;
   let imageElementCache = $state<Record<string, HTMLImageElement>>({});
 
   let selectionBoundingBox = $derived.by(() => {
@@ -1177,9 +1178,10 @@
 
   let lastInitializedTaskId = '';
 
-  // Load saved drawing state when active task shifts
+  // Load saved drawing state when active task shifts or template data updates
   $effect(() => {
     const taskId = task.id;
+    const templateData = task.templateCanvasData; // Reactivity dependency trace
     if (taskId) {
       const isNewTask = taskId !== lastInitializedTaskId;
       lastInitializedTaskId = taskId;
@@ -1675,6 +1677,7 @@
       isResizingImage = true;
       imageDragStart = { x: coords.x, y: coords.y };
       imageStartRect = { x: selectedImage.x, y: selectedImage.y, width: selectedImage.width, height: selectedImage.height };
+      imageStartAspectRatio = selectedImage.width / selectedImage.height;
       if (longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
@@ -1875,8 +1878,14 @@
     if (isResizingImage && selectedImage) {
       const dx = coords.x - imageDragStart.x;
       const dy = coords.y - imageDragStart.y;
-      selectedImage.width = Math.max(20, imageStartRect.width + dx);
-      selectedImage.height = Math.max(20, imageStartRect.height + dy);
+      
+      const dragDelta = (dx + dy) / 2;
+      const scaleFactor = 1 + (dragDelta / Math.max(imageStartRect.width, imageStartRect.height));
+      const newWidth = Math.max(20, imageStartRect.width * scaleFactor);
+      const newHeight = newWidth / imageStartAspectRatio;
+
+      selectedImage.width = Math.round(newWidth);
+      selectedImage.height = Math.round(newHeight);
       canvasImages = [...canvasImages];
       requestRedraw();
       return;

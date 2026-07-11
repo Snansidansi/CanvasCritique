@@ -48,6 +48,12 @@
   let isResizingImage = $state(false);
   let imageDragStart = { x: 0, y: 0 };
   let imageStartRect = { x: 0, y: 0, width: 0, height: 0 };
+  let imageStartAspectRatio = 1;
+
+  // Background panning state
+  let isPanning = $state(false);
+  let panStart = { x: 0, y: 0 };
+  let panBaseOffset = { x: 0, y: 0 };
 
   // Dimensions
   let containerWidth = $state(800);
@@ -256,6 +262,7 @@
       isResizingImage = true;
       imageDragStart = { x: coords.x, y: coords.y };
       imageStartRect = { x: selectedImage.x, y: selectedImage.y, width: selectedImage.width, height: selectedImage.height };
+      imageStartAspectRatio = selectedImage.width / selectedImage.height;
       e.preventDefault();
       return;
     }
@@ -269,13 +276,27 @@
       return;
     }
 
-    // Clicked elsewhere
+    // Clicked elsewhere -> Start Panning on background!
+    isPanning = true;
+    panStart = { x: e.clientX, y: e.clientY };
+    panBaseOffset = { ...panOffset };
     selectedImage = null;
     redraw();
   }
 
   function handlePointerMove(e: PointerEvent) {
     const coords = getCoords(e);
+
+    if (isPanning) {
+      const dx = e.clientX - panStart.x;
+      const dy = e.clientY - panStart.y;
+      panOffset = {
+        x: panBaseOffset.x + dx,
+        y: panBaseOffset.y + dy
+      };
+      redraw();
+      return;
+    }
 
     if (isMovingImage && selectedImage) {
       const dx = coords.x - imageDragStart.x;
@@ -290,8 +311,14 @@
     if (isResizingImage && selectedImage) {
       const dx = coords.x - imageDragStart.x;
       const dy = coords.y - imageDragStart.y;
-      selectedImage.width = Math.max(20, imageStartRect.width + dx);
-      selectedImage.height = Math.max(20, imageStartRect.height + dy);
+      
+      const dragDelta = (dx + dy) / 2;
+      const scaleFactor = 1 + (dragDelta / Math.max(imageStartRect.width, imageStartRect.height));
+      const newWidth = Math.max(20, imageStartRect.width * scaleFactor);
+      const newHeight = newWidth / imageStartAspectRatio;
+
+      selectedImage.width = Math.round(newWidth);
+      selectedImage.height = Math.round(newHeight);
       canvasImages = [...canvasImages];
       redraw();
       return;
@@ -301,7 +328,29 @@
   function handlePointerUp() {
     isMovingImage = false;
     isResizingImage = false;
+    isPanning = false;
     redraw();
+  }
+
+  function handleWheel(e: WheelEvent) {
+    if (canvasMode !== 'infinite') return;
+    e.preventDefault();
+    const zoomFactor = 1.1;
+    const newScale = e.deltaY < 0 ? zoomScale * zoomFactor : zoomScale / zoomFactor;
+    const boundedScale = Math.max(0.1, Math.min(newScale, 10));
+    
+    if (canvasElement) {
+      const rect = canvasElement.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      
+      panOffset = {
+        x: mouseX - (mouseX - panOffset.x) * (boundedScale / zoomScale),
+        y: mouseY - (mouseY - panOffset.y) * (boundedScale / zoomScale)
+      };
+      zoomScale = boundedScale;
+      redraw();
+    }
   }
 
   function triggerImageUpload() {
@@ -513,6 +562,7 @@
             onpointerdown={handlePointerDown}
             onpointermove={handlePointerMove}
             onpointerup={handlePointerUp}
+            onwheel={handleWheel}
             class="absolute top-0 left-0 w-full h-full block"
           ></canvas>
 
