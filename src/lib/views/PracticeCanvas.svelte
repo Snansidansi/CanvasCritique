@@ -2845,7 +2845,7 @@
   />
 
   <!-- Interactive practice screen split layout -->
-  <div class="grow flex overflow-hidden relative w-full {sidebarPosition === 'top' || sidebarPosition === 'bottom' ? 'flex-col' : 'flex-row'}">
+  <div class="grow h-full flex overflow-hidden relative w-full {sidebarPosition === 'top' || sidebarPosition === 'bottom' ? 'flex-col' : 'flex-row'}">
     
     <!-- Info panels: task, solution, and critique -->
     <PracticeInfoPanels
