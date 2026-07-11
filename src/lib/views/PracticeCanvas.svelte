@@ -876,6 +876,8 @@
     const actStroke = currentStroke;
     const scale = zoomScale;
     const bgImg = currentBgImage;
+    const w = canvasWidth;
+    const h = canvasHeight;
     
     // Selection visual triggers
     const selBox = selectionBox;

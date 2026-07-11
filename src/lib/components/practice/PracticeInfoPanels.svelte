@@ -31,7 +31,26 @@
   let panelSizes = $state<Record<string, number>>({});
   let lastContainerSize = 0;
 
-  let flowSize = $derived(infoPanelsLayout === 'vertical' ? containerHeight : containerWidth);
+  let expectedFlowSize = $derived.by(() => {
+    if (!isRightContentVisible) {
+      return infoPanelsLayout === 'vertical' ? containerHeight : containerWidth;
+    }
+    if (sidebarFlow === 'column') {
+      if (infoPanelsLayout === 'vertical') {
+        return splitWidth;
+      } else {
+        return containerWidth;
+      }
+    } else {
+      if (infoPanelsLayout === 'vertical') {
+        return containerHeight;
+      } else {
+        return splitWidth;
+      }
+    }
+  });
+
+  let flowSize = $derived(expectedFlowSize);
 
   $effect(() => {
     const panels = activeLeftPanels;
