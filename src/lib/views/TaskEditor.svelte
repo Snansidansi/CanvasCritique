@@ -71,7 +71,7 @@
 
   // Inline rename state for media attachments
   let editingFileIndex = $state<number | null>(null);
-  let editingFileType = $state<'instruction' | 'solution' | 'context' | null>(null);
+  let editingFileType = $state<'instruction' | 'solution' | 'context' | 'provided' | null>(null);
   let editingFileNameValue = $state<string>('');
   let renameInputEl = $state<HTMLInputElement | null>(null);
 
@@ -98,6 +98,10 @@
         const files = [...contextFiles];
         files[editingFileIndex] = { ...files[editingFileIndex], name };
         contextFiles = files;
+      } else if (editingFileType === 'provided') {
+        const files = [...providedFiles];
+        files[editingFileIndex] = { ...files[editingFileIndex], name };
+        providedFiles = files;
       }
     }
     cancelInlineRename();
@@ -408,8 +412,8 @@
     };
   }
 
-  function handleRenameFile(index: number, type: 'instruction' | 'solution' | 'context') {
-    const files = type === 'instruction' ? instructionFiles : (type === 'solution' ? solutionFiles : contextFiles);
+  function handleRenameFile(index: number, type: 'instruction' | 'solution' | 'context' | 'provided') {
+    const files = type === 'instruction' ? instructionFiles : (type === 'solution' ? solutionFiles : (type === 'provided' ? providedFiles : contextFiles));
     const file = files[index];
     if (!file) return;
 
@@ -524,6 +528,11 @@
     if (!files.length) return;
 
     for (const file of files) {
+      // For provided files, only allow images
+      if (type === 'provided' && !file.type.startsWith('image/')) {
+        store.showNotification(t('taskEditor.onlyImagesAllowed'), 'error');
+        continue;
+      }
       const reader = new FileReader();
       reader.onload = async (event) => {
         const dataUrl = event.target?.result as string;
@@ -541,8 +550,12 @@
         };
         if (type === 'instruction') {
           instructionFiles = [...instructionFiles, fileData];
-        } else {
+        } else if (type === 'solution') {
           solutionFiles = [...solutionFiles, fileData];
+        } else if (type === 'context') {
+          contextFiles = [...contextFiles, fileData];
+        } else if (type === 'provided') {
+          providedFiles = [...providedFiles, fileData];
         }
       };
       reader.readAsDataURL(file);
@@ -700,7 +713,7 @@
   }
 
   // Paste from clipboard logic
-  async function handlePasteFromClipboard(type: 'instruction' | 'solution' | 'context') {
+  async function handlePasteFromClipboard(type: 'instruction' | 'solution' | 'context' | 'provided') {
     try {
       const clipboardItems = await navigator.clipboard.read();
       let addedAny = false;
@@ -725,6 +738,8 @@
             solutionFiles = [...solutionFiles, newFile];
           } else if (type === 'context') {
             contextFiles = [...contextFiles, newFile];
+          } else if (type === 'provided') {
+            providedFiles = [...providedFiles, newFile];
           }
           addedAny = true;
           continue;
@@ -749,6 +764,8 @@
             solutionFiles = [...solutionFiles, newFile];
           } else if (type === 'context') {
             contextFiles = [...contextFiles, newFile];
+          } else if (type === 'provided') {
+            // Skip text for provided, only images allowed
           }
           addedAny = true;
         }
@@ -779,6 +796,8 @@
             solutionFiles = [...solutionFiles, newFile];
           } else if (type === 'context') {
             contextFiles = [...contextFiles, newFile];
+          } else if (type === 'provided') {
+            // Skip text for provided, only images allowed
           }
           store.showNotification(t('taskEditor.pasteTextSuccess'), 'success');
         } else {
@@ -809,7 +828,7 @@
 
   // Pointer-based media drag state
   let draggedFileIndex = $state<number | null>(null);
-  let draggedFileType = $state<'instruction' | 'solution' | 'context' | null>(null);
+  let draggedFileType = $state<'instruction' | 'solution' | 'context' | 'provided' | null>(null);
   let hoveredFileIndex = $state<number | null>(null);
   let isMediaDragActive = $state(false);
   
@@ -819,7 +838,7 @@
   let mediaDragGhostOffsetX = 0;
   let mediaDragGhostOffsetY = 0;
 
-  function handleFilePointerDown(e: PointerEvent, index: number, type: 'instruction' | 'solution' | 'context') {
+  function handleFilePointerDown(e: PointerEvent, index: number, type: 'instruction' | 'solution' | 'context' | 'provided') {
     if (e.button !== 0 && e.button !== -1) return;
     const target = e.currentTarget as HTMLElement;
     
@@ -907,7 +926,7 @@
     target.addEventListener('pointercancel', onUp);
   }
 
-  function reorderFiles(type: 'instruction' | 'solution' | 'context', from: number, to: number) {
+  function reorderFiles(type: 'instruction' | 'solution' | 'context' | 'provided', from: number, to: number) {
     if (type === 'instruction') {
       const list = [...instructionFiles];
       const [moved] = list.splice(from, 1);
@@ -923,10 +942,15 @@
       const [moved] = list.splice(from, 1);
       list.splice(to, 0, moved);
       contextFiles = list;
+    } else if (type === 'provided') {
+      const list = [...providedFiles];
+      const [moved] = list.splice(from, 1);
+      list.splice(to, 0, moved);
+      providedFiles = list;
     }
   }
 
-  function handleDragOver(type: 'instruction' | 'solution' | 'context', e: DragEvent) {
+  function handleDragOver(type: 'instruction' | 'solution' | 'context' | 'provided', e: DragEvent) {
     e.preventDefault();
     if (type === 'instruction') {
       isDragOverInstruction = true;
@@ -934,20 +958,24 @@
       isDragOverSolution = true;
     } else if (type === 'context') {
       isDragOverContext = true;
+    } else if (type === 'provided') {
+      isDragOverProvided = true;
     }
   }
 
-  function handleDragLeave(type: 'instruction' | 'solution' | 'context') {
+  function handleDragLeave(type: 'instruction' | 'solution' | 'context' | 'provided') {
     if (type === 'instruction') {
       isDragOverInstruction = false;
     } else if (type === 'solution') {
       isDragOverSolution = false;
     } else if (type === 'context') {
       isDragOverContext = false;
+    } else if (type === 'provided') {
+      isDragOverProvided = false;
     }
   }
 
-  function handleFileDrop(type: 'instruction' | 'solution' | 'context', e: DragEvent) {
+  function handleFileDrop(type: 'instruction' | 'solution' | 'context' | 'provided', e: DragEvent) {
     e.preventDefault();
     if (type === 'instruction') {
       isDragOverInstruction = false;
@@ -955,12 +983,19 @@
       isDragOverSolution = false;
     } else if (type === 'context') {
       isDragOverContext = false;
+    } else if (type === 'provided') {
+      isDragOverProvided = false;
     }
     const files = e.dataTransfer?.files;
     if (!files || files.length === 0) return;
 
     const fileList = Array.from(files) as File[];
     for (const file of fileList) {
+      // For provided files, only allow images
+      if (type === 'provided' && !file.type.startsWith('image/')) {
+        store.showNotification(t('taskEditor.onlyImagesAllowed'), 'error');
+        continue;
+      }
       const reader = new FileReader();
       reader.onload = async (event) => {
         const dataUrl = event.target?.result as string;
@@ -982,6 +1017,8 @@
           solutionFiles = [...solutionFiles, fileData];
         } else if (type === 'context') {
           contextFiles = [...contextFiles, fileData];
+        } else if (type === 'provided') {
+          providedFiles = [...providedFiles, fileData];
         }
       };
       reader.readAsDataURL(file);
@@ -1393,6 +1430,153 @@
         </div>
       </div>
 
+      <!-- Provided Canvas Images Collapsible Section -->
+      <section class="bg-surface-container-low border border-outline-variant/60 rounded-xl overflow-hidden shrink-0 mt-4">
+        <button 
+          type="button"
+          onclick={() => providedFilesExpanded = !providedFilesExpanded}
+          class="w-full flex items-center justify-between px-6 py-4 cursor-pointer bg-transparent border-0 text-left focus:outline-none hover:bg-surface-container-lowest/50 transition-colors"
+        >
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-[20px] text-primary">photo_library</span>
+            <div>
+              <h3 class="font-bold text-sm text-on-surface">{t('taskEditor.providedImagesTitle')}</h3>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">
+                {t('taskEditor.providedImagesSubtitle')}
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            {#if providedFiles.length > 0}
+              <span class="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{providedFiles.length}</span>
+            {/if}
+            <span class="material-symbols-outlined text-on-surface-variant text-[20px] transition-transform" 
+                  style="transform: rotate({providedFilesExpanded ? '180' : '0'}deg)">
+              expand_more
+            </span>
+          </div>
+        </button>
+
+        {#if providedFilesExpanded}
+          <div class="px-6 pb-5 border-t border-outline-variant/30 pt-4 flex flex-col gap-2">
+            <span class="text-xs font-semibold text-on-surface">{t('taskEditor.providedImagesLabel')}</span>
+            <input 
+              type="file" 
+              id="providedFileInput" 
+              class="hidden" 
+              multiple
+              accept="image/*"
+              onchange={(e) => handleFileSelect(e, 'provided')}
+            />
+            <button 
+              type="button"
+              onclick={() => triggerUpload('provided')}
+              ondragover={(e) => handleDragOver('provided', e)}
+              ondragleave={() => handleDragLeave('provided')}
+              ondrop={(e) => handleFileDrop('provided', e)}
+              class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer {isDragOverProvided ? 'border-primary bg-primary/5' : ''}"
+            >
+              <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+                <span class="material-symbols-outlined text-[24px]">add_photo_alternate</span>
+              </div>
+              <div class="text-center">
+                <p class="text-xs font-semibold text-on-surface">
+                  {providedFiles.length > 0 ? t('taskEditor.providedImagesSelected', { count: providedFiles.length }) : t('taskEditor.providedImagesUploadPrompt')}
+                </p>
+                <p class="text-[10px] text-on-surface-variant mt-1">{t('taskEditor.providedImagesUploadSupportInfo')}</p>
+              </div>
+            </button>
+
+            <!-- Paste from Clipboard button -->
+            <button
+              type="button"
+              onclick={() => handlePasteFromClipboard('provided')}
+              class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
+            >
+              <span class="material-symbols-outlined text-[16px]">content_paste</span>
+              {t('taskEditor.providedImagesClipboardButton')}
+            </button>
+
+            {#if providedFiles.length > 0}
+              <div class="mt-2 flex flex-col gap-1.5">
+                {#each providedFiles as file, index}
+                  {#if isMediaDragActive && draggedFileType === 'provided' && hoveredFileIndex === index}
+                    <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
+                  {/if}
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+                  <div 
+                    data-file-index={index}
+                    data-file-type="provided"
+                    onpointerdown={(e) => handleFilePointerDown(e, index, 'provided')}
+                    class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none {isMediaDragActive && draggedFileType === 'provided' && draggedFileIndex === index ? 'opacity-40 scale-95' : ''}"
+                  >
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div 
+                      onclick={() => {
+                        if (editingFileIndex !== index || editingFileType !== 'provided') {
+                          openPreview(file);
+                        }
+                      }}
+                      class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
+                      title={t('taskEditor.clickToPreview')}
+                    >
+                      <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
+                        drag_indicator
+                      </span>
+                      <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
+                        image
+                      </span>
+                      {#if editingFileIndex === index && editingFileType === 'provided'}
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                        <input
+                          bind:this={renameInputEl}
+                          type="text"
+                          bind:value={editingFileNameValue}
+                          onclick={(e) => e.stopPropagation()}
+                          onkeydown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter') {
+                              saveInlineRename();
+                            } else if (e.key === 'Escape') {
+                              cancelInlineRename();
+                            }
+                          }}
+                          onblur={saveInlineRename}
+                          class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
+                        />
+                      {:else}
+                        <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
+                      {/if}
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <button 
+                        type="button"
+                        onclick={() => handleRenameFile(index, 'provided')}
+                        class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
+                        title={t('taskEditor.renameFileTooltip') || 'Rename File'}
+                      >
+                        edit
+                      </button>
+                      <button 
+                        type="button"
+                        onclick={() => {
+                          providedFiles = providedFiles.filter((_, i) => i !== index);
+                        }}
+                        class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
+                        title={t('taskEditor.remove')}
+                      >
+                        close
+                      </button>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </section>
 
       <!-- Task Settings Overrides -->
       <div class="border-t border-outline-variant/30 pt-6 mt-4 flex flex-col gap-4">
