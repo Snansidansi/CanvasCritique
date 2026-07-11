@@ -397,7 +397,10 @@
         "strokeDesc": "Delete the entire stroke you touch (like OneNote).",
         "normalSize": "Normal Eraser Size",
         "strokeRadius": "Stroke Eraser Radius"
-      }
+      },
+      "resetLayout": "Reset Canvas Layout",
+      "resetLayoutDesc": "Reset the panels position and workspace split layouts back to default.",
+      "layoutResetSuccess": "Canvas layout preferences have been reset successfully."
     },
     "taskNumbering": {
       "title": "Task Numbering",

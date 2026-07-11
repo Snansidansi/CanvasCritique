@@ -396,7 +396,10 @@
         "strokeDesc": "Löscht den gesamten berührten Strich (wie bei OneNote).",
         "normalSize": "Normaler Radierer-Radius",
         "strokeRadius": "Strich-Radierer-Radius"
-      }
+      },
+      "resetLayout": "Canvas-Layout zurücksetzen",
+      "resetLayoutDesc": "Setzt die Position der Bedienfelder und das Workspace-Split-Layout auf die Standardwerte zurück.",
+      "layoutResetSuccess": "Die Canvas-Layout-Einstellungen wurden erfolgreich zurückgesetzt."
     },
     "taskNumbering": {
       "title": "Aufgabennummerierung",

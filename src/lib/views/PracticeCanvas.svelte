@@ -2863,7 +2863,7 @@
       {sidebarPosition}
     />
 
-    <div class="grow h-full flex overflow-hidden relative {workspaceLayout === 'vertical' ? 'flex-col' : 'flex-row'}" style="order: {sidebarPosition === 'right' || sidebarPosition === 'bottom' ? 1 : 3};">
+    <div class="grow flex overflow-hidden relative {sidebarPosition === 'top' || sidebarPosition === 'bottom' ? 'w-full' : 'h-full'} {workspaceLayout === 'vertical' ? 'flex-col' : 'flex-row'}" style="order: {sidebarPosition === 'right' || sidebarPosition === 'bottom' ? 1 : 3};">
 
     <!-- Right side: Drawing Workspace (Infinite or A4 Centered) -->
     {#if showCanvas}
