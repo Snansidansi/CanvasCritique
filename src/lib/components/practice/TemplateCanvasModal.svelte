@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { t } from '../../services/i18n';
   import { saveMediaToDb, getMediaDataUrl } from '../../db/media';
-  import { drawGuidelinesInWorld, loadImage } from '../../utils/canvas';
+  import { drawGuidelinesInWorld } from '../../utils/canvas';
   import { store } from '../../state/store.svelte';
 
   interface CanvasImage {
@@ -17,7 +17,6 @@
 
   let {
     isOpen = $bindable(false),
-    taskBackground = null, // UUID of the background diagram
     settingsOverride = {},
     targetProjectId = '',
     templateCanvasData = $bindable(null),
@@ -27,7 +26,7 @@
   // Settings
   let effectiveSettings = $derived(store.getEffectiveSettings(targetProjectId));
   let canvasMode = $derived(settingsOverride?.overrideCanvas ? settingsOverride.canvasMode : effectiveSettings.canvasMode);
-  let activeBg = $derived(taskBackground || (settingsOverride?.overrideCanvas ? settingsOverride.canvasMode : effectiveSettings.canvasMode) || 'blank');
+  let activeBg = $derived((settingsOverride?.overrideCanvas ? settingsOverride.canvasMode : effectiveSettings.canvasMode) || 'blank');
   let bgOpacity = 30; // opacity of guidelines
 
   // Local state
@@ -50,35 +49,20 @@
   let imageDragStart = { x: 0, y: 0 };
   let imageStartRect = { x: 0, y: 0, width: 0, height: 0 };
 
-  // Background diagram cache
-  let currentBgImage = $state<HTMLImageElement | null>(null);
-  let customBgUrl = $state<string | null>(null);
-
   // Dimensions
   let containerWidth = $state(800);
   let containerHeight = $state(600);
   let a4Scale = $derived(Math.min(containerWidth / 800, containerHeight / 1130) * 0.95);
 
-  // Load template data on mount
+  // Setup/TearDown window event handlers
   onMount(() => {
-    if (templateCanvasData) {
-      try {
-        const parsed = JSON.parse(templateCanvasData);
-        canvasImages = parsed.canvasImages || [];
-      } catch (e) {
-        console.error('Failed to parse template Canvas data:', e);
-      }
-    }
-
     const updateSize = () => {
       if (containerElement) {
         containerWidth = containerElement.clientWidth;
         containerHeight = containerElement.clientHeight;
         if (canvasMode === 'infinite') {
-          // Center infinite canvas coordinate origin
           panOffset = { x: containerWidth / 2, y: containerHeight / 2 };
         } else {
-          // Center A4 canvas coordinate origin
           panOffset = { x: (containerWidth - 800 * a4Scale) / 2, y: (containerHeight - 1130 * a4Scale) / 2 };
         }
         redraw();
@@ -86,11 +70,42 @@
     };
 
     window.addEventListener('resize', updateSize);
-    setTimeout(updateSize, 100);
-
     return () => {
       window.removeEventListener('resize', updateSize);
     };
+  });
+
+  // Re-run initialization, reload canvas, and grab context whenever modal isOpen is true
+  $effect(() => {
+    if (isOpen) {
+      if (templateCanvasData) {
+        try {
+          const parsed = JSON.parse(templateCanvasData);
+          canvasImages = parsed.canvasImages || [];
+        } catch (e) {
+          console.error('Failed to parse template Canvas data:', e);
+          canvasImages = [];
+        }
+      } else {
+        canvasImages = [];
+      }
+      selectedImage = null;
+
+      // Trigger size updates and acquire canvas 2d context
+      setTimeout(() => {
+        if (containerElement && canvasElement) {
+          containerWidth = containerElement.clientWidth;
+          containerHeight = containerElement.clientHeight;
+          if (canvasMode === 'infinite') {
+            panOffset = { x: containerWidth / 2, y: containerHeight / 2 };
+          } else {
+            panOffset = { x: (containerWidth - 800 * a4Scale) / 2, y: (containerHeight - 1130 * a4Scale) / 2 };
+          }
+          ctx = canvasElement.getContext('2d');
+          redraw();
+        }
+      }, 100);
+    }
   });
 
   // Load and cache canvas image media files asynchronously when canvasImages updates
@@ -111,39 +126,6 @@
     }
   });
 
-  // Load direct background diagram by UUID when selected
-  $effect(() => {
-    const bg = activeBg;
-    if (bg && bg !== 'grid' && bg !== 'lines' && bg !== 'blank') {
-      getMediaDataUrl(bg).then(url => {
-        customBgUrl = url;
-      }).catch(() => {
-        customBgUrl = null;
-      });
-    } else {
-      customBgUrl = null;
-    }
-  });
-
-  // Fetch and cache the background pattern image when customBgUrl changes
-  $effect(() => {
-    const url = customBgUrl;
-    if (url) {
-      const img = new Image();
-      img.src = url;
-      img.onload = () => {
-        currentBgImage = img;
-        redraw();
-      };
-      img.onerror = () => {
-        currentBgImage = null;
-        redraw();
-      };
-    } else {
-      currentBgImage = null;
-    }
-  });
-
   // Svelte 5 run-loop visual dependency triggers
   $effect(() => {
     const imgs = canvasImages;
@@ -151,7 +133,8 @@
     const imgCache = imageElementCache;
     const isMovImg = isMovingImage;
     const isResImg = isResizingImage;
-    const bgImg = currentBgImage;
+    const mode = canvasMode;
+    const bg = activeBg;
 
     if (ctx && canvasElement) {
       redraw();
@@ -188,10 +171,9 @@
 
   function redraw() {
     if (!ctx || !canvasElement) return;
-    ctx.clearRect(0, 0, containerWidth, containerHeight);
 
-    // Always fill background with white
-    ctx.fillStyle = '#FFFFFF';
+    // Fill background with grey, but main workspace white
+    ctx.fillStyle = '#f3f4f6';
     ctx.fillRect(0, 0, containerWidth, containerHeight);
 
     ctx.save();
@@ -204,16 +186,9 @@
       const wVisible = containerWidth / zoomScale;
       const hVisible = containerHeight / zoomScale;
 
-      if (currentBgImage) {
-        ctx.save();
-        ctx.globalAlpha = bgOpacity / 100;
-        const pattern = ctx.createPattern(currentBgImage, 'repeat');
-        if (pattern) {
-          ctx.fillStyle = pattern;
-          ctx.fillRect(xStart, yStart, wVisible, hVisible);
-        }
-        ctx.restore();
-      }
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(xStart, yStart, wVisible, hVisible);
+
       drawGuidelinesInWorld(ctx, xStart, yStart, wVisible, hVisible, activeBg, bgOpacity);
       drawCanvasImages(ctx);
     } else {
@@ -224,20 +199,10 @@
       // Draw A4 page boundaries shadow/border
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, 800, 1130);
-      ctx.strokeStyle = '#e5e7eb';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#d1d5db';
+      ctx.lineWidth = 1;
       ctx.strokeRect(0, 0, 800, 1130);
 
-      if (currentBgImage) {
-        ctx.save();
-        ctx.globalAlpha = bgOpacity / 100;
-        const pattern = ctx.createPattern(currentBgImage, 'repeat');
-        if (pattern) {
-          ctx.fillStyle = pattern;
-          ctx.fillRect(0, 0, 800, 1130);
-        }
-        ctx.restore();
-      }
       drawGuidelinesInWorld(ctx, 0, 0, 800, 1130, activeBg, bgOpacity);
       drawCanvasImages(ctx);
     }
@@ -342,6 +307,42 @@
     fileInputEl?.click();
   }
 
+  function insertImageToTemplate(dataUrl: string, mediaId: string, name: string) {
+    const centerX = canvasMode === 'infinite'
+      ? (containerWidth / 2 - panOffset.x) / zoomScale
+      : 400;
+    const centerY = canvasMode === 'infinite'
+      ? (containerHeight / 2 - panOffset.y) / zoomScale
+      : 565;
+
+    const img = new Image();
+    img.src = dataUrl;
+    img.onload = () => {
+      let width = img.naturalWidth || img.width;
+      let height = img.naturalHeight || img.height;
+      const maxDim = 400;
+      if (width > maxDim || height > maxDim) {
+        const scale = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+
+      const newImage: CanvasImage = {
+        id: 'img-' + Date.now(),
+        mediaId,
+        x: centerX - width / 2,
+        y: centerY - height / 2,
+        width,
+        height,
+        pageIndex: 0
+      };
+
+      canvasImages = [...canvasImages, newImage];
+      selectedImage = newImage;
+      redraw();
+    };
+  }
+
   async function handleCanvasImageUpload(e: Event) {
     const target = e.target as HTMLInputElement;
     if (target.files && target.files.length > 0) {
@@ -351,45 +352,7 @@
         const dataUrl = reader.result as string;
         try {
           const mediaId = await saveMediaToDb(dataUrl, file.name);
-
-          // Center the template image on canvas screen
-          const centerX = canvasMode === 'infinite'
-            ? (containerWidth / 2 - panOffset.x) / zoomScale
-            : 400;
-          const centerY = canvasMode === 'infinite'
-            ? (containerHeight / 2 - panOffset.y) / zoomScale
-            : 565;
-
-          const img = new Image();
-          img.src = dataUrl;
-          img.onload = () => {
-            let width = img.width;
-            let height = img.height;
-            const maxDim = 400;
-            if (width > maxDim || height > maxDim) {
-              const scale = Math.min(maxDim / width, maxDim / height);
-              width = Math.round(width * scale);
-              height = Math.round(height * scale);
-            }
-
-            const newImage: CanvasImage = {
-              id: 'img-' + Date.now(),
-              mediaId,
-              x: centerX - width / 2,
-              y: centerY - height / 2,
-              width,
-              height,
-              pageIndex: 0
-            };
-
-            canvasImages = [...canvasImages, newImage];
-            selectedImage = newImage;
-            // Initialize canvas context
-            if (canvasElement) {
-              ctx = canvasElement.getContext('2d');
-            }
-            redraw();
-          };
+          insertImageToTemplate(dataUrl, mediaId, file.name);
         } catch (err) {
           console.error(err);
         }
@@ -400,7 +363,6 @@
   }
 
   async function handlePaste(e: ClipboardEvent) {
-    // Only paste if focused on modal
     const clipboardData = e.clipboardData;
     if (!clipboardData) return;
 
@@ -414,43 +376,7 @@
           const base64Data = reader.result as string;
           try {
             const mediaId = await saveMediaToDb(base64Data, file.name);
-            const centerX = canvasMode === 'infinite'
-              ? (containerWidth / 2 - panOffset.x) / zoomScale
-              : 400;
-            const centerY = canvasMode === 'infinite'
-              ? (containerHeight / 2 - panOffset.y) / zoomScale
-              : 565;
-
-            const img = new Image();
-            img.src = base64Data;
-            img.onload = () => {
-              let width = img.width;
-              let height = img.height;
-              const maxDim = 400;
-              if (width > maxDim || height > maxDim) {
-                const scale = Math.min(maxDim / width, maxDim / height);
-                width = Math.round(width * scale);
-                height = Math.round(height * scale);
-              }
-
-              const newImage: CanvasImage = {
-                id: 'img-' + Date.now(),
-                mediaId,
-                x: centerX - width / 2,
-                y: centerY - height / 2,
-                width,
-                height,
-                pageIndex: 0
-              };
-
-              canvasImages = [...canvasImages, newImage];
-              selectedImage = newImage;
-              // Initialize canvas context
-              if (canvasElement) {
-                ctx = canvasElement.getContext('2d');
-              }
-              redraw();
-            };
+            insertImageToTemplate(base64Data, mediaId, file.name);
           } catch (err) {
             console.error(err);
           }
@@ -458,6 +384,64 @@
         reader.readAsDataURL(file);
         e.preventDefault();
         break;
+      }
+    }
+  }
+
+  async function handlePasteClipboard() {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const item of clipboardItems) {
+        const imageType = item.types.find(t => t.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const base64Data = await blobToBase64(blob);
+          const ext = imageType.split('/')[1] || 'png';
+          const mediaId = await saveMediaToDb(base64Data, `canvas_image_${Date.now()}.${ext}`);
+          insertImageToTemplate(base64Data, mediaId, `pasted_image_${Date.now()}.${ext}`);
+          return;
+        }
+      }
+      alert('Kein Bild in der Zwischenablage gefunden.');
+    } catch (err) {
+      console.warn('Clipboard read error: ', err);
+      alert('Zugriff auf die Zwischenablage verweigert oder leer.');
+    }
+  }
+
+  function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  async function handleDrop(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      const imageFile = files.find(f => f.type.startsWith('image/'));
+      if (imageFile) {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const base64Data = reader.result as string;
+          try {
+            const mediaId = await saveMediaToDb(base64Data, imageFile.name);
+            insertImageToTemplate(base64Data, mediaId, imageFile.name);
+          } catch (err) {
+            console.error('Failed to save drop image:', err);
+          }
+        };
+        reader.readAsDataURL(imageFile);
       }
     }
   }
@@ -490,7 +474,7 @@
 
 {#if isOpen}
   <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-6 font-sans">
-    <div class="bg-surface border border-outline-variant shadow-2xl rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden animate-scale-up">
+    <div class="bg-surface border border-outline-variant shadow-2xl rounded-2xl w-[90vw] h-[90vh] flex flex-col overflow-hidden animate-scale-up">
       
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-outline-variant/60 shrink-0">
@@ -513,9 +497,12 @@
       <!-- Main body containing Canvas preview and controls -->
       <div class="flex-1 flex overflow-hidden relative">
         
-        <!-- Canvas area -->
+        <!-- Canvas area with drag over and drop support -->
         <div 
           bind:this={containerElement} 
+          ondragover={handleDragOver}
+          ondrop={handleDrop}
+          role="presentation"
           class="flex-1 bg-surface-container-lowest overflow-hidden relative cursor-crosshair select-none"
         >
           <canvas
@@ -589,14 +576,23 @@
               {t('practice.palette.image')} einfügen
             </button>
 
-            <div class="text-[11px] text-on-surface-variant leading-relaxed p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 mt-2">
-              <p class="font-semibold text-on-surface mb-1">Hinweise:</p>
-              <ul class="list-disc pl-4 space-y-1.5 font-medium">
+            <button
+              type="button"
+              onclick={handlePasteClipboard}
+              class="w-full flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-xl bg-surface hover:bg-surface-container hover:text-primary transition-all cursor-pointer font-bold text-xs text-on-surface-variant focus:outline-none"
+            >
+              <span class="material-symbols-outlined text-[18px]">content_paste</span>
+              {t('taskEditor.pasteClipboard')}
+            </button>
+
+            <div class="text-[11px] text-on-surface-variant leading-relaxed p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 mt-2 font-medium">
+              <p class="font-bold text-on-surface mb-1">Hinweise:</p>
+              <ul class="list-disc pl-4 space-y-1.5 leading-normal">
                 <li>Bilder per Klick auswählen</li>
                 <li>Ecke unten rechts ziehen zum Skalieren</li>
                 <li>Bild ziehen zum Positionieren</li>
                 <li><b>Entf</b> oder <b>Backspace</b> drückt zum Löschen</li>
-                <li>Bilder können auch per <b>Strg+V</b> eingefügt werden</li>
+                <li>Bilder per <b>Drag & Drop</b> oder <b>Strg+V</b> einfügen</li>
               </ul>
             </div>
           </div>
