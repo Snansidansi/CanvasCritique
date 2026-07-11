@@ -172,6 +172,8 @@
     "remove": "Remove",
     "renameFilePrompt": "Enter new file name:",
     "renameFileTooltip": "Rename File",
+    "backgroundDiagramLabel": "Canvas Background / Diagram",
+    "uploadBackground": "Upload Diagram / Image",
     "solutionLabel": "Expected Solution",
     "solutionPlaceholder": "Enter expected solution...",
     "solutionMaterial": "Solution Material",
@@ -305,6 +307,8 @@
       "undo": "Undo (Ctrl+Z)",
       "redo": "Redo (Ctrl+Y)",
       "size": "Size",
+      "image": "Image",
+      "imageTooltip": "Insert Image",
       "openFullScreen": "Open in full screen"
     },
     "shapes": {

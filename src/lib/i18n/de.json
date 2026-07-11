@@ -171,6 +171,8 @@
     "remove": "Entfernen",
     "renameFilePrompt": "Geben Sie den neuen Dateinamen ein:",
     "renameFileTooltip": "Datei umbenennen",
+    "backgroundDiagramLabel": "Canvas-Hintergrund / Diagramm",
+    "uploadBackground": "Diagramm / Bild hochladen",
     "solutionLabel": "Erwartete Lösung",
     "solutionPlaceholder": "Erwartete Lösung eingeben...",
     "solutionMaterial": "Lösungsmaterial",
@@ -304,6 +306,8 @@
       "undo": "Rückgängig (Strg+Z)",
       "redo": "Wiederherstellen (Strg+Y)",
       "size": "Größe",
+      "image": "Bild",
+      "imageTooltip": "Bild einfügen",
       "openFullScreen": "Im Vollbild öffnen"
     },
     "shapes": {

@@ -1088,7 +1088,8 @@ class CanvasCritiqueStore {
     settingsOverride?: any,
     aiInstructions: string = '',
     defaultEditMode: 'canvas' | 'text' | 'both' = 'both',
-    contextFiles: any[] = []
+    contextFiles: any[] = [],
+    background: string | null = null
   ): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
@@ -1105,7 +1106,8 @@ class CanvasCritiqueStore {
       solutionFiles: this.stripDataUrls(solutionFiles),
       settingsOverride,
       defaultEditMode,
-      contextFiles: this.stripDataUrls(contextFiles)
+      contextFiles: this.stripDataUrls(contextFiles),
+      background
     };
 
     project.tasks.push(newTask);

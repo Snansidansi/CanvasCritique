@@ -696,6 +696,20 @@
     }
   });
 
+  // Load direct background diagram by UUID when selected
+  $effect(() => {
+    const bg = activeBg;
+    if (bg && bg !== 'grid' && bg !== 'lines' && bg !== 'blank' && !currentBgObject) {
+      getMediaDataUrl(bg).then(url => {
+        customBgUrl = url;
+      }).catch(() => {
+        customBgUrl = null;
+      });
+    } else {
+      customBgUrl = null;
+    }
+  });
+
   let activeLeftPanels = $derived([
     showTask && { id: 'task', title: `${task.category && task.category !== 'Basics' ? task.category + ' - ' : ''}${task.name}`, content: task.instructions },
     showSolution && { id: 'solution', title: t('practice.evaluationGoal'), content: task.solution },

@@ -24,6 +24,7 @@
   let showSolutionRaw = $state(true);
   let defaultEditMode = $state<'canvas' | 'text' | 'both'>('both');
   let contextFiles = $state<any[]>([]);
+  let taskBackground = $state<string | null>(null);
 
   // Task specific override settings
   let settingsOverride = $state<any>({
@@ -176,9 +177,9 @@
       aiInstructions = store.editingTask.aiInstructions || '';
       aiInstructionsExpanded = !!aiInstructions;
       category = store.editingTask.category || 'Basics';
-      targetProjectId = store.activeProject?.id || '';
       defaultEditMode = store.editingTask.defaultEditMode || 'both';
       contextFiles = [...(store.editingTask.contextFiles || [])];
+      taskBackground = store.editingTask.background || null;
 
       const parentSettings = store.getEffectiveSettings(targetProjectId);
 
@@ -363,6 +364,7 @@
       };
 
       taskName = '';
+      taskBackground = null;
     }
 
     setTimeout(() => {
@@ -455,7 +457,8 @@
         solutionFile: null,
         settingsOverride: { ...settingsOverride },
         defaultEditMode,
-        contextFiles
+        contextFiles,
+        background: taskBackground
       });
       store.editingTask = null;
     } else {
@@ -470,7 +473,8 @@
         { ...settingsOverride },
         aiInstructions.trim(),
         defaultEditMode,
-        contextFiles
+        contextFiles,
+        taskBackground
       );
     }
 
@@ -478,6 +482,7 @@
     store.pendingScrollCategory = category;
     taskName = '';
     instructions = '';
+    taskBackground = null;
     solution = '';
     aiInstructions = '';
     defaultEditMode = 'both';
@@ -502,6 +507,25 @@
   function triggerUpload(type) {
     const input = document.getElementById(`${type}FileInput`);
     if (input) input.click();
+  }
+
+  async function handleBackgroundFileSelect(e: any) {
+    const target = e.target as HTMLInputElement;
+    if (target.files && target.files.length > 0) {
+      const file = target.files[0];
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Data = reader.result as string;
+        try {
+          const mediaId = await saveMediaToDb(base64Data, file.name);
+          taskBackground = mediaId;
+        } catch (err) {
+          console.error('Failed to save background diagram:', err);
+          alert('Failed to save background image.');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   }
 
   async function handleFileSelect(e: any, type: string) {
@@ -1376,6 +1400,46 @@
           >
             {t('taskEditor.defaultEditModeBoth')}
           </button>
+        </div>
+      </div>
+
+      <!-- Canvas Background / Diagram Selection -->
+      <div class="flex flex-col gap-2 p-4 rounded-xl border border-outline-variant/60 bg-surface-container-low shrink-0 mt-2">
+        <div class="flex flex-col gap-0.5">
+          <span class="text-xs font-bold text-on-surface">{t('taskEditor.backgroundDiagramLabel')}</span>
+          <span class="text-[10.5px] text-on-surface-variant">Diagramm oder Hintergrundbild für den Canvas dieser Aufgabe festlegen</span>
+        </div>
+        <input 
+          type="file" 
+          id="taskBackgroundFileInput" 
+          class="hidden" 
+          accept="image/*"
+          onchange={handleBackgroundFileSelect}
+        />
+        <div class="flex items-center gap-3 mt-1">
+          {#if taskBackground}
+            <div class="flex items-center gap-2 bg-surface border border-outline-variant/30 rounded-lg p-2 grow min-w-0 animate-fade-in">
+              <span class="material-symbols-outlined text-[18px] text-primary shrink-0">image</span>
+              <span class="text-[11px] text-on-surface truncate font-medium grow">{taskBackground}</span>
+              <button
+                type="button"
+                onclick={() => taskBackground = null}
+                class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors border-0 bg-transparent shrink-0"
+                title="Remove"
+              >
+                close
+              </button>
+            </div>
+          {:else}
+            <button
+              type="button"
+              onclick={() => document.getElementById('taskBackgroundFileInput')?.click()}
+              class="w-full flex items-center justify-center gap-2 py-2 border border-outline-variant rounded-xl bg-surface text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
+            >
+              <span class="material-symbols-outlined text-[18px]">upload_file</span>
+              {t('taskEditor.uploadBackground')}
+            </button>
+          {/if}
         </div>
       </div>
 
