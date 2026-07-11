@@ -277,6 +277,10 @@
   let shapeType = $state('rectangle'); // 'circle' | 'ellipse' | 'line' | 'square' | 'rectangle' | 'triangle'
 
   let cursorClass = $derived.by(() => {
+    // If placing a provided image, show crosshair
+    if (pendingInsertImage) {
+      return 'cursor-crosshair';
+    }
     // If the user is writing with a stylus (or the pen tool is active and no buttons are held), show the dot cursor
     if (activeTool === 'pen' && !isPointerEraser && !isPointerSelect && !isPointerPan) {
       return 'cursor-dot';
@@ -493,6 +497,9 @@
   let imageStartRect = { x: 0, y: 0, width: 0, height: 0 };
   let imageStartAspectRatio = 1;
   let imageElementCache = $state<Record<string, HTMLImageElement>>({});
+
+  // Pending provided image insertion state
+  let pendingInsertImage = $state<{ name: string; dataUrl?: string; mediaId?: string } | null>(null);
 
   let selectionBoundingBox = $derived.by(() => {
     if (selectedImage) {
@@ -831,6 +838,86 @@
         reader.readAsDataURL(imageFile);
       }
     }
+  }
+
+  function handleSelectProvidedImage(file: any) {
+    pendingInsertImage = file;
+    store.showNotification(t('practice.canvas.clickToPlace', { name: file.name }), 'info');
+  }
+
+  async function handlePlaceImage(e: PointerEvent | MouseEvent) {
+    if (!pendingInsertImage || !canvasElement) return;
+    
+    const file = pendingInsertImage;
+    pendingInsertImage = null;
+
+    // Resolve dataUrl
+    let dataUrl = file.dataUrl || '';
+    if (!dataUrl && file.mediaId) {
+      try {
+        dataUrl = await getMediaDataUrl(file.mediaId);
+      } catch (_) {}
+    }
+    if (!dataUrl) {
+      store.showNotification(t('practice.infoPanels.mediaError'), 'error');
+      return;
+    }
+
+    // Get the mediaId — if the file already has one use it, otherwise save to DB
+    let mediaId = file.mediaId || '';
+    if (!mediaId) {
+      try {
+        mediaId = await saveMediaToDb(dataUrl, file.name);
+      } catch (err) {
+        console.error('Failed to save provided image:', err);
+        return;
+      }
+    }
+
+    // Calculate click position in canvas coordinates
+    const rect = canvasElement.getBoundingClientRect();
+    const scaleX = rect.width > 0 ? (canvasElement.width / rect.width) : 1;
+    const scaleY = rect.height > 0 ? (canvasElement.height / rect.height) : 1;
+    const clickClientX = (e.clientX - rect.left) * scaleX;
+    const clickClientY = (e.clientY - rect.top) * scaleY;
+    
+    let placeX = 0;
+    let placeY = 0;
+    if (canvasMode === 'infinite') {
+      placeX = (clickClientX - panOffset.x) / zoomScale;
+      placeY = (clickClientY - panOffset.y) / zoomScale;
+    } else {
+      placeX = clickClientX / a4Scale;
+      placeY = clickClientY / a4Scale;
+    }
+
+    const img = new Image();
+    img.src = dataUrl;
+    img.onload = () => {
+      let width = img.naturalWidth || img.width;
+      let height = img.naturalHeight || img.height;
+      const maxDim = 400;
+      if (width > maxDim || height > maxDim) {
+        const scale = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+
+      const newImage: CanvasImage = {
+        id: 'img-' + Date.now(),
+        mediaId,
+        x: placeX - width / 2,
+        y: placeY - height / 2,
+        width,
+        height,
+        pageIndex: canvasMode === 'a4' ? activePageIndex : 0
+      };
+
+      canvasImages = [...canvasImages, newImage];
+      selectedImage = newImage;
+      activeTool = 'select';
+      saveToStore();
+    };
   }
 
   let activeLeftPanels = $derived([
@@ -1435,6 +1522,14 @@
 
   function handlePointerDown(e) {
     if (!ctx || !canvasElement) return;
+
+    // Intercept click when placing a provided image
+    if (pendingInsertImage) {
+      e.preventDefault();
+      e.stopPropagation();
+      handlePlaceImage(e);
+      return;
+    }
 
     lastPointerType = e.pointerType;
     if (e.isPrimary) {
@@ -2889,6 +2984,13 @@
       if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
         return;
       }
+
+      // Cancel pending image placement
+      if (e.key === 'Escape' && pendingInsertImage) {
+        pendingInsertImage = null;
+        e.preventDefault();
+        return;
+      }
       
       if (e.ctrlKey && e.key.toLowerCase() === 'c') {
         if (selectedStrokes.length > 0) {
@@ -3258,6 +3360,7 @@
       isRightContentVisible={showCanvas || showText}
       infoPanelsLayout={infoPanelsLayout}
       {sidebarPosition}
+      onSelectProvidedImage={handleSelectProvidedImage}
     />
 
     <div 
@@ -3282,6 +3385,18 @@
              {workspaceLayout === 'vertical' ? 'w-full grow' : 'h-full w-full'}"
     >
 
+      <!-- Pending image placement overlay -->
+      {#if pendingInsertImage}
+        <div class="absolute top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 bg-primary/90 text-white rounded-full shadow-lg backdrop-blur-sm animate-pulse pointer-events-auto select-none">
+          <span class="material-symbols-outlined text-[18px]">place_item</span>
+          <span class="text-xs font-semibold">{t('practice.canvas.clickToPlaceOverlay', { name: pendingInsertImage.name })}</span>
+          <button
+            type="button"
+            onclick={() => pendingInsertImage = null}
+            class="material-symbols-outlined text-[16px] hover:bg-white/20 p-0.5 rounded-full cursor-pointer focus:outline-none transition-colors border-0 bg-transparent text-white"
+          >close</button>
+        </div>
+      {/if}
 
       {#if canvasMode === 'infinite'}
         <!-- Infinite Canvas Wrapper -->

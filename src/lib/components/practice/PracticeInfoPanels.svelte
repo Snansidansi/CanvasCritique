@@ -16,8 +16,11 @@
     textFontSize = 13,
     isRightContentVisible = true,
     infoPanelsLayout = 'vertical',
-    sidebarPosition = 'left'
+    sidebarPosition = 'left',
+    onSelectProvidedImage = (file: any) => {}
   } = $props();
+
+  let providedMediaExpanded = $state(false);
 
   let sidebarFlow = $derived((sidebarPosition === 'top' || sidebarPosition === 'bottom') ? 'column' : 'row');
 
@@ -783,6 +786,74 @@
                 </div>
               </div>
             {/if}
+          {/if}
+
+          {#if panel.id === 'task' && task.providedFiles && task.providedFiles.length > 0}
+            <!-- Provided Canvas Images Catalog -->
+            <div class="mt-5 border-t border-outline-variant/30 pt-4">
+              <button
+                type="button"
+                onclick={() => providedMediaExpanded = !providedMediaExpanded}
+                class="w-full flex items-center justify-between mb-2 cursor-pointer bg-transparent border-0 text-left focus:outline-none p-0 font-sans"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-[16px] text-primary">photo_library</span>
+                  <h3 class="text-[10px] font-bold text-primary uppercase tracking-wider select-none">
+                    {t('practice.infoPanels.providedMediaTitle')}
+                  </h3>
+                  <span class="text-[9px] font-semibold text-on-surface-variant bg-surface-container-high px-1.5 py-0.5 rounded-full">
+                    {task.providedFiles.length}
+                  </span>
+                </div>
+                <span class="material-symbols-outlined text-on-surface-variant text-[16px] transition-transform" 
+                      style="transform: rotate({providedMediaExpanded ? '180deg' : '0deg'})">
+                  expand_more
+                </span>
+              </button>
+
+              {#if !providedMediaExpanded}
+                <p class="text-[10px] text-on-surface-variant italic">
+                  {t('practice.infoPanels.clickToPlaceOnCanvas')}
+                </p>
+              {/if}
+
+              {#if providedMediaExpanded}
+                <div class="grid grid-cols-2 gap-2 animate-fade-in">
+                  {#each task.providedFiles as file, idx}
+                    {@const fileUrl = resolveMediaUrl(file)}
+                    {@const loading = isMediaLoading(file)}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div
+                      onclick={() => onSelectProvidedImage(file)}
+                      class="relative group flex flex-col items-center bg-surface-container border border-outline-variant rounded-xl overflow-hidden cursor-pointer hover:border-primary hover:shadow-md transition-all"
+                    >
+                      <div class="w-full aspect-square flex items-center justify-center bg-surface-container-lowest p-2 overflow-hidden">
+                        {#if loading}
+                          <div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        {:else if fileUrl}
+                          <img 
+                            src={fileUrl} 
+                            alt={file.name} 
+                            class="max-w-full max-h-full object-contain rounded select-none group-hover:scale-105 transition-transform"
+                            draggable="false"
+                          />
+                        {:else}
+                          <span class="material-symbols-outlined text-[32px] text-outline">image</span>
+                        {/if}
+                      </div>
+                      <div class="w-full px-2 py-1.5 text-center border-t border-outline-variant/30">
+                        <span class="text-[9px] font-medium text-on-surface truncate block">{file.name}</span>
+                      </div>
+                      <!-- Hover overlay -->
+                      <div class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <span class="material-symbols-outlined text-[28px] text-primary drop-shadow">place_item</span>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
           {/if}
 
           {#if panel.id === 'solution'}
