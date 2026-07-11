@@ -376,8 +376,8 @@
   let containerWidth = $state(800);
   let containerHeight = $state(600);
   
-  let canvasWidth = $derived(canvasMode === 'infinite' ? containerWidth : 800);
-  let canvasHeight = $derived(canvasMode === 'infinite' ? containerHeight : 1130);
+  let canvasWidth = $derived(canvasMode === 'infinite' ? Math.round(containerWidth / 8) * 8 : 800);
+  let canvasHeight = $derived(canvasMode === 'infinite' ? Math.round(containerHeight / 8) * 8 : 1130);
   let a4Scale = $derived(
     canvasMode === 'a4' 
       ? Math.max(0.1, Math.min(
@@ -1211,8 +1211,10 @@
   function getCoords(e) {
     if (!canvasElement) return { x: 0, y: 0 };
     const rect = canvasElement.getBoundingClientRect();
-    const screenX = e.clientX - rect.left;
-    const screenY = e.clientY - rect.top;
+    const scaleX = rect.width > 0 ? (canvasElement.width / rect.width) : 1;
+    const scaleY = rect.height > 0 ? (canvasElement.height / rect.height) : 1;
+    const screenX = (e.clientX - rect.left) * scaleX;
+    const screenY = (e.clientY - rect.top) * scaleY;
     
     if (canvasMode === 'infinite') {
       return {
