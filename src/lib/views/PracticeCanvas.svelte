@@ -748,6 +748,7 @@
           img.src = dataUrl;
           img.onload = () => {
             imageElementCache[mediaId] = img;
+            imageElementCache = { ...imageElementCache }; // Trigger Svelte 5 state reactivity!
             redraw();
           };
           img.onerror = () => {
@@ -759,6 +760,77 @@
       }
     }
   });
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  async function handleDrop(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      const imageFile = files.find(f => f.type.startsWith('image/'));
+      if (imageFile) {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const dataUrl = reader.result as string;
+          try {
+            const mediaId = await saveMediaToDb(dataUrl, imageFile.name);
+            
+            const rect = canvasElement.getBoundingClientRect();
+            const scaleX = rect.width > 0 ? (canvasElement.width / rect.width) : 1;
+            const scaleY = rect.height > 0 ? (canvasElement.height / rect.height) : 1;
+            const dropClientX = (e.clientX - rect.left) * scaleX;
+            const dropClientY = (e.clientY - rect.top) * scaleY;
+            
+            let dropX = 0;
+            let dropY = 0;
+            if (canvasMode === 'infinite') {
+              dropX = (dropClientX - panOffset.x) / zoomScale;
+              dropY = (dropClientY - panOffset.y) / zoomScale;
+            } else {
+              dropX = dropClientX / a4Scale;
+              dropY = dropClientY / a4Scale;
+            }
+
+            const img = new Image();
+            img.src = dataUrl;
+            img.onload = () => {
+              let width = img.naturalWidth || img.width;
+              let height = img.naturalHeight || img.height;
+              const maxDim = 400;
+              if (width > maxDim || height > maxDim) {
+                const scale = Math.min(maxDim / width, maxDim / height);
+                width = Math.round(width * scale);
+                height = Math.round(height * scale);
+              }
+
+              const newImage: CanvasImage = {
+                id: 'img-' + Date.now(),
+                mediaId,
+                x: dropX - width / 2,
+                y: dropY - height / 2,
+                width,
+                height,
+                pageIndex: canvasMode === 'a4' ? activePageIndex : 0
+              };
+
+              canvasImages = [...canvasImages, newImage];
+              selectedImage = newImage;
+              activeTool = 'select'; // Automatically select the selection tool!
+              saveToStore();
+            };
+          } catch (err) {
+            console.error('Failed to save drop image:', err);
+          }
+        };
+        reader.readAsDataURL(imageFile);
+      }
+    }
+  }
 
   let activeLeftPanels = $derived([
     showTask && { id: 'task', title: `${task.category && task.category !== 'Basics' ? task.category + ' - ' : ''}${task.name}`, content: task.instructions },
@@ -1138,7 +1210,7 @@
         if (hasDrawing) showCanvas = true;
         if (hasText) showText = true;
       }
-      if (saved) {
+      if (saved && hasDrawing) {
         pages = saved.pages || [
           {
             id: 'page-' + Date.now(),
@@ -1611,7 +1683,9 @@
       return;
     }
 
-    if (clickedImage && (activeTool === 'select' || activeTool === 'pan')) {
+    const shouldDragImage = clickedImage && (activeTool === 'select' || activeTool === 'pan' || selectedImage !== null);
+
+    if (shouldDragImage) {
       selectedImage = clickedImage;
       selectedStrokes = []; // Clear stroke selection
       isMovingImage = true;
@@ -3247,6 +3321,9 @@
       bind:this={canvasContainer} 
       bind:clientWidth={containerWidth}
       bind:clientHeight={containerHeight}
+      ondragover={handleDragOver}
+      ondrop={handleDrop}
+      role="presentation"
       class="grow relative select-none
              {canvasMode === 'infinite' ? 'overflow-hidden bg-surface-container-lowest cursor-crosshair' : 'overflow-hidden bg-surface-container-lowest flex justify-center items-center'}
              {workspaceLayout === 'vertical' ? 'w-full grow' : 'h-full w-full'}"
@@ -3752,6 +3829,17 @@
         >
           <span class="material-symbols-outlined text-base">add_box</span>
           <span>{t('practice.canvas.addCustomBg')}</span>
+        </button>
+
+        <button 
+          onclick={() => { 
+            triggerImageUpload();
+            store.canvasSettingsOpen = false;
+          }}
+          class="mt-2 w-full py-2 border border-outline text-on-surface-variant hover:bg-surface-container rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none bg-transparent"
+        >
+          <span class="material-symbols-outlined text-base">add_photo_alternate</span>
+          <span>Bild auf Canvas einfügen</span>
         </button>
       </div>
 

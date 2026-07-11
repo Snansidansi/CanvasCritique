@@ -119,6 +119,7 @@
           img.src = dataUrl;
           img.onload = () => {
             imageElementCache[mediaId] = img;
+            imageElementCache = { ...imageElementCache }; // Trigger Svelte 5 state reactivity!
             redraw();
           };
         }).catch(console.error);
@@ -507,6 +508,8 @@
         >
           <canvas
             bind:this={canvasElement}
+            width={containerWidth}
+            height={containerHeight}
             onpointerdown={handlePointerDown}
             onpointermove={handlePointerMove}
             onpointerup={handlePointerUp}
@@ -579,10 +582,10 @@
             <button
               type="button"
               onclick={handlePasteClipboard}
-              class="w-full flex items-center justify-center gap-2 py-3 border border-outline-variant rounded-xl bg-surface hover:bg-surface-container hover:text-primary transition-all cursor-pointer font-bold text-xs text-on-surface-variant focus:outline-none"
+              class="w-full flex items-center justify-center gap-2 py-2.5 px-3 border border-outline-variant rounded-xl bg-surface hover:bg-surface-container hover:text-primary transition-all cursor-pointer font-bold text-[11px] text-on-surface-variant focus:outline-none whitespace-normal text-center leading-tight"
             >
-              <span class="material-symbols-outlined text-[18px]">content_paste</span>
-              {t('taskEditor.pasteClipboard')}
+              <span class="material-symbols-outlined text-[16px] shrink-0">content_paste</span>
+              <span>{t('taskEditor.pasteClipboard')}</span>
             </button>
 
             <div class="text-[11px] text-on-surface-variant leading-relaxed p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 mt-2 font-medium">
