@@ -1089,7 +1089,8 @@ class CanvasCritiqueStore {
     aiInstructions: string = '',
     defaultEditMode: 'canvas' | 'text' | 'both' = 'both',
     contextFiles: any[] = [],
-    background: string | null = null
+    background: string | null = null,
+    templateCanvasData: string | null = null
   ): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
@@ -1107,7 +1108,8 @@ class CanvasCritiqueStore {
       settingsOverride,
       defaultEditMode,
       contextFiles: this.stripDataUrls(contextFiles),
-      background
+      background,
+      templateCanvasData
     };
 
     project.tasks.push(newTask);
@@ -1161,6 +1163,7 @@ class CanvasCritiqueStore {
     if (updatedData.settingsOverride !== undefined) task.settingsOverride = updatedData.settingsOverride;
     if (updatedData.defaultEditMode !== undefined) task.defaultEditMode = updatedData.defaultEditMode;
     if (updatedData.contextFiles !== undefined) task.contextFiles = this.stripDataUrls(updatedData.contextFiles);
+    if (updatedData.templateCanvasData !== undefined) task.templateCanvasData = updatedData.templateCanvasData;
 
     // Auto-add category if it isn't listed
     if (task.category && project.categories && !project.categories.includes(task.category)) {
@@ -1182,7 +1185,8 @@ class CanvasCritiqueStore {
       background: task.background || null,
       settingsOverride: task.settingsOverride || null,
       defaultEditMode: task.defaultEditMode || 'both',
-      contextFiles: task.contextFiles || []
+      contextFiles: task.contextFiles || [],
+      templateCanvasData: task.templateCanvasData || null
     });
     await this.saveProjects();
 

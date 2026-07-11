@@ -1159,22 +1159,50 @@
         canvasImages = saved.canvasImages || [];
         selectedImage = null;
       } else {
-        // Clear canvas if no state was previously saved
-        pages = [
-          {
-            id: 'page-' + Date.now(),
-            strokeHistory: [],
-            redoStack: [],
-            eraserUndoStack: []
+        // Clear canvas if no state was previously saved, OR load from template!
+        if (task.templateCanvasData) {
+          try {
+            const template = JSON.parse(task.templateCanvasData);
+            pages = template.pages || [
+              {
+                id: 'page-' + Date.now(),
+                strokeHistory: [],
+                redoStack: [],
+                eraserUndoStack: []
+              }
+            ];
+            infiniteStrokes = template.infiniteStrokes || [];
+            canvasImages = template.canvasImages || [];
+          } catch (e) {
+            console.error('Failed to parse templateCanvasData:', e);
+            pages = [
+              {
+                id: 'page-' + Date.now(),
+                strokeHistory: [],
+                redoStack: [],
+                eraserUndoStack: []
+              }
+            ];
+            infiniteStrokes = [];
+            canvasImages = [];
           }
-        ];
-        infiniteStrokes = [];
+        } else {
+          pages = [
+            {
+              id: 'page-' + Date.now(),
+              strokeHistory: [],
+              redoStack: [],
+              eraserUndoStack: []
+            }
+          ];
+          infiniteStrokes = [];
+          canvasImages = [];
+        }
         infiniteRedo = [];
         infiniteEraserUndo = [];
         panOffset = { x: 0, y: 0 };
         zoomScale = 1;
         activePageIndex = 0;
-        canvasImages = [];
         selectedImage = null;
       }
     }
@@ -2552,23 +2580,53 @@
   }
 
   function clearCanvas() {
-    if (strokeHistory.length === 0 && !hasCheckedWork) return;
+    if (strokeHistory.length === 0 && canvasImages.length === 0 && !hasCheckedWork) return;
     
     store.confirm(
       t('practice.canvas.clear'),
       'Are you sure you want to clear your drawing canvas? This will discard your current calligraphy sketch and AI feedback.',
       () => {
-        if (canvasMode === 'a4') {
-          if (pages[activePageIndex]) {
-            pages[activePageIndex].strokeHistory = [];
-            pages[activePageIndex].redoStack = [];
-            pages[activePageIndex].eraserUndoStack = [];
+        if (task.templateCanvasData) {
+          try {
+            const template = JSON.parse(task.templateCanvasData);
+            pages = template.pages || [
+              {
+                id: 'page-' + Date.now(),
+                strokeHistory: [],
+                redoStack: [],
+                eraserUndoStack: []
+              }
+            ];
+            infiniteStrokes = template.infiniteStrokes || [];
+            canvasImages = template.canvasImages || [];
+          } catch (e) {
+            console.error('Failed to clear canvas to template layout:', e);
+            if (canvasMode === 'a4') {
+              if (pages[activePageIndex]) {
+                pages[activePageIndex].strokeHistory = [];
+                pages[activePageIndex].redoStack = [];
+                pages[activePageIndex].eraserUndoStack = [];
+              }
+            } else {
+              infiniteStrokes = [];
+            }
+            canvasImages = [];
           }
         } else {
-          infiniteStrokes = [];
-          infiniteRedo = [];
-          infiniteEraserUndo = [];
+          if (canvasMode === 'a4') {
+            if (pages[activePageIndex]) {
+              pages[activePageIndex].strokeHistory = [];
+              pages[activePageIndex].redoStack = [];
+              pages[activePageIndex].eraserUndoStack = [];
+            }
+          } else {
+            infiniteStrokes = [];
+          }
+          canvasImages = [];
         }
+
+        infiniteRedo = [];
+        infiniteEraserUndo = [];
         
         feedbackText = '';
         feedbackScore = null;
@@ -2577,6 +2635,7 @@
         showFeedback = false;
         showCritiqueBanner = false;
         activeTooltipMarker = null;
+        selectedImage = null;
 
         saveToStore();
 

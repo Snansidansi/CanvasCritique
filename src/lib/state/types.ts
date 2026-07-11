@@ -39,6 +39,7 @@ export interface Task {
   settingsOverride?: ProjectSettingsOverride;
   defaultEditMode?: 'canvas' | 'text' | 'both';
   contextFiles?: MediaFile[];
+  templateCanvasData?: string | null;
 }
 
 export interface ProjectSettingsOverride {

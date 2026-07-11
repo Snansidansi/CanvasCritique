@@ -10,6 +10,7 @@
   import CanvasModeSelector from '../components/settings/CanvasModeSelector.svelte';
   import MediaFilterSettings from '../components/settings/MediaFilterSettings.svelte';
   import TaskNumberingConfig from '../components/settings/TaskNumberingConfig.svelte';
+import TemplateCanvasModal from '../components/practice/TemplateCanvasModal.svelte';
 
   // Form states
   let taskName = $state('');
@@ -25,6 +26,8 @@
   let defaultEditMode = $state<'canvas' | 'text' | 'both'>('both');
   let contextFiles = $state<any[]>([]);
   let taskBackground = $state<string | null>(null);
+  let templateCanvasData = $state<string | null>(null);
+  let isTemplateModalOpen = $state(false);
 
   // Task specific override settings
   let settingsOverride = $state<any>({
@@ -180,6 +183,7 @@
       defaultEditMode = store.editingTask.defaultEditMode || 'both';
       contextFiles = [...(store.editingTask.contextFiles || [])];
       taskBackground = store.editingTask.background || null;
+      templateCanvasData = store.editingTask.templateCanvasData || null;
 
       const parentSettings = store.getEffectiveSettings(targetProjectId);
 
@@ -365,6 +369,7 @@
 
       taskName = '';
       taskBackground = null;
+      templateCanvasData = null;
     }
 
     setTimeout(() => {
@@ -458,7 +463,8 @@
         settingsOverride: { ...settingsOverride },
         defaultEditMode,
         contextFiles,
-        background: taskBackground
+        background: taskBackground,
+        templateCanvasData
       });
       store.editingTask = null;
     } else {
@@ -474,7 +480,8 @@
         aiInstructions.trim(),
         defaultEditMode,
         contextFiles,
-        taskBackground
+        taskBackground,
+        templateCanvasData
       );
     }
 
@@ -483,6 +490,7 @@
     taskName = '';
     instructions = '';
     taskBackground = null;
+    templateCanvasData = null;
     solution = '';
     aiInstructions = '';
     defaultEditMode = 'both';
@@ -1407,7 +1415,7 @@
       <div class="flex flex-col gap-2 p-4 rounded-xl border border-outline-variant/60 bg-surface-container-low shrink-0 mt-2">
         <div class="flex flex-col gap-0.5">
           <span class="text-xs font-bold text-on-surface">{t('taskEditor.backgroundDiagramLabel')}</span>
-          <span class="text-[10.5px] text-on-surface-variant">Diagramm oder Hintergrundbild für den Canvas dieser Aufgabe festlegen</span>
+          <span class="text-[10.5px] text-on-surface-variant">Hintergrundbild festlegen oder Canvas-Template mit vorab platzierten Diagrammen gestalten</span>
         </div>
         <input 
           type="file" 
@@ -1416,30 +1424,41 @@
           accept="image/*"
           onchange={handleBackgroundFileSelect}
         />
-        <div class="flex items-center gap-3 mt-1">
-          {#if taskBackground}
-            <div class="flex items-center gap-2 bg-surface border border-outline-variant/30 rounded-lg p-2 grow min-w-0 animate-fade-in">
-              <span class="material-symbols-outlined text-[18px] text-primary shrink-0">image</span>
-              <span class="text-[11px] text-on-surface truncate font-medium grow">{taskBackground}</span>
+        <div class="flex flex-col gap-2 mt-1">
+          <div class="flex items-center gap-3">
+            {#if taskBackground}
+              <div class="flex items-center gap-2 bg-surface border border-outline-variant/30 rounded-lg p-2 grow min-w-0 animate-fade-in">
+                <span class="material-symbols-outlined text-[18px] text-primary shrink-0">image</span>
+                <span class="text-[11px] text-on-surface truncate font-medium grow">{taskBackground}</span>
+                <button
+                  type="button"
+                  onclick={() => taskBackground = null}
+                  class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors border-0 bg-transparent shrink-0"
+                  title="Remove"
+                >
+                  close
+                </button>
+              </div>
+            {:else}
               <button
                 type="button"
-                onclick={() => taskBackground = null}
-                class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors border-0 bg-transparent shrink-0"
-                title="Remove"
+                onclick={() => document.getElementById('taskBackgroundFileInput')?.click()}
+                class="w-full flex items-center justify-center gap-2 py-2 border border-outline-variant rounded-xl bg-surface text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
               >
-                close
+                <span class="material-symbols-outlined text-[18px]">upload_file</span>
+                {t('taskEditor.uploadBackground')}
               </button>
-            </div>
-          {:else}
-            <button
-              type="button"
-              onclick={() => document.getElementById('taskBackgroundFileInput')?.click()}
-              class="w-full flex items-center justify-center gap-2 py-2 border border-outline-variant rounded-xl bg-surface text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
-            >
-              <span class="material-symbols-outlined text-[18px]">upload_file</span>
-              {t('taskEditor.uploadBackground')}
-            </button>
-          {/if}
+            {/if}
+          </div>
+
+          <button
+            type="button"
+            onclick={() => isTemplateModalOpen = true}
+            class="w-full flex items-center justify-center gap-2 py-2 border border-primary/30 rounded-xl bg-primary/5 text-xs font-bold text-primary hover:bg-primary/10 transition-all cursor-pointer focus:outline-none"
+          >
+            <span class="material-symbols-outlined text-[18px]">view_quilt</span>
+            {templateCanvasData ? 'Canvas-Template bearbeiten' : 'Canvas-Template gestalten'}
+          </button>
         </div>
       </div>
 
@@ -2067,3 +2086,11 @@
     </div>
   </div>
 {/if}
+
+<TemplateCanvasModal
+  bind:isOpen={isTemplateModalOpen}
+  taskBackground={taskBackground}
+  settingsOverride={settingsOverride}
+  targetProjectId={targetProjectId}
+  bind:templateCanvasData={templateCanvasData}
+/>
