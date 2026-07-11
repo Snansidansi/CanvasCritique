@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { t } from '../../services/i18n';
   import { getMediaDataUrl, isAudioFile, isVideoFile, isImageFile, getFileIcon, isIntegratedFile, openAttachmentInDefaultApp } from '../../db/media';
   import AudioPlayer from './AudioPlayer.svelte';
@@ -36,39 +37,55 @@
     const panels = activeLeftPanels;
     if (!panels || panels.length === 0 || flowSize === 0) return;
 
-    // Check if we need to initialize or re-initialize sizes
-    const panelIds = panels.map(p => p.id);
-    const existingIds = Object.keys(panelSizes);
-    const isMismatch = panelIds.some(id => !panelSizes[id]) || existingIds.length !== panelIds.length;
+    untrack(() => {
+      // Check if we need to initialize or re-initialize sizes
+      const panelIds = panels.map(p => p.id);
+      const existingIds = Object.keys(panelSizes);
+      const isMismatch = panelIds.some(id => !panelSizes[id]) || existingIds.length !== panelIds.length;
 
-    if (isMismatch) {
-      const share = flowSize / panels.length;
-      const newSizes: Record<string, number> = {};
-      for (const p of panels) {
-        newSizes[p.id] = panelSizes[p.id] || share;
-      }
-      // Normalize to sum up to flowSize
-      let sum = 0;
-      for (const id in newSizes) sum += newSizes[id];
-      if (Math.abs(sum - flowSize) > 1 && sum > 0) {
-        for (const id in newSizes) {
-          newSizes[id] = (newSizes[id] / sum) * flowSize;
+      const dividerSize = (panels.length - 1) * 6;
+      const availableSize = Math.max(0, flowSize - dividerSize);
+
+      if (isMismatch) {
+        const share = availableSize / panels.length;
+        const newSizes: Record<string, number> = {};
+        for (const p of panels) {
+          newSizes[p.id] = panelSizes[p.id] || share;
         }
+        // Normalize to sum up to availableSize
+        let sum = 0;
+        for (const id in newSizes) sum += newSizes[id];
+        if (Math.abs(sum - availableSize) > 1 && sum > 0) {
+          for (const id in newSizes) {
+            newSizes[id] = (newSizes[id] / sum) * availableSize;
+          }
+        }
+        panelSizes = newSizes;
+        lastContainerSize = flowSize;
       }
-      panelSizes = newSizes;
-      lastContainerSize = flowSize;
-    }
+    });
   });
 
   $effect(() => {
-    if (flowSize !== lastContainerSize && flowSize > 0) {
-      const ratio = flowSize / (lastContainerSize || 1);
-      const newSizes = { ...panelSizes };
-      for (const id in newSizes) {
-        newSizes[id] = (newSizes[id] || 0) * ratio;
-      }
-      panelSizes = newSizes;
-      lastContainerSize = flowSize;
+    const currentFlowSize = flowSize;
+    if (currentFlowSize > 0) {
+      untrack(() => {
+        // Only run if there is a significant change in flowSize (> 1px) to prevent sub-pixel layout oscillation loops
+        if (Math.abs(currentFlowSize - lastContainerSize) > 1) {
+          const panels = activeLeftPanels;
+          const dividerSize = (panels.length - 1) * 6;
+          const prevAvailableSize = Math.max(0, lastContainerSize - dividerSize);
+          const currentAvailableSize = Math.max(0, currentFlowSize - dividerSize);
+
+          const ratio = prevAvailableSize > 0 ? (currentAvailableSize / prevAvailableSize) : 1;
+          const newSizes = { ...panelSizes };
+          for (const id in newSizes) {
+            newSizes[id] = (newSizes[id] || 0) * ratio;
+          }
+          panelSizes = newSizes;
+          lastContainerSize = currentFlowSize;
+        }
+      });
     }
   });
 
@@ -550,9 +567,11 @@
     bind:clientWidth={containerWidth}
     class="bg-surface-container-low flex overflow-hidden {isRightContentVisible ? 'shrink-0' : 'grow w-full'} {infoPanelsLayout === 'vertical' ? 'flex-col' : 'flex-row'}
            {sidebarFlow === 'column' ? 'w-full' : 'h-full'}
-           {sidebarPosition === 'left' || sidebarPosition === 'top' ? 'border-r border-outline-variant' : ''}
-           {sidebarPosition === 'right' || sidebarPosition === 'bottom' ? 'border-l border-outline-variant' : ''}"
-    style={isRightContentVisible ? (sidebarFlow === 'column' ? `height: ${splitWidth}px;` : `width: ${splitWidth}px;`) : ''}
+           {sidebarPosition === 'left' ? 'border-r border-outline-variant' : ''}
+           {sidebarPosition === 'right' ? 'border-l border-outline-variant' : ''}
+           {sidebarPosition === 'top' ? 'border-b border-outline-variant' : ''}
+           {sidebarPosition === 'bottom' ? 'border-t border-outline-variant' : ''}"
+    style="{isRightContentVisible ? (sidebarFlow === 'column' ? `height: ${splitWidth}px;` : `width: ${splitWidth}px;`) : ''} order: {sidebarPosition === 'right' || sidebarPosition === 'bottom' ? 3 : 1};"
   >
     {#each activeLeftPanels as panel, idx}
       {#if idx > 0}
@@ -573,8 +592,8 @@
         onclick={panel.isFeedback ? handleCritiqueClick : null}
         class="flex flex-col overflow-y-auto p-6 hide-scrollbar shrink-0 {panel.id === 'solution' ? 'bg-surface-container-low/20' : panel.id === 'feedback' ? 'bg-primary/5' : ''}"
         style={infoPanelsLayout === 'vertical' 
-          ? `height: ${panelSizes[panel.id] || (containerHeight / activeLeftPanels.length)}px; width: 100%;` 
-          : `width: ${panelSizes[panel.id] || (containerWidth / activeLeftPanels.length)}px; height: 100%;`}
+          ? `height: ${panelSizes[panel.id] || Math.max(10, (containerHeight - (activeLeftPanels.length - 1) * 6) / activeLeftPanels.length)}px; width: 100%;` 
+          : `width: ${panelSizes[panel.id] || Math.max(10, (containerWidth - (activeLeftPanels.length - 1) * 6) / activeLeftPanels.length)}px; height: 100%;`}
       >
         <div class="flex items-center justify-between mb-3 pb-1 border-b border-outline-variant/30">
           <h2 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5 font-sans select-none">
@@ -690,7 +709,7 @@
                                 {getFileIcon(file.name)}
                               </span>
                               <div class="text-center">
-                                <p class="text-xs font-bold text-on-surface truncate max-w-[280px]">{file.name}</p>
+                                <p class="text-xs font-bold text-on-surface truncate max-w-sidebar-width">{file.name}</p>
                                 <p class="text-[10px] text-on-surface-variant mt-1">{t('practice.infoPanels.openDefaultApp')}</p>
                               </div>
                             </div>
@@ -825,7 +844,7 @@
                                 {getFileIcon(file.name)}
                               </span>
                               <div class="text-center">
-                                <p class="text-xs font-bold text-on-surface truncate max-w-[280px]">{file.name}</p>
+                                <p class="text-xs font-bold text-on-surface truncate max-w-sidebar-width">{file.name}</p>
                                 <p class="text-[10px] text-on-surface-variant mt-1">{t('practice.infoPanels.openDefaultApp')}</p>
                               </div>
                             </div>
@@ -892,7 +911,7 @@
       role="separator"
       aria-valuenow={splitWidth}
       class="{sidebarFlow === 'column' ? 'h-1.5 hover:h-2 w-full cursor-row-resize' : 'w-1.5 hover:w-2 h-full cursor-col-resize'} bg-outline-variant/60 hover:bg-primary select-none z-20 transition-all active:bg-primary shrink-0"
-      style="touch-action: none;"
+      style="touch-action: none; order: 2;"
       onpointerdown={startSplitDrag}
       onpointermove={handleSplitDrag}
       onpointerup={stopSplitDrag}
