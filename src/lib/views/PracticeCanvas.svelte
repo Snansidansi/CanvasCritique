@@ -883,6 +883,16 @@
                 pageIndex: canvasMode === 'a4' ? activePageIndex : 0
               };
 
+              const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+              undoStack.push({
+                type: 'insert_image',
+                image: newImage
+              });
+              if (canvasMode === 'a4') {
+                pages[activePageIndex].redoStack = [];
+              } else {
+                infiniteRedo = [];
+              }
               canvasImages = [...canvasImages, newImage];
               selectedImage = newImage;
               activeTool = 'select'; // Automatically select the selection tool!
@@ -970,6 +980,16 @@
         pageIndex: canvasMode === 'a4' ? activePageIndex : 0
       };
 
+      const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+      undoStack.push({
+        type: 'insert_image',
+        image: newImage
+      });
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].redoStack = [];
+      } else {
+        infiniteRedo = [];
+      }
       canvasImages = [...canvasImages, newImage];
       selectedImage = newImage;
       activeTool = 'select';
@@ -1792,7 +1812,16 @@
         const stroke = currentHistory[i];
         if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
         if (isStrokeHit(stroke, coords, hitRadius)) {
-          currentEraserUndo.push(stroke);
+          currentEraserUndo.push({
+            type: 'erase_action',
+            removedStrokes: [stroke],
+            addedStrokes: []
+          });
+          if (canvasMode === 'a4') {
+            pages[activePageIndex].redoStack = [];
+          } else {
+            infiniteRedo = [];
+          }
           currentHistory.splice(i, 1);
           erased = true;
           break;
@@ -2175,6 +2204,29 @@
     }
     
     if (isMovingImage || isResizingImage) {
+      if (selectedImage && (selectedImage.x !== imageStartRect.x || selectedImage.y !== imageStartRect.y || selectedImage.width !== imageStartRect.width || selectedImage.height !== imageStartRect.height)) {
+        const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+        if (isMovingImage) {
+          undoStack.push({
+            type: 'move_image',
+            imageId: selectedImage.id,
+            from: { x: imageStartRect.x, y: imageStartRect.y },
+            to: { x: selectedImage.x, y: selectedImage.y }
+          });
+        } else {
+          undoStack.push({
+            type: 'resize_image',
+            imageId: selectedImage.id,
+            from: { x: imageStartRect.x, y: imageStartRect.y, width: imageStartRect.width, height: imageStartRect.height },
+            to: { x: selectedImage.x, y: selectedImage.y, width: selectedImage.width, height: selectedImage.height }
+          });
+        }
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].redoStack = [];
+        } else {
+          infiniteRedo = [];
+        }
+      }
       isMovingImage = false;
       isResizingImage = false;
       saveToStore();
@@ -2203,14 +2255,17 @@
         };
         newStroke.bounds = calculateStrokeBounds(newStroke);
 
+        const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+        undoStack.push({
+          type: 'stroke',
+          stroke: newStroke
+        });
         if (canvasMode === 'a4') {
           pages[activePageIndex].strokeHistory.push(newStroke);
           pages[activePageIndex].redoStack = [];
-          pages[activePageIndex].eraserUndoStack = [];
         } else {
           infiniteStrokes.push(newStroke);
           infiniteRedo = [];
-          infiniteEraserUndo = [];
         }
         saveToStore();
       }
@@ -2227,14 +2282,17 @@
         };
         newStroke.bounds = calculateStrokeBounds(newStroke);
         
+        const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+        undoStack.push({
+          type: 'stroke',
+          stroke: newStroke
+        });
         if (canvasMode === 'a4') {
           pages[activePageIndex].strokeHistory.push(newStroke);
           pages[activePageIndex].redoStack = [];
-          pages[activePageIndex].eraserUndoStack = [];
         } else {
           infiniteStrokes.push(newStroke);
           infiniteRedo = [];
-          infiniteEraserUndo = [];
         }
         saveToStore();
       } else if (currentStroke.length > 0) {
@@ -2366,17 +2424,20 @@
           };
           newStroke.bounds = calculateStrokeBounds(newStroke);
           
+          const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+          undoStack.push({
+            type: 'stroke',
+            stroke: newStroke
+          });
           if (canvasMode === 'a4') {
             pages[activePageIndex].strokeHistory.push(newStroke);
             pages[activePageIndex].redoStack = [];
-            pages[activePageIndex].eraserUndoStack = [];
             if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
               removeFullyErasedStrokes(newStroke);
             }
           } else {
             infiniteStrokes.push(newStroke);
             infiniteRedo = [];
-            infiniteEraserUndo = [];
             if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
               removeFullyErasedStrokes(newStroke);
             }
@@ -2752,58 +2813,113 @@
   }
 
   function handleUndo() {
-    if (canvasMode === 'a4') {
-      const page = pages[activePageIndex];
-      if (!page) return;
-      if (page.eraserUndoStack.length > 0) {
-        const restored: any = page.eraserUndoStack.pop()!;
-        if (restored.type === 'erase_action') {
-          const addedIds = new Set(restored.addedStrokes.map((s: any) => s.id));
-          page.strokeHistory = page.strokeHistory.filter(s => !addedIds.has(s.id));
-          page.strokeHistory.push(...restored.removedStrokes);
-        } else {
-          page.strokeHistory.push(restored);
-        }
-      } else if (page.strokeHistory.length > 0) {
-        const last = page.strokeHistory.pop()!;
-        page.redoStack.push(last);
+    const undoStack = canvasMode === 'a4' ? pages[activePageIndex]?.eraserUndoStack : infiniteEraserUndo;
+    const redoStack = canvasMode === 'a4' ? pages[activePageIndex]?.redoStack : infiniteRedo;
+    
+    if (!undoStack || undoStack.length === 0) return;
+    
+    const action: any = undoStack.pop()!;
+    redoStack.push(action);
+    
+    if (action.type === 'stroke') {
+      const strokeId = action.stroke.id;
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(s => s.id !== strokeId);
+      } else {
+        infiniteStrokes = infiniteStrokes.filter(s => s.id !== strokeId);
       }
-      pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
-    } else {
-      if (infiniteEraserUndo.length > 0) {
-        const restored: any = infiniteEraserUndo.pop()!;
-        if (restored.type === 'erase_action') {
-          const addedIds = new Set(restored.addedStrokes.map((s: any) => s.id));
-          infiniteStrokes = infiniteStrokes.filter(s => !addedIds.has(s.id));
-          infiniteStrokes.push(...restored.removedStrokes);
-        } else {
-          infiniteStrokes.push(restored);
-        }
-      } else if (infiniteStrokes.length > 0) {
-        const last = infiniteStrokes.pop()!;
-        infiniteRedo.push(last);
+    } else if (action.type === 'erase_action') {
+      const addedIds = new Set(action.addedStrokes.map((s: any) => s.id));
+      if (canvasMode === 'a4') {
+        let h = pages[activePageIndex].strokeHistory.filter(s => !addedIds.has(s.id));
+        h.push(...action.removedStrokes);
+        pages[activePageIndex].strokeHistory = h;
+      } else {
+        let h = infiniteStrokes.filter(s => !addedIds.has(s.id));
+        h.push(...action.removedStrokes);
+        infiniteStrokes = h;
       }
-      infiniteStrokes = [...infiniteStrokes];
+    } else if (action.type === 'insert_image') {
+      canvasImages = canvasImages.filter(img => img.id !== action.image.id);
+      if (selectedImage && selectedImage.id === action.image.id) {
+        selectedImage = null;
+      }
+    } else if (action.type === 'delete_image') {
+      canvasImages = [...canvasImages, action.image];
+    } else if (action.type === 'move_image') {
+      const img = canvasImages.find(i => i.id === action.imageId);
+      if (img) {
+        img.x = action.from.x;
+        img.y = action.from.y;
+        canvasImages = [...canvasImages];
+      }
+    } else if (action.type === 'resize_image') {
+      const img = canvasImages.find(i => i.id === action.imageId);
+      if (img) {
+        img.x = action.from.x;
+        img.y = action.from.y;
+        img.width = action.from.width;
+        img.height = action.from.height;
+        canvasImages = [...canvasImages];
+      }
     }
+    
     invalidateCache();
     requestRedraw();
     saveToStore();
   }
 
   function handleRedo() {
-    if (canvasMode === 'a4') {
-      if (pages[activePageIndex]?.redoStack.length > 0) {
-        const next = pages[activePageIndex].redoStack.pop();
-        pages[activePageIndex].strokeHistory.push(next);
-        pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
+    const undoStack = canvasMode === 'a4' ? pages[activePageIndex]?.eraserUndoStack : infiniteEraserUndo;
+    const redoStack = canvasMode === 'a4' ? pages[activePageIndex]?.redoStack : infiniteRedo;
+    
+    if (!redoStack || redoStack.length === 0) return;
+    
+    const action: any = redoStack.pop()!;
+    undoStack.push(action);
+    
+    if (action.type === 'stroke') {
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory, action.stroke];
+      } else {
+        infiniteStrokes = [...infiniteStrokes, action.stroke];
       }
-    } else {
-      if (infiniteRedo.length > 0) {
-        const next = infiniteRedo.pop();
-        infiniteStrokes.push(next);
-        infiniteStrokes = [...infiniteStrokes];
+    } else if (action.type === 'erase_action') {
+      const removedIds = new Set(action.removedStrokes.map((s: any) => s.id));
+      if (canvasMode === 'a4') {
+        let h = pages[activePageIndex].strokeHistory.filter(s => !removedIds.has(s.id));
+        h.push(...action.addedStrokes);
+        pages[activePageIndex].strokeHistory = h;
+      } else {
+        let h = infiniteStrokes.filter(s => !removedIds.has(s.id));
+        h.push(...action.addedStrokes);
+        infiniteStrokes = h;
+      }
+    } else if (action.type === 'insert_image') {
+      canvasImages = [...canvasImages, action.image];
+    } else if (action.type === 'delete_image') {
+      canvasImages = canvasImages.filter(img => img.id !== action.image.id);
+      if (selectedImage && selectedImage.id === action.image.id) {
+        selectedImage = null;
+      }
+    } else if (action.type === 'move_image') {
+      const img = canvasImages.find(i => i.id === action.imageId);
+      if (img) {
+        img.x = action.to.x;
+        img.y = action.to.y;
+        canvasImages = [...canvasImages];
+      }
+    } else if (action.type === 'resize_image') {
+      const img = canvasImages.find(i => i.id === action.imageId);
+      if (img) {
+        img.x = action.to.x;
+        img.y = action.to.y;
+        img.width = action.to.width;
+        img.height = action.to.height;
+        canvasImages = [...canvasImages];
       }
     }
+    
     invalidateCache();
     requestRedraw();
     saveToStore();
@@ -3057,6 +3173,16 @@
 
   function deleteSelected() {
     if (selectedImage) {
+      const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+      undoStack.push({
+        type: 'delete_image',
+        image: selectedImage
+      });
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].redoStack = [];
+      } else {
+        infiniteRedo = [];
+      }
       canvasImages = canvasImages.filter(img => img.id !== selectedImage.id);
       selectedImage = null;
       saveToStore();
@@ -3065,18 +3191,28 @@
     }
     if (selectedStrokes.length === 0) return;
     
+    const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+    const history = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+    const removedStrokes = history.filter(s => selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id)));
+    
+    if (removedStrokes.length > 0) {
+      undoStack.push({
+        type: 'erase_action',
+        removedStrokes,
+        addedStrokes: []
+      });
+    }
+
     if (canvasMode === 'a4') {
       pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(
         s => !selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id))
       );
       pages[activePageIndex].redoStack = [];
-      pages[activePageIndex].eraserUndoStack = [];
     } else {
       infiniteStrokes = infiniteStrokes.filter(
         s => !selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id))
       );
       infiniteRedo = [];
-      infiniteEraserUndo = [];
     }
     
     selectedStrokes = [];
@@ -3234,17 +3370,22 @@
       }
     }
     
+    const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+    undoStack.push({
+      type: 'erase_action',
+      removedStrokes: [],
+      addedStrokes: strokesToPaste
+    });
+
     if (canvasMode === 'a4') {
       pages[activePageIndex].strokeHistory.push(...strokesToPaste);
       pages[activePageIndex].redoStack = [];
-      pages[activePageIndex].eraserUndoStack = [];
       pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
       const len = pages[activePageIndex].strokeHistory.length;
       selectedStrokes = pages[activePageIndex].strokeHistory.slice(len - strokesToPaste.length);
     } else {
       infiniteStrokes.push(...strokesToPaste);
       infiniteRedo = [];
-      infiniteEraserUndo = [];
       infiniteStrokes = [...infiniteStrokes];
       const len = infiniteStrokes.length;
       selectedStrokes = infiniteStrokes.slice(len - strokesToPaste.length);
