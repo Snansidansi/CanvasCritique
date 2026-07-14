@@ -43,8 +43,16 @@
   <!-- Settings Sidebar Navigation -->
   <div class="w-64 shrink-0 bg-surface-container-low border-r border-outline-variant flex flex-col justify-between p-6">
     <div class="flex flex-col gap-6">
-      <!-- Title -->
-      <div>
+      <!-- Title & Back button -->
+      <div class="flex flex-col gap-4">
+        <button
+          onclick={() => store.setView(store.previousView || 'dashboard')}
+          class="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant hover:text-on-surface cursor-pointer focus:outline-none border-0 bg-transparent p-0 w-fit select-none transition-colors"
+        >
+          <span class="material-symbols-outlined text-base">arrow_back</span>
+          <span>{store.settings.language === 'Deutsch' ? 'Zurück' : 'Back'}</span>
+        </button>
+
         <h2 class="text-xl font-bold text-on-surface flex items-center gap-2 select-none">
           <span class="material-symbols-outlined text-primary text-2xl">settings</span>
           {t('settings.title')}

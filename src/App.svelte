@@ -154,7 +154,9 @@
   class="flex h-screen w-screen overflow-hidden bg-background text-on-background select-none"
 >
   <!-- Sidebar -->
-  <Sidebar />
+  {#if store.currentView !== "settings"}
+    <Sidebar />
+  {/if}
 
   <!-- Main view wrapper -->
   <div class="grow flex flex-col min-w-0 relative h-full">
