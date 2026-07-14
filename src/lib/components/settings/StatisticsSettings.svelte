@@ -731,23 +731,33 @@
             <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider" for="statsStartDate">
               {t('settings.stats.startDate') || 'Start Date'}
             </label>
-            <input
-              id="statsStartDate"
-              type="date"
-              bind:value={customStartDate}
-              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
-            />
+            <div class="relative flex items-center">
+              <input
+                id="statsStartDate"
+                type="date"
+                bind:value={customStartDate}
+                class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-md pl-2 pr-8 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-32"
+              />
+              <span class="material-symbols-outlined absolute right-2 text-on-surface-variant pointer-events-none text-base select-none">
+                calendar_today
+              </span>
+            </div>
           </div>
           <div class="flex flex-col gap-1">
             <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider" for="statsEndDate">
               {t('settings.stats.endDate') || 'End Date'}
             </label>
-            <input
-              id="statsEndDate"
-              type="date"
-              bind:value={customEndDate}
-              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
-            />
+            <div class="relative flex items-center">
+              <input
+                id="statsEndDate"
+                type="date"
+                bind:value={customEndDate}
+                class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-md pl-2 pr-8 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-32"
+              />
+              <span class="material-symbols-outlined absolute right-2 text-on-surface-variant pointer-events-none text-base select-none">
+                calendar_today
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -1010,27 +1020,37 @@
       <!-- Time Range Selectors + Reset -->
       <div class="flex flex-wrap items-center gap-3">
         <div class="flex items-center gap-1.5">
-          <input
-            id="tableStartDate"
-            type="date"
-            value={displayStartDate}
-            onchange={(e) => {
-              tableStartDate = e.currentTarget.value;
-              tablePage = 1;
-            }}
-            class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
-          />
+          <div class="relative flex items-center">
+            <input
+              id="tableStartDate"
+              type="date"
+              value={displayStartDate}
+              onchange={(e) => {
+                tableStartDate = e.currentTarget.value;
+                tablePage = 1;
+              }}
+              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-2 pr-8 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-32"
+            />
+            <span class="material-symbols-outlined absolute right-2 text-on-surface-variant pointer-events-none text-base select-none">
+              calendar_today
+            </span>
+          </div>
           <span class="text-outline text-xs">-</span>
-          <input
-            id="tableEndDate"
-            type="date"
-            value={displayEndDate}
-            onchange={(e) => {
-              tableEndDate = e.currentTarget.value;
-              tablePage = 1;
-            }}
-            class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
-          />
+          <div class="relative flex items-center">
+            <input
+              id="tableEndDate"
+              type="date"
+              value={displayEndDate}
+              onchange={(e) => {
+                tableEndDate = e.currentTarget.value;
+                tablePage = 1;
+              }}
+              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-2 pr-8 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-32"
+            />
+            <span class="material-symbols-outlined absolute right-2 text-on-surface-variant pointer-events-none text-base select-none">
+              calendar_today
+            </span>
+          </div>
         </div>
         {#if tableStartDate || tableEndDate}
           <button
@@ -1220,13 +1240,3 @@
     </button>
   </section>
 </div>
-
-<style>
-  :global(.dark input[type="date"]::-webkit-calendar-picker-indicator) {
-    filter: invert(1) !important;
-    cursor: pointer;
-  }
-  :global(.dark input[type="date"]) {
-    color-scheme: dark !important;
-  }
-</style>
