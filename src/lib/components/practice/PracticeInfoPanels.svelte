@@ -42,18 +42,22 @@
   let lastContainerSize = 0;
 
   let expectedFlowSize = $derived.by(() => {
+    // Round to nearest 8px to completely eliminate sub-pixel ResizeObserver layout loops
+    const roundedHeight = Math.round(containerHeight / 8) * 8;
+    const roundedWidth = Math.round(containerWidth / 8) * 8;
+
     if (!isRightContentVisible) {
-      return infoPanelsLayout === 'vertical' ? containerHeight : containerWidth;
+      return infoPanelsLayout === 'vertical' ? roundedHeight : roundedWidth;
     }
     if (sidebarFlow === 'column') {
       if (infoPanelsLayout === 'vertical') {
         return splitWidth;
       } else {
-        return containerWidth;
+        return roundedWidth;
       }
     } else {
       if (infoPanelsLayout === 'vertical') {
-        return containerHeight;
+        return roundedHeight;
       } else {
         return splitWidth;
       }
@@ -99,8 +103,8 @@
     const currentFlowSize = flowSize;
     if (currentFlowSize > 0) {
       untrack(() => {
-        // Only run if there is a significant change in flowSize (> 1px) to prevent sub-pixel layout oscillation loops
-        if (Math.abs(currentFlowSize - lastContainerSize) > 1) {
+        // Only run if there is a significant change in flowSize (>= 8px) to prevent sub-pixel layout oscillation loops
+        if (Math.abs(currentFlowSize - lastContainerSize) >= 8) {
           const panels = activeLeftPanels;
           const dividerSize = (panels.length - 1) * 6;
           const prevAvailableSize = Math.max(0, lastContainerSize - dividerSize);
