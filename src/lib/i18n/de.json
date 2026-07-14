@@ -348,7 +348,10 @@
       "aiTeacher": "KI-Schönschreiblehrer",
       "scoreTitle": "Bewertungspunktzahl",
       "scoreDesc": "Basierend auf Konsistenz & Parametern.",
-      "correctedNotification": "Task '{taskName}' aus Lesson '{lessonName}' wurde korrigiert."
+      "correctedNotification": "Task '{taskName}' aus Lesson '{lessonName}' wurde korrigiert.",
+      "correct": "Korrekt",
+      "incorrect": "Falsch",
+      "partial": "Teilweise"
     },
     "customBg": {
       "title": "Benutzerdefinierte Hintergrundvorlage hinzufügen",

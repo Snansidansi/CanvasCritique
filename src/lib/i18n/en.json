@@ -349,7 +349,10 @@
       "aiTeacher": "AI Penmanship Teacher",
       "scoreTitle": "Critique Score",
       "scoreDesc": "Based on consistency & parameters.",
-      "correctedNotification": "Task '{taskName}' from Lesson '{lessonName}' has been evaluated."
+      "correctedNotification": "Task '{taskName}' from Lesson '{lessonName}' has been evaluated.",
+      "correct": "Correct",
+      "incorrect": "Incorrect",
+      "partial": "Partial"
     },
     "customBg": {
       "title": "Add Custom Background Template",

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { parseMarkdown } from '../../utils/markdown';
+  import { t } from '../../services/i18n';
 
   let {
     activeTooltipMarker = $bindable(),
@@ -59,9 +60,9 @@
          'warning'}
       </span>
       <span class="font-bold uppercase tracking-wider text-on-surface" style="font-size: 0.9em;">
-        {activeTooltipMarker.type === 'correct' ? 'Correct' : 
-         activeTooltipMarker.type === 'incorrect' ? 'Incorrect' : 
-         'Partial'}
+        {activeTooltipMarker.type === 'correct' ? t('critique.correct') : 
+         activeTooltipMarker.type === 'incorrect' ? t('critique.incorrect') : 
+         t('critique.partial')}
       </span>
       <button 
         onclick={() => activeTooltipMarker = null} 
