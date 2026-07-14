@@ -245,6 +245,30 @@
   // Resizable editor panel splitter state
   let editorSplitWidth = $state(500); // Default editor panel width when side-by-side
   let editorSplitHeight = $state(300); // Default editor panel height when stacked vertically
+
+  // Automatically clamp and adjust editorSplitWidth and editorSplitHeight when layout or dimensions change
+  $effect(() => {
+    const wl = workspaceLayout;
+    const pos = sidebarPosition;
+    const sw = splitWidth;
+    
+    untrack(() => {
+      if (wl === 'vertical') {
+        const maxHeight = window.innerHeight - 200;
+        if (editorSplitHeight > maxHeight || editorSplitHeight < 100) {
+          editorSplitHeight = Math.max(100, Math.min(300, maxHeight));
+        }
+      } else {
+        const isSide = pos === 'left' || pos === 'right';
+        const availWidth = window.innerWidth - (isSide ? sw + 6 : 0);
+        const maxWidth = availWidth - 150;
+        if (editorSplitWidth > maxWidth || editorSplitWidth < 150) {
+          editorSplitWidth = Math.max(150, Math.min(400, maxWidth));
+        }
+      }
+    });
+  });
+
   let isDraggingEditorSplitter = $state(false);
   let editorSplitStartX = 0;
   let editorSplitStartY = 0;
@@ -473,6 +497,8 @@
   });
 
   function updateStrokesCache() {
+    if (canvasWidth <= 0 || canvasHeight <= 0) return;
+
     // If the cache canvas dimensions do not match the current width/height, the cache is invalid.
     const sizeChanged = !cachedStrokesCanvas || 
                         cachedStrokesCanvas.width !== canvasWidth || 
@@ -2659,6 +2685,7 @@
 
   function redraw() {
     if (!ctx || !canvasElement) return;
+    if (canvasWidth <= 0 || canvasHeight <= 0) return;
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     
     // Always fill background with white to keep calligraphy canvas white in all modes (including dark mode)
@@ -2724,7 +2751,7 @@
       offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
       
       // Composite historical strokes cache first
-      if (cachedStrokesCanvas) {
+      if (cachedStrokesCanvas && cachedStrokesCanvas.width > 0 && cachedStrokesCanvas.height > 0) {
         if (canvasMode === 'infinite' && isGesturing) {
           offscreenCtx.save();
           const scaleRatio = zoomScale / cachedZoom;
@@ -2767,7 +2794,9 @@
     }
     
     // Composite offscreen strokes canvas back onto the main canvas
-    ctx.drawImage(offscreenCanvas, 0, 0);
+    if (offscreenCanvas && offscreenCanvas.width > 0 && offscreenCanvas.height > 0) {
+      ctx.drawImage(offscreenCanvas, 0, 0);
+    }
     
     // Draw selection tools marquee box (if actively selecting)
     if (selectionBox) {
