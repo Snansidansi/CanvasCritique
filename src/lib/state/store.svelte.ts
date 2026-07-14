@@ -546,6 +546,13 @@ class CanvasCritiqueStore {
 
   async saveSettings() {
     const db = this.getDb();
+    // Clean in-memory settings to match only keys from defaultSettings
+    const cleaned: any = {};
+    for (const key of Object.keys(defaultSettings)) {
+      cleaned[key] = this.settings[key] !== undefined ? this.settings[key] : (defaultSettings as any)[key];
+    }
+    this.settings = cleaned as Settings;
+
     await dbSaveSettings(db, $state.snapshot(this.settings));
     this.applyTheme(this.settings.theme);
   }

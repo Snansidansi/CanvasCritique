@@ -278,15 +278,39 @@ export async function deleteProfile(db: Database, id: string): Promise<void> {
 export async function getSettings(db: Database): Promise<Settings | null> {
   const rows: any[] = await db.select('SELECT data_json FROM settings WHERE id = 1');
   if (rows.length === 0) return null;
-  const settings: Settings = JSON.parse(rows[0].data_json);
-  return { ...defaultSettings, ...settings };
+  let loadedSettings: any = {};
+  try {
+    loadedSettings = JSON.parse(rows[0].data_json);
+  } catch (e) {
+    console.error('Failed to parse settings JSON:', e);
+  }
+
+  // Clean settings: only keep keys that exist in defaultSettings
+  const cleaned: any = {};
+  for (const key of Object.keys(defaultSettings)) {
+    if (loadedSettings[key] !== undefined) {
+      cleaned[key] = loadedSettings[key];
+    } else {
+      cleaned[key] = (defaultSettings as any)[key];
+    }
+  }
+  return cleaned as Settings;
 }
 
 export async function saveSettings(db: Database, settings: Settings): Promise<void> {
-  const settingsCopy = { ...settings };
-  delete settingsCopy.lastSyncedTimestamp;
-  delete settingsCopy.lastSyncedDbHash;
-  const json = JSON.stringify(settingsCopy);
+  // Clean settings: only keep keys that exist in defaultSettings
+  const cleaned: any = {};
+  for (const key of Object.keys(defaultSettings)) {
+    if (settings[key] !== undefined) {
+      cleaned[key] = settings[key];
+    } else {
+      cleaned[key] = (defaultSettings as any)[key];
+    }
+  }
+
+  delete cleaned.lastSyncedTimestamp;
+  delete cleaned.lastSyncedDbHash;
+  const json = JSON.stringify(cleaned);
   await db.execute(
     'INSERT OR REPLACE INTO settings (id, data_json) VALUES (1, ?)',
     [json]
