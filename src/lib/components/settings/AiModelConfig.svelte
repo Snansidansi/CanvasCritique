@@ -22,10 +22,10 @@
 
   // Autocomplete search states
   let providerSearchTerm = $state('');
-  let filterImage = $state(true);
-  let filterPdf = $state(false);
-  let filterAudio = $state(false);
-  let filterVideo = $state(false);
+  let filterImage = $derived(settings.filterImage ?? true);
+  let filterPdf = $derived(settings.filterPdf ?? false);
+  let filterAudio = $derived(settings.filterAudio ?? false);
+  let filterVideo = $derived(settings.filterVideo ?? false);
 
   // Default models and providers list
   let geminiModelsList = $state(['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash-8b']);
@@ -331,7 +331,8 @@
             <label class="relative inline-flex items-center cursor-pointer select-none">
               <input 
                 type="checkbox" 
-                bind:checked={filterImage}
+                bind:checked={settings.filterImage}
+                onchange={handleInputChange}
                 class="sr-only peer" 
               />
               <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
@@ -347,7 +348,8 @@
             <label class="relative inline-flex items-center cursor-pointer select-none">
               <input 
                 type="checkbox" 
-                bind:checked={filterPdf}
+                bind:checked={settings.filterPdf}
+                onchange={handleInputChange}
                 class="sr-only peer" 
               />
               <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
@@ -363,7 +365,8 @@
             <label class="relative inline-flex items-center cursor-pointer select-none">
               <input 
                 type="checkbox" 
-                bind:checked={filterAudio}
+                bind:checked={settings.filterAudio}
+                onchange={handleInputChange}
                 class="sr-only peer" 
               />
               <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
@@ -379,7 +382,8 @@
             <label class="relative inline-flex items-center cursor-pointer select-none">
               <input 
                 type="checkbox" 
-                bind:checked={filterVideo}
+                bind:checked={settings.filterVideo}
+                onchange={handleInputChange}
                 class="sr-only peer" 
               />
               <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
@@ -500,7 +504,8 @@
             <label class="relative inline-flex items-center cursor-pointer select-none">
               <input 
                 type="checkbox" 
-                bind:checked={filterImage}
+                bind:checked={settings.filterImage}
+                onchange={handleInputChange}
                 class="sr-only peer" 
               />
               <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
@@ -516,7 +521,8 @@
             <label class="relative inline-flex items-center cursor-pointer select-none">
               <input 
                 type="checkbox" 
-                bind:checked={filterPdf}
+                bind:checked={settings.filterPdf}
+                onchange={handleInputChange}
                 class="sr-only peer" 
               />
               <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
@@ -532,7 +538,8 @@
             <label class="relative inline-flex items-center cursor-pointer select-none">
               <input 
                 type="checkbox" 
-                bind:checked={filterAudio}
+                bind:checked={settings.filterAudio}
+                onchange={handleInputChange}
                 class="sr-only peer" 
               />
               <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
@@ -548,7 +555,8 @@
             <label class="relative inline-flex items-center cursor-pointer select-none">
               <input 
                 type="checkbox" 
-                bind:checked={filterVideo}
+                bind:checked={settings.filterVideo}
+                onchange={handleInputChange}
                 class="sr-only peer" 
               />
               <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>

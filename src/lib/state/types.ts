@@ -185,6 +185,10 @@ export interface Settings {
   webdavSyncMode?: 'bidirectional' | 'download' | 'upload';
   rememberWindowState?: boolean;
   autoUpdateCheckEnabled?: boolean;
+  filterImage?: boolean;
+  filterPdf?: boolean;
+  filterAudio?: boolean;
+  filterVideo?: boolean;
 }
 
 export interface Profile {

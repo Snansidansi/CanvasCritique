@@ -141,6 +141,10 @@ export const defaultSettings: Settings = {
   lastSyncedDbHash: '',
   webdavSyncMode: 'bidirectional',
   rememberWindowState: true,
-  autoUpdateCheckEnabled: true
+  autoUpdateCheckEnabled: true,
+  filterImage: true,
+  filterPdf: false,
+  filterAudio: false,
+  filterVideo: false
 };
 
