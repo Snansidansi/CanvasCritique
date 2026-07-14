@@ -1664,165 +1664,165 @@
         {/if}
       </section>
 
-      <!-- Task Settings Overrides -->
-      <div class="border-t border-outline-variant/30 pt-6 mt-4 flex flex-col gap-4">
-        <!-- Aufgabenkontext / Task Context Collapsible Section -->
-        <section class="bg-surface-container-low border border-outline-variant/60 rounded-xl overflow-hidden shrink-0">
-          <button 
-            type="button"
-            onclick={() => aiInstructionsExpanded = !aiInstructionsExpanded}
-            class="w-full flex items-center justify-between px-6 py-4 cursor-pointer bg-transparent border-0 text-left focus:outline-none hover:bg-surface-container-lowest/50 transition-colors"
-          >
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-[20px] text-primary">folder_shared</span>
-              <div>
-                <h3 class="font-bold text-sm text-on-surface">{t('taskEditor.contextTitle')}</h3>
-                <p class="text-[11px] text-on-surface-variant mt-0.5">
-                  {t('taskEditor.contextSubtitle')}
-                </p>
-              </div>
+      <!-- Aufgabenkontext / Task Context Collapsible Section -->
+      <section class="bg-surface-container-low border border-outline-variant/60 rounded-xl overflow-hidden shrink-0 mt-4">
+        <button 
+          type="button"
+          onclick={() => aiInstructionsExpanded = !aiInstructionsExpanded}
+          class="w-full flex items-center justify-between px-6 py-4 cursor-pointer bg-transparent border-0 text-left focus:outline-none hover:bg-surface-container-lowest/50 transition-colors"
+        >
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-[20px] text-primary">folder_shared</span>
+            <div>
+              <h3 class="font-bold text-sm text-on-surface">{t('taskEditor.contextTitle')}</h3>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">
+                {t('taskEditor.contextSubtitle')}
+              </p>
             </div>
-            <span class="material-symbols-outlined text-on-surface-variant text-[20px] transition-transform" 
-                  style="transform: rotate({aiInstructionsExpanded ? '180' : '0'}deg)">
-              expand_more
-            </span>
-          </button>
+          </div>
+          <span class="material-symbols-outlined text-on-surface-variant text-[20px] transition-transform" 
+                style="transform: rotate({aiInstructionsExpanded ? '180' : '0'}deg)">
+            expand_more
+          </span>
+        </button>
 
-          {#if aiInstructionsExpanded}
-            <div class="px-6 pb-5 border-t border-outline-variant/30 pt-4 flex flex-col gap-4">
-              <!-- Text Guidelines -->
-              <div class="flex flex-col gap-1.5">
-                <span class="text-xs font-semibold text-on-surface">{t('taskEditor.contextTextLabel')}</span>
-                <textarea
-                  use:autoResize={aiInstructions}
-                  bind:value={aiInstructions}
-                  placeholder={t('taskEditor.contextTextPlaceholder')}
-                  rows="4"
-                  class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-none min-h-20 font-sans"
-                ></textarea>
-              </div>
+        {#if aiInstructionsExpanded}
+          <div class="px-6 pb-5 border-t border-outline-variant/30 pt-4 flex flex-col gap-4">
+            <!-- Text Guidelines -->
+            <div class="flex flex-col gap-1.5">
+              <span class="text-xs font-semibold text-on-surface">{t('taskEditor.contextTextLabel')}</span>
+              <textarea
+                use:autoResize={aiInstructions}
+                bind:value={aiInstructions}
+                placeholder={t('taskEditor.contextTextPlaceholder')}
+                rows="4"
+                class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-none min-h-20 font-sans"
+              ></textarea>
+            </div>
 
-              <!-- Context Media Upload -->
-              <div class="flex flex-col gap-2">
-                <span class="text-xs font-semibold text-on-surface">{t('taskEditor.contextMediaLabel')}</span>
-                <input 
-                  type="file" 
-                  id="contextFileInput" 
-                  class="hidden" 
-                  multiple
-                  onchange={(e) => handleFileSelect(e, 'context')}
-                />
-                <button 
-                  type="button"
-                  onclick={() => triggerUpload('context')}
-                  ondragover={(e) => handleDragOver('context', e)}
-                  ondragleave={() => handleDragLeave('context')}
-                  ondrop={(e) => handleFileDrop('context', e)}
-                  class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer {isDragOverContext ? 'border-primary bg-primary/5' : ''}"
-                >
-                  <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
-                    <span class="material-symbols-outlined text-[24px]">upload_file</span>
-                  </div>
-                  <div class="text-center">
-                    <p class="text-xs font-semibold text-on-surface">
-                      {contextFiles.length > 0 ? t('taskEditor.contextFilesSelected', { count: contextFiles.length }) : t('taskEditor.contextUploadPrompt')}
-                    </p>
-                    <p class="text-[10px] text-on-surface-variant mt-1">{t('taskEditor.contextUploadSupportInfo')}</p>
-                  </div>
-                </button>
+            <!-- Context Media Upload -->
+            <div class="flex flex-col gap-2">
+              <span class="text-xs font-semibold text-on-surface">{t('taskEditor.contextMediaLabel')}</span>
+              <input 
+                type="file" 
+                id="contextFileInput" 
+                class="hidden" 
+                multiple
+                onchange={(e) => handleFileSelect(e, 'context')}
+              />
+              <button 
+                type="button"
+                onclick={() => triggerUpload('context')}
+                ondragover={(e) => handleDragOver('context', e)}
+                ondragleave={() => handleDragLeave('context')}
+                ondrop={(e) => handleFileDrop('context', e)}
+                class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer {isDragOverContext ? 'border-primary bg-primary/5' : ''}"
+              >
+                <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+                  <span class="material-symbols-outlined text-[24px]">upload_file</span>
+                </div>
+                <div class="text-center">
+                  <p class="text-xs font-semibold text-on-surface">
+                    {contextFiles.length > 0 ? t('taskEditor.contextFilesSelected', { count: contextFiles.length }) : t('taskEditor.contextUploadPrompt')}
+                  </p>
+                  <p class="text-[10px] text-on-surface-variant mt-1">{t('taskEditor.contextUploadSupportInfo')}</p>
+                </div>
+              </button>
 
-                <!-- Paste from Clipboard button -->
-                <button
-                  type="button"
-                  onclick={() => handlePasteFromClipboard('context')}
-                  class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
-                >
-                  <span class="material-symbols-outlined text-[16px]">content_paste</span>
-                  {t('taskEditor.contextClipboardButton')}
-                </button>
+              <!-- Paste from Clipboard button -->
+              <button
+                type="button"
+                onclick={() => handlePasteFromClipboard('context')}
+                class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
+              >
+                <span class="material-symbols-outlined text-[16px]">content_paste</span>
+                {t('taskEditor.contextClipboardButton')}
+              </button>
 
-                {#if contextFiles.length > 0}
-                  <div class="mt-2 flex flex-col gap-1.5">
-                    {#each contextFiles as file, index}
-                      {#if isMediaDragActive && draggedFileType === 'context' && hoveredFileIndex === index}
-                        <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
-                      {/if}
+              {#if contextFiles.length > 0}
+                <div class="mt-2 flex flex-col gap-1.5">
+                  {#each contextFiles as file, index}
+                    {#if isMediaDragActive && draggedFileType === 'context' && hoveredFileIndex === index}
+                      <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
+                    {/if}
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div 
+                      data-file-index={index}
+                      data-file-type="context"
+                      onpointerdown={(e) => handleFilePointerDown(e, index, 'context')}
+                      class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none {isMediaDragActive && draggedFileType === 'context' && draggedFileIndex === index ? 'opacity-40 scale-95' : ''}"
+                    >
+                      <!-- svelte-ignore a11y_click_events_have_key_events -->
                       <!-- svelte-ignore a11y_no_static_element_interactions -->
                       <div 
-                        data-file-index={index}
-                        data-file-type="context"
-                        onpointerdown={(e) => handleFilePointerDown(e, index, 'context')}
-                        class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none {isMediaDragActive && draggedFileType === 'context' && draggedFileIndex === index ? 'opacity-40 scale-95' : ''}"
+                        onclick={() => {
+                          if (editingFileIndex !== index || editingFileType !== 'context') {
+                            openPreview(file);
+                          }
+                        }}
+                        class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
+                        title={t('taskEditor.clickToPreview')}
                       >
-                        <!-- svelte-ignore a11y_click_events_have_key_events -->
-                        <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <div 
-                          onclick={() => {
-                            if (editingFileIndex !== index || editingFileType !== 'context') {
-                              openPreview(file);
-                            }
-                          }}
-                          class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
-                          title={t('taskEditor.clickToPreview')}
-                        >
-                          <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
-                            drag_indicator
-                          </span>
-                          <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
-                            {getFileIcon(file.name)}
-                          </span>
-                          {#if editingFileIndex === index && editingFileType === 'context'}
-                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <input
-                              bind:this={renameInputEl}
-                              type="text"
-                              bind:value={editingFileNameValue}
-                              onclick={(e) => e.stopPropagation()}
-                              onkeydown={(e) => {
-                                e.stopPropagation();
-                                if (e.key === 'Enter') {
-                                  saveInlineRename();
-                                } else if (e.key === 'Escape') {
-                                  cancelInlineRename();
-                                }
-                              }}
-                              onblur={saveInlineRename}
-                              class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
-                            />
-                          {:else}
-                            <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
-                          {/if}
-                        </div>
-                        <div class="flex items-center gap-1 shrink-0">
-                          <button 
-                            type="button"
-                            onclick={() => handleRenameFile(index, 'context')}
-                            class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
-                            title={t('taskEditor.renameFileTooltip') || 'Rename File'}
-                          >
-                            edit
-                          </button>
-                          <button 
-                            type="button"
-                            onclick={() => {
-                              contextFiles = contextFiles.filter((_, i) => i !== index);
+                        <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
+                          drag_indicator
+                        </span>
+                        <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
+                          {getFileIcon(file.name)}
+                        </span>
+                        {#if editingFileIndex === index && editingFileType === 'context'}
+                          <!-- svelte-ignore a11y_click_events_have_key_events -->
+                          <!-- svelte-ignore a11y_no_static_element_interactions -->
+                          <input
+                            bind:this={renameInputEl}
+                            type="text"
+                            bind:value={editingFileNameValue}
+                            onclick={(e) => e.stopPropagation()}
+                            onkeydown={(e) => {
+                              e.stopPropagation();
+                              if (e.key === 'Enter') {
+                                saveInlineRename();
+                              } else if (e.key === 'Escape') {
+                                cancelInlineRename();
+                              }
                             }}
-                            class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
-                            title={t('taskEditor.remove')}
-                          >
-                            close
-                          </button>
-                        </div>
+                            onblur={saveInlineRename}
+                            class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
+                          />
+                        {:else}
+                          <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
+                        {/if}
                       </div>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
+                      <div class="flex items-center gap-1 shrink-0">
+                        <button 
+                          type="button"
+                          onclick={() => handleRenameFile(index, 'context')}
+                          class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
+                          title={t('taskEditor.renameFileTooltip') || 'Rename File'}
+                        >
+                          edit
+                        </button>
+                        <button 
+                          type="button"
+                          onclick={() => {
+                            contextFiles = contextFiles.filter((_, i) => i !== index);
+                          }}
+                          class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
+                          title={t('taskEditor.remove')}
+                        >
+                          close
+                        </button>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
             </div>
-          {/if}
-        </section>
+          </div>
+        {/if}
+      </section>
 
+      <!-- Task Settings Overrides -->
+      <div class="border-t border-outline-variant/30 pt-6 mt-4 flex flex-col gap-4">
         <div class="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant">
           <div class="flex flex-col gap-0.5">
             <span class="text-sm font-bold text-on-surface">Task-spezifische Einstellungen / Task-Specific Overrides</span>
