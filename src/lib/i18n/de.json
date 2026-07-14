@@ -311,6 +311,7 @@
       "providedMediaTitle": "Bereitgestellte Bilder",
       "providedMediaDesc": "{count} Bilder zum Platzieren auf der Leinwand bereitgestellt",
       "clickToPlaceOnCanvas": "Klicken, um auszuwählen und auf der Leinwand zu platzieren",
+      "placeOnCanvas": "Bild auf Leinwand platzieren",
       "providedMediaBanner": "Bereitgestellte Bilder",
       "providedMediaBannerDesc": "Bilder, die auf der Leinwand platziert werden können",
       "showProvidedMedia": "Bilder anzeigen",

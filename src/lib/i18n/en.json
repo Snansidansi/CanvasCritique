@@ -312,6 +312,7 @@
       "providedMediaTitle": "Provided Images",
       "providedMediaDesc": "{count} images provided for canvas placement",
       "clickToPlaceOnCanvas": "Click to select and place on canvas",
+      "placeOnCanvas": "Place image on canvas",
       "providedMediaBanner": "Provided Images",
       "providedMediaBannerDesc": "Images available to be placed on the canvas",
       "showProvidedMedia": "Show Images",

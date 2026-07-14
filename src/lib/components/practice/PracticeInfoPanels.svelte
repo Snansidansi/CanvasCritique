@@ -683,6 +683,19 @@
                           <span class="truncate pr-4">{getBaseName(file.name)}</span>
                         </div>
                         <div class="flex items-center shrink-0">
+                          {#if isImageFile(file.name)}
+                          <button
+                            type="button"
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              onSelectProvidedImage(file);
+                            }}
+                            class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
+                            title={t('practice.infoPanels.placeOnCanvas')}
+                          >
+                            place_item
+                          </button>
+                          {/if}
                           {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
                           <button
                             type="button"
@@ -886,6 +899,19 @@
                           <span class="truncate pr-4">{getBaseName(file.name)}</span>
                         </div>
                         <div class="flex items-center shrink-0">
+                          {#if isImageFile(file.name)}
+                          <button
+                            type="button"
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              onSelectProvidedImage(file);
+                            }}
+                            class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
+                            title={t('practice.infoPanels.placeOnCanvas')}
+                          >
+                            place_item
+                          </button>
+                          {/if}
                           {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
                           <button
                             type="button"
