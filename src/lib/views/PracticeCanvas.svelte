@@ -333,6 +333,12 @@
       : store.settings.canvasFontSize ?? 13
   );
 
+  let editorFontSize = $derived(
+    store.activeProject
+      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id).editorFontSize ?? 16
+      : store.settings.editorFontSize ?? 16
+  );
+
   let effectiveEraserSettings = $derived(
     store.activeProject
       ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
@@ -4563,10 +4569,10 @@
 
 {#if activeTextTooltip}
   <div 
-    class="fixed bg-surface text-on-surface border border-outline-variant py-2 px-3 rounded-lg shadow-xl text-[11px] leading-snug z-9999 pointer-events-none whitespace-normal min-w-40 max-w-64 font-sans font-medium"
-    style="left: {tooltipX}px; top: {tooltipY}px; transform: {tooltipPosition === 'top' ? 'translate(-50%, -100%) translateY(-8px)' : 'translate(-50%, 8px)'};"
+    class="fixed bg-surface text-on-surface border border-outline-variant py-2 px-3 rounded-lg shadow-xl leading-snug z-9999 pointer-events-none whitespace-normal font-sans font-medium"
+    style="left: {tooltipX}px; top: {tooltipY}px; transform: {tooltipPosition === 'top' ? 'translate(-50%, -100%) translateY(-8px)' : 'translate(-50%, 8px)'}; font-size: {11 * (editorFontSize / 16)}px; min-width: {10 * editorFontSize}px; max-width: {16 * editorFontSize}px;"
   >
-    <span class="font-bold {tooltipColor} block mb-0.5 uppercase tracking-wider text-[9px]">
+    <span class="font-bold {tooltipColor} block mb-0.5 uppercase tracking-wider" style="font-size: {9 * (editorFontSize / 16)}px;">
       {activeTextTooltip.type === 'correct' ? t('critique.correct') : 
        activeTextTooltip.type === 'incorrect' ? t('critique.incorrect') : 
        t('critique.partial')}
