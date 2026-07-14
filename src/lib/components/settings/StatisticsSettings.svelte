@@ -313,37 +313,7 @@
     return `${tokensLinePath} L ${last.x} ${padding.top + graphHeight} L ${first.x} ${padding.top + graphHeight} Z`;
   });
 
-  // Handle Chart Hover Index Calculation
-  function handleMouseMove(e: MouseEvent & { currentTarget: SVGSVGElement }) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    
-    // Scale factor between SVG viewBox and screen dimension
-    const scaleX = svgWidth / rect.width;
-    const chartMouseX = mouseX * scaleX;
-    
-    // Find closest point index
-    let closestIdx = 0;
-    let minDiff = Infinity;
-    points.forEach((p, idx) => {
-      const diff = Math.abs(p.x - chartMouseX);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestIdx = idx;
-      }
-    });
-
-    // Make sure we are within hover limits
-    if (chartMouseX >= padding.left - 10 && chartMouseX <= svgWidth - padding.right + 10) {
-      hoverIndex = closestIdx;
-    } else {
-      hoverIndex = null;
-    }
-  }
-
-  function handleMouseLeave() {
-    hoverIndex = null;
-  }
+  // Pointer-based chart hover and interaction handlers
 
   // Action methods
   function toggleStats() {
@@ -409,9 +379,14 @@
   let dragStartX = $state<number | null>(null);
   let dragCurrentX = $state<number | null>(null);
 
-  function handleChartMouseDown(e: MouseEvent & { currentTarget: SVGSVGElement }) {
+  function handleChartPointerDown(e: PointerEvent & { currentTarget: SVGSVGElement }) {
     if (points.length === 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
+    // Only react to primary pointer (left click, touch contact, stylus contact)
+    if (e.button !== 0 && e.button !== -1) return;
+    const target = e.currentTarget;
+    try { target.setPointerCapture(e.pointerId); } catch (_) {}
+
+    const rect = target.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const scaleX = svgWidth / rect.width;
     dragStartX = mouseX * scaleX;
@@ -419,17 +394,39 @@
     isDraggingRange = true;
   }
 
-  function handleChartMouseMove(e: MouseEvent & { currentTarget: SVGSVGElement }) {
-    handleMouseMove(e); // Maintain tooltip hover highlight
+  function handleChartPointerMove(e: PointerEvent & { currentTarget: SVGSVGElement }) {
+    // Tooltip hover highlight: calculate closest point
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const scaleX = svgWidth / rect.width;
+    const chartMouseX = mouseX * scaleX;
+
+    let closestIdx = 0;
+    let minDiff = Infinity;
+    points.forEach((p, idx) => {
+      const diff = Math.abs(p.x - chartMouseX);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIdx = idx;
+      }
+    });
+
+    if (chartMouseX >= padding.left - 10 && chartMouseX <= svgWidth - padding.right + 10) {
+      hoverIndex = closestIdx;
+    } else {
+      hoverIndex = null;
+    }
+
+    // Drag range update:
     if (isDraggingRange && dragStartX !== null) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const scaleX = svgWidth / rect.width;
-      dragCurrentX = mouseX * scaleX;
+      dragCurrentX = chartMouseX;
     }
   }
 
-  function handleChartMouseUp() {
+  function handleChartPointerUp(e: PointerEvent & { currentTarget: SVGSVGElement }) {
+    const target = e.currentTarget;
+    try { target.releasePointerCapture(e.pointerId); } catch (_) {}
+
     if (isDraggingRange && dragStartX !== null && dragCurrentX !== null) {
       const x1 = Math.min(dragStartX, dragCurrentX);
       const x2 = Math.max(dragStartX, dragCurrentX);
@@ -449,11 +446,17 @@
     dragCurrentX = null;
   }
 
-  function handleChartMouseLeave() {
-    handleMouseLeave();
-    if (isDraggingRange) {
-      handleChartMouseUp();
-    }
+  function handleChartPointerLeave() {
+    hoverIndex = null;
+  }
+
+  function handleChartPointerCancel(e: PointerEvent & { currentTarget: SVGSVGElement }) {
+    const target = e.currentTarget;
+    try { target.releasePointerCapture(e.pointerId); } catch (_) {}
+    isDraggingRange = false;
+    dragStartX = null;
+    dragCurrentX = null;
+    hoverIndex = null;
   }
 
   function resetTableFilter() {
@@ -719,10 +722,12 @@
         <svg 
           viewBox="0 0 {svgWidth} {svgHeight}" 
           class="w-full h-full overflow-visible cursor-crosshair select-none"
-          onmousedown={handleChartMouseDown}
-          onmousemove={handleChartMouseMove}
-          onmouseup={handleChartMouseUp}
-          onmouseleave={handleChartMouseLeave}
+          style="touch-action: none;"
+          onpointerdown={handleChartPointerDown}
+          onpointermove={handleChartPointerMove}
+          onpointerup={handleChartPointerUp}
+          onpointerleave={handleChartPointerLeave}
+          onpointercancel={handleChartPointerCancel}
           role="application"
           aria-label={t('settings.stats.chartAria')}
         >
@@ -1099,14 +1104,14 @@
       <span class="material-symbols-outlined text-primary text-base shrink-0">info</span>
       <span>
         {store.settings.language === 'Deutsch' 
-          ? 'Tipp: Du kannst im Diagramm oben mit der Maus klicken und ziehen, um direkt einen Zeitraum für diese Tabelle auszuwählen.'
-          : 'Tip: You can click and drag in the chart above with your mouse to select a time range for this table.'}
+          ? 'Tipp: Du kannst im Diagramm oben klicken und ziehen, um direkt einen Zeitraum für diese Tabelle auszuwählen.'
+          : 'Tip: You can click and drag in the chart above to select a time range for this table.'}
       </span>
     </div>
   </section>
 
   <!-- Usage by Model Section -->
-  {#if store.settings.stats?.history && store.settings.stats.history.length > 0}
+  {#if store.statsHistory && store.statsHistory.length > 0}
     <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm space-y-4">
       <div class="flex items-center justify-between border-b border-outline-variant pb-3">
         <div class="flex flex-col gap-0.5">
