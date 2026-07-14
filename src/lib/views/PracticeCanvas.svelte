@@ -440,7 +440,32 @@
         cachedStrokesCtx.scale(zoomScale, zoomScale);
       }
       for (const stroke of strokeHistory) {
-        drawStroke(cachedStrokesCtx, stroke);
+        const bounds = stroke.bounds || calculateStrokeBounds(stroke);
+        let isVisible = true;
+        if (canvasMode === 'infinite') {
+          const screenMinX = bounds.minX * zoomScale + panOffset.x;
+          const screenMinY = bounds.minY * zoomScale + panOffset.y;
+          const screenMaxX = bounds.maxX * zoomScale + panOffset.x;
+          const screenMaxY = bounds.maxY * zoomScale + panOffset.y;
+          
+          isVisible = !(
+            screenMaxX < 0 ||
+            screenMinX > canvasWidth ||
+            screenMaxY < 0 ||
+            screenMinY > canvasHeight
+          );
+        } else {
+          isVisible = !(
+            bounds.maxX < 0 ||
+            bounds.minX > 800 ||
+            bounds.maxY < 0 ||
+            bounds.minY > 1130
+          );
+        }
+        
+        if (isVisible) {
+          drawStroke(cachedStrokesCtx, stroke);
+        }
       }
       cachedStrokesCtx.restore();
     }
