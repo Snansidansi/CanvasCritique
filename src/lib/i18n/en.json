@@ -361,6 +361,7 @@
     },
     "canvas": {
       "clear": "Clear Canvas",
+      "analyzing": "Analyzing stroke geometries and guidelines alignment...",
       "clickToPlace": "Click anywhere on the canvas to place '{name}'",
       "clickToPlaceOverlay": "Click on canvas to place '{name}'",
       "background": "Background Pattern",

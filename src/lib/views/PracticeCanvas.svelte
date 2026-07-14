@@ -14,7 +14,6 @@
   import PracticeInfoPanels from '../components/practice/PracticeInfoPanels.svelte';
   import CustomBgModal from '../components/practice/CustomBgModal.svelte';
   import FloatingToolPalette from '../components/practice/FloatingToolPalette.svelte';
-  import CritiqueOverlay from '../components/practice/CritiqueOverlay.svelte';
   import MarkerTooltip from '../components/practice/MarkerTooltip.svelte';
 
   // External Helpers
@@ -1078,7 +1077,7 @@
     if (!task || !task.id) return;
 
     if (store.isTaskChecking(task.id)) {
-      feedbackText = "Analyzing stroke geometries and guidelines alignment...";
+      feedbackText = t('practice.canvas.analyzing') || "Analyzing stroke geometries and guidelines alignment...";
       feedbackScore = null;
       feedbackMarkers = [];
       hasCheckedWork = true;
@@ -3665,7 +3664,7 @@
     showFeedback = true;
     showCritiqueBanner = true;
     hasCheckedWork = true;
-    feedbackText = "Analyzing stroke geometries and guidelines alignment...";
+    feedbackText = t('practice.canvas.analyzing') || "Analyzing stroke geometries and guidelines alignment...";
     feedbackScore = null;
 
     try {
@@ -4093,13 +4092,7 @@
         onchange={handleCanvasImageUpload}
       />
 
-      <!-- AI Grading / Critique Overlay -->
-      <CritiqueOverlay
-        bind:showCritiqueBanner
-        {isChecking}
-        {feedbackText}
-        {feedbackScore}
-      />
+
 
       <!-- Eraser Circle Cursor Overlay -->
       {#if (activeTool === 'eraser' || isPointerEraser) && hoverPos}
@@ -4193,13 +4186,7 @@
 
         </div>
 
-        <!-- AI Grading / Critique Overlay inside editor -->
-        <CritiqueOverlay
-          bind:showCritiqueBanner
-          {isChecking}
-          {feedbackText}
-          {feedbackScore}
-        />
+
       </section>
     {/if}
     </div>

@@ -360,6 +360,7 @@
     },
     "canvas": {
       "clear": "Leinwand leeren",
+      "analyzing": "Strichgeometrie und Ausrichtung der Hilfslinien werden analysiert...",
       "clickToPlace": "Klicke auf eine Stelle auf der Leinwand, um '{name}' einzufügen",
       "clickToPlaceOverlay": "Klicke auf die Leinwand, um '{name}' einzufügen",
       "background": "Hintergrundmuster",
