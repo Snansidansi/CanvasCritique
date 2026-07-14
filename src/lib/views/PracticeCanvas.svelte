@@ -4551,13 +4551,15 @@
 {#if activeTextTooltip}
   <div 
     class="fixed bg-surface text-on-surface border border-outline-variant py-2 px-3 rounded-lg shadow-xl leading-snug z-9999 pointer-events-none whitespace-normal font-sans font-medium"
-    style="left: {tooltipX}px; top: {tooltipY}px; transform: {tooltipPosition === 'top' ? 'translate(-50%, -100%) translateY(-8px)' : 'translate(-50%, 8px)'}; font-size: {11 * (editorFontSize / 16)}px; min-width: {10 * editorFontSize}px; max-width: {16 * editorFontSize}px;"
+    style="left: {tooltipX}px; top: {tooltipY}px; transform: {tooltipPosition === 'top' ? 'translate(-50%, -100%) translateY(-8px)' : 'translate(-50%, 8px)'}; font-size: {editorFontSize}px; min-width: {10 * editorFontSize}px; max-width: {16 * editorFontSize}px;"
   >
-    <span class="font-bold {tooltipColor} block mb-0.5 uppercase tracking-wider" style="font-size: {9 * (editorFontSize / 16)}px;">
-      {activeTextTooltip.type === 'correct' ? t('critique.correct') : 
-       activeTextTooltip.type === 'incorrect' ? t('critique.incorrect') : 
-       t('critique.partial')}
+    <span class="font-bold {tooltipColor} block mb-0.5 uppercase tracking-wider" style="font-size: 0.9em;">
+      {activeTextTooltip.type === 'correct' ? t('practice.critique.correct') : 
+       activeTextTooltip.type === 'incorrect' ? t('practice.critique.incorrect') : 
+       t('practice.critique.partial')}
     </span>
-    {@html parseMarkdown(activeTextTooltip.feedback)}
+    <div style="font-size: 0.9em;">
+      {@html parseMarkdown(activeTextTooltip.feedback)}
+    </div>
   </div>
 {/if}

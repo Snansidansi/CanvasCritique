@@ -60,9 +60,9 @@
          'warning'}
       </span>
       <span class="font-bold uppercase tracking-wider text-on-surface" style="font-size: 0.9em;">
-        {activeTooltipMarker.type === 'correct' ? t('critique.correct') : 
-         activeTooltipMarker.type === 'incorrect' ? t('critique.incorrect') : 
-         t('critique.partial')}
+        {activeTooltipMarker.type === 'correct' ? t('practice.critique.correct') : 
+         activeTooltipMarker.type === 'incorrect' ? t('practice.critique.incorrect') : 
+         t('practice.critique.partial')}
       </span>
       <button 
         onclick={() => activeTooltipMarker = null} 
