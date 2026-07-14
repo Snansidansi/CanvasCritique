@@ -32,7 +32,7 @@
       if (provider === 'gemini') {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const requestBody: any = {
-          contents: [{ parts: [{ text: "Hello! Reply in one short word." }] }]
+          contents: [{ parts: [{ text: "Reply EXCLUSIVELY with the word 'yes' and nothing else." }] }]
         };
         if (store.settings.maxOutputTokens && store.settings.maxOutputTokens > 0) {
           requestBody.generationConfig = {
@@ -82,7 +82,7 @@
 
         const requestBody: any = {
           model: model,
-          messages: [{ role: "user", content: "Hello! Reply in one short word." }]
+          messages: [{ role: "user", content: "Reply EXCLUSIVELY with the word 'yes' and nothing else." }]
         };
 
         if (store.settings.maxOutputTokens && store.settings.maxOutputTokens > 0) {
