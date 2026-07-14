@@ -409,12 +409,14 @@
   $effect(() => {
     const _sh = strokeHistory;
     const _shLen = strokeHistory.length;
-    const _panX = panOffset.x;
-    const _panY = panOffset.y;
-    const _zoom = zoomScale;
     const _w = canvasWidth;
     const _h = canvasHeight;
     const _mode = canvasMode;
+    if (canvasMode === 'infinite') {
+      const _panX = panOffset.x;
+      const _panY = panOffset.y;
+      const _zoom = zoomScale;
+    }
     invalidateCache();
   });
 
