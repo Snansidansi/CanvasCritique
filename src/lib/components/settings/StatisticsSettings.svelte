@@ -374,6 +374,23 @@
   let tablePage = $state<number>(1);
   let tablePageSize = $state<10 | 50 | 100>(10);
 
+  // Derivations to display the date part correctly in the native <input type="date"> elements
+  const displayStartDate = $derived.by(() => {
+    if (!tableStartDate) return '';
+    if (tableStartDate.includes('T')) {
+      return tableStartDate.split('T')[0];
+    }
+    return tableStartDate;
+  });
+
+  const displayEndDate = $derived.by(() => {
+    if (!tableEndDate) return '';
+    if (tableEndDate.includes('T')) {
+      return tableEndDate.split('T')[0];
+    }
+    return tableEndDate;
+  });
+
   // Drag selection state on chart
   let isDraggingRange = $state(false);
   let dragStartX = $state<number | null>(null);
@@ -471,12 +488,33 @@
     let list = [...history];
 
     if (tableStartDate) {
-      const start = new Date(tableStartDate + 'T00:00:00.000');
-      list = list.filter(log => new Date(log.timestamp) >= start);
+      let start: Date;
+      if (tableStartDate.includes('T')) {
+        start = new Date(tableStartDate);
+      } else {
+        start = new Date(tableStartDate + 'T00:00:00.000');
+      }
+      if (!isNaN(start.getTime())) {
+        list = list.filter(log => new Date(log.timestamp) >= start);
+      }
     }
     if (tableEndDate) {
-      const end = new Date(tableEndDate + 'T23:59:59.999');
-      list = list.filter(log => new Date(log.timestamp) <= end);
+      let end: Date;
+      if (tableEndDate.includes('T')) {
+        const d = new Date(tableEndDate);
+        if (!isNaN(d.getTime())) {
+          // If we drag-selected on Today view, include the full end hour block
+          d.setMinutes(59, 59, 999);
+          end = d;
+        } else {
+          end = new Date(tableEndDate);
+        }
+      } else {
+        end = new Date(tableEndDate + 'T23:59:59.999');
+      }
+      if (!isNaN(end.getTime())) {
+        list = list.filter(log => new Date(log.timestamp) <= end);
+      }
     }
 
     return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -834,8 +872,8 @@
 
           <!-- Persistent selected range overlay -->
           {#if tableStartDate && tableEndDate && !isDraggingRange}
-            {@const startPt = points.find(p => p.data.date === tableStartDate)}
-            {@const endPt = points.find(p => p.data.date === tableEndDate)}
+            {@const startPt = points.find(p => p.data.date.startsWith(tableStartDate))}
+            {@const endPt = points.find(p => p.data.date.startsWith(tableEndDate))}
             {#if startPt && endPt}
               {@const x1 = Math.min(startPt.x, endPt.x)}
               {@const x2 = Math.max(startPt.x, endPt.x)}
@@ -975,16 +1013,22 @@
           <input
             id="tableStartDate"
             type="date"
-            bind:value={tableStartDate}
-            onchange={() => tablePage = 1}
+            value={displayStartDate}
+            onchange={(e) => {
+              tableStartDate = e.currentTarget.value;
+              tablePage = 1;
+            }}
             class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
           />
           <span class="text-outline text-xs">-</span>
           <input
             id="tableEndDate"
             type="date"
-            bind:value={tableEndDate}
-            onchange={() => tablePage = 1}
+            value={displayEndDate}
+            onchange={(e) => {
+              tableEndDate = e.currentTarget.value;
+              tablePage = 1;
+            }}
             class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
           />
         </div>
