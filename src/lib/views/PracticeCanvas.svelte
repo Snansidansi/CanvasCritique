@@ -24,6 +24,8 @@
     getStrokesBoundingBox, 
     drawStroke, 
     drawGuidelinesInWorld,
+    calculateStrokeBounds,
+    ensureStrokeBounds,
     type Stroke,
     type Point
   } from '../utils/canvas';
@@ -1313,10 +1315,38 @@
         ];
         for (const page of pages) {
           if (!page.eraserUndoStack) page.eraserUndoStack = [];
+          for (const stroke of page.strokeHistory || []) {
+            ensureStrokeBounds(stroke);
+          }
+          for (const stroke of page.redoStack || []) {
+            ensureStrokeBounds(stroke);
+          }
+          for (const action of page.eraserUndoStack || []) {
+            if (action && action.points) {
+              ensureStrokeBounds(action);
+            } else if (action && action.removedStrokes) {
+              for (const s of action.removedStrokes || []) ensureStrokeBounds(s);
+              for (const s of action.addedStrokes || []) ensureStrokeBounds(s);
+            }
+          }
         }
         infiniteStrokes = saved.infiniteStrokes || [];
+        for (const stroke of infiniteStrokes) {
+          ensureStrokeBounds(stroke);
+        }
         infiniteRedo = saved.infiniteRedo || [];
+        for (const stroke of infiniteRedo) {
+          ensureStrokeBounds(stroke);
+        }
         infiniteEraserUndo = saved.infiniteEraserUndo || [];
+        for (const action of infiniteEraserUndo) {
+          if (action && action.points) {
+            ensureStrokeBounds(action);
+          } else if (action && action.removedStrokes) {
+            for (const s of action.removedStrokes || []) ensureStrokeBounds(s);
+            for (const s of action.addedStrokes || []) ensureStrokeBounds(s);
+          }
+        }
         panOffset = saved.panOffset || { x: 0, y: 0 };
         zoomScale = saved.zoomScale || 1;
         activePageIndex = saved.activePageIndex || 0;
@@ -1969,6 +1999,14 @@
           p.x += dx;
           p.y += dy;
         }
+        if (stroke.bounds) {
+          stroke.bounds.minX += dx;
+          stroke.bounds.maxX += dx;
+          stroke.bounds.minY += dy;
+          stroke.bounds.maxY += dy;
+        } else {
+          stroke.bounds = calculateStrokeBounds(stroke);
+        }
       }
       
       selectionDragStart = { x: coords.x, y: coords.y };
@@ -2077,6 +2115,7 @@
           width: brushWidth,
           points: shapePoints
         };
+        newStroke.bounds = calculateStrokeBounds(newStroke);
 
         if (canvasMode === 'a4') {
           pages[activePageIndex].strokeHistory.push(newStroke);
@@ -2094,12 +2133,13 @@
       
       if (isStraightening && straightLineStart && straightLineEnd) {
         const finalEnd = snapLine(straightLineStart, straightLineEnd);
-        const newStroke = {
+        const newStroke: Stroke = {
           id: Math.random().toString(36).substring(2, 9),
           color: strokeColor,
           width: brushWidth,
           points: [straightLineStart, finalEnd]
         };
+        newStroke.bounds = calculateStrokeBounds(newStroke);
         
         if (canvasMode === 'a4') {
           pages[activePageIndex].strokeHistory.push(newStroke);
@@ -2113,12 +2153,13 @@
         saveToStore();
       } else if (currentStroke.length > 0) {
         const isEraser = (activeTool === 'eraser' || isPointerEraser);
-        const newStroke = {
+        const newStroke: Stroke = {
           id: Math.random().toString(36).substring(2, 9),
           color: isEraser ? 'eraser' : strokeColor,
           width: isEraser ? eraserWidth : brushWidth,
           points: [...currentStroke]
         };
+        newStroke.bounds = calculateStrokeBounds(newStroke);
         
         if (canvasMode === 'a4') {
           pages[activePageIndex].strokeHistory.push(newStroke);

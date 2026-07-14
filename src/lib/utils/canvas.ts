@@ -3,11 +3,19 @@ export interface Point {
   y: number;
 }
 
+export interface StrokeBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
 export interface Stroke {
   id?: string;
   color: string;
   width: number;
   points: Point[];
+  bounds?: StrokeBounds;
 }
 
 export interface BoundingBox {
@@ -144,4 +152,34 @@ export function drawGuidelinesInWorld(
     }
   }
   ctxTarget.restore();
+}
+
+export function calculateStrokeBounds(stroke: Stroke): StrokeBounds {
+  if (!stroke.points || stroke.points.length === 0) {
+    return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  }
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const halfWidth = stroke.width / 2;
+  for (const p of stroke.points) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  return {
+    minX: minX - halfWidth,
+    minY: minY - halfWidth,
+    maxX: maxX + halfWidth,
+    maxY: maxY + halfWidth
+  };
+}
+
+export function ensureStrokeBounds(stroke: Stroke): Stroke {
+  if (!stroke.bounds) {
+    stroke.bounds = calculateStrokeBounds(stroke);
+  }
+  return stroke;
 }
