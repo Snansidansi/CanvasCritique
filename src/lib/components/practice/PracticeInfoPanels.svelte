@@ -649,7 +649,7 @@
               <p class="text-xs text-on-surface-variant text-center">{feedbackText}</p>
             </div>
           {:else}
-            <div class="text-xs text-on-surface-variant leading-relaxed prose prose-sm dark:prose-invert select-text">
+            <div class="text-xs text-on-surface-variant leading-relaxed prose prose-sm dark:prose-invert select-text" style="font-size: {textFontSize}px;">
               {@html parseMarkdown(feedbackText)}
             </div>
           {/if}

@@ -189,3 +189,19 @@ body {
   animation: spin-reverse 1s linear infinite;
 }
 
+/* Ensure prose elements inside practice info panels and preview containers scale with container font-size */
+.prose {
+  font-size: inherit;
+}
+.prose p, .prose li, .prose table, .prose blockquote, .prose pre, .prose code, .prose span, .prose ul, .prose ol {
+  font-size: inherit;
+}
+.prose h1 { font-size: 1.5em; }
+.prose h2 { font-size: 1.25em; }
+.prose h3 { font-size: 1.125em; }
+
+/* Ensure KaTeX display math and inline math inherit font size of container */
+.katex {
+  font-size: inherit !important;
+}
+
