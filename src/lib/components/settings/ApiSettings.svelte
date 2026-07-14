@@ -4,6 +4,7 @@
   import EvaluationDetailsSettings from './EvaluationDetailsSettings.svelte';
   import MediaFilterSettings from './MediaFilterSettings.svelte';
   import { t } from '../../services/i18n';
+  import { estimateCost } from '../../services/ai';
 
   // Connection test state
   let connectionTestStatus = $state(''); // 'idle' | 'testing' | 'success' | 'error'
@@ -48,6 +49,20 @@
         if (response.ok && data.candidates && data.candidates[0]) {
           connectionTestStatus = 'success';
           connectionTestMessage = t('settings.api.testConnectionSuccess');
+
+          // Log request to stats database
+          try {
+            const inputTokens = data.usageMetadata?.promptTokenCount || 0;
+            const outputTokens = data.usageMetadata?.candidatesTokenCount || 0;
+            const reasoningTokens = 0;
+            const cost = estimateCost('gemini', model, inputTokens, outputTokens, {
+              geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
+              geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
+            });
+            await store.recordRequest('gemini', model, inputTokens, outputTokens, reasoningTokens, cost);
+          } catch (statsErr) {
+            console.error('Failed to log Gemini connection test stats:', statsErr);
+          }
         } else {
           connectionTestStatus = 'error';
           connectionTestMessage = t('settings.api.testConnectionError', { error: data.error?.message || 'Invalid API key or model.' });
@@ -130,6 +145,58 @@
         if (response.ok && data.choices && data.choices[0]) {
           connectionTestStatus = 'success';
           connectionTestMessage = t('settings.api.testConnectionSuccess');
+
+          // Log request to stats database
+          try {
+            const inputTokens = data.usage?.prompt_tokens || data.usage?.promptTokens || 0;
+            const outputTokens = data.usage?.completion_tokens || data.usage?.completionTokens || 0;
+            const reasoningTokens = data.usage?.completion_tokens_details?.reasoning_tokens || data.usage?.completionTokensDetails?.reasoningTokens || 0;
+            
+            let cost = 0;
+            let costResolved = false;
+            const generationId = data.id;
+            
+            if (generationId && apiKey) {
+              try {
+                // Wait briefly for OpenRouter backend to index the generation
+                await new Promise(resolve => setTimeout(resolve, 800));
+                const genRes = await fetch(`https://openrouter.ai/api/v1/generation?id=${generationId}`, {
+                  headers: {
+                    'Authorization': `Bearer ${apiKey}`
+                  }
+                });
+                if (genRes.ok) {
+                  const genData = await genRes.json();
+                  if (genData?.data) {
+                    const byokUsage = genData.data.byok_usage_inference || 0;
+                    const normalUsage = genData.data.usage || 0;
+                    cost = byokUsage || normalUsage || 0;
+                    if (cost > 0) {
+                      costResolved = true;
+                    }
+                  }
+                }
+              } catch (err) {
+                console.error('Failed to fetch exact cost for connection test from OpenRouter API:', err);
+              }
+            }
+
+            if (!costResolved) {
+              const price = store.openRouterPrices[model];
+              if (price) {
+                cost = (inputTokens * price.prompt) + (outputTokens * price.completion);
+              } else {
+                cost = estimateCost('openrouter', model, inputTokens, outputTokens, {
+                  geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
+                  geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
+                });
+              }
+            }
+
+            await store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost);
+          } catch (statsErr) {
+            console.error('Failed to log OpenRouter connection test stats:', statsErr);
+          }
         } else {
           connectionTestStatus = 'error';
           connectionTestMessage = t('settings.api.testConnectionError', { error: data.error?.message || 'Invalid API key or model.' });
