@@ -411,7 +411,9 @@
       "dark": "Dark",
       "system": "System",
       "rememberWindowState": "Remember Window State",
-      "rememberWindowStateDesc": "Save and restore the window size, position, monitor, and zoom level when closing/reopening the app."
+      "rememberWindowStateDesc": "Save and restore the window size, position, monitor, and zoom level when closing/reopening the app.",
+      "editorShowAllRaw": "Always Show Raw Markdown",
+      "editorShowAllRawDesc": "Default to showing raw markdown for task descriptions in the editor."
     },
     "canvas": {
       "title": "Canvas",

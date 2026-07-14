@@ -410,7 +410,9 @@
       "dark": "Dunkel",
       "system": "System",
       "rememberWindowState": "Fensterposition speichern",
-      "rememberWindowStateDesc": "Größe, Position, Monitor und Zoomstufe des Fensters beim Schließen/Erneuten Öffnen speichern und wiederherstellen."
+      "rememberWindowStateDesc": "Größe, Position, Monitor und Zoomstufe des Fensters beim Schließen/Erneuten Öffnen speichern und wiederherstellen.",
+      "editorShowAllRaw": "Immer Raw-Markdown anzeigen",
+      "editorShowAllRawDesc": "Aktiviert standardmäßig den Raw-Markdown-Modus für Aufgabenstellungen im Editor."
     },
     "canvas": {
       "title": "Leinwand",

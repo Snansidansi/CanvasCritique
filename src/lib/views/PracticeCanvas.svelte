@@ -4434,25 +4434,6 @@
         </div>
       </div>
 
-      <!-- Obsidian Show All Raw Toggle -->
-      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-        <div class="flex items-center justify-between gap-4">
-          <label for="editor-show-raw-toggle" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider cursor-pointer">
-            {t('practice.canvas.editorShowAllRaw')}
-          </label>
-          <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
-            <input 
-              id="editor-show-raw-toggle"
-              type="checkbox" 
-              bind:checked={store.settings.editorShowAllRaw}
-              onchange={() => store.saveSettings()}
-              class="sr-only peer" 
-            />
-            <div class="w-11 h-6 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-          </label>
-        </div>
-      </div>
-
       <!-- Info Panels Layout -->
       <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
         <div class="flex justify-between items-center">
