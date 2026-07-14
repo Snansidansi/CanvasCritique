@@ -58,13 +58,9 @@ fn main() {
         .plugin(tauri_plugin_sql::Builder::new().build())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let state = window.state::<AppState>();
-                let sync_on_shutdown = *state.sync_on_shutdown.lock().unwrap();
-                if sync_on_shutdown {
-                    api.prevent_close();
-                    let _ = window.hide();
-                    let _ = window.emit("trigger-shutdown-sync", ());
-                }
+                api.prevent_close();
+                let _ = window.hide();
+                let _ = window.emit("trigger-shutdown-sync", ());
             }
         })
         .invoke_handler(tauri::generate_handler![

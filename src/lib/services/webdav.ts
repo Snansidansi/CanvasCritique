@@ -243,12 +243,20 @@ function compareVersions(v1: string, v2: string): number {
   return 0;
 }
 
-export async function syncWebDav(forceMode?: 'download' | 'upload'): Promise<void> {
+export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup = false): Promise<void> {
   const client = getWebDavClient();
   const settings = store.settings;
 
   if (!client || !settings.webdavEnabled) return;
   if (store.isSyncing) return; // Prevent concurrent syncs
+
+  if (!skipCleanup) {
+    try {
+      await store.cleanOrphanedMedia();
+    } catch (e) {
+      console.error('Media cleanup before WebDAV sync failed:', e);
+    }
+  }
 
   store.isSyncing = true;
   try {
