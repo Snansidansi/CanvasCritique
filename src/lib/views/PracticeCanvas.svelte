@@ -1073,6 +1073,33 @@
     }
   });
 
+  // Force complete canvas pipeline reset when editor/canvas visibility changes
+  // This prevents the canvas from going blank when the text editor is toggled
+  $effect(() => {
+    const _st = showText;
+    const _sc = showCanvas;
+    untrack(() => {
+      if (!canvasElement) return;
+      // Wait for Svelte to finish all DOM updates after the visibility change
+      tick().then(() => {
+        // Fully reset the rendering pipeline
+        invalidateCache();
+        offscreenCanvas = null;
+        offscreenCtx = null;
+        // Re-acquire the 2D context from the actual DOM element
+        ctx = canvasElement.getContext('2d');
+        // Use double-rAF to ensure the browser has completed layout recalculation
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (ctx && canvasElement) {
+              redraw();
+            }
+          });
+        });
+      });
+    });
+  });
+
   // Fetch and cache the background pattern image when currentBgUrl changes
   $effect(() => {
     const url = currentBgUrl;
