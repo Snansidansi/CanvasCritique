@@ -31,12 +31,18 @@
     try {
       if (provider === 'gemini') {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const requestBody: any = {
+          contents: [{ parts: [{ text: "Hello! Reply in one short word." }] }]
+        };
+        if (store.settings.maxOutputTokens && store.settings.maxOutputTokens > 0) {
+          requestBody.generationConfig = {
+            maxOutputTokens: store.settings.maxOutputTokens
+          };
+        }
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: "Hello! Reply in one short word." }] }]
-          })
+          body: JSON.stringify(requestBody)
         });
         const data = await response.json();
         if (response.ok && data.candidates && data.candidates[0]) {
@@ -78,6 +84,10 @@
           model: model,
           messages: [{ role: "user", content: "Hello! Reply in one short word." }]
         };
+
+        if (store.settings.maxOutputTokens && store.settings.maxOutputTokens > 0) {
+          requestBody.max_tokens = store.settings.maxOutputTokens;
+        }
 
         if (supportsReasoning) {
           if (reasoningSetting === 'none' || reasoningSetting === false) {

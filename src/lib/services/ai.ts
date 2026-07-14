@@ -889,7 +889,7 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
           content: contentParts
         }
       ],
-      ...(settings.maxOutputTokens && settings.maxOutputTokens > 0 ? { max_tokens: settings.maxOutputTokens } : {})
+      ...(settings.maxOutputTokens && settings.maxOutputTokens > 0 ? { maxTokens: settings.maxOutputTokens } : {})
     };
 
     const selectedProviders = settings.openRouterProvider || [];
