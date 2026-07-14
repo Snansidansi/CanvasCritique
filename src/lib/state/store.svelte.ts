@@ -601,10 +601,6 @@ class CanvasCritiqueStore {
     }
     if (updated.color !== undefined) profile.color = updated.color;
     await this.saveProfiles();
-
-    if (oldIconMediaId && oldIconMediaId !== this._iconMediaIds[id]) {
-      await this.cleanupOrphanedMedia(oldIconMediaId);
-    }
   }
 
   async deleteProfile(id: string) {
@@ -612,14 +608,10 @@ class CanvasCritiqueStore {
 
     const db = this.getDb();
     const projectsToDelete = this.projects.filter(p => p.profileId === id);
-    const mediaIds: string[] = [];
 
-    // Collect all task media IDs and project icon media IDs for the projects of this profile
     for (const project of projectsToDelete) {
       if (project.tasks) {
         for (const t of project.tasks) {
-          mediaIds.push(...collectMediaIds(t.instructionFiles || []));
-          mediaIds.push(...collectMediaIds(t.solutionFiles || []));
           if (this.canvasSaves[t.id]) {
             delete this.canvasSaves[t.id];
           }
@@ -628,15 +620,6 @@ class CanvasCritiqueStore {
           }
         }
       }
-      const projIcon = this._projectIconMediaIds[project.id];
-      if (projIcon) {
-        mediaIds.push(projIcon);
-      }
-    }
-
-    const profileIcon = this._iconMediaIds[id];
-    if (profileIcon) {
-      mediaIds.push(profileIcon);
     }
 
     // Remove projects for this profile from memory first
@@ -658,13 +641,6 @@ class CanvasCritiqueStore {
     }
 
     await this.saveProfiles();
-
-    // Clean up all orphaned media
-    if (mediaIds.length > 0) {
-      for (const mediaId of mediaIds) {
-        await this.cleanupOrphanedMedia(mediaId);
-      }
-    }
   }
 
   async selectProfile(id: string) {
@@ -725,71 +701,9 @@ class CanvasCritiqueStore {
   }
 
   async deleteCustomBackground(id: string): Promise<void> {
-    const bg = this.customBackgrounds.find(b => b.id === id);
-    const mediaId = bg?.mediaId;
-    const iconMediaId = bg?.iconMediaId;
-
     this.customBackgrounds = this.customBackgrounds.filter(bg => bg.id !== id);
     const db = this.getDb();
     await dbDeleteCustomBackground(db, id);
-
-    if (mediaId) {
-      await this.cleanupOrphanedMedia(mediaId);
-    }
-    if (iconMediaId && iconMediaId !== mediaId) {
-      await this.cleanupOrphanedMedia(iconMediaId);
-    }
-  }
-
-  async cleanupOrphanedMedia(mediaId: string): Promise<void> {
-    if (!mediaId) return;
-    if (this.settings.userIcons && this.settings.userIcons.includes(mediaId)) {
-      return;
-    }
-
-    let isReferenced = false;
-    for (const project of this.projects) {
-      if (this._projectIconMediaIds[project.id] === mediaId || project.icon === mediaId) {
-        isReferenced = true;
-        break;
-      }
-      if (project.tasks) {
-        for (const task of project.tasks) {
-          if (task.instructionFiles && task.instructionFiles.some(f => f.mediaId === mediaId)) {
-            isReferenced = true;
-            break;
-          }
-          if (task.solutionFiles && task.solutionFiles.some(f => f.mediaId === mediaId)) {
-            isReferenced = true;
-            break;
-          }
-        }
-      }
-      if (isReferenced) break;
-    }
-
-    if (!isReferenced) {
-      for (const profile of this.profiles) {
-        if (this._iconMediaIds[profile.id] === mediaId || profile.icon === mediaId) {
-          isReferenced = true;
-          break;
-        }
-      }
-    }
-
-    if (!isReferenced) {
-      for (const bg of this.customBackgrounds) {
-        if (bg.mediaId === mediaId || bg.iconMediaId === mediaId || bg.icon === mediaId) {
-          isReferenced = true;
-          break;
-        }
-      }
-    }
-
-    if (!isReferenced) {
-      console.log(`[store] Cleaning up orphaned media: ${mediaId}`);
-      await deleteMediaFromDb(mediaId);
-    }
   }
 
   async cleanOrphanedMedia(): Promise<number> {
@@ -822,9 +736,25 @@ class CanvasCritiqueStore {
                   isReferenced = true;
                   break;
                 }
+                if (task.templateCanvasData && task.templateCanvasData.includes(mediaId)) {
+                  isReferenced = true;
+                  break;
+                }
               }
             }
             if (isReferenced) break;
+          }
+        }
+
+        if (!isReferenced) {
+          for (const taskId in this.canvasSaves) {
+            const save = this.canvasSaves[taskId];
+            if (save && save.canvasImages && Array.isArray(save.canvasImages)) {
+              if (save.canvasImages.some((img: any) => img.mediaId === mediaId)) {
+                isReferenced = true;
+                break;
+              }
+            }
           }
         }
 
@@ -866,7 +796,6 @@ class CanvasCritiqueStore {
       this.settings.userIcons = this.settings.userIcons.filter(id => id !== mediaId);
       await this.saveSettings();
     }
-    await this.cleanupOrphanedMedia(mediaId);
   }
 
   recordPointerEvent(e: PointerEvent): void {
@@ -1018,18 +947,10 @@ class CanvasCritiqueStore {
     }
 
     for (const t of tasksToDelete) {
-      const taskMediaIds: string[] = [];
-      taskMediaIds.push(...collectMediaIds(t.instructionFiles || []));
-      taskMediaIds.push(...collectMediaIds(t.solutionFiles || []));
       try {
         await dbDeleteTask(db, t.id);
-        if (taskMediaIds.length > 0) {
-          for (const mediaId of taskMediaIds) {
-            await this.cleanupOrphanedMedia(mediaId);
-          }
-        }
       } catch (err) {
-        console.error('[store] Failed to delete task/media in category deletion', t.id, err);
+        console.error('[store] Failed to delete task in category deletion', t.id, err);
       }
       delete this.canvasSaves[t.id];
       delete this.editorTexts[t.id];
@@ -1109,20 +1030,6 @@ class CanvasCritiqueStore {
     const task = project.tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    const oldMediaIds: string[] = [];
-    if (updatedData.instructionFiles !== undefined && task.instructionFiles) {
-      oldMediaIds.push(...collectMediaIds(task.instructionFiles));
-    }
-    if (updatedData.solutionFiles !== undefined && task.solutionFiles) {
-      oldMediaIds.push(...collectMediaIds(task.solutionFiles));
-    }
-    if (updatedData.contextFiles !== undefined && task.contextFiles) {
-      oldMediaIds.push(...collectMediaIds(task.contextFiles));
-    }
-    if (updatedData.providedFiles !== undefined && task.providedFiles) {
-      oldMediaIds.push(...collectMediaIds(task.providedFiles));
-    }
-
     if (updatedData.name !== undefined) task.name = updatedData.name;
     if (updatedData.instructions !== undefined) task.instructions = updatedData.instructions;
     if (updatedData.solution !== undefined) task.solution = updatedData.solution;
@@ -1165,26 +1072,7 @@ class CanvasCritiqueStore {
     });
     await this.saveProjects();
 
-    const newMediaIds: string[] = [];
-    if (updatedData.instructionFiles !== undefined && task.instructionFiles) {
-      newMediaIds.push(...collectMediaIds(task.instructionFiles));
-    }
-    if (updatedData.solutionFiles !== undefined && task.solutionFiles) {
-      newMediaIds.push(...collectMediaIds(task.solutionFiles));
-    }
-    if (updatedData.contextFiles !== undefined && task.contextFiles) {
-      newMediaIds.push(...collectMediaIds(task.contextFiles));
-    }
-    if (updatedData.providedFiles !== undefined && task.providedFiles) {
-      newMediaIds.push(...collectMediaIds(task.providedFiles));
-    }
 
-    const orphanedMediaIds = oldMediaIds.filter(id => !newMediaIds.includes(id));
-    if (orphanedMediaIds.length > 0) {
-      for (const mediaId of orphanedMediaIds) {
-        await this.cleanupOrphanedMedia(mediaId);
-      }
-    }
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
@@ -1290,14 +1178,7 @@ class CanvasCritiqueStore {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
-    const task = project.tasks.find(t => t.id === taskId);
-    const mediaIds: string[] = [];
-    if (task) {
-      mediaIds.push(...collectMediaIds(task.instructionFiles || []));
-      mediaIds.push(...collectMediaIds(task.solutionFiles || []));
-    }
-
-    // Filter task from memory first so they are not considered referenced in cleanup check
+    // Filter task from memory first
     project.tasks = project.tasks.filter(t => t.id !== taskId);
 
     const db = this.getDb();
@@ -1311,12 +1192,6 @@ class CanvasCritiqueStore {
     }
 
     await this.saveProjects();
-
-    if (mediaIds.length > 0) {
-      for (const mediaId of mediaIds) {
-        await this.cleanupOrphanedMedia(mediaId);
-      }
-    }
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
@@ -1333,16 +1208,7 @@ class CanvasCritiqueStore {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
-    const mediaIds: string[] = [];
-    for (const taskId of taskIds) {
-      const task = project.tasks.find(t => t.id === taskId);
-      if (task) {
-        mediaIds.push(...collectMediaIds(task.instructionFiles || []));
-        mediaIds.push(...collectMediaIds(task.solutionFiles || []));
-      }
-    }
-
-    // Filter tasks from memory first so they are not considered referenced in cleanup check
+    // Filter tasks from memory first
     project.tasks = project.tasks.filter(t => !taskIds.includes(t.id));
 
     const db = this.getDb();
@@ -1358,12 +1224,6 @@ class CanvasCritiqueStore {
     }
 
     await this.saveProjects();
-
-    if (mediaIds.length > 0) {
-      for (const mediaId of mediaIds) {
-        await this.cleanupOrphanedMedia(mediaId);
-      }
-    }
 
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
@@ -1410,10 +1270,6 @@ class CanvasCritiqueStore {
     }
     await this.saveProjects();
 
-    if (oldIconMediaId && oldIconMediaId !== this._projectIconMediaIds[projectId]) {
-      await this.cleanupOrphanedMedia(oldIconMediaId);
-    }
-
     if (this.activeProject && this.activeProject.id === projectId) {
       this.activeProject = project;
     }
@@ -1424,11 +1280,8 @@ class CanvasCritiqueStore {
     this.deletingProjectIds.push(projectId);
     try {
       const project = this.projects.find(p => p.id === projectId);
-      const mediaIds: string[] = [];
       if (project && project.tasks) {
         for (const t of project.tasks) {
-          mediaIds.push(...collectMediaIds(t.instructionFiles || []));
-          mediaIds.push(...collectMediaIds(t.solutionFiles || []));
           if (this.canvasSaves[t.id]) {
             delete this.canvasSaves[t.id];
           }
@@ -1438,24 +1291,12 @@ class CanvasCritiqueStore {
         }
       }
 
-      const oldIconMediaId = this._projectIconMediaIds[projectId];
-
       const db = this.getDb();
       await dbDeleteProject(db, projectId);
 
-      // Filter out the project from memory first so they are not considered referenced in cleanup check
+      // Filter out the project from memory first
       this.projects = this.projects.filter(p => p.id !== projectId);
       delete this._projectIconMediaIds[projectId];
-
-      if (mediaIds.length > 0) {
-        for (const mediaId of mediaIds) {
-          await this.cleanupOrphanedMedia(mediaId);
-        }
-      }
-
-      if (oldIconMediaId) {
-        await this.cleanupOrphanedMedia(oldIconMediaId);
-      }
 
       if (this.activeProject && this.activeProject.id === projectId) {
         this.activeProject = null;
