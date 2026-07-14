@@ -735,7 +735,7 @@
               id="statsStartDate"
               type="date"
               bind:value={customStartDate}
-              class="bg-surface border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
             />
           </div>
           <div class="flex flex-col gap-1">
@@ -746,7 +746,7 @@
               id="statsEndDate"
               type="date"
               bind:value={customEndDate}
-              class="bg-surface border border-outline-variant rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-md px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
             />
           </div>
         </div>
@@ -1018,7 +1018,7 @@
               tableStartDate = e.currentTarget.value;
               tablePage = 1;
             }}
-            class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+            class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
           />
           <span class="text-outline text-xs">-</span>
           <input
@@ -1029,7 +1029,7 @@
               tableEndDate = e.currentTarget.value;
               tablePage = 1;
             }}
-            class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+            class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer"
           />
         </div>
         {#if tableStartDate || tableEndDate}
@@ -1220,3 +1220,13 @@
     </button>
   </section>
 </div>
+
+<style>
+  :global(.dark input[type="date"]::-webkit-calendar-picker-indicator) {
+    filter: invert(1) !important;
+    cursor: pointer;
+  }
+  :global(.dark input[type="date"]) {
+    color-scheme: dark !important;
+  }
+</style>
