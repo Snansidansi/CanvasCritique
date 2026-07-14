@@ -4,6 +4,8 @@
   import LanguageSettings from '../components/settings/LanguageSettings.svelte';
   import CanvasPreferences from '../components/settings/CanvasPreferences.svelte';
   import TaskNumberingSettings from '../components/settings/TaskNumberingSettings.svelte';
+  import GeneralTextSettings from '../components/settings/GeneralTextSettings.svelte';
+  import TextEditorSettings from '../components/settings/TextEditorSettings.svelte';
   import DataManagement from '../components/settings/DataManagement.svelte';
   import ApiSettings from '../components/settings/ApiSettings.svelte';
   import SystemPromptSettings from '../components/settings/SystemPromptSettings.svelte';
@@ -13,15 +15,16 @@
   import pkg from '../../../package.json';
   import { store } from '../state/store.svelte';
 
-  type TabId = 'general' | 'stylus' | 'ai' | 'data' | 'stats' | 'update';
+  type TabId = 'general' | 'workspace' | 'stylus' | 'ai' | 'data' | 'stats' | 'update';
 
   const tabs: { id: TabId; labelKey: string; icon: string }[] = [
-    { id: 'general',  labelKey: 'settings.tabs.general',   icon: 'tune'           },
-    { id: 'stylus',   labelKey: 'settings.tabs.stylus',    icon: 'stylus_pen'     },
-    { id: 'ai',       labelKey: 'settings.tabs.ai',        icon: 'smart_toy'      },
-    { id: 'data',     labelKey: 'settings.tabs.data',      icon: 'database'       },
-    { id: 'stats',    labelKey: 'settings.tabs.stats',     icon: 'bar_chart'      },
-    { id: 'update',   labelKey: 'settings.tabs.update',    icon: 'update'         },
+    { id: 'general',    labelKey: 'settings.tabs.general',   icon: 'tune'           },
+    { id: 'workspace',  labelKey: 'settings.tabs.workspace', icon: 'edit_square'    },
+    { id: 'stylus',     labelKey: 'settings.tabs.stylus',    icon: 'stylus_pen'     },
+    { id: 'ai',         labelKey: 'settings.tabs.ai',        icon: 'smart_toy'      },
+    { id: 'data',       labelKey: 'settings.tabs.data',      icon: 'database'       },
+    { id: 'stats',      labelKey: 'settings.tabs.stats',     icon: 'bar_chart'      },
+    { id: 'update',     labelKey: 'settings.tabs.update',    icon: 'update'         },
   ];
 
   let activeTab = $state<TabId>('general');
@@ -70,8 +73,12 @@
       {#if activeTab === 'general'}
         <AppearanceSettings />
         <LanguageSettings />
-        <CanvasPreferences />
         <TaskNumberingSettings />
+
+      {:else if activeTab === 'workspace'}
+        <GeneralTextSettings />
+        <CanvasPreferences />
+        <TextEditorSettings />
 
       {:else if activeTab === 'stylus'}
         <StylusSettings />

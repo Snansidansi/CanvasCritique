@@ -398,6 +398,7 @@
     "subtitle": "Passe deine Erfahrung an",
     "tabs": {
       "general": "Allgemein",
+      "workspace": "Arbeitsbereich",
       "stylus": "Stift",
       "ai": "KI",
       "data": "Daten",
@@ -410,9 +411,21 @@
       "dark": "Dunkel",
       "system": "System",
       "rememberWindowState": "Fensterposition speichern",
-      "rememberWindowStateDesc": "Größe, Position, Monitor und Zoomstufe des Fensters beim Schließen/Erneuten Öffnen speichern und wiederherstellen.",
-      "editorShowAllRaw": "Immer Raw-Markdown anzeigen",
-      "editorShowAllRawDesc": "Aktiviert standardmäßig den Raw-Markdown-Modus für Aufgabenstellungen im Editor."
+      "rememberWindowStateDesc": "Größe, Position, Monitor und Zoomstufe des Fensters beim Schließen/Erneuten Öffnen speichern und wiederherstellen."
+    },
+    "workspaceGeneralText": {
+      "title": "Allgemein",
+      "desc": "Konfiguriere allgemeine Texteinstellungen für Übungen.",
+      "fontSizeLabel": "Text-Schriftgröße (Aufgabenstellung & Lösung)",
+      "fontSizeDesc": "Legt die Schriftgröße für die Aufgabenstellung und die Lösung im Übungsbereich fest (gilt auch für die Text- und Markdown-Dateivorschau)."
+    },
+    "workspaceTextEditor": {
+      "title": "Texteditor",
+      "desc": "Konfiguriere den Texteditor für deine Übungen.",
+      "fontSizeLabel": "Texteditor-Schriftgröße",
+      "fontSizeDesc": "Legt die Schriftgröße für das Schreiben im Texteditor fest.",
+      "showAllRawLabel": "Immer Raw-Markdown anzeigen",
+      "showAllRawDesc": "Aktiviert standardmäßig den Raw-Markdown-Modus für Aufgabenstellungen im Editor."
     },
     "canvas": {
       "title": "Leinwand",
