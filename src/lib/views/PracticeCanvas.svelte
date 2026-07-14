@@ -4389,6 +4389,55 @@
           <span class="text-xs font-bold text-on-surface-variant select-none w-6 text-right">px</span>
         </div>
       </div>
+      <!-- Canvas Font Size (Spinbox) -->
+      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+        <div class="flex justify-between items-center">
+          <label for="canvas-font-size-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+            {t('settings.canvas.textFontSize')}
+          </label>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-base text-outline">text_fields</span>
+          <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
+            <button 
+              type="button"
+              onclick={() => {
+                store.settings.canvasFontSize = Math.max(10, (store.settings.canvasFontSize || 13) - 1);
+                store.saveSettings();
+              }}
+              class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+            >
+              <span class="material-symbols-outlined text-sm">remove</span>
+            </button>
+            <input 
+              id="canvas-font-size-spinbox"
+              type="number"
+              min="10"
+              max="24"
+              bind:value={store.settings.canvasFontSize}
+              onchange={() => {
+                if (typeof store.settings.canvasFontSize !== 'number' || isNaN(store.settings.canvasFontSize)) {
+                  store.settings.canvasFontSize = 13;
+                }
+                store.settings.canvasFontSize = Math.max(10, Math.min(store.settings.canvasFontSize, 24));
+                store.saveSettings();
+              }}
+              class="w-16 bg-transparent text-center text-xs font-bold text-on-surface focus:outline-none border-0 p-0"
+            />
+            <button 
+              type="button"
+              onclick={() => {
+                store.settings.canvasFontSize = Math.min(24, (store.settings.canvasFontSize || 13) + 1);
+                store.saveSettings();
+              }}
+              class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+            >
+              <span class="material-symbols-outlined text-sm">add</span>
+            </button>
+          </div>
+          <span class="text-xs font-bold text-on-surface-variant select-none w-6 text-right">px</span>
+        </div>
+      </div>
 
       <!-- Obsidian Show All Raw Toggle -->
       <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
