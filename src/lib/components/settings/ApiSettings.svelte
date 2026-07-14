@@ -155,6 +155,45 @@
     <!-- Reusable AI Model selection component -->
     <AiModelConfig settings={store.settings} showKeys={true} onchange={handleInputChange} />
 
+    <!-- Connection Test Panel -->
+    <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          onclick={testApiConnection}
+          disabled={connectionTestStatus === 'testing'}
+          class="bg-secondary-container text-on-secondary-container hover:bg-secondary-container-high disabled:opacity-50 transition-all px-4 py-2 rounded-lg font-semibold text-sm cursor-pointer flex items-center gap-2"
+        >
+          <span class="material-symbols-outlined text-[18px]">cell_tower</span>
+          {t('settings.api.testConnectionBtn')}
+        </button>
+        
+        {#if connectionTestStatus === 'testing'}
+          <span class="text-xs text-on-surface-variant flex items-center gap-1.5 animate-pulse">
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+            {t('settings.api.testing')}
+          </span>
+        {:else}
+          {#if connectionTestStatus === 'success'}
+            <span class="text-xs text-emerald-500 font-semibold flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">check_circle</span>
+              {t('settings.api.verified')}
+            </span>
+          {:else if connectionTestStatus === 'error'}
+            <span class="text-xs text-error font-semibold flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">error</span>
+              {t('settings.api.failed')}
+            </span>
+          {/if}
+        {/if}
+      </div>
+      {#if connectionTestMessage}
+        <p class="text-xs {connectionTestStatus === 'success' ? 'text-emerald-500/80' : connectionTestStatus === 'error' ? 'text-error/80' : 'text-on-surface-variant'}">
+          {connectionTestMessage}
+        </p>
+      {/if}
+    </div>
+
     {#if store.settings.apiProvider === 'gemini' && store.settings.statsEnabled}
       <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
         <h4 class="text-sm font-bold text-on-surface flex items-center gap-2">
@@ -223,44 +262,7 @@
       <MediaFilterSettings settings={store.settings} onchange={handleInputChange} />
     </div>
 
-    <!-- Connection Test Panel -->
-    <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
-      <div class="flex items-center gap-3">
-        <button
-          type="button"
-          onclick={testApiConnection}
-          disabled={connectionTestStatus === 'testing'}
-          class="bg-secondary-container text-on-secondary-container hover:bg-secondary-container-high disabled:opacity-50 transition-all px-4 py-2 rounded-lg font-semibold text-sm cursor-pointer flex items-center gap-2"
-        >
-          <span class="material-symbols-outlined text-[18px]">cell_tower</span>
-          {t('settings.api.testConnectionBtn')}
-        </button>
-        
-        {#if connectionTestStatus === 'testing'}
-          <span class="text-xs text-on-surface-variant flex items-center gap-1.5 animate-pulse">
-            <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-            {t('settings.api.testing')}
-          </span>
-        {:else}
-          {#if connectionTestStatus === 'success'}
-            <span class="text-xs text-emerald-500 font-semibold flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[16px]">check_circle</span>
-              {t('settings.api.verified')}
-            </span>
-          {:else if connectionTestStatus === 'error'}
-            <span class="text-xs text-error font-semibold flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[16px]">error</span>
-              {t('settings.api.failed')}
-            </span>
-          {/if}
-        {/if}
-      </div>
-      {#if connectionTestMessage}
-        <p class="text-xs {connectionTestStatus === 'success' ? 'text-emerald-500/80' : connectionTestStatus === 'error' ? 'text-error/80' : 'text-on-surface-variant'}">
-          {connectionTestMessage}
-        </p>
-      {/if}
-    </div>
+
   </div>
 </section>
 
