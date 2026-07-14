@@ -1508,27 +1508,22 @@
 
   function isStrokeHit(stroke: Stroke, coords: { x: number; y: number }, hitRadius: number): boolean {
     if (stroke.points.length === 0) return false;
+    
+    const bounds = stroke.bounds || calculateStrokeBounds(stroke);
+    if (
+      coords.x < bounds.minX - hitRadius ||
+      coords.x > bounds.maxX + hitRadius ||
+      coords.y < bounds.minY - hitRadius ||
+      coords.y > bounds.maxY + hitRadius
+    ) {
+      return false;
+    }
+
     if (stroke.points.length === 1) {
       const p = stroke.points[0];
       return Math.hypot(p.x - coords.x, p.y - coords.y) < hitRadius;
     }
     
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const p of stroke.points) {
-      if (p.x < minX) minX = p.x;
-      if (p.x > maxX) maxX = p.x;
-      if (p.y < minY) minY = p.y;
-      if (p.y > maxY) maxY = p.y;
-    }
-    if (
-      coords.x < minX - hitRadius ||
-      coords.x > maxX + hitRadius ||
-      coords.y < minY - hitRadius ||
-      coords.y > maxY + hitRadius
-    ) {
-      return false;
-    }
-
     for (let i = 0; i < stroke.points.length - 1; i++) {
       const a = stroke.points[i];
       const b = stroke.points[i + 1];
