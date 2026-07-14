@@ -1116,9 +1116,9 @@
   <div class="max-w-3xl mx-auto flex flex-col gap-6">
     <div class="flex items-center gap-4 -ml-2 border-b border-outline-variant pb-4 mb-2">
       <button 
-        onclick={handleCancel}
+        onclick={handleSave}
         class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors p-2 rounded-full focus:outline-none cursor-pointer"
-        title={t('common.cancel')}
+        title={isEditMode ? t('common.saveChanges') : t('common.saveTask')}
       >
         arrow_back
       </button>
