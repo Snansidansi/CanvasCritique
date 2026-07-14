@@ -59,8 +59,8 @@
   import { isWindowsPlatform, restoreWindowState, setupWindowStateListeners } from "./lib/services/windowState";
 
   $effect(() => {
-    const enabled = !!(store.settings.webdavEnabled && store.settings.webdavSyncOnShutdown);
-    invoke("set_sync_on_shutdown", { enabled }).catch(err => console.error("set_sync_on_shutdown failed:", err));
+    // Always intercept close to clean up orphaned media files
+    invoke("set_sync_on_shutdown", { enabled: true }).catch(err => console.error("set_sync_on_shutdown failed:", err));
   });
 
   onMount(() => {
@@ -123,9 +123,15 @@
     const setupShutdownSyncListener = async () => {
       unlistenShutdownSync = await listen("trigger-shutdown-sync", async () => {
         try {
-          await syncWebDav();
+          if (store.settings.webdavEnabled && store.settings.webdavSyncOnShutdown) {
+            // syncWebDav automatically triggers cleanOrphanedMedia first
+            await syncWebDav();
+          } else {
+            // Just clean up orphaned media
+            await store.cleanOrphanedMedia();
+          }
         } catch (err) {
-          console.error("Shutdown sync failed:", err);
+          console.error("Shutdown cleanup/sync failed:", err);
         } finally {
           await invoke("exit_app");
         }
