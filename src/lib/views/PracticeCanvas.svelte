@@ -4219,7 +4219,7 @@
 {#if store.canvasSettingsOpen}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in select-none">
     <button type="button" aria-label="Close Canvas Settings" class="absolute inset-0 bg-transparent border-0 cursor-default p-0 m-0 w-full h-full focus:outline-none" onclick={() => store.canvasSettingsOpen = false}></button>
-    <div class="bg-surface border border-outline-variant rounded-xl p-6 w-96 shadow-2xl flex flex-col gap-5 z-10 relative">
+    <div class="bg-surface border border-outline-variant rounded-xl p-6 w-[420px] max-w-[90%] max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl flex flex-col gap-5 z-10 relative">
       <!-- Header -->
       <div class="flex items-center justify-between border-b border-outline-variant/30 pb-3">
         <div class="flex items-center gap-2 text-primary">
