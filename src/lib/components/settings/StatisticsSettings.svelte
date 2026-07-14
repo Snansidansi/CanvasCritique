@@ -10,8 +10,7 @@
   let showTokens = $state(false);
   let hoverIndex = $state<number | null>(null);
 
-  // Fallback structure to prevent runtime access errors
-  const statsDaily = $derived(store.settings.stats?.daily || {});
+  // statsDaily fallback is no longer used since statistics are in own table
 
   // Calculate date boundaries
   const activeRangeDates = $derived.by(() => {
@@ -60,7 +59,7 @@
     let openrouter = { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 };
 
     const { start, end } = activeRangeDates;
-    const history = store.settings.stats?.history || [];
+    const history = store.statsHistory;
 
     for (const log of history) {
       const logDate = new Date(log.timestamp);
@@ -71,30 +70,6 @@
         statsObj.outputTokens += log.outputTokens || 0;
         statsObj.reasoningTokens += log.reasoningTokens || 0;
         statsObj.cost += log.cost || 0;
-      }
-    }
-
-    // Fallback for daily aggregates if history is not populated yet
-    if (history.length === 0) {
-      for (const date of Object.keys(statsDaily)) {
-        const dDate = new Date(date + 'T12:00:00');
-        if (dDate >= start && dDate <= end) {
-          const day = statsDaily[date];
-          if (day.gemini) {
-            gemini.requests += day.gemini.requests || 0;
-            gemini.inputTokens += day.gemini.inputTokens || 0;
-            gemini.outputTokens += day.gemini.outputTokens || 0;
-            gemini.reasoningTokens += day.gemini.reasoningTokens || 0;
-            gemini.cost += day.gemini.cost || 0;
-          }
-          if (day.openrouter) {
-            openrouter.requests += day.openrouter.requests || 0;
-            openrouter.inputTokens += day.openrouter.inputTokens || 0;
-            openrouter.outputTokens += day.openrouter.outputTokens || 0;
-            openrouter.reasoningTokens += day.openrouter.reasoningTokens || 0;
-            openrouter.cost += day.openrouter.cost || 0;
-          }
-        }
       }
     }
 
@@ -112,7 +87,7 @@
   // Group request history by model inside range
   const modelStats = $derived.by(() => {
     const { start, end } = activeRangeDates;
-    const history = store.settings.stats?.history || [];
+    const history = store.statsHistory;
     const models: Record<string, { requests: number; inputTokens: number; outputTokens: number; cost: number; provider: string }> = {};
 
     for (const log of history) {
@@ -152,7 +127,7 @@
     }> = [];
 
     const { start, end } = activeRangeDates;
-    const history = store.settings.stats?.history || [];
+    const history = store.statsHistory;
 
     if (timeframe === '1') {
       // Group by hour of the current day (since 0:00)
@@ -389,9 +364,8 @@
     store.confirm(
       t('settings.stats.confirmResetTitle'),
       t('settings.stats.confirmResetMsg'),
-      () => {
-        store.settings.stats = { daily: {}, history: [] };
-        store.saveSettings();
+      async () => {
+        await store.clearStats();
         store.showNotification(t('settings.stats.notifyResetSuccess'), 'success');
       }
     );
@@ -490,7 +464,7 @@
 
   // Derive filtered logs
   const filteredHistory = $derived.by(() => {
-    const history = store.settings.stats?.history || [];
+    const history = store.statsHistory;
     let list = [...history];
 
     if (tableStartDate) {

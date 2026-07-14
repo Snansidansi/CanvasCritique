@@ -162,10 +162,6 @@ export interface Settings {
   recentColors: string[];
   penSize: number;
   statsEnabled: boolean;
-  stats: {
-    daily: Record<string, DailyStats>;
-    history: RequestLog[];
-  };
   geminiInputCostPerMillion: number;
   geminiOutputCostPerMillion: number;
   eraserMode: 'normal' | 'stroke';

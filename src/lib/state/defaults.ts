@@ -117,7 +117,6 @@ export const defaultSettings: Settings = {
   penSize: 3,
   autoCompleteOnSuccess: true,
   statsEnabled: true,
-  stats: { daily: {}, history: [] },
   geminiInputCostPerMillion: 0.075,
   geminiOutputCostPerMillion: 0.30,
   eraserMode: 'normal',

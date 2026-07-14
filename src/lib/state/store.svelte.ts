@@ -8,7 +8,8 @@ import type {
   CustomBackground,
   ConfirmDialog,
   ExportDialog,
-  ImportDialog
+  ImportDialog,
+  RequestLog
 } from './types';
 
 import {
@@ -34,6 +35,8 @@ import {
   setCanvasState,
   insertCustomBackground,
   deleteCustomBackground as dbDeleteCustomBackground,
+  insertRequestLog,
+  clearRequestLogs,
 } from '../db';
 
 import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs, migrateMediaHashes, migrateMediaExtensions, deleteMediaForTask, collectMediaIds, saveMediaBytesToDb, deleteMediaFromDb } from '../db/media';
@@ -86,6 +89,7 @@ class CanvasCritiqueStore {
   private _isProcessingQueue = false;
   openRouterPrices = $state<Record<string, { prompt: number; completion: number }>>({});
   openRouterModels = $state<any[]>([]);
+  statsHistory = $state<RequestLog[]>([]);
 
   private _dbReady = false;
   private _iconMediaIds: Record<string, string> = {};
@@ -290,6 +294,8 @@ class CanvasCritiqueStore {
         await dbSaveSettings(database, $state.snapshot(this.settings));
       }
 
+      this.statsHistory = data.requestLogs || [];
+
       this.settings.lastSyncedTimestamp = '';
       this.settings.lastSyncedDbHash = '';
       try {
@@ -311,47 +317,6 @@ class CanvasCritiqueStore {
       // Normalize settings
       if (!this.settings.statsEnabled) {
         this.settings.statsEnabled = true;
-      }
-      if (!this.settings.stats) {
-        this.settings.stats = { daily: {}, history: [] };
-      }
-      if (!this.settings.stats.daily) {
-        this.settings.stats.daily = {};
-      }
-      if (!this.settings.stats.history) {
-        this.settings.stats.history = [];
-      }
-      // Migrate daily stats to history if history is empty but daily has data
-      if (this.settings.stats.daily && Object.keys(this.settings.stats.daily).length > 0 && (!this.settings.stats.history || this.settings.stats.history.length === 0)) {
-        this.settings.stats.history = [];
-        for (const date of Object.keys(this.settings.stats.daily)) {
-          const day = this.settings.stats.daily[date];
-          if (day.gemini && (day.gemini.requests > 0 || day.gemini.cost > 0)) {
-            this.settings.stats.history.push({
-              id: `migrated-gemini-${date}`,
-              timestamp: `${date}T12:00:00.000Z`,
-              provider: 'gemini',
-              model: this.settings.geminiModel || 'gemini-1.5-flash',
-              inputTokens: day.gemini.inputTokens,
-              outputTokens: day.gemini.outputTokens,
-              reasoningTokens: day.gemini.reasoningTokens || 0,
-              cost: day.gemini.cost
-            });
-          }
-          if (day.openrouter && (day.openrouter.requests > 0 || day.openrouter.cost > 0)) {
-            this.settings.stats.history.push({
-              id: `migrated-openrouter-${date}`,
-              timestamp: `${date}T12:00:00.000Z`,
-              provider: 'openrouter',
-              model: this.settings.openRouterModel || 'google/gemini-flash-1.5',
-              inputTokens: day.openrouter.inputTokens,
-              outputTokens: day.openrouter.outputTokens,
-              reasoningTokens: day.openrouter.reasoningTokens || 0,
-              cost: day.openrouter.cost
-            });
-          }
-        }
-        await dbSaveSettings(database, $state.snapshot(this.settings));
       }
       if (!this.settings.stylusButtons || !Array.isArray(this.settings.stylusButtons)) {
         this.settings.stylusButtons = [];
@@ -2279,14 +2244,8 @@ class CanvasCritiqueStore {
     cost: number
   ): Promise<void> {
     if (!this.settings.statsEnabled) return;
-    if (!this.settings.stats) {
-      this.settings.stats = { daily: {}, history: [] };
-    }
-    if (!this.settings.stats.history) {
-      this.settings.stats.history = [];
-    }
 
-    const log = {
+    const log: RequestLog = {
       id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
       timestamp: new Date().toISOString(),
       provider,
@@ -2296,39 +2255,27 @@ class CanvasCritiqueStore {
       reasoningTokens,
       cost
     };
-    this.settings.stats.history = [...this.settings.stats.history, log];
 
-    if (!this.settings.stats.daily) {
-      this.settings.stats.daily = {};
+    // Update in-memory reactive state
+    this.statsHistory = [...this.statsHistory, log];
+
+    // Insert log into the database
+    try {
+      const db = this.getDb();
+      await insertRequestLog(db, log);
+    } catch (err) {
+      console.error('Failed to save API log to database:', err);
     }
-    const today = new Date().toISOString().split('T')[0];
-    if (!this.settings.stats.daily[today]) {
-      this.settings.stats.daily[today] = {
-        gemini: { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 },
-        openrouter: { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 }
-      };
+  }
+
+  async clearStats(): Promise<void> {
+    try {
+      const db = this.getDb();
+      await clearRequestLogs(db);
+      this.statsHistory = [];
+    } catch (err) {
+      console.error('Failed to clear statistics from database:', err);
     }
-
-    if (!this.settings.stats.daily[today][provider]) {
-      this.settings.stats.daily[today][provider] = {
-        requests: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        reasoningTokens: 0,
-        cost: 0
-      };
-    }
-
-    const dayStats = this.settings.stats.daily[today][provider];
-    this.settings.stats.daily[today][provider] = {
-      requests: dayStats.requests + 1,
-      inputTokens: dayStats.inputTokens + inputTokens,
-      outputTokens: dayStats.outputTokens + outputTokens,
-      reasoningTokens: dayStats.reasoningTokens + reasoningTokens,
-      cost: dayStats.cost + cost
-    };
-
-    await this.saveSettings();
   }
 
   async fetchOpenRouterPrices(): Promise<void> {

@@ -1,5 +1,5 @@
 import Database from '@tauri-apps/plugin-sql';
-import type { Profile, Settings, Project, Task, CustomBackground, ProjectSettingsOverride } from './state/types';
+import type { Profile, Settings, Project, Task, CustomBackground, ProjectSettingsOverride, RequestLog } from './state/types';
 import { defaultSettings, defaultProjects } from './state/defaults';
 
 let dbInstance: Database | null = null;
@@ -53,6 +53,19 @@ export async function initDb(): Promise<Database> {
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       data_json TEXT NOT NULL
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS api_request_logs (
+      id TEXT PRIMARY KEY,
+      timestamp TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      input_tokens INTEGER NOT NULL,
+      output_tokens INTEGER NOT NULL,
+      reasoning_tokens INTEGER NOT NULL DEFAULT 0,
+      cost REAL NOT NULL
     )
   `);
 
@@ -185,6 +198,48 @@ export async function initDb(): Promise<Database> {
         );
       }
     }
+  }
+
+  // Migration for stats to own table
+  try {
+    const settingsRow: any[] = await db.select('SELECT data_json FROM settings WHERE id = 1');
+    if (settingsRow.length > 0) {
+      const settingsObj = JSON.parse(settingsRow[0].data_json);
+      if (settingsObj.stats) {
+        console.log('Migrating existing statistics from settings JSON to api_request_logs table...');
+        let migratedCount = 0;
+        if (settingsObj.stats.history && Array.isArray(settingsObj.stats.history)) {
+          for (const log of settingsObj.stats.history) {
+            try {
+              await db.execute(
+                `INSERT OR IGNORE INTO api_request_logs (id, timestamp, provider, model, input_tokens, output_tokens, reasoning_tokens, cost)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  log.id || (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2)),
+                  log.timestamp || new Date().toISOString(),
+                  log.provider || 'gemini',
+                  log.model || 'gemini-1.5-flash',
+                  log.inputTokens || 0,
+                  log.outputTokens || 0,
+                  log.reasoningTokens || 0,
+                  log.cost || 0
+                ]
+              );
+              migratedCount++;
+            } catch (err) {
+              console.error('Failed to migrate request log:', log, err);
+            }
+          }
+        }
+        // Remove stats from the settings JSON so it's clean
+        delete settingsObj.stats;
+        const newJson = JSON.stringify(settingsObj);
+        await db.execute('UPDATE settings SET data_json = ? WHERE id = 1', [newJson]);
+        console.log(`Successfully migrated ${migratedCount} statistics logs and cleaned up settings JSON.`);
+      }
+    }
+  } catch (err) {
+    console.error('Failed during statistics migration:', err);
   }
 
   await migrateSolutionsFromDbToFs(db);
@@ -658,26 +713,74 @@ export async function deleteCustomBackground(db: Database, id: string): Promise<
 
 // ── Bulk load ──
 
+// ── Statistics Logs ──
+
+export async function getRequestLogs(db: Database): Promise<RequestLog[]> {
+  try {
+    const rows: any[] = await db.select(
+      'SELECT id, timestamp, provider, model, input_tokens, output_tokens, reasoning_tokens, cost FROM api_request_logs ORDER BY timestamp ASC'
+    );
+    return rows.map(r => ({
+      id: r.id,
+      timestamp: r.timestamp,
+      provider: r.provider,
+      model: r.model,
+      inputTokens: r.input_tokens,
+      outputTokens: r.output_tokens,
+      reasoningTokens: r.reasoning_tokens,
+      cost: r.cost
+    }));
+  } catch (err) {
+    console.error('Failed to load request logs from DB:', err);
+    return [];
+  }
+}
+
+export async function insertRequestLog(db: Database, log: RequestLog): Promise<void> {
+  await db.execute(
+    `INSERT INTO api_request_logs (id, timestamp, provider, model, input_tokens, output_tokens, reasoning_tokens, cost)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      log.id,
+      log.timestamp,
+      log.provider,
+      log.model,
+      log.inputTokens,
+      log.outputTokens,
+      log.reasoningTokens,
+      log.cost
+    ]
+  );
+}
+
+export async function clearRequestLogs(db: Database): Promise<void> {
+  await db.execute('DELETE FROM api_request_logs');
+}
+
+// ── Bulk load ──
+
 export interface AllData {
   profiles: Profile[];
   settings: Settings | null;
   projects: Project[];
   tasks: Task[];
   backgrounds: CustomBackground[];
+  requestLogs: RequestLog[];
 }
 
 export async function loadAllData(db: Database): Promise<AllData> {
-  const [profiles, settings, projects, tasks, backgrounds] = await Promise.all([
+  const [profiles, settings, projects, tasks, backgrounds, requestLogs] = await Promise.all([
     getProfiles(db),
     getSettings(db),
     getProjects(db),
     getTasks(db),
-    getCustomBackgrounds(db)
+    getCustomBackgrounds(db),
+    getRequestLogs(db)
   ]);
 
   for (const project of projects) {
     project.tasks = tasks.filter(t => t.projectId === project.id);
   }
 
-  return { profiles, settings, projects, tasks, backgrounds };
+  return { profiles, settings, projects, tasks, backgrounds, requestLogs };
 }
