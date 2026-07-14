@@ -45,11 +45,10 @@
     <div class="flex flex-col gap-6">
       <!-- Title -->
       <div>
-        <h2 class="text-xl font-bold text-on-surface mb-1 flex items-center gap-2 select-none">
+        <h2 class="text-xl font-bold text-on-surface flex items-center gap-2 select-none">
           <span class="material-symbols-outlined text-primary text-2xl">settings</span>
           {t('settings.title')}
         </h2>
-        <p class="text-xs text-on-surface-variant leading-tight select-none">{t('settings.subtitle')}</p>
       </div>
 
       <!-- Tab Buttons -->
