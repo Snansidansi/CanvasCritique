@@ -4175,16 +4175,7 @@
           <span>{t('practice.canvas.addCustomBg')}</span>
         </button>
 
-        <button 
-          onclick={() => { 
-            triggerImageUpload();
-            store.canvasSettingsOpen = false;
-          }}
-          class="mt-2 w-full py-2 border border-outline text-on-surface-variant hover:bg-surface-container rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none bg-transparent"
-        >
-          <span class="material-symbols-outlined text-base">add_photo_alternate</span>
-          <span>Bild auf Canvas einfügen</span>
-        </button>
+
       </div>
 
       <!-- Opacity Slider -->
