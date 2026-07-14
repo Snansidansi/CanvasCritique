@@ -101,7 +101,6 @@ export const defaultSettings: Settings = {
   sendContextText: true,
   sendContextMedia: true,
   maxOutputTokens: 0,
-  alwaysSendBothCanvasAndText: false,
   canvasMode: 'infinite',
   canvasFontSize: 13,
   editorFontSize: 16,

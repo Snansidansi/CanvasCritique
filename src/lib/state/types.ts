@@ -52,7 +52,6 @@ export interface ProjectSettingsOverride {
   overrideEvaluation?: boolean;
   overrideSystemPrompt?: boolean;
   overrideTaskNumbering?: boolean;
-  overrideAlwaysSendBoth?: boolean;
   overrideMediaFilter?: boolean;
   apiProvider?: string;
   geminiModel?: string;
@@ -67,7 +66,6 @@ export interface ProjectSettingsOverride {
   sendContextText?: boolean;
   sendContextMedia?: boolean;
   maxOutputTokens?: number;
-  alwaysSendBothCanvasAndText?: boolean;
   customSystemPrompt?: string;
   language?: string;
   canvasMode?: string;
@@ -146,7 +144,6 @@ export interface Settings {
   sendContextText: boolean;
   sendContextMedia: boolean;
   maxOutputTokens: number;
-  alwaysSendBothCanvasAndText: boolean;
   canvasMode: string;
   canvasFontSize: number;
   editorFontSize?: number;

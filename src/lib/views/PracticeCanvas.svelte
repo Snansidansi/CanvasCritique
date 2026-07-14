@@ -3556,8 +3556,7 @@
         },
         defaultSystemPrompt: DEFAULT_SYSTEM_PROMPT,
         activeMode,
-        editorText,
-        alwaysSendBothCanvasAndText: effectiveSettings.alwaysSendBothCanvasAndText
+        editorText
       });
 
       // Auto-toggle to Preview mode when feedback is submitted

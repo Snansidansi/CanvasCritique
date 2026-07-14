@@ -465,7 +465,6 @@
       "maxOutputTokens": "Max Output Tokens",
       "maxOutputTokensDesc": "0 = unlimited",
       "maxOutputTokensTooltip": "Sets the maximum number of response tokens. Useful to prevent expensive errors for models with high costs or when credits are low. Note: If the model's response is cut off due to a low limit, it will be incomplete, unusable, and cannot be processed.",
-      "alwaysSendBoth": "Always Send Canvas and Text Editor",
       "aiFeedbackLang": "AI Feedback Language",
       "aiFeedbackLangPlaceholder": "e.g. English",
       "taskMediaFilterTitle": "Task Media Filter",

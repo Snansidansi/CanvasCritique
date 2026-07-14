@@ -195,9 +195,6 @@ class CanvasCritiqueStore {
     const useTaskTaskNumbering = taskOverride?.overrideSettings && taskOverride?.overrideTaskNumbering;
     const useProjTaskNumbering = projOverride?.overrideSettings && projOverride?.overrideTaskNumbering;
 
-    const useTaskAlwaysSendBoth = taskOverride?.overrideSettings && taskOverride?.overrideAlwaysSendBoth;
-    const useProjAlwaysSendBoth = projOverride?.overrideSettings && projOverride?.overrideAlwaysSendBoth;
-
     const useTaskMediaFilter = taskOverride?.overrideSettings && taskOverride?.overrideMediaFilter;
     const useProjMediaFilter = projOverride?.overrideSettings && projOverride?.overrideMediaFilter;
 
@@ -219,7 +216,6 @@ class CanvasCritiqueStore {
       sendContextText: useTaskEvaluation ? (taskOverride.sendContextText ?? globalSettings.sendContextText) : (useProjEvaluation ? (projOverride.sendContextText ?? globalSettings.sendContextText) : globalSettings.sendContextText),
       sendContextMedia: useTaskEvaluation ? (taskOverride.sendContextMedia ?? globalSettings.sendContextMedia) : (useProjEvaluation ? (projOverride.sendContextMedia ?? globalSettings.sendContextMedia) : globalSettings.sendContextMedia),
       maxOutputTokens: useTaskModel ? (taskOverride.maxOutputTokens ?? globalSettings.maxOutputTokens) : (useProjModel ? (projOverride.maxOutputTokens ?? globalSettings.maxOutputTokens) : globalSettings.maxOutputTokens),
-      alwaysSendBothCanvasAndText: useTaskAlwaysSendBoth ? (taskOverride.alwaysSendBothCanvasAndText ?? globalSettings.alwaysSendBothCanvasAndText) : (useProjAlwaysSendBoth ? (projOverride.alwaysSendBothCanvasAndText ?? globalSettings.alwaysSendBothCanvasAndText) : globalSettings.alwaysSendBothCanvasAndText),
       customSystemPrompt: useTaskSystemPrompt ? (taskOverride.customSystemPrompt !== undefined && taskOverride.customSystemPrompt !== null ? taskOverride.customSystemPrompt : globalSettings.customSystemPrompt) : (useProjSystemPrompt ? (projOverride.customSystemPrompt !== undefined && projOverride.customSystemPrompt !== null ? projOverride.customSystemPrompt : globalSettings.customSystemPrompt) : globalSettings.customSystemPrompt),
       canvasMode: useTaskCanvas ? (taskOverride.canvasMode ?? globalSettings.canvasMode) : (useProjCanvas ? (projOverride.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode),
       canvasFontSize: useTaskCanvas ? (taskOverride.canvasFontSize ?? globalSettings.canvasFontSize) : (useProjCanvas ? (projOverride.canvasFontSize ?? globalSettings.canvasFontSize) : globalSettings.canvasFontSize),

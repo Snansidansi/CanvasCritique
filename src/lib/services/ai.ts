@@ -100,7 +100,6 @@ export interface CheckWorkOptions {
   defaultSystemPrompt: string;
   activeMode?: 'canvas' | 'text' | 'both' | 'none';
   editorText?: string;
-  alwaysSendBothCanvasAndText?: boolean;
 }
 
 export interface CheckWorkMarker {
@@ -145,8 +144,7 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     settings,
     defaultSystemPrompt,
     activeMode = 'canvas',
-    editorText = '',
-    alwaysSendBothCanvasAndText = false
+    editorText = ''
   } = options;
 
   // Helper to filter files
@@ -256,30 +254,14 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     }
   }
 
-  const sendCanvas = alwaysSendBothCanvasAndText || activeMode === 'canvas' || activeMode === 'both';
-  const sendText = alwaysSendBothCanvasAndText || activeMode === 'text' || activeMode === 'both';
-  const hasTextContent = !!(editorText && editorText.trim());
+  const sendCanvas = activePagesWithIndex.length > 0;
+  const sendText = !!(editorText && editorText.trim());
 
   if (!sendCanvas && !sendText) {
     throw new Error(
       settings.language === 'Deutsch'
-        ? "Bitte aktivieren Sie mindestens eine Ansicht (Leinwand oder Texteditor), um Ihre Arbeit zu überprüfen."
-        : "Please activate at least one view (Canvas or Text Editor) to check your work."
-    );
-  }
-
-  if (sendCanvas && activePagesWithIndex.length === 0 && !hasTextContent) {
-    throw new Error(
-      settings.language === 'Deutsch' 
-        ? "Die Leinwand ist leer. Bitte zeichnen Sie etwas, bevor Sie Ihre Arbeit überprüfen."
-        : "Canvas is empty. Please draw some calligraphy before checking your work."
-    );
-  }
-  if (sendText && !hasTextContent && (!sendCanvas || activePagesWithIndex.length === 0)) {
-    throw new Error(
-      settings.language === 'Deutsch'
-        ? "Der Text-Editor ist leer. Bitte schreiben Sie etwas, bevor Sie Ihre Arbeit überprüfen."
-        : "Text Editor is empty. Please write some text before checking your work."
+        ? "Sowohl die Leinwand als auch der Text-Editor sind leer. Bitte schreiben oder zeichnen Sie etwas, bevor Sie Ihre Arbeit überprüfen."
+        : "Both the canvas and the text editor are empty. Please write or draw something before checking your work."
     );
   }
 

@@ -464,7 +464,6 @@
       "maxOutputTokens": "Maximale Ausgabetoken",
       "maxOutputTokensDesc": "0 = unbegrenzt",
       "maxOutputTokensTooltip": "Legt die maximale Anzahl von Antworttoken fest. Nützlich, um teure Fehler bei Modellen mit hohen Kosten zu vermeiden oder wenn das Guthaben knapp ist. Hinweis: Wenn die Antwort des Modells wegen eines zu niedrigen Limits abgeschnitten wird, ist sie unvollständig, unbrauchbar und kann nicht verarbeitet werden.",
-      "alwaysSendBoth": "Immer Canvas und Text-Editor senden",
       "aiFeedbackLang": "KI-Feedback-Sprache",
       "aiFeedbackLangPlaceholder": "z.B. Deutsch",
       "taskMediaFilterTitle": "Medienfilter für Aufgabenstellung",
