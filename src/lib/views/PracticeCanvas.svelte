@@ -224,6 +224,24 @@
   // Resizable left panel splitter state
   let splitWidth = $state(400); // Default instructions panel width
 
+  // Automatically clamp and adjust splitWidth when sidebar position changes to prevent parent container collapsing
+  $effect(() => {
+    const pos = sidebarPosition;
+    untrack(() => {
+      if (pos === 'top' || pos === 'bottom') {
+        const maxHeight = window.innerHeight - 200;
+        if (splitWidth > maxHeight || splitWidth < 100) {
+          splitWidth = Math.max(100, Math.min(250, maxHeight));
+        }
+      } else {
+        const maxWidth = window.innerWidth - 300;
+        if (splitWidth > maxWidth || splitWidth < 150) {
+          splitWidth = Math.max(150, Math.min(350, maxWidth));
+        }
+      }
+    });
+  });
+
   // Resizable editor panel splitter state
   let editorSplitWidth = $state(500); // Default editor panel width when side-by-side
   let editorSplitHeight = $state(300); // Default editor panel height when stacked vertically
@@ -455,6 +473,14 @@
   });
 
   function updateStrokesCache() {
+    // If the cache canvas dimensions do not match the current width/height, the cache is invalid.
+    const sizeChanged = !cachedStrokesCanvas || 
+                        cachedStrokesCanvas.width !== canvasWidth || 
+                        cachedStrokesCanvas.height !== canvasHeight;
+    if (sizeChanged) {
+      cacheIsValid = false;
+    }
+
     if (cacheIsValid && cachedStrokesCanvas) return;
     if (!cachedStrokesCanvas) {
       cachedStrokesCanvas = document.createElement('canvas');
@@ -1012,6 +1038,7 @@
   $effect(() => {
     if (canvasElement) {
       ctx = canvasElement.getContext('2d');
+      invalidateCache();
       redraw();
     }
   });
@@ -1037,6 +1064,18 @@
 
   // Automatically redraw canvas when visual dependencies change (Svelte 5 run-loop)
   $effect(() => {
+    // Layout and container dependency triggers to ensure redraw on resize or layout changes
+    const pos = sidebarPosition;
+    const wl = workspaceLayout;
+    const sc = showCanvas;
+    const st = showText;
+    const sw = splitWidth;
+    const esw = editorSplitWidth;
+    const esh = editorSplitHeight;
+    const cw = containerWidth;
+    const ch = containerHeight;
+    const scaleA4 = a4Scale;
+
     const bg = activeBg;
     const opacity = bgOpacity;
     const offset = panOffset;
