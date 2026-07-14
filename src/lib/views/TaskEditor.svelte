@@ -71,7 +71,24 @@
   let editingFileIndex = $state<number | null>(null);
   let editingFileType = $state<'instruction' | 'solution' | 'context' | 'provided' | null>(null);
   let editingFileNameValue = $state<string>('');
+  let editingFileExtension = $state<string>('');
   let renameInputEl = $state<HTMLInputElement | null>(null);
+
+  function splitFilename(filename: string): { base: string; ext: string } {
+    if (!filename) return { base: '', ext: '' };
+    const lastDotIndex = filename.lastIndexOf('.');
+    if (lastDotIndex === -1 || lastDotIndex === 0) {
+      return { base: filename, ext: '' };
+    }
+    return {
+      base: filename.substring(0, lastDotIndex),
+      ext: filename.substring(lastDotIndex)
+    };
+  }
+
+  function getBaseName(filename: string): string {
+    return splitFilename(filename).base;
+  }
 
   $effect(() => {
     if (editingFileIndex !== null && renameInputEl) {
@@ -82,8 +99,9 @@
 
   function saveInlineRename() {
     if (editingFileIndex === null || editingFileType === null) return;
-    const name = editingFileNameValue.trim();
-    if (name !== '') {
+    const base = editingFileNameValue.trim();
+    if (base !== '') {
+      const name = base + editingFileExtension;
       if (editingFileType === 'instruction') {
         const files = [...instructionFiles];
         files[editingFileIndex] = { ...files[editingFileIndex], name };
@@ -109,6 +127,7 @@
     editingFileIndex = null;
     editingFileType = null;
     editingFileNameValue = '';
+    editingFileExtension = '';
   }
 
   const taskTabs = [
@@ -478,7 +497,9 @@
 
     editingFileIndex = index;
     editingFileType = type;
-    editingFileNameValue = file.name;
+    const { base, ext } = splitFilename(file.name);
+    editingFileNameValue = base;
+    editingFileExtension = ext;
   }
 
   function handleCategoryChange(newCategory: string) {
@@ -1280,7 +1301,7 @@
                       class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
                     />
                   {:else}
-                    <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
+                    <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
                   {/if}
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
@@ -1432,7 +1453,7 @@
                       class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
                     />
                   {:else}
-                    <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
+                    <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
                   {/if}
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
@@ -1612,7 +1633,7 @@
                           class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
                         />
                       {:else}
-                        <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
+                        <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
                       {/if}
                     </div>
                     <div class="flex items-center gap-1 shrink-0">
@@ -1770,7 +1791,7 @@
                               class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
                             />
                           {:else}
-                            <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{file.name}</span>
+                            <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
                           {/if}
                         </div>
                         <div class="flex items-center gap-1 shrink-0">

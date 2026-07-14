@@ -22,6 +22,13 @@
 
   let providedMediaExpanded = $state(false);
 
+  function getBaseName(filename: string): string {
+    if (!filename) return '';
+    const lastDotIndex = filename.lastIndexOf('.');
+    if (lastDotIndex === -1 || lastDotIndex === 0) return filename;
+    return filename.substring(0, lastDotIndex);
+  }
+
   let sidebarFlow = $derived((sidebarPosition === 'top' || sidebarPosition === 'bottom') ? 'column' : 'row');
 
   let isDraggingSplitter = $state(false);
@@ -673,7 +680,7 @@
                           <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
                             {getFileIcon(file.name)}
                           </span>
-                          <span class="truncate pr-4">{file.name}</span>
+                          <span class="truncate pr-4">{getBaseName(file.name)}</span>
                         </div>
                         <div class="flex items-center shrink-0">
                           {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
@@ -731,7 +738,7 @@
                                 {getFileIcon(file.name)}
                               </span>
                               <div class="text-center">
-                                <p class="text-xs font-bold text-on-surface truncate max-w-sidebar-width">{file.name}</p>
+                                <p class="text-xs font-bold text-on-surface truncate max-w-sidebar-width">{getBaseName(file.name)}</p>
                                 <p class="text-[10px] text-on-surface-variant mt-1">{t('practice.infoPanels.openDefaultApp')}</p>
                               </div>
                             </div>
@@ -843,7 +850,7 @@
                         {/if}
                       </div>
                       <div class="w-full px-2 py-1.5 text-center border-t border-outline-variant/30">
-                        <span class="text-[9px] font-medium text-on-surface truncate block">{file.name}</span>
+                        <span class="text-[9px] font-medium text-on-surface truncate block">{getBaseName(file.name)}</span>
                       </div>
                       <!-- Hover overlay -->
                       <div class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
@@ -876,7 +883,7 @@
                           <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
                             {getFileIcon(file.name)}
                           </span>
-                          <span class="truncate pr-4">{file.name}</span>
+                          <span class="truncate pr-4">{getBaseName(file.name)}</span>
                         </div>
                         <div class="flex items-center shrink-0">
                           {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
@@ -934,7 +941,7 @@
                                 {getFileIcon(file.name)}
                               </span>
                               <div class="text-center">
-                                <p class="text-xs font-bold text-on-surface truncate max-w-sidebar-width">{file.name}</p>
+                                <p class="text-xs font-bold text-on-surface truncate max-w-sidebar-width">{getBaseName(file.name)}</p>
                                 <p class="text-[10px] text-on-surface-variant mt-1">{t('practice.infoPanels.openDefaultApp')}</p>
                               </div>
                             </div>

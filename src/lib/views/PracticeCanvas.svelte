@@ -19,6 +19,13 @@
 
   // External Helpers
   import { parseMarkdown } from '../utils/markdown';
+
+  function getBaseName(filename: string): string {
+    if (!filename) return '';
+    const lastDotIndex = filename.lastIndexOf('.');
+    if (lastDotIndex === -1 || lastDotIndex === 0) return filename;
+    return filename.substring(0, lastDotIndex);
+  }
   import { 
     loadImage, 
     getStrokesBoundingBox, 
@@ -892,7 +899,7 @@
 
   function handleSelectProvidedImage(file: any) {
     pendingInsertImage = file;
-    store.showNotification(t('practice.canvas.clickToPlace', { name: file.name }), 'info');
+    store.showNotification(t('practice.canvas.clickToPlace', { name: getBaseName(file.name) }), 'info');
   }
 
   async function handlePlaceImage(e: PointerEvent | MouseEvent) {
@@ -3658,7 +3665,7 @@
       {#if pendingInsertImage}
         <div class="absolute top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 bg-primary/90 text-white rounded-full shadow-lg backdrop-blur-sm animate-pulse pointer-events-auto select-none">
           <span class="material-symbols-outlined text-[18px]">place_item</span>
-          <span class="text-xs font-semibold">{t('practice.canvas.clickToPlaceOverlay', { name: pendingInsertImage.name })}</span>
+          <span class="text-xs font-semibold">{t('practice.canvas.clickToPlaceOverlay', { name: getBaseName(pendingInsertImage.name) })}</span>
           <button
             type="button"
             onclick={() => pendingInsertImage = null}
