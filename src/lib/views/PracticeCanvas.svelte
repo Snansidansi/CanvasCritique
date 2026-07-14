@@ -246,11 +246,13 @@
   let editorSplitWidth = $state(500); // Default editor panel width when side-by-side
   let editorSplitHeight = $state(300); // Default editor panel height when stacked vertically
 
-  // Automatically clamp and adjust editorSplitWidth and editorSplitHeight when layout or dimensions change
+  // Automatically clamp and adjust editorSplitWidth and editorSplitHeight when layout, visibility, or dimensions change
   $effect(() => {
     const wl = workspaceLayout;
     const pos = sidebarPosition;
     const sw = splitWidth;
+    const sc = showCanvas;
+    const st = showText;
     
     untrack(() => {
       if (wl === 'vertical') {
@@ -261,7 +263,9 @@
       } else {
         const isSide = pos === 'left' || pos === 'right';
         const availWidth = window.innerWidth - (isSide ? sw + 6 : 0);
-        const maxWidth = availWidth - 150;
+        // If both canvas and editor are shown, canvas needs at least 150px
+        const minCanvasWidth = (sc && st) ? 150 : 0;
+        const maxWidth = availWidth - minCanvasWidth;
         if (editorSplitWidth > maxWidth || editorSplitWidth < 150) {
           editorSplitWidth = Math.max(150, Math.min(400, maxWidth));
         }
