@@ -767,11 +767,11 @@
                                   class="w-full h-full border-0 rounded-lg"
                                 ></iframe>
                               {:else if file.name.toLowerCase().endsWith('.md')}
-                                <div class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
+                                <div class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans prose prose-sm dark:prose-invert" style="font-size: {textFontSize}px;">
                                   {@html parseMarkdown(decodeBase64Text(fileUrl))}
                                 </div>
                               {:else if file.name.toLowerCase().endsWith('.txt')}
-                                <pre class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
+                                <pre class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg font-mono text-on-surface whitespace-pre-wrap select-text text-left border border-outline-variant/30 leading-relaxed" style="font-size: {textFontSize}px;">{decodeBase64Text(fileUrl)}</pre>
                               {:else}
                                 {@const inlineImgState = inlineStates[mediaId]}
                                 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -1101,11 +1101,11 @@
             class="w-full h-full border-0 rounded-lg shadow-sm"
           ></iframe>
         {:else if previewFile.name.toLowerCase().endsWith('.md')}
-          <div class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-sm text-on-surface select-text leading-relaxed border border-outline-variant text-left wrap-break-word font-sans">
+          <div class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-on-surface select-text leading-relaxed border border-outline-variant text-left wrap-break-word font-sans prose prose-sm dark:prose-invert" style="font-size: {textFontSize}px;">
             {@html parseMarkdown(decodeBase64Text(previewFile.dataUrl))}
           </div>
         {:else if previewFile.name.toLowerCase().endsWith('.txt')}
-          <pre class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-sm font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant">{decodeBase64Text(previewFile.dataUrl)}</pre>
+          <pre class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant" style="font-size: {textFontSize}px;">{decodeBase64Text(previewFile.dataUrl)}</pre>
         {:else}
           <img 
             src={previewFile.dataUrl} 
