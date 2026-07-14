@@ -1506,6 +1506,44 @@
     return distSq < maxDist * maxDist;
   }
 
+  function isPointNearEraser(p: Point, eraserStroke: { points: Point[], width: number }): boolean {
+    const hitRadius = eraserStroke.width / 2;
+    if (eraserStroke.points.length === 1) {
+      const ep = eraserStroke.points[0];
+      return Math.hypot(p.x - ep.x, p.y - ep.y) < hitRadius;
+    }
+    for (let j = 0; j < eraserStroke.points.length - 1; j++) {
+      const ea = eraserStroke.points[j];
+      const eb = eraserStroke.points[j+1];
+      if (isPointNearSegment(p.x, p.y, ea.x, ea.y, eb.x, eb.y, hitRadius)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function isSegmentNearEraser(a: Point, b: Point, eraserStroke: { points: Point[], width: number }): boolean {
+    const hitRadius = eraserStroke.width / 2;
+    if (isPointNearEraser(a, eraserStroke) || isPointNearEraser(b, eraserStroke)) {
+      return true;
+    }
+    const dist = Math.hypot(b.x - a.x, b.y - a.y);
+    if (dist > hitRadius) {
+      const steps = Math.ceil(dist / (hitRadius / 2));
+      for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        const pt = {
+          x: a.x + (b.x - a.x) * t,
+          y: a.y + (b.y - a.y) * t
+        };
+        if (isPointNearEraser(pt, eraserStroke)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   function isStrokeHit(stroke: Stroke, coords: { x: number; y: number }, hitRadius: number): boolean {
     if (stroke.points.length === 0) return false;
     
@@ -2194,40 +2232,159 @@
         saveToStore();
       } else if (currentStroke.length > 0) {
         const isEraser = (activeTool === 'eraser' || isPointerEraser);
-        const newStroke: Stroke = {
-          id: Math.random().toString(36).substring(2, 9),
-          color: isEraser ? 'eraser' : strokeColor,
-          width: isEraser ? eraserWidth : brushWidth,
-          points: [...currentStroke]
-        };
-        newStroke.bounds = calculateStrokeBounds(newStroke);
         
-        if (canvasMode === 'a4') {
-          pages[activePageIndex].strokeHistory.push(newStroke);
-          pages[activePageIndex].redoStack = [];
-          pages[activePageIndex].eraserUndoStack = [];
-          if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
-            removeFullyErasedStrokes(newStroke);
+        if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
+          const eraserStroke = {
+            color: 'eraser',
+            width: eraserWidth,
+            points: [...currentStroke]
+          } as Stroke;
+          
+          const eraserBounds = calculateStrokeBounds(eraserStroke);
+          const history = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+          const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+          
+          const removedStrokes: Stroke[] = [];
+          const addedStrokes: Stroke[] = [];
+          const updatedHistory: Stroke[] = [];
+          
+          for (const stroke of history) {
+            if (stroke.color === 'eraser' || stroke.points.length === 0) {
+              updatedHistory.push(stroke);
+              continue;
+            }
+            
+            const strokeBounds = stroke.bounds || calculateStrokeBounds(stroke);
+            const overlap = !(
+              strokeBounds.maxX < eraserBounds.minX ||
+              strokeBounds.minX > eraserBounds.maxX ||
+              strokeBounds.maxY < eraserBounds.minY ||
+              strokeBounds.minY > eraserBounds.maxY
+            );
+            
+            if (!overlap) {
+              updatedHistory.push(stroke);
+              continue;
+            }
+            
+            const splitParts: Stroke[] = [];
+            let currentPoints: Point[] = [];
+            
+            if (!isPointNearEraser(stroke.points[0], eraserStroke)) {
+              currentPoints.push(stroke.points[0]);
+            }
+            
+            let hasCuts = false;
+            for (let i = 0; i < stroke.points.length - 1; i++) {
+              const a = stroke.points[i];
+              const b = stroke.points[i + 1];
+              const isCut = isSegmentNearEraser(a, b, eraserStroke);
+              
+              if (isCut) {
+                hasCuts = true;
+                if (currentPoints.length > 0) {
+                  const part: Stroke = {
+                    ...stroke,
+                    id: Math.random().toString(36).substring(2, 9),
+                    points: currentPoints
+                  };
+                  part.bounds = calculateStrokeBounds(part);
+                  splitParts.push(part);
+                  currentPoints = [];
+                }
+                if (!isPointNearEraser(b, eraserStroke)) {
+                  currentPoints.push(b);
+                }
+              } else {
+                if (currentPoints.length === 0 && !isPointNearEraser(a, eraserStroke)) {
+                  currentPoints.push(a);
+                }
+                currentPoints.push(b);
+              }
+            }
+            
+            if (currentPoints.length > 0) {
+              const part: Stroke = {
+                ...stroke,
+                id: Math.random().toString(36).substring(2, 9),
+                points: currentPoints
+              };
+              part.bounds = calculateStrokeBounds(part);
+              splitParts.push(part);
+            }
+            
+            if (hasCuts) {
+              removedStrokes.push(stroke);
+              for (const part of splitParts) {
+                if (part.points.length > 0) {
+                  addedStrokes.push(part);
+                  updatedHistory.push(part);
+                }
+              }
+            } else {
+              updatedHistory.push(stroke);
+            }
           }
-        } else {
-          infiniteStrokes.push(newStroke);
-          infiniteRedo = [];
-          infiniteEraserUndo = [];
-          if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
-            removeFullyErasedStrokes(newStroke);
+          
+          if (removedStrokes.length > 0) {
+            const action = {
+              type: 'erase_action',
+              id: Math.random().toString(36).substring(2, 9),
+              removedStrokes,
+              addedStrokes
+            };
+            undoStack.push(action as any);
+            
+            if (canvasMode === 'a4') {
+              pages[activePageIndex].redoStack = [];
+            } else {
+              infiniteRedo = [];
+            }
           }
-        }
-
-        if (isEraser) {
-          const mode = effectiveEraserSettings.eraserMode;
-          if (mode === 'stroke') {
-            store.settings.eraserRadiusStroke = eraserWidth;
+          
+          if (canvasMode === 'a4') {
+            pages[activePageIndex].strokeHistory = updatedHistory;
           } else {
-            store.settings.eraserRadiusNormal = eraserWidth;
+            infiniteStrokes = updatedHistory;
           }
-        }
+          
+          store.settings.eraserRadiusNormal = eraserWidth;
+          saveToStore();
+        } else {
+          const newStroke: Stroke = {
+            id: Math.random().toString(36).substring(2, 9),
+            color: isEraser ? 'eraser' : strokeColor,
+            width: isEraser ? eraserWidth : brushWidth,
+            points: [...currentStroke]
+          };
+          newStroke.bounds = calculateStrokeBounds(newStroke);
+          
+          if (canvasMode === 'a4') {
+            pages[activePageIndex].strokeHistory.push(newStroke);
+            pages[activePageIndex].redoStack = [];
+            pages[activePageIndex].eraserUndoStack = [];
+            if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
+              removeFullyErasedStrokes(newStroke);
+            }
+          } else {
+            infiniteStrokes.push(newStroke);
+            infiniteRedo = [];
+            infiniteEraserUndo = [];
+            if (isEraser && effectiveEraserSettings.eraserMode === 'normal') {
+              removeFullyErasedStrokes(newStroke);
+            }
+          }
 
-        saveToStore();
+          if (isEraser) {
+            const mode = effectiveEraserSettings.eraserMode;
+            if (mode === 'stroke') {
+              store.settings.eraserRadiusStroke = eraserWidth;
+            } else {
+              store.settings.eraserRadiusNormal = eraserWidth;
+            }
+          }
+          saveToStore();
+        }
       }
       currentStroke = [];
       isStraightening = false;
@@ -2592,8 +2749,14 @@
       const page = pages[activePageIndex];
       if (!page) return;
       if (page.eraserUndoStack.length > 0) {
-        const restored = page.eraserUndoStack.pop()!;
-        page.strokeHistory.push(restored);
+        const restored: any = page.eraserUndoStack.pop()!;
+        if (restored.type === 'erase_action') {
+          const addedIds = new Set(restored.addedStrokes.map((s: any) => s.id));
+          page.strokeHistory = page.strokeHistory.filter(s => !addedIds.has(s.id));
+          page.strokeHistory.push(...restored.removedStrokes);
+        } else {
+          page.strokeHistory.push(restored);
+        }
       } else if (page.strokeHistory.length > 0) {
         const last = page.strokeHistory.pop()!;
         page.redoStack.push(last);
@@ -2601,8 +2764,14 @@
       pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
     } else {
       if (infiniteEraserUndo.length > 0) {
-        const restored = infiniteEraserUndo.pop()!;
-        infiniteStrokes.push(restored);
+        const restored: any = infiniteEraserUndo.pop()!;
+        if (restored.type === 'erase_action') {
+          const addedIds = new Set(restored.addedStrokes.map((s: any) => s.id));
+          infiniteStrokes = infiniteStrokes.filter(s => !addedIds.has(s.id));
+          infiniteStrokes.push(...restored.removedStrokes);
+        } else {
+          infiniteStrokes.push(restored);
+        }
       } else if (infiniteStrokes.length > 0) {
         const last = infiniteStrokes.pop()!;
         infiniteRedo.push(last);
