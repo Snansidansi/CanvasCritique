@@ -131,6 +131,11 @@
     "settings": "Einstellungen"
   },
   "taskEditor": {
+    "unsavedTitle": "Ungespeicherte Änderungen",
+    "unsavedMessage": "Es gibt ungespeicherte Änderungen. Möchtest du diese vor dem Verlassen speichern?",
+    "unsavedSave": "Speichern",
+    "unsavedDiscard": "Verwerfen",
+    "unsavedCancel": "Abbrechen",
     "editMode": "Bearbeiten",
     "previewMode": "Vorschau",
     "createTitle": "Aufgabe erstellen",

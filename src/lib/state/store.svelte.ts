@@ -825,8 +825,50 @@ class CanvasCritiqueStore {
     }
   }
 
+  private _taskEditorGuard: {
+    hasChanges: () => boolean;
+    save: (onComplete: () => void) => void;
+    discard: () => void;
+  } | null = null;
+
+  registerTaskEditorGuard(guard: any) {
+    this._taskEditorGuard = guard;
+  }
+
   // Navigation actions
   setView(view: string): void {
+    if (this.currentView === 'task-editor' && view !== 'task-editor' && this._taskEditorGuard && this._taskEditorGuard.hasChanges()) {
+      this.confirmDialog = {
+        title: this.settings.language === 'Deutsch' ? 'Ungespeicherte Änderungen' : 'Unsaved Changes',
+        message: this.settings.language === 'Deutsch' 
+          ? 'Es gibt ungespeicherte Änderungen. Möchtest du diese vor dem Verlassen speichern?'
+          : 'There are unsaved changes. Would you like to save them before leaving?',
+        confirmLabel: this.settings.language === 'Deutsch' ? 'Speichern' : 'Save',
+        cancelLabel: this.settings.language === 'Deutsch' ? 'Abbrechen' : 'Cancel',
+        thirdLabel: this.settings.language === 'Deutsch' ? 'Verwerfen' : 'Discard',
+        isPrimary: true,
+        onConfirm: () => {
+          this.confirmDialog = null;
+          this._taskEditorGuard!.save(() => {
+            this._taskEditorGuard = null;
+            this.editingTask = null;
+            this.currentView = view;
+          });
+        },
+        onCancel: () => {
+          this.confirmDialog = null;
+        },
+        onThird: () => {
+          this.confirmDialog = null;
+          this._taskEditorGuard!.discard();
+          this._taskEditorGuard = null;
+          this.editingTask = null;
+          this.currentView = view;
+        }
+      };
+      return;
+    }
+
     if (this.currentView !== 'settings' && view === 'settings') {
       this.previousView = this.currentView;
     } else if (view !== 'settings' && this.currentView !== 'settings') {

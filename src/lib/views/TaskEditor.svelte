@@ -1,6 +1,6 @@
 <script lang="ts">
   import { store } from '../state/store.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { parseMarkdown } from '../utils/markdown';
   import { t } from '../services/i18n';
   import { saveMediaToDb, getMediaDataUrl, isAudioFile, isVideoFile, isImageFile, getFileIcon, isIntegratedFile, openAttachmentInDefaultApp } from '../db/media';
@@ -172,6 +172,35 @@
   // File names and object references
   let instructionFiles = $state([]);
   let solutionFiles = $state([]);
+
+  // Navigation guard variables
+  let isSavingOrCanceling = $state(false);
+  let initialValues = $state({
+    taskName: '',
+    instructions: '',
+    solution: '',
+    aiInstructions: '',
+    category: '',
+    targetProjectId: '',
+    defaultEditMode: '',
+    contextFilesJson: '',
+    providedFilesJson: '',
+    settingsOverrideJson: ''
+  });
+
+  function hasChanges() {
+    if (isSavingOrCanceling) return false;
+    return taskName !== initialValues.taskName ||
+           instructions !== initialValues.instructions ||
+           solution !== initialValues.solution ||
+           aiInstructions !== initialValues.aiInstructions ||
+           category !== initialValues.category ||
+           targetProjectId !== initialValues.targetProjectId ||
+           defaultEditMode !== initialValues.defaultEditMode ||
+           JSON.stringify(contextFiles) !== initialValues.contextFilesJson ||
+           JSON.stringify(providedFiles) !== initialValues.providedFilesJson ||
+           JSON.stringify(settingsOverride) !== initialValues.settingsOverrideJson;
+  }
 
   onMount(() => {
     if (store.editingTask) {
@@ -373,6 +402,46 @@
         }
       }
     }, 50);
+
+    // Store initial values to track changes
+    initialValues = {
+      taskName,
+      instructions,
+      solution,
+      aiInstructions,
+      category,
+      targetProjectId,
+      defaultEditMode,
+      contextFilesJson: JSON.stringify(contextFiles),
+      providedFilesJson: JSON.stringify(providedFiles),
+      settingsOverrideJson: JSON.stringify(settingsOverride)
+    };
+
+    store.registerTaskEditorGuard({
+      hasChanges,
+      save: (onComplete: () => void) => {
+        isSavingOrCanceling = true;
+        if (!taskName.trim()) {
+          alert(t('taskEditor.alertEnterName'));
+          isSavingOrCanceling = false;
+          return;
+        }
+        if (!targetProjectId) {
+          alert(t('taskEditor.alertSelectLesson'));
+          isSavingOrCanceling = false;
+          return;
+        }
+        performSave();
+        onComplete();
+      },
+      discard: () => {
+        isSavingOrCanceling = true;
+      }
+    });
+  });
+
+  onDestroy(() => {
+    store.registerTaskEditorGuard(null);
   });
 
   function autoResize(node: HTMLTextAreaElement, _val: any) {
@@ -430,17 +499,7 @@
     store.projects.find(p => p.id === targetProjectId)?.categories || ['Basics', 'Intermediate', 'Advanced']
   );
 
-  function handleSave(e) {
-    e.preventDefault();
-    if (!taskName.trim()) {
-      alert(t('taskEditor.alertEnterName'));
-      return;
-    }
-    if (!targetProjectId) {
-      alert(t('taskEditor.alertSelectLesson'));
-      return;
-    }
-
+  function performSave() {
     if (isEditMode) {
       store.updateTask(targetProjectId, store.editingTask.id, {
         name: taskName.trim(),
@@ -488,10 +547,26 @@
     contextFiles = [];
     providedFiles = [];
     isDragOverContext = false;
+  }
+
+  function handleSave(e) {
+    if (e) e.preventDefault();
+    if (!taskName.trim()) {
+      alert(t('taskEditor.alertEnterName'));
+      return;
+    }
+    if (!targetProjectId) {
+      alert(t('taskEditor.alertSelectLesson'));
+      return;
+    }
+
+    isSavingOrCanceling = true;
+    performSave();
     store.setView('project-detail');
   }
 
   function handleCancel() {
+    isSavingOrCanceling = true;
     store.pendingScrollCategory = category;
     store.editingTask = null;
     taskName = '';

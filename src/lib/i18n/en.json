@@ -132,6 +132,11 @@
     "settings": "Settings"
   },
   "taskEditor": {
+    "unsavedTitle": "Unsaved Changes",
+    "unsavedMessage": "There are unsaved changes. Would you like to save them before leaving?",
+    "unsavedSave": "Save",
+    "unsavedDiscard": "Discard",
+    "unsavedCancel": "Cancel",
     "editMode": "Edit",
     "previewMode": "Preview",
     "createTitle": "Create Task",
