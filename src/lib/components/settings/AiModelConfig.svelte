@@ -126,7 +126,7 @@
 
   async function fetchOpenRouterModels() {
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/models');
+      const response = await fetch('https://openrouter.ai/api/v1/models?output_modalities=text');
       if (response.ok) {
         const data = await response.json();
         if (data.data && data.data.length > 0) {
@@ -220,9 +220,10 @@
       .filter((m: any) => {
         const arch = m.architecture;
         if (arch) {
-          // Check outputModalities array if present
-          if (Array.isArray(arch.outputModalities)) {
-            return arch.outputModalities.includes('text');
+          // Check output_modalities array if present (standard OpenRouter API) or outputModalities
+          const outputModalities = arch.output_modalities || arch.outputModalities;
+          if (Array.isArray(outputModalities)) {
+            return outputModalities.includes('text');
           }
           // Check modality string if present (e.g. "text->text", "text->image", "text")
           const modality = (arch.modality || '').toLowerCase();

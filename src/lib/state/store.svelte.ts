@@ -2121,7 +2121,7 @@ class CanvasCritiqueStore {
 
   async fetchOpenRouterPrices(): Promise<void> {
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/models');
+      const response = await fetch('https://openrouter.ai/api/v1/models?output_modalities=text');
       if (response.ok) {
         const data = await response.json();
         if (data.data && Array.isArray(data.data)) {

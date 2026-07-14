@@ -44,10 +44,11 @@ export function getModelSupportedModalities(provider: 'gemini' | 'openrouter' | 
   if (info) {
     const arch = info.architecture;
     if (arch) {
-      if (Array.isArray(arch.inputModalities)) {
-        supportsImage = arch.inputModalities.includes('image');
-        supportsAudio = arch.inputModalities.includes('audio');
-        supportsVideo = arch.inputModalities.includes('video');
+      const inputModalities = arch.input_modalities || arch.inputModalities;
+      if (Array.isArray(inputModalities)) {
+        supportsImage = inputModalities.includes('image');
+        supportsAudio = inputModalities.includes('audio');
+        supportsVideo = inputModalities.includes('video');
       } else {
         const modality = (arch.modality || '').toLowerCase();
         if (modality) {
