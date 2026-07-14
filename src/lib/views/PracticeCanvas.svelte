@@ -3903,6 +3903,7 @@
                 top={(activeTooltipMarker.canvasY) * zoomScale + panOffset.y}
                 {containerWidth}
                 {containerHeight}
+                fontSize={canvasTextFontSize}
               />
             {/if}
           {/if}
@@ -3960,6 +3961,7 @@
               top={activeTooltipMarker.canvasY * a4Scale + topOffset}
               {containerWidth}
               {containerHeight}
+              fontSize={canvasTextFontSize}
             />
           {/if}
         {/if}

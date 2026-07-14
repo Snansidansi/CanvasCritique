@@ -6,10 +6,11 @@
     left,
     top,
     containerWidth = 800,
-    containerHeight = 600
+    containerHeight = 600,
+    fontSize = 13
   } = $props();
 
-  let tooltipWidth = 288;
+  let tooltipWidth = $derived(Math.round(288 * (fontSize / 13)));
   let tooltipHeight = $state(120);
   let margin = 16;
 
@@ -43,31 +44,34 @@
 
   <div 
     bind:clientHeight={tooltipHeight}
-    class="absolute z-50 bg-surface-container-high border border-outline-variant/60 rounded-xl p-4 w-72 shadow-2xl flex flex-col gap-2 -translate-x-1/2 animate-fade-in pointer-events-auto"
-    style="left: {adjustedLeft}px; top: {adjustedTop}px;"
+    class="absolute z-50 bg-surface-container-high border border-outline-variant/60 rounded-xl p-4 shadow-2xl flex flex-col gap-2 -translate-x-1/2 animate-fade-in pointer-events-auto"
+    style="left: {adjustedLeft}px; top: {adjustedTop}px; font-size: {fontSize}px; width: {tooltipWidth}px;"
   >
     <div class="flex items-center gap-2">
-      <span class="material-symbols-outlined text-base 
+      <span class="material-symbols-outlined 
         {activeTooltipMarker.type === 'correct' ? 'text-emerald-500' : 
          activeTooltipMarker.type === 'incorrect' ? 'text-red-500' : 
-         'text-amber-500'}">
+         'text-amber-500'}"
+        style="font-size: 1.2em;"
+      >
         {activeTooltipMarker.type === 'correct' ? 'check_circle' : 
          activeTooltipMarker.type === 'incorrect' ? 'cancel' : 
          'warning'}
       </span>
-      <span class="text-xs font-bold uppercase tracking-wider text-on-surface">
+      <span class="font-bold uppercase tracking-wider text-on-surface" style="font-size: 0.9em;">
         {activeTooltipMarker.type === 'correct' ? 'Correct' : 
          activeTooltipMarker.type === 'incorrect' ? 'Incorrect' : 
          'Partial'}
       </span>
       <button 
         onclick={() => activeTooltipMarker = null} 
-        class="ml-auto material-symbols-outlined text-[16px] text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer border-0 bg-transparent p-0 flex items-center justify-center"
+        class="ml-auto material-symbols-outlined text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer border-0 bg-transparent p-0 flex items-center justify-center"
+        style="font-size: 1.2em;"
       >
         close
       </button>
     </div>
-    <p class="text-xs text-on-surface-variant leading-relaxed">
+    <p class="text-on-surface-variant leading-relaxed" style="font-size: 0.9em;">
       {@html parseMarkdown(activeTooltipMarker.feedback)}
     </p>
   </div>
