@@ -371,6 +371,24 @@
   let infiniteEraserUndo = $state([]);
   let panOffset = $state({ x: 0, y: 0 });
   let isPanning = $state(false);
+  let isPinching = $state(false);
+  let isWheelActive = $state(false);
+  let wheelTimeout: number | null = null;
+  let cachedPan = { x: 0, y: 0 };
+  let cachedZoom = 1;
+  let gestureStartPan = { x: 0, y: 0 };
+  let gestureStartZoom = 1;
+  let isGesturing = $derived(isPanning || isPinching || isWheelActive);
+
+  $effect(() => {
+    if (isGesturing) {
+      untrack(() => {
+        updateStrokesCache();
+        gestureStartPan = { ...panOffset };
+        gestureStartZoom = zoomScale;
+      });
+    }
+  });
   let panStart = { x: 0, y: 0 };
   let panBaseOffset = { x: 0, y: 0 };
   let zoomScale = $state(1);
@@ -415,9 +433,11 @@
     const _h = canvasHeight;
     const _mode = canvasMode;
     if (canvasMode === 'infinite') {
-      const _panX = panOffset.x;
-      const _panY = panOffset.y;
-      const _zoom = zoomScale;
+      if (!isGesturing) {
+        const _panX = panOffset.x;
+        const _panY = panOffset.y;
+        const _zoom = zoomScale;
+      }
     }
     invalidateCache();
   });
@@ -468,6 +488,8 @@
         }
       }
       cachedStrokesCtx.restore();
+      cachedPan = { ...panOffset };
+      cachedZoom = zoomScale;
     }
     cacheIsValid = true;
   }
@@ -728,7 +750,6 @@
   let initialPinchZoom = 1;
   let initialPinchMidpoint = { x: 0, y: 0 };
   let initialPinchPanOffset = { x: 0, y: 0 };
-  let isPinching = false;
 
   let eraserScreenDiameter = $derived(
     (activeTool === 'eraser' || isPointerEraser)
@@ -2272,6 +2293,14 @@
   function handleWheel(e) {
     if (!canvasElement || !canvasContainer) return;
     
+    if (wheelTimeout) clearTimeout(wheelTimeout);
+    isWheelActive = true;
+    wheelTimeout = window.setTimeout(() => {
+      isWheelActive = false;
+      invalidateCache();
+      requestRedraw();
+    }, 200);
+    
     if (e.ctrlKey) {
       // Zoom action towards cursor
       e.preventDefault();
@@ -2432,7 +2461,16 @@
       
       // Composite historical strokes cache first
       if (cachedStrokesCanvas) {
-        offscreenCtx.drawImage(cachedStrokesCanvas, 0, 0);
+        if (canvasMode === 'infinite' && isGesturing) {
+          offscreenCtx.save();
+          const scaleRatio = zoomScale / cachedZoom;
+          offscreenCtx.translate(panOffset.x - cachedPan.x * scaleRatio, panOffset.y - cachedPan.y * scaleRatio);
+          offscreenCtx.scale(scaleRatio, scaleRatio);
+          offscreenCtx.drawImage(cachedStrokesCanvas, 0, 0);
+          offscreenCtx.restore();
+        } else {
+          offscreenCtx.drawImage(cachedStrokesCanvas, 0, 0);
+        }
       }
       
       // Draw active drawing stroke on top of historical strokes
