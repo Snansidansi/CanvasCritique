@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::Mutex;
-use tauri::{State, Manager, Emitter};
+use tauri::{State, Emitter};
 
 struct AppState {
     sync_on_shutdown: Mutex<bool>,
