@@ -1888,6 +1888,8 @@
     contextMenu = null;
     if (longPressTimer) clearTimeout(longPressTimer);
     
+    const coords = getCoords(e);
+
     // Check if middle click or Hand tool or custom pan action
     const isFingerOrMouse = !isPen;
     const isPanAction = canvasMode === 'infinite' && 
@@ -1897,6 +1899,24 @@
       isPanning = true;
       panStart = { x: e.clientX, y: e.clientY };
       panBaseOffset = { ...panOffset };
+      
+      // Setup long-press (600ms) timer for context menu (stylus paste shortcut) even during panning
+      longPressStartPos = { x: e.clientX, y: e.clientY };
+      longPressTimer = setTimeout(() => {
+        const rect = canvasContainer.getBoundingClientRect();
+        contextMenu = {
+          x: longPressStartPos.x - rect.left,
+          y: longPressStartPos.y - rect.top,
+          canvasX: coords.x,
+          canvasY: coords.y
+        };
+        isPanning = false;
+        isDrawing = false;
+        currentStroke = [];
+        selectionBox = null;
+        isMovingSelection = false;
+      }, 600);
+
       e.preventDefault();
       return;
     }
@@ -1909,8 +1929,6 @@
     straightLineStart = null;
     straightLineEnd = null;
     clearStraightenTimer();
-
-    const coords = getCoords(e);
     const bounds = selectionBoundingBox;
     const isClickInSelection = bounds && isPointInBounds(coords.x, coords.y, bounds);
 
@@ -1957,6 +1975,27 @@
     // In stylus mode, finger/touch/mouse cannot draw/select on A4 canvas either (unless clicking in selection to drag/move)
     if (store.settings.stylusMode && isFingerOrMouse && !isClickInSelection) {
       if (canvasMode !== 'infinite') {
+        // Setup long-press (600ms) timer for context menu (stylus paste shortcut)
+        longPressStartPos = { x: e.clientX, y: e.clientY };
+        longPressTimer = setTimeout(() => {
+          const rect = canvasContainer.getBoundingClientRect();
+          contextMenu = {
+            x: longPressStartPos.x - rect.left,
+            y: longPressStartPos.y - rect.top,
+            canvasX: coords.x,
+            canvasY: coords.y
+          };
+          isDrawing = false;
+          currentStroke = [];
+          selectionBox = null;
+          isMovingSelection = false;
+          isPanning = false;
+        }, 600);
+        
+        try {
+          canvasElement.setPointerCapture(e.pointerId);
+        } catch (err) {}
+
         e.preventDefault();
         return;
       }
