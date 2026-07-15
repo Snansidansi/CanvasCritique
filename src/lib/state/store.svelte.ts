@@ -1021,10 +1021,11 @@ class CanvasCritiqueStore {
     solutionFiles: any[] = [],
     settingsOverride?: any,
     aiInstructions: string = '',
-    defaultEditMode: 'canvas' | 'text' | 'both' = 'both',
+    defaultEditMode: string = 'canvas',
     contextFiles: any[] = [],
     background: string | null = null,
-    providedFiles: any[] = []
+    providedFiles: any[] = [],
+    multipleChoiceTasks: any[] = []
   ): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
@@ -1044,7 +1045,7 @@ class CanvasCritiqueStore {
       contextFiles: this.stripDataUrls(contextFiles),
       background,
       providedFiles: this.stripDataUrls(providedFiles),
-      multipleChoiceTasks: []
+      multipleChoiceTasks
     };
 
     project.tasks.push(newTask);

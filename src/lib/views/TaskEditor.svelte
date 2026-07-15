@@ -10,6 +10,7 @@
   import CanvasModeSelector from '../components/settings/CanvasModeSelector.svelte';
   import MediaFilterSettings from '../components/settings/MediaFilterSettings.svelte';
   import TaskNumberingConfig from '../components/settings/TaskNumberingConfig.svelte';
+  import MultipleChoiceEditor from '../components/task-editor/MultipleChoiceEditor.svelte';
 
   // Form states
   let taskName = $state('');
@@ -22,11 +23,12 @@
   let category = $state('Basics');
   let showInstructionsRaw = $state(true);
   let showSolutionRaw = $state(true);
-  let defaultEditMode = $state<'canvas' | 'text' | 'both'>('canvas');
+  let defaultEditMode = $state<string>('canvas');
   let contextFiles = $state<any[]>([]);
   let providedFiles = $state<any[]>([]);
   let isDragOverProvided = $state(false);
   let providedFilesExpanded = $state(false);
+  let multipleChoiceTasks = $state<any[]>([]);
 
   // Task specific override settings
   let settingsOverride = $state<any>({
@@ -183,6 +185,27 @@
     }
   }
 
+  function isModeActive(mode: string): boolean {
+    const activeModes = (defaultEditMode || 'both').split(',').map(m => m.trim());
+    if (activeModes.includes('both')) {
+      return mode === 'canvas' || mode === 'text';
+    }
+    return activeModes.includes(mode);
+  }
+
+  function toggleMode(mode: string) {
+    let activeModes = (defaultEditMode || 'both').split(',').map(m => m.trim());
+    if (activeModes.includes('both')) {
+      activeModes = ['canvas', 'text'];
+    }
+    if (activeModes.includes(mode)) {
+      activeModes = activeModes.filter(m => m !== mode);
+    } else {
+      activeModes = [...activeModes, mode];
+    }
+    defaultEditMode = activeModes.join(',');
+  }
+
   // Derived edit state
   let isEditMode = $derived(store.editingTask !== null);
 
@@ -202,7 +225,8 @@
     defaultEditMode: '',
     contextFilesJson: '',
     providedFilesJson: '',
-    settingsOverrideJson: ''
+    settingsOverrideJson: '',
+    multipleChoiceTasksJson: '[]'
   });
 
   function hasChanges() {
@@ -216,7 +240,8 @@
            defaultEditMode !== initialValues.defaultEditMode ||
            JSON.stringify(contextFiles) !== initialValues.contextFilesJson ||
            JSON.stringify(providedFiles) !== initialValues.providedFilesJson ||
-           JSON.stringify(settingsOverride) !== initialValues.settingsOverrideJson;
+           JSON.stringify(settingsOverride) !== initialValues.settingsOverrideJson ||
+           JSON.stringify(multipleChoiceTasks) !== initialValues.multipleChoiceTasksJson;
   }
 
   onMount(() => {
@@ -232,6 +257,7 @@
       contextFiles = [...(store.editingTask.contextFiles || [])];
       providedFiles = [...(store.editingTask.providedFiles || [])];
       providedFilesExpanded = providedFiles.length > 0;
+      multipleChoiceTasks = store.editingTask.multipleChoiceTasks ? JSON.parse(JSON.stringify(store.editingTask.multipleChoiceTasks)) : [];
 
       const parentSettings = store.getEffectiveSettings(targetProjectId);
 
@@ -427,7 +453,8 @@
       defaultEditMode,
       contextFilesJson: JSON.stringify(contextFiles),
       providedFilesJson: JSON.stringify(providedFiles),
-      settingsOverrideJson: JSON.stringify(settingsOverride)
+      settingsOverrideJson: JSON.stringify(settingsOverride),
+      multipleChoiceTasksJson: JSON.stringify(multipleChoiceTasks)
     };
 
     store.registerTaskEditorGuard({
@@ -531,7 +558,8 @@
         defaultEditMode,
         contextFiles,
         background: null,
-        providedFiles
+        providedFiles,
+        multipleChoiceTasks
       });
       store.editingTask = null;
     } else {
@@ -548,7 +576,8 @@
         defaultEditMode,
         contextFiles,
         null,
-        providedFiles
+        providedFiles,
+        multipleChoiceTasks
       );
     }
 
@@ -561,6 +590,7 @@
     defaultEditMode = 'canvas';
     contextFiles = [];
     providedFiles = [];
+    multipleChoiceTasks = [];
     isDragOverContext = false;
   }
 
@@ -1476,39 +1506,54 @@
         {/if}
       </div>
 
+
+
       <!-- Default Edit Mode Selector -->
-      <div class="flex items-center justify-between p-4 rounded-xl bg-surface-container-low border border-outline-variant mt-4">
+      <div class="flex flex-col gap-2.5 p-4 rounded-xl bg-surface-container-low border border-outline-variant mt-4 font-sans text-left">
         <div class="flex flex-col gap-0.5">
           <span class="text-xs font-bold text-on-surface">{t('taskEditor.defaultEditModeTitle')}</span>
           <span class="text-[10.5px] text-on-surface-variant">{t('taskEditor.defaultEditModeSubtitle')}</span>
         </div>
-        <div class="flex bg-surface-container-high rounded-lg border border-outline-variant p-0.5 shrink-0 select-none">
+        <div class="flex flex-wrap gap-2 mt-1 select-none">
+          <!-- Canvas Toggle Button -->
           <button
             type="button"
-            onclick={() => defaultEditMode = 'canvas'}
-            class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer border-0 focus:outline-none
-                   {defaultEditMode === 'canvas' ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-highest'}"
+            onclick={() => toggleMode('canvas')}
+            class="px-4 py-2 text-xs font-semibold rounded-xl border border-outline-variant cursor-pointer transition-all flex items-center gap-1.5 focus:outline-none
+                   {isModeActive('canvas') ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'}"
           >
-            {t('taskEditor.defaultEditModeCanvas')}
+            <span class="material-symbols-outlined text-[16px]">brush</span>
+            <span>{t('taskEditor.defaultEditModeCanvas')}</span>
           </button>
+          
+          <!-- Text Editor Toggle Button -->
           <button
             type="button"
-            onclick={() => defaultEditMode = 'text'}
-            class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer border-0 focus:outline-none
-                   {defaultEditMode === 'text' ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-highest'}"
+            onclick={() => toggleMode('text')}
+            class="px-4 py-2 text-xs font-semibold rounded-xl border border-outline-variant cursor-pointer transition-all flex items-center gap-1.5 focus:outline-none
+                   {isModeActive('text') ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'}"
           >
-            {t('taskEditor.defaultEditModeText')}
+            <span class="material-symbols-outlined text-[16px]">edit_note</span>
+            <span>{t('taskEditor.defaultEditModeText')}</span>
           </button>
+          
+          <!-- Multiple Choice Toggle Button -->
           <button
             type="button"
-            onclick={() => defaultEditMode = 'both'}
-            class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer border-0 focus:outline-none
-                   {defaultEditMode === 'both' ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-highest'}"
+            onclick={() => toggleMode('multiple_choice')}
+            class="px-4 py-2 text-xs font-semibold rounded-xl border border-outline-variant cursor-pointer transition-all flex items-center gap-1.5 focus:outline-none
+                   {isModeActive('multiple_choice') ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'}"
           >
-            {t('taskEditor.defaultEditModeBoth')}
+            <span class="material-symbols-outlined text-[16px]">rule</span>
+            <span>{t('taskEditor.mc.title') || 'Multiple-Choice-Aufgaben'}</span>
           </button>
         </div>
       </div>
+
+      {#if isModeActive('multiple_choice')}
+        {@const effectiveFontSize = settingsOverride.overrideCanvas ? settingsOverride.canvasFontSize : (store.getEffectiveSettings(targetProjectId).canvasFontSize ?? 13)}
+        <MultipleChoiceEditor bind:multipleChoiceTasks={multipleChoiceTasks} fontSize={effectiveFontSize} />
+      {/if}
 
       <!-- Provided Canvas Images Collapsible Section -->
       <section class="bg-surface-container-low border border-outline-variant/60 rounded-xl overflow-hidden shrink-0 mt-4">
