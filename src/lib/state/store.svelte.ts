@@ -1043,7 +1043,8 @@ class CanvasCritiqueStore {
       defaultEditMode,
       contextFiles: this.stripDataUrls(contextFiles),
       background,
-      providedFiles: this.stripDataUrls(providedFiles)
+      providedFiles: this.stripDataUrls(providedFiles),
+      multipleChoiceTasks: []
     };
 
     project.tasks.push(newTask);
@@ -1098,6 +1099,7 @@ class CanvasCritiqueStore {
     if (updatedData.contextFiles !== undefined) task.contextFiles = this.stripDataUrls(updatedData.contextFiles);
     if (updatedData.providedFiles !== undefined) task.providedFiles = this.stripDataUrls(updatedData.providedFiles);
     if (updatedData.activeAttemptId !== undefined) task.activeAttemptId = updatedData.activeAttemptId;
+    if (updatedData.multipleChoiceTasks !== undefined) task.multipleChoiceTasks = updatedData.multipleChoiceTasks;
 
     // Auto-add category if it isn't listed
     if (task.category && project.categories && !project.categories.includes(task.category)) {
@@ -1122,7 +1124,8 @@ class CanvasCritiqueStore {
       contextFiles: task.contextFiles || [],
       providedFiles: task.providedFiles || [],
       templateCanvasData: task.templateCanvasData || null,
-      activeAttemptId: task.activeAttemptId || null
+      activeAttemptId: task.activeAttemptId || null,
+      multipleChoiceTasks: task.multipleChoiceTasks || []
     });
     await this.saveProjects();
 
@@ -1468,6 +1471,22 @@ class CanvasCritiqueStore {
     }
   }
 
+  async saveMultipleChoiceAnswers(taskId: string, answers: Record<string, string[]>): Promise<void> {
+    const db = this.getDb();
+    const task = this.findTaskById(taskId);
+    if (task && task.activeAttemptId) {
+      const attempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+      if (attempt) {
+        attempt.multipleChoiceAnswers = answers;
+        attempt.timestamp = new Date().toISOString();
+        await dbUpdateAttempt(db, attempt.id, { 
+          multipleChoiceAnswers: answers, 
+          timestamp: attempt.timestamp 
+        });
+      }
+    }
+  }
+
   getEditorText(taskId: string): string {
     return this.editorTexts[taskId] || '';
   }
@@ -1543,7 +1562,8 @@ class CanvasCritiqueStore {
         canvasImages: []
       },
       editorText: '',
-      critique: null
+      critique: null,
+      multipleChoiceAnswers: {}
     };
 
     const db = this.getDb();
@@ -1775,6 +1795,7 @@ class CanvasCritiqueStore {
                   matchedTask.aiInstructions = t.aiInstructions !== undefined ? t.aiInstructions : matchedTask.aiInstructions;
                   matchedTask.defaultEditMode = t.defaultEditMode !== undefined ? t.defaultEditMode : matchedTask.defaultEditMode;
                   matchedTask.templateCanvasData = t.templateCanvasData !== undefined ? t.templateCanvasData : matchedTask.templateCanvasData;
+                  matchedTask.multipleChoiceTasks = t.multipleChoiceTasks !== undefined ? t.multipleChoiceTasks : matchedTask.multipleChoiceTasks;
                   if (options.importCompleted && t.completed !== undefined) matchedTask.completed = !!t.completed;
                   if (options.importCritique && t.critique !== undefined) matchedTask.critique = t.critique;
                   if (t.settingsOverride !== undefined) matchedTask.settingsOverride = t.settingsOverride;
@@ -1824,7 +1845,8 @@ class CanvasCritiqueStore {
                   editorText: t.editorText || '',
                   defaultEditMode: t.defaultEditMode || 'both',
                   templateCanvasData: t.templateCanvasData || null,
-                  settingsOverride: t.settingsOverride || null
+                  settingsOverride: t.settingsOverride || null,
+                  multipleChoiceTasks: t.multipleChoiceTasks || []
                 };
                 if (t.editorText) {
                   this.editorTexts[taskId] = t.editorText;
@@ -1892,7 +1914,8 @@ class CanvasCritiqueStore {
               editorText: t.editorText || '',
               defaultEditMode: t.defaultEditMode || 'both',
               templateCanvasData: t.templateCanvasData || null,
-              settingsOverride: t.settingsOverride || null
+              settingsOverride: t.settingsOverride || null,
+              multipleChoiceTasks: t.multipleChoiceTasks || []
             };
             if (t.editorText) {
               this.editorTexts[taskId] = t.editorText;

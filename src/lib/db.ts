@@ -54,6 +54,7 @@ export async function initDb(): Promise<Database> {
       critique_json TEXT,
       canvas_data_json TEXT,
       editor_text TEXT,
+      multiple_choice_answers_json TEXT DEFAULT '{}',
       FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
     )
   `);
@@ -123,6 +124,7 @@ export async function initDb(): Promise<Database> {
       context_files_json TEXT DEFAULT '[]',
       template_canvas_data TEXT,
       provided_files_json TEXT DEFAULT '[]',
+      multiple_choice_tasks_json TEXT DEFAULT '[]',
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
   `);
@@ -171,6 +173,14 @@ export async function initDb(): Promise<Database> {
 
   try {
     await db.execute('ALTER TABLE tasks ADD COLUMN provided_files_json TEXT DEFAULT "[]"');
+  } catch (_) {}
+
+  try {
+    await db.execute('ALTER TABLE tasks ADD COLUMN multiple_choice_tasks_json TEXT DEFAULT "[]"');
+  } catch (_) {}
+
+  try {
+    await db.execute('ALTER TABLE task_attempts ADD COLUMN multiple_choice_answers_json TEXT DEFAULT "{}"');
   } catch (_) {}
 
   // Seed defaults if database is fresh (no profiles)
@@ -583,7 +593,7 @@ export async function migrateSolutionsFromDbToFs(db: Database): Promise<void> {
 
 export async function getTasks(db: Database): Promise<Task[]> {
   const rows: any[] = await db.select(
-    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, project_id, background, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data, provided_files_json, active_attempt_id FROM tasks'
+    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, project_id, background, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data, provided_files_json, active_attempt_id, multiple_choice_tasks_json FROM tasks'
   );
   const tasks = rows.map(r => {
     const task: Task = {
@@ -603,7 +613,8 @@ export async function getTasks(db: Database): Promise<Task[]> {
       contextFiles: JSON.parse(r.context_files_json || '[]'),
       templateCanvasData: r.template_canvas_data || null,
       providedFiles: JSON.parse(r.provided_files_json || '[]'),
-      activeAttemptId: r.active_attempt_id || null
+      activeAttemptId: r.active_attempt_id || null,
+      multipleChoiceTasks: r.multiple_choice_tasks_json ? JSON.parse(r.multiple_choice_tasks_json) : []
     };
     if (r.settings_override_json) {
       try { task.settingsOverride = JSON.parse(r.settings_override_json); } catch (_) {}
@@ -659,8 +670,8 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
     await saveTaskSolutionToDisk(task.id, { canvasData, editorText: task.editorText });
   }
   await db.execute(
-    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data, provided_files_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data, provided_files_json, multiple_choice_tasks_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       task.id,
       task.name,
@@ -680,7 +691,8 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
       task.defaultEditMode || 'both',
       JSON.stringify(task.contextFiles || []),
       task.templateCanvasData || null,
-      JSON.stringify(task.providedFiles || [])
+      JSON.stringify(task.providedFiles || []),
+      JSON.stringify(task.multipleChoiceTasks || [])
     ]
   );
 }
@@ -705,6 +717,7 @@ export async function updateTask(db: Database, id: string, updates: Partial<any>
   if (updates.templateCanvasData !== undefined) { fields.push('template_canvas_data = ?'); values.push(updates.templateCanvasData); }
   if (updates.providedFiles !== undefined) { fields.push('provided_files_json = ?'); values.push(JSON.stringify(updates.providedFiles)); }
   if (updates.activeAttemptId !== undefined) { fields.push('active_attempt_id = ?'); values.push(updates.activeAttemptId); }
+  if (updates.multipleChoiceTasks !== undefined) { fields.push('multiple_choice_tasks_json = ?'); values.push(JSON.stringify(updates.multipleChoiceTasks)); }
 
   if (updates.canvasData !== undefined || updates.editorText !== undefined) {
     await saveTaskSolutionToDisk(id, { canvasData: updates.canvasData, editorText: updates.editorText });
@@ -841,7 +854,7 @@ export async function loadAllData(db: Database): Promise<AllData> {
 export async function getAttemptsForTask(db: Database, taskId: string): Promise<TaskAttempt[]> {
   try {
     const rows: any[] = await db.select(
-      'SELECT id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text FROM task_attempts WHERE task_id = ? ORDER BY timestamp ASC',
+      'SELECT id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE task_id = ? ORDER BY timestamp ASC',
       [taskId]
     );
     return rows.map(r => ({
@@ -851,7 +864,8 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
       timestamp: r.timestamp,
       canvasData: r.canvas_data_json ? JSON.parse(r.canvas_data_json) : null,
       editorText: r.editor_text || '',
-      critique: r.critique_json ? JSON.parse(r.critique_json) : null
+      critique: r.critique_json ? JSON.parse(r.critique_json) : null,
+      multipleChoiceAnswers: r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {}
     }));
   } catch (err) {
     console.error('Failed to load attempts from DB:', err);
@@ -861,7 +875,7 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
 
 export async function insertAttempt(db: Database, attempt: TaskAttempt): Promise<void> {
   await db.execute(
-    'INSERT INTO task_attempts (id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO task_attempts (id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [
       attempt.id,
       attempt.taskId,
@@ -869,7 +883,8 @@ export async function insertAttempt(db: Database, attempt: TaskAttempt): Promise
       attempt.timestamp,
       attempt.critique ? JSON.stringify(attempt.critique) : null,
       attempt.canvasData ? JSON.stringify(attempt.canvasData) : null,
-      attempt.editorText
+      attempt.editorText,
+      attempt.multipleChoiceAnswers ? JSON.stringify(attempt.multipleChoiceAnswers) : '{}'
     ]
   );
 }
@@ -883,6 +898,7 @@ export async function updateAttempt(db: Database, id: string, updates: Partial<T
   if (updates.critique !== undefined) { fields.push('critique_json = ?'); values.push(updates.critique ? JSON.stringify(updates.critique) : null); }
   if (updates.canvasData !== undefined) { fields.push('canvas_data_json = ?'); values.push(updates.canvasData ? JSON.stringify(updates.canvasData) : null); }
   if (updates.editorText !== undefined) { fields.push('editor_text = ?'); values.push(updates.editorText); }
+  if (updates.multipleChoiceAnswers !== undefined) { fields.push('multiple_choice_answers_json = ?'); values.push(JSON.stringify(updates.multipleChoiceAnswers)); }
 
   if (fields.length === 0) return;
   values.push(id);

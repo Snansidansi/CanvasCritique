@@ -6,6 +6,20 @@ export interface MediaFile {
   mediaId?: string;
 }
 
+export interface MultipleChoiceOption {
+  id: string;
+  text: string;
+  media: MediaFile[];
+  isCorrect: boolean;
+}
+
+export interface MultipleChoiceTask {
+  id: string;
+  question: string;
+  questionMedia: MediaFile[];
+  options: MultipleChoiceOption[];
+}
+
 export interface Task {
   id: string;
   name: string;
@@ -37,12 +51,13 @@ export interface Task {
   editorText?: string;
   aiInstructions?: string;
   settingsOverride?: ProjectSettingsOverride;
-  defaultEditMode?: 'canvas' | 'text' | 'both';
+  defaultEditMode?: string; // changed from 'canvas' | 'text' | 'both' to support comma-separated list
   contextFiles?: MediaFile[];
   templateCanvasData?: string | null;
   providedFiles?: MediaFile[];
   attempts?: TaskAttempt[];
   activeAttemptId?: string | null;
+  multipleChoiceTasks?: MultipleChoiceTask[];
 }
 
 export interface TaskAttempt {
@@ -53,6 +68,7 @@ export interface TaskAttempt {
   canvasData: any;
   editorText: string;
   critique: any;
+  multipleChoiceAnswers?: Record<string, string[]>; // questionId -> selectedOptionIds[]
 }
 
 export interface ProjectSettingsOverride {
