@@ -52,12 +52,12 @@
   let initialPinchPanY = 0;
   let initialPinchCenterX = 0;
   let initialPinchCenterY = 0;
-
   let imageRatio = $state<number | null>(null);
+  let naturalWidth = $state<number | null>(null);
+  let naturalHeight = $state<number | null>(null);
   let fileUrl = $state('');
   let loading = $state(false);
   let error = $state(false);
-
   // Lazy load media URL ONLY when accordion is expanded!
   $effect(() => {
     if (open && !fileUrl) {
@@ -306,7 +306,7 @@
       {:else}
         <div 
           class="w-full max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10"
-          style="aspect-ratio: {imageRatio || '4/3'};"
+          style="aspect-ratio: {imageRatio || '4/3'}; {naturalWidth ? `max-width: ${naturalWidth}px; max-height: min(70vh, ${naturalHeight}px);` : ''}"
         >
           {#if file.name.toLowerCase().endsWith('.pdf')}
             <iframe 
@@ -331,6 +331,8 @@
                 const img = e.currentTarget as HTMLImageElement;
                 if (img.naturalWidth && img.naturalHeight) {
                   imageRatio = img.naturalWidth / img.naturalHeight;
+                  naturalWidth = img.naturalWidth;
+                  naturalHeight = img.naturalHeight;
                 }
               }}
               onclick={handleInlineClick}

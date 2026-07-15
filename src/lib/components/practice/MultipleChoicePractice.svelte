@@ -82,8 +82,8 @@
     if (expandedMediaIds[mediaId] !== undefined) {
       return expandedMediaIds[mediaId];
     }
-    // Collapsed by default for lazy loading performance!
-    return false;
+    // Expanded by default as requested!
+    return true;
   }
 
   function decodeBase64Text(dataUrl: string): string {

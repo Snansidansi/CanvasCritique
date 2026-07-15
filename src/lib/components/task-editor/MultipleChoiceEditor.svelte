@@ -759,12 +759,12 @@
                           {@html parseMarkdown(option.text || `*${t('taskEditor.mc.noOptionText') || 'Keine Antwort eingegeben'}*`)}
                         </div>
                       {:else}
-                        <input
-                          type="text"
+                        <textarea
                           bind:value={option.text}
+                          use:autoResize={option.text}
                           placeholder={t('taskEditor.mc.optionPlaceholder') || 'Antwortmöglichkeit...'}
-                          class="w-full bg-transparent border border-outline-variant rounded-lg px-3 py-2 text-xs text-on-surface focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
-                        />
+                          class="w-full bg-transparent border border-outline-variant rounded-lg px-3 py-2 text-xs text-on-surface focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none resize-none overflow-hidden"
+                        ></textarea>
                       {/if}
                     </div>
 
