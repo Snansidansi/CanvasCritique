@@ -2266,30 +2266,46 @@
       const dx = coords.x - selectionDragStart.x;
       const dy = coords.y - selectionDragStart.y;
       
-      for (const stroke of selectedStrokes) {
-        for (const p of stroke.points) {
-          p.x += dx;
-          p.y += dy;
+      // Ensure all selected strokes have IDs
+      for (const s of selectedStrokes) {
+        if (!s.id) {
+          s.id = Math.random().toString(36).substring(2, 9);
         }
-        if (stroke.bounds) {
-          stroke.bounds.minX += dx;
-          stroke.bounds.maxX += dx;
-          stroke.bounds.minY += dy;
-          stroke.bounds.maxY += dy;
-        } else {
-          stroke.bounds = calculateStrokeBounds(stroke);
-        }
+      }
+
+      const updatedSelectedStrokes = selectedStrokes.map(stroke => {
+        const newPoints = stroke.points.map(p => ({
+          x: p.x + dx,
+          y: p.y + dy
+        }));
+        const newStroke = {
+          ...stroke,
+          points: newPoints
+        };
+        newStroke.bounds = calculateStrokeBounds(newStroke);
+        return newStroke;
+      });
+      
+      selectedStrokes = updatedSelectedStrokes;
+      const selectedIds = new Set(updatedSelectedStrokes.map(s => s.id));
+      
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.map(stroke => {
+          if (stroke.id && selectedIds.has(stroke.id)) {
+            return updatedSelectedStrokes.find(s => s.id === stroke.id)!;
+          }
+          return stroke;
+        });
+      } else {
+        infiniteStrokes = infiniteStrokes.map(stroke => {
+          if (stroke.id && selectedIds.has(stroke.id)) {
+            return updatedSelectedStrokes.find(s => s.id === stroke.id)!;
+          }
+          return stroke;
+        });
       }
       
       selectionDragStart = { x: coords.x, y: coords.y };
-      
-      // Trigger Svelte 5 reactivity updates
-      selectedStrokes = [...selectedStrokes];
-      if (canvasMode === 'a4') {
-        pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
-      } else {
-        infiniteStrokes = [...infiniteStrokes];
-      }
       invalidateCache();
       requestRedraw();
     } else if (activeTool === 'select' || isPointerSelect) {
