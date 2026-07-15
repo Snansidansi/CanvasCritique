@@ -78,6 +78,22 @@
     return { gemini, openrouter, combined };
   });
 
+  // Calculate all-time aggregate statistics for the top card
+  const totalAggregates = $derived.by(() => {
+    let total = { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 };
+    const history = store.statsHistory;
+
+    for (const log of history) {
+      total.requests += 1;
+      total.inputTokens += log.inputTokens || 0;
+      total.outputTokens += log.outputTokens || 0;
+      total.reasoningTokens += log.reasoningTokens || 0;
+      total.cost += log.cost || 0;
+    }
+
+    return total;
+  });
+
   // Group request history by model inside range
   const modelStats = $derived.by(() => {
     let start: Date | null = null;
@@ -565,7 +581,7 @@
 
 
   <!-- Aggregates Grid -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+  <div>
     <!-- Combined Card -->
     <div class="bg-linear-to-br from-primary/10 via-primary/5 to-surface p-5 rounded-xl border border-primary/20 shadow-sm relative overflow-hidden">
       <div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-xl translate-x-8 -translate-y-8"></div>
@@ -576,53 +592,23 @@
       <div class="space-y-2.5 text-xs text-on-surface-variant">
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
           <span>{t('settings.stats.cost')}</span>
-          <span class="font-bold text-on-surface text-sm">{formatCost(aggregates.combined.cost)}</span>
+          <span class="font-bold text-on-surface text-sm">{formatCost(totalAggregates.cost)}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
           <span>{t('settings.stats.requests')}</span>
-          <span class="font-semibold text-on-surface">{aggregates.combined.requests}</span>
+          <span class="font-semibold text-on-surface">{totalAggregates.requests}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
           <span>{t('settings.stats.inputTokens')}</span>
-          <span class="font-semibold text-on-surface">{formatTokens(aggregates.combined.inputTokens)}</span>
+          <span class="font-semibold text-on-surface">{formatTokens(totalAggregates.inputTokens)}</span>
         </div>
         <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
           <span>{t('settings.stats.outputTokens')}</span>
-          <span class="font-semibold text-on-surface">{formatTokens(aggregates.combined.outputTokens)}</span>
+          <span class="font-semibold text-on-surface">{formatTokens(totalAggregates.outputTokens)}</span>
         </div>
         <div class="flex justify-between">
           <span>{t('settings.stats.reasoningTokens')}</span>
-          <span class="font-semibold text-on-surface">{formatTokens(aggregates.combined.reasoningTokens)}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- OpenRouter Card -->
-    <div class="bg-surface p-5 rounded-xl border border-outline-variant shadow-sm hover:shadow-md transition-shadow">
-      <div class="flex items-center gap-2.5 mb-4">
-        <span class="material-symbols-outlined text-tertiary text-xl">bolt</span>
-        <h4 class="font-bold text-sm text-on-surface">{t('settings.stats.openRouterApi')}</h4>
-      </div>
-      <div class="space-y-2.5 text-xs text-on-surface-variant">
-        <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>{t('settings.stats.cost')}</span>
-          <span class="font-bold text-on-surface text-sm">{formatCost(aggregates.openrouter.cost)}</span>
-        </div>
-        <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>{t('settings.stats.requests')}</span>
-          <span class="font-semibold text-on-surface">{aggregates.openrouter.requests}</span>
-        </div>
-        <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>{t('settings.stats.inputTokens')}</span>
-          <span class="font-semibold text-on-surface">{formatTokens(aggregates.openrouter.inputTokens)}</span>
-        </div>
-        <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>{t('settings.stats.outputTokens')}</span>
-          <span class="font-semibold text-on-surface">{formatTokens(aggregates.openrouter.outputTokens)}</span>
-        </div>
-        <div class="flex justify-between">
-          <span>{t('settings.stats.reasoningTokens')}</span>
-          <span class="font-semibold text-on-surface">{formatTokens(aggregates.openrouter.reasoningTokens)}</span>
+          <span class="font-semibold text-on-surface">{formatTokens(totalAggregates.reasoningTokens)}</span>
         </div>
       </div>
     </div>
