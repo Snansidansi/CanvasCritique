@@ -255,8 +255,12 @@
     const st = showText;
     
     untrack(() => {
+      const isColumn = pos === 'top' || pos === 'bottom';
       if (wl === 'vertical') {
-        const maxHeight = window.innerHeight - 200;
+        const availHeight = window.innerHeight - (isColumn ? sw + 6 : 0);
+        // If both canvas and editor are shown, canvas needs at least 150px
+        const minCanvasHeight = (sc && st) ? 150 : 0;
+        const maxHeight = availHeight - minCanvasHeight;
         if (editorSplitHeight > maxHeight || editorSplitHeight < 100) {
           editorSplitHeight = Math.max(100, Math.min(300, maxHeight));
         }
@@ -3903,7 +3907,7 @@
       role="presentation"
       class="grow relative select-none
              {canvasMode === 'infinite' ? 'overflow-hidden bg-surface-container-lowest cursor-crosshair' : 'overflow-hidden bg-surface-container-lowest flex justify-center items-center'}
-             {workspaceLayout === 'vertical' ? 'w-full grow' : 'h-full w-full'}"
+             {workspaceLayout === 'vertical' ? 'w-full grow' : 'h-full grow'}"
     >
 
       <!-- Pending image placement overlay -->
