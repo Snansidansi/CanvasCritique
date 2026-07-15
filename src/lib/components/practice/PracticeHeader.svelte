@@ -32,6 +32,7 @@
   let showAttemptsMenu = $state(false);
   let editingAttemptId = $state<string | null>(null);
   let editNameValue = $state('');
+  let showEditorMenu = $state(false);
   
   const activeAttempt = $derived(
     task.attempts?.find(a => a.id === task.activeAttemptId)
@@ -42,6 +43,9 @@
     if (showAttemptsMenu && !target.closest('.attempts-menu-container')) {
       showAttemptsMenu = false;
       editingAttemptId = null;
+    }
+    if (showEditorMenu && !target.closest('.editor-menu-container')) {
+      showEditorMenu = false;
     }
   }
 
@@ -60,7 +64,7 @@
 
 <svelte:window onclick={handleDocumentClick} />
 
-<header class="bg-surface border-b border-outline-variant flex items-center justify-between w-full px-6 py-3 shrink-0 z-20 select-none gap-4">
+<header class="bg-surface border-b border-outline-variant flex items-center justify-between w-full px-6 py-3 shrink-0 z-30 select-none gap-4">
   <!-- Left: Back link and Title -->
   <div class="flex items-center gap-3 min-w-0 shrink-0">
     <button 
@@ -81,8 +85,38 @@
       </span>
     </button>
 
+    <!-- Task Navigation Buttons -->
+    {#if store.activeProject?.tasks?.length > 1}
+      <div class="flex items-center gap-0.5 border-l border-outline-variant/30 pl-2 ml-1">
+        <button 
+          onclick={() => {
+            if (currentTaskIndex > 0) {
+              store.selectTask(store.activeProject.tasks[currentTaskIndex - 1]);
+            }
+          }}
+          disabled={currentTaskIndex <= 0}
+          class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none flex items-center justify-center"
+          title={t('practice.prevTask')}
+        >
+          <span class="material-symbols-outlined text-base">chevron_left</span>
+        </button>
+        <button 
+          onclick={() => {
+            if (currentTaskIndex < store.activeProject.tasks.length - 1) {
+              store.selectTask(store.activeProject.tasks[currentTaskIndex + 1]);
+            }
+          }}
+          disabled={currentTaskIndex >= store.activeProject.tasks.length - 1}
+          class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none flex items-center justify-center"
+          title={t('practice.nextTask')}
+        >
+          <span class="material-symbols-outlined text-base">chevron_right</span>
+        </button>
+      </div>
+    {/if}
+
     <!-- Attempts Switcher -->
-    <div class="relative attempts-menu-container ml-1">
+    <div class="relative attempts-menu-container ml-1 border-l border-outline-variant/30 pl-2">
       <button 
         onclick={() => showAttemptsMenu = !showAttemptsMenu}
         class="px-2.5 py-1 rounded-lg border border-outline-variant hover:bg-surface-container-high text-xs font-semibold text-on-surface-variant flex items-center gap-1.5 cursor-pointer focus:outline-none transition-colors"
@@ -198,108 +232,73 @@
         </div>
       {/if}
     </div>
-
-    <!-- Task Navigation Buttons -->
-    {#if store.activeProject?.tasks?.length > 1}
-      <div class="flex items-center gap-0.5 border-l border-outline-variant/30 pl-2 ml-1">
-        <button 
-          onclick={() => {
-            if (currentTaskIndex > 0) {
-              store.selectTask(store.activeProject.tasks[currentTaskIndex - 1]);
-            }
-          }}
-          disabled={currentTaskIndex <= 0}
-          class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none flex items-center justify-center"
-          title={t('practice.prevTask')}
-        >
-          <span class="material-symbols-outlined text-base">chevron_left</span>
-        </button>
-        <button 
-          onclick={() => {
-            if (currentTaskIndex < store.activeProject.tasks.length - 1) {
-              store.selectTask(store.activeProject.tasks[currentTaskIndex + 1]);
-            }
-          }}
-          disabled={currentTaskIndex >= store.activeProject.tasks.length - 1}
-          class="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none flex items-center justify-center"
-          title={t('practice.nextTask')}
-        >
-          <span class="material-symbols-outlined text-base">chevron_right</span>
-        </button>
-      </div>
-    {/if}
   </div>
 
   <!-- Center: Premium Practice Controls Toolbar -->
   <div class="flex items-center gap-4 text-xs font-semibold text-on-surface-variant flex-wrap justify-center">
     
-    <!-- Mode Switcher (Canvas / Text Editor) -->
-    <div class="flex items-center gap-1 border-r border-outline-variant/30 pr-4">
-      <div class="flex bg-surface-container rounded-lg p-0.5 border border-outline-variant">
-        <button 
-          onclick={() => showCanvas = !showCanvas}
-          class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer focus:outline-none border-0
-                 {showCanvas ? 'bg-primary text-white shadow-sm font-bold' : 'text-on-surface-variant hover:text-on-surface bg-transparent'}"
-          title={t('practice.modeCanvas')}
-        >
-          <span class="material-symbols-outlined text-sm">brush</span>
-          <span>{t('practice.modeCanvasLabel')}</span>
-        </button>
-        <button 
-          onclick={() => showText = !showText}
-          class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer focus:outline-none border-0
-                 {showText ? 'bg-primary text-white shadow-sm font-bold' : 'text-on-surface-variant hover:text-on-surface bg-transparent'}"
-          title={t('practice.modeText')}
-        >
-          <span class="material-symbols-outlined text-sm">edit_note</span>
-          <span>{t('practice.modeTextLabel')}</span>
-        </button>
-      </div>
+    <!-- Editor Mode Switcher Dropdown -->
+    <div class="relative editor-menu-container border-r border-outline-variant/30 pr-4">
+      <button 
+        onclick={() => showEditorMenu = !showEditorMenu}
+        class="px-2.5 py-1.5 rounded-lg border border-outline-variant hover:bg-surface-container-high text-xs font-semibold text-on-surface-variant flex items-center gap-1.5 cursor-pointer focus:outline-none transition-all"
+        title={store.settings.language === 'Deutsch' ? 'Editor-Ansicht' : 'Editor View'}
+      >
+        <span class="material-symbols-outlined text-sm">edit_square</span>
+        <span>{store.settings.language === 'Deutsch' ? 'Editor' : 'Editor'}</span>
+        <span class="material-symbols-outlined text-[14px]">keyboard_arrow_down</span>
+      </button>
+
+      {#if showEditorMenu}
+        <div class="absolute top-full left-0 mt-1.5 w-48 bg-surface border border-outline-variant rounded-xl shadow-xl z-50 flex flex-col py-1.5 animate-fade-in text-xs">
+          <!-- Canvas Toggle -->
+          <label 
+            class="flex items-center justify-between px-3 py-2 hover:bg-surface-container-low transition-colors cursor-pointer select-none font-medium text-on-surface"
+          >
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-base text-on-surface-variant">brush</span>
+              <span>{t('practice.modeCanvasLabel') || (store.settings.language === 'Deutsch' ? 'Zeichenfläche' : 'Canvas')}</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={showCanvas} 
+              onchange={(e) => {
+                showCanvas = e.currentTarget.checked;
+                // Ensure at least one view is active
+                if (!showCanvas && !showText) {
+                  showText = true;
+                }
+              }}
+              class="accent-primary h-4 w-4 cursor-pointer"
+            />
+          </label>
+
+          <!-- Text Editor Toggle -->
+          <label 
+            class="flex items-center justify-between px-3 py-2 hover:bg-surface-container-low transition-colors cursor-pointer select-none font-medium text-on-surface"
+          >
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-base text-on-surface-variant">edit_note</span>
+              <span>{t('practice.modeTextLabel') || (store.settings.language === 'Deutsch' ? 'Texteditor' : 'Text Editor')}</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={showText} 
+              onchange={(e) => {
+                showText = e.currentTarget.checked;
+                // Ensure at least one view is active
+                if (!showText && !showCanvas) {
+                  showCanvas = true;
+                }
+              }}
+              class="accent-primary h-4 w-4 cursor-pointer"
+            />
+          </label>
+        </div>
+      {/if}
     </div>
 
     {#if showCanvas}
-      <!-- Zoom Controls -->
-      <div class="flex items-center gap-1 border-r border-outline-variant/30 pr-4">
-        <button 
-          onclick={() => {
-            zoomScale = Math.max(0.2, zoomScale - 0.1);
-            if (canvasMode === 'infinite') {
-              panOffset = {
-                x: Math.min(0, panOffset.x),
-                y: Math.min(0, panOffset.y)
-              };
-            }
-          }}
-          disabled={zoomScale <= 0.2}
-          class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-          title={t('practice.zoomOut')}
-        >
-          <span class="material-symbols-outlined text-base">zoom_out</span>
-        </button>
-        
-        <button
-          onclick={() => {
-            zoomScale = 1;
-            panOffset = { x: 0, y: 0 };
-          }}
-          class="px-2 py-1 text-[10px] text-on-surface hover:bg-surface-container-high rounded font-semibold select-none cursor-pointer transition-colors"
-          title={t('practice.resetZoom')}
-        >
-          {Math.round(zoomScale * 100)}%
-        </button>
-        
-        <button 
-          onclick={() => {
-            zoomScale = Math.min(4.0, zoomScale + 0.1);
-          }}
-          disabled={zoomScale >= 4.0}
-          class="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-40 focus:outline-none cursor-pointer flex items-center justify-center"
-          title={t('practice.zoomIn')}
-        >
-          <span class="material-symbols-outlined text-base">zoom_in</span>
-        </button>
-      </div>
-
       <!-- A4 Page Switcher (Only in A4 Mode) -->
       {#if canvasMode === 'a4'}
         <div class="flex items-center gap-2 border-r border-outline-variant/30 pr-4">

@@ -1146,21 +1146,21 @@
               class="px-2.5 py-1 text-[11px] rounded-md font-semibold transition-all cursor-pointer
                      {modelStatsMode === 'chart' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
             >
-              {t('stats.modelStatsChart') || (store.settings.language === 'Deutsch' ? 'Diagramm' : 'Chart')}
+              {t('settings.stats.modelStatsChart')}
             </button>
             <button
               onclick={() => modelStatsMode = 'selection'}
               class="px-2.5 py-1 text-[11px] rounded-md font-semibold transition-all cursor-pointer
                      {modelStatsMode === 'selection' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
             >
-              {t('stats.modelStatsSelection') || (store.settings.language === 'Deutsch' ? 'Auswahl' : 'Selection')}
+              {t('settings.stats.modelStatsSelection')}
             </button>
             <button
               onclick={() => modelStatsMode = 'total'}
               class="px-2.5 py-1 text-[11px] rounded-md font-semibold transition-all cursor-pointer
                      {modelStatsMode === 'total' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
             >
-              {t('stats.modelStatsTotal') || (store.settings.language === 'Deutsch' ? 'Gesamt' : 'Total')}
+              {t('settings.stats.modelStatsTotal')}
             </button>
           </div>
 
