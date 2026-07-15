@@ -261,7 +261,11 @@
     "usingGlobalEditorFontSizeDesc": "This lesson is using the global text editor font size."
   },
   "practice": {
-    "backToProject": "Back to Project",
+    "backToProject": "Back to project",
+    "attemptsTitle": "Attempts",
+    "attemptsNew": "New Attempt",
+    "attemptsDeleteTitle": "Delete Attempt",
+    "attemptsDeleteConfirm": "Are you sure you want to delete '{name}'?",
     "markIncomplete": "Mark as Incomplete",
     "markCompleted": "Mark as Completed",
     "prevTask": "Previous Task",

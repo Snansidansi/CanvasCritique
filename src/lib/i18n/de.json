@@ -261,6 +261,10 @@
   },
   "practice": {
     "backToProject": "Zurück zum Projekt",
+    "attemptsTitle": "Versuche",
+    "attemptsNew": "Neuer Versuch",
+    "attemptsDeleteTitle": "Versuch löschen",
+    "attemptsDeleteConfirm": "Möchtest du '{name}' wirklich löschen?",
     "markIncomplete": "Als unvollständig markieren",
     "markCompleted": "Als abgeschlossen markieren",
     "prevTask": "Vorherige Aufgabe",

@@ -41,6 +41,18 @@ export interface Task {
   contextFiles?: MediaFile[];
   templateCanvasData?: string | null;
   providedFiles?: MediaFile[];
+  attempts?: TaskAttempt[];
+  activeAttemptId?: string | null;
+}
+
+export interface TaskAttempt {
+  id: string;
+  taskId: string;
+  name: string;
+  timestamp: string;
+  canvasData: any;
+  editorText: string;
+  critique: any;
 }
 
 export interface ProjectSettingsOverride {

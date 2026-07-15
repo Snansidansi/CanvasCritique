@@ -1,5 +1,5 @@
 import Database from '@tauri-apps/plugin-sql';
-import type { Profile, Settings, Project, Task, CustomBackground, ProjectSettingsOverride, RequestLog } from './state/types';
+import type { Profile, Settings, Project, Task, CustomBackground, ProjectSettingsOverride, RequestLog, TaskAttempt } from './state/types';
 import { defaultSettings, defaultProjects } from './state/defaults';
 
 let dbInstance: Database | null = null;
@@ -38,6 +38,25 @@ export async function initDb(): Promise<Database> {
   } catch (_) {
     // Column already exists
   }
+
+  try {
+    await db.execute('ALTER TABLE tasks ADD COLUMN active_attempt_id TEXT');
+  } catch (_) {
+    // Column already exists
+  }
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS task_attempts (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      timestamp TEXT NOT NULL,
+      critique_json TEXT,
+      canvas_data_json TEXT,
+      editor_text TEXT,
+      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+    )
+  `);
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS profiles (
@@ -564,7 +583,7 @@ export async function migrateSolutionsFromDbToFs(db: Database): Promise<void> {
 
 export async function getTasks(db: Database): Promise<Task[]> {
   const rows: any[] = await db.select(
-    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, project_id, background, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data, provided_files_json FROM tasks'
+    'SELECT id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, project_id, background, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data, provided_files_json, active_attempt_id FROM tasks'
   );
   const tasks = rows.map(r => {
     const task: Task = {
@@ -583,7 +602,8 @@ export async function getTasks(db: Database): Promise<Task[]> {
       defaultEditMode: r.default_edit_mode || 'both',
       contextFiles: JSON.parse(r.context_files_json || '[]'),
       templateCanvasData: r.template_canvas_data || null,
-      providedFiles: JSON.parse(r.provided_files_json || '[]')
+      providedFiles: JSON.parse(r.provided_files_json || '[]'),
+      activeAttemptId: r.active_attempt_id || null
     };
     if (r.settings_override_json) {
       try { task.settingsOverride = JSON.parse(r.settings_override_json); } catch (_) {}
@@ -598,6 +618,36 @@ export async function getTasks(db: Database): Promise<Task[]> {
     const solution = await loadTaskSolutionFromDisk(task.id);
     (task as any).canvasData = solution.canvasData;
     task.editorText = solution.editorText;
+
+    // Load attempts or migrate
+    const attempts = await getAttemptsForTask(db, task.id);
+    if (attempts.length > 0) {
+      task.attempts = attempts;
+      if (!task.activeAttemptId) {
+        task.activeAttemptId = attempts[0].id;
+        await db.execute('UPDATE tasks SET active_attempt_id = ? WHERE id = ?', [attempts[0].id, task.id]);
+      }
+    } else {
+      // Migrate existing single solution to attempt 1
+      const attemptId = 'attempt_default_' + task.id;
+      const defaultAttempt: TaskAttempt = {
+        id: attemptId,
+        taskId: task.id,
+        name: (task.settingsOverride?.overrideSettings && task.settingsOverride.language === 'Deutsch') || defaultSettings.language === 'Deutsch'
+          ? 'Versuch 1'
+          : 'Try 1',
+        timestamp: new Date().toISOString(),
+        canvasData: solution.canvasData,
+        editorText: solution.editorText,
+        critique: task.critique
+      };
+      
+      // Save it to database
+      await insertAttempt(db, defaultAttempt);
+      task.attempts = [defaultAttempt];
+      task.activeAttemptId = attemptId;
+      await db.execute('UPDATE tasks SET active_attempt_id = ? WHERE id = ?', [attemptId, task.id]);
+    }
   }));
 
   return tasks;
@@ -654,6 +704,7 @@ export async function updateTask(db: Database, id: string, updates: Partial<any>
   if (updates.contextFiles !== undefined) { fields.push('context_files_json = ?'); values.push(JSON.stringify(updates.contextFiles)); }
   if (updates.templateCanvasData !== undefined) { fields.push('template_canvas_data = ?'); values.push(updates.templateCanvasData); }
   if (updates.providedFiles !== undefined) { fields.push('provided_files_json = ?'); values.push(JSON.stringify(updates.providedFiles)); }
+  if (updates.activeAttemptId !== undefined) { fields.push('active_attempt_id = ?'); values.push(updates.activeAttemptId); }
 
   if (updates.canvasData !== undefined || updates.editorText !== undefined) {
     await saveTaskSolutionToDisk(id, { canvasData: updates.canvasData, editorText: updates.editorText });
@@ -783,4 +834,61 @@ export async function loadAllData(db: Database): Promise<AllData> {
   }
 
   return { profiles, settings, projects, tasks, backgrounds, requestLogs };
+}
+
+// ── Task Attempts ──
+
+export async function getAttemptsForTask(db: Database, taskId: string): Promise<TaskAttempt[]> {
+  try {
+    const rows: any[] = await db.select(
+      'SELECT id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text FROM task_attempts WHERE task_id = ? ORDER BY timestamp ASC',
+      [taskId]
+    );
+    return rows.map(r => ({
+      id: r.id,
+      taskId: r.task_id,
+      name: r.name,
+      timestamp: r.timestamp,
+      canvasData: r.canvas_data_json ? JSON.parse(r.canvas_data_json) : null,
+      editorText: r.editor_text || '',
+      critique: r.critique_json ? JSON.parse(r.critique_json) : null
+    }));
+  } catch (err) {
+    console.error('Failed to load attempts from DB:', err);
+    return [];
+  }
+}
+
+export async function insertAttempt(db: Database, attempt: TaskAttempt): Promise<void> {
+  await db.execute(
+    'INSERT INTO task_attempts (id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [
+      attempt.id,
+      attempt.taskId,
+      attempt.name,
+      attempt.timestamp,
+      attempt.critique ? JSON.stringify(attempt.critique) : null,
+      attempt.canvasData ? JSON.stringify(attempt.canvasData) : null,
+      attempt.editorText
+    ]
+  );
+}
+
+export async function updateAttempt(db: Database, id: string, updates: Partial<TaskAttempt>): Promise<void> {
+  const fields: string[] = [];
+  const values: any[] = [];
+
+  if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
+  if (updates.timestamp !== undefined) { fields.push('timestamp = ?'); values.push(updates.timestamp); }
+  if (updates.critique !== undefined) { fields.push('critique_json = ?'); values.push(updates.critique ? JSON.stringify(updates.critique) : null); }
+  if (updates.canvasData !== undefined) { fields.push('canvas_data_json = ?'); values.push(updates.canvasData ? JSON.stringify(updates.canvasData) : null); }
+  if (updates.editorText !== undefined) { fields.push('editor_text = ?'); values.push(updates.editorText); }
+
+  if (fields.length === 0) return;
+  values.push(id);
+  await db.execute(`UPDATE task_attempts SET ${fields.join(', ')} WHERE id = ?`, values);
+}
+
+export async function deleteAttempt(db: Database, id: string): Promise<void> {
+  await db.execute('DELETE FROM task_attempts WHERE id = ?', [id]);
 }

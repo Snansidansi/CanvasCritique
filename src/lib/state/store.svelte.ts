@@ -9,7 +9,8 @@ import type {
   ConfirmDialog,
   ExportDialog,
   ImportDialog,
-  RequestLog
+  RequestLog,
+  TaskAttempt
 } from './types';
 
 import {
@@ -37,7 +38,12 @@ import {
   deleteCustomBackground as dbDeleteCustomBackground,
   insertRequestLog,
   clearRequestLogs,
+  insertAttempt as dbInsertAttempt,
+  updateAttempt as dbUpdateAttempt,
+  deleteAttempt as dbDeleteAttempt
 } from '../db';
+
+import { tick } from 'svelte';
 
 import { getMediaDataUrl, saveMediaToDb, migrateMediaFromFs, migrateMediaHashes, migrateMediaExtensions, deleteMediaForTask, collectMediaIds, saveMediaBytesToDb, deleteMediaFromDb } from '../db/media';
 import { save } from '@tauri-apps/plugin-dialog';
@@ -1074,12 +1080,23 @@ class CanvasCritiqueStore {
     if (updatedData.instructionFile !== undefined) (task as any).instructionFile = updatedData.instructionFile;
     if (updatedData.solutionFile !== undefined) (task as any).solutionFile = updatedData.solutionFile;
     if (updatedData.completed !== undefined) task.completed = updatedData.completed;
-    if (updatedData.critique !== undefined) task.critique = updatedData.critique;
+    if (updatedData.critique !== undefined) {
+      task.critique = updatedData.critique;
+      const db = this.getDb();
+      if (task.activeAttemptId) {
+        const attempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+        if (attempt) {
+          attempt.critique = updatedData.critique;
+          await dbUpdateAttempt(db, attempt.id, { critique: updatedData.critique });
+        }
+      }
+    }
     if (updatedData.background !== undefined) task.background = updatedData.background;
     if (updatedData.settingsOverride !== undefined) task.settingsOverride = updatedData.settingsOverride;
     if (updatedData.defaultEditMode !== undefined) task.defaultEditMode = updatedData.defaultEditMode;
     if (updatedData.contextFiles !== undefined) task.contextFiles = this.stripDataUrls(updatedData.contextFiles);
     if (updatedData.providedFiles !== undefined) task.providedFiles = this.stripDataUrls(updatedData.providedFiles);
+    if (updatedData.activeAttemptId !== undefined) task.activeAttemptId = updatedData.activeAttemptId;
 
     // Auto-add category if it isn't listed
     if (task.category && project.categories && !project.categories.includes(task.category)) {
@@ -1103,7 +1120,8 @@ class CanvasCritiqueStore {
       defaultEditMode: task.defaultEditMode || 'both',
       contextFiles: task.contextFiles || [],
       providedFiles: task.providedFiles || [],
-      templateCanvasData: task.templateCanvasData || null
+      templateCanvasData: task.templateCanvasData || null,
+      activeAttemptId: task.activeAttemptId || null
     });
     await this.saveProjects();
 
@@ -1397,10 +1415,28 @@ class CanvasCritiqueStore {
     };
   }
 
+  findTaskById(taskId: string): Task | null {
+    for (const project of this.projects) {
+      const task = project.tasks?.find(t => t.id === taskId);
+      if (task) return task;
+    }
+    return null;
+  }
+
   async saveCanvasState(taskId: string, data: any): Promise<void> {
     this.canvasSaves[taskId] = data;
     const db = this.getDb();
     await setCanvasState(db, taskId, data);
+
+    const task = this.findTaskById(taskId);
+    if (task && task.activeAttemptId) {
+      const attempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+      if (attempt) {
+        attempt.canvasData = data;
+        attempt.timestamp = new Date().toISOString();
+        await dbUpdateAttempt(db, attempt.id, { canvasData: data, timestamp: attempt.timestamp });
+      }
+    }
   }
 
   getCanvasState(taskId: string): any {
@@ -1411,6 +1447,17 @@ class CanvasCritiqueStore {
     this.editorTexts[taskId] = text;
     const db = this.getDb();
     await dbUpdateTask(db, taskId, { editorText: text });
+
+    const task = this.findTaskById(taskId);
+    if (task && task.activeAttemptId) {
+      const attempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+      if (attempt) {
+        attempt.editorText = text;
+        attempt.timestamp = new Date().toISOString();
+        await dbUpdateAttempt(db, attempt.id, { editorText: text, timestamp: attempt.timestamp });
+      }
+    }
+
     for (const project of this.projects) {
       const t = project.tasks?.find(task => task.id === taskId);
       if (t) {
@@ -1422,6 +1469,125 @@ class CanvasCritiqueStore {
 
   getEditorText(taskId: string): string {
     return this.editorTexts[taskId] || '';
+  }
+
+  async selectAttempt(projectId: string, taskId: string, attemptId: string): Promise<void> {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+    const task = project.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    task.activeAttemptId = attemptId;
+    await dbUpdateTask(this.getDb(), taskId, { activeAttemptId: attemptId });
+
+    const attempt = task.attempts?.find(a => a.id === attemptId);
+    if (attempt) {
+      const canvasState = attempt.canvasData || {
+        pages: [{ id: 'page-' + Date.now(), strokeHistory: [], redoStack: [], eraserUndoStack: [] }],
+        infiniteStrokes: [],
+        infiniteRedo: [],
+        infiniteEraserUndo: [],
+        panOffset: { x: 0, y: 0 },
+        zoomScale: 1,
+        activePageIndex: 0,
+        canvasImages: []
+      };
+      this.canvasSaves[taskId] = canvasState;
+      await setCanvasState(this.getDb(), taskId, canvasState);
+
+      this.editorTexts[taskId] = attempt.editorText || '';
+      await dbUpdateTask(this.getDb(), taskId, { editorText: attempt.editorText || '' });
+
+      task.critique = attempt.critique || null;
+      await dbUpdateTask(this.getDb(), taskId, { critique: attempt.critique || null });
+    }
+
+    if (this.activeTask && this.activeTask.id === taskId) {
+      this.activeTask = null;
+      await tick();
+      this.activeTask = task;
+    }
+  }
+
+  async createAttempt(projectId: string, taskId: string, attemptName?: string): Promise<void> {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+    const task = project.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    if (!task.attempts) {
+      task.attempts = [];
+    }
+
+    const nextNum = task.attempts.length + 1;
+    const defaultName = this.settings.language === 'Deutsch' 
+      ? `Versuch ${nextNum}` 
+      : `Try ${nextNum}`;
+    const name = attemptName || defaultName;
+
+    const attemptId = 'attempt_' + Date.now();
+    const newAttempt: TaskAttempt = {
+      id: attemptId,
+      taskId: taskId,
+      name: name,
+      timestamp: new Date().toISOString(),
+      canvasData: {
+        pages: [{ id: 'page-' + Date.now(), strokeHistory: [], redoStack: [], eraserUndoStack: [] }],
+        infiniteStrokes: [],
+        infiniteRedo: [],
+        infiniteEraserUndo: [],
+        panOffset: { x: 0, y: 0 },
+        zoomScale: 1,
+        activePageIndex: 0,
+        canvasImages: []
+      },
+      editorText: '',
+      critique: null
+    };
+
+    const db = this.getDb();
+    await dbInsertAttempt(db, newAttempt);
+    task.attempts.push(newAttempt);
+    await this.selectAttempt(projectId, taskId, attemptId);
+  }
+
+  async renameAttempt(projectId: string, taskId: string, attemptId: string, newName: string): Promise<void> {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+    const task = project.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const attempt = task.attempts?.find(a => a.id === attemptId);
+    if (attempt) {
+      attempt.name = newName;
+      await dbUpdateAttempt(this.getDb(), attemptId, { name: newName });
+    }
+  }
+
+  async deleteAttempt(projectId: string, taskId: string, attemptId: string): Promise<void> {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+    const task = project.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    if (!task.attempts) return;
+
+    const attemptIndex = task.attempts.findIndex(a => a.id === attemptId);
+    if (attemptIndex === -1) return;
+
+    await dbDeleteAttempt(this.getDb(), attemptId);
+    task.attempts.splice(attemptIndex, 1);
+
+    if (task.activeAttemptId === attemptId) {
+      if (task.attempts.length > 0) {
+        const fallbackAttempt = task.attempts[0];
+        await this.selectAttempt(projectId, taskId, fallbackAttempt.id);
+      } else {
+        task.activeAttemptId = null;
+        await dbUpdateTask(this.getDb(), taskId, { activeAttemptId: null });
+        await this.createAttempt(projectId, taskId);
+      }
+    }
   }
 
   importProject(projectData: any, targetProjectId?: string, targetCategory?: string): void {

@@ -28,7 +28,37 @@
   let currentTaskIndex = $derived(
     store.activeProject?.tasks?.findIndex(t => t.id === task.id) ?? -1
   );
+
+  let showAttemptsMenu = $state(false);
+  let editingAttemptId = $state<string | null>(null);
+  let editNameValue = $state('');
+  
+  const activeAttempt = $derived(
+    task.attempts?.find(a => a.id === task.activeAttemptId)
+  );
+  
+  function handleDocumentClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (showAttemptsMenu && !target.closest('.attempts-menu-container')) {
+      showAttemptsMenu = false;
+      editingAttemptId = null;
+    }
+  }
+
+  function focusInput(node: HTMLInputElement) {
+    node.focus();
+    node.select();
+  }
+
+  async function saveRename(attemptId: string) {
+    if (editNameValue.trim() && store.activeProject) {
+      await store.renameAttempt(store.activeProject.id, task.id, attemptId, editNameValue.trim());
+      editingAttemptId = null;
+    }
+  }
 </script>
+
+<svelte:window onclick={handleDocumentClick} />
 
 <header class="bg-surface border-b border-outline-variant flex items-center justify-between w-full px-6 py-3 shrink-0 z-20 select-none gap-4">
   <!-- Left: Back link and Title -->
@@ -50,6 +80,124 @@
         {task.completed ? 'check_circle' : 'radio_button_unchecked'}
       </span>
     </button>
+
+    <!-- Attempts Switcher -->
+    <div class="relative attempts-menu-container ml-1">
+      <button 
+        onclick={() => showAttemptsMenu = !showAttemptsMenu}
+        class="px-2.5 py-1 rounded-lg border border-outline-variant hover:bg-surface-container-high text-xs font-semibold text-on-surface-variant flex items-center gap-1.5 cursor-pointer focus:outline-none transition-colors"
+        title={t('practice.attemptsTitle')}
+      >
+        <span class="material-symbols-outlined text-sm">history</span>
+        <span class="truncate max-w-24">{activeAttempt?.name || (store.settings.language === 'Deutsch' ? 'Versuch 1' : 'Try 1')}</span>
+        <span class="material-symbols-outlined text-[14px]">keyboard_arrow_down</span>
+      </button>
+
+      {#if showAttemptsMenu}
+        <div class="absolute top-full left-0 mt-1.5 w-60 bg-surface border border-outline-variant rounded-xl shadow-xl z-50 flex flex-col animate-fade-in">
+          <div class="px-3.5 py-2.5 border-b border-outline-variant/30 text-xs font-bold text-primary flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm">history</span>
+            <span>{t('practice.attemptsTitle')}</span>
+          </div>
+
+          <div class="max-h-48 overflow-y-auto py-1.5 flex flex-col">
+            {#each task.attempts || [] as attempt}
+              <div 
+                class="flex items-center justify-between px-3 py-1.5 hover:bg-surface-container-low transition-colors group cursor-pointer text-xs
+                       {task.activeAttemptId === attempt.id ? 'bg-primary/5 text-primary font-semibold' : 'text-on-surface'}"
+                onclick={() => {
+                  if (editingAttemptId !== attempt.id) {
+                    store.selectAttempt(store.activeProject.id, task.id, attempt.id);
+                    showAttemptsMenu = false;
+                  }
+                }}
+                role="button"
+                tabindex="0"
+                onkeydown={(e) => {
+                  if (e.key === 'Enter' && editingAttemptId !== attempt.id) {
+                    store.selectAttempt(store.activeProject.id, task.id, attempt.id);
+                    showAttemptsMenu = false;
+                  }
+                }}
+              >
+                <div class="flex items-center gap-2 min-w-0 grow">
+                  <span class="material-symbols-outlined text-xs shrink-0">
+                    {task.activeAttemptId === attempt.id ? 'radio_button_checked' : 'radio_button_unchecked'}
+                  </span>
+                  
+                  {#if editingAttemptId === attempt.id}
+                    <div class="flex items-center gap-1 min-w-0 grow" onclick={e => e.stopPropagation()} role="presentation">
+                      <input
+                        type="text"
+                        bind:value={editNameValue}
+                        onkeydown={(e) => {
+                          if (e.key === 'Enter') {
+                            saveRename(attempt.id);
+                          } else if (e.key === 'Escape') {
+                            editingAttemptId = null;
+                          }
+                        }}
+                        class="bg-surface-container border border-primary px-1.5 py-0.5 rounded text-[11px] text-on-surface focus:outline-none w-28 grow"
+                        use:focusInput
+                      />
+                      <button 
+                        onclick={() => saveRename(attempt.id)} 
+                        class="material-symbols-outlined text-xs text-primary hover:bg-surface-container p-0.5 rounded border-0 bg-transparent cursor-pointer flex items-center justify-center"
+                      >check</button>
+                      <button 
+                        onclick={() => editingAttemptId = null} 
+                        class="material-symbols-outlined text-xs text-on-surface-variant hover:bg-surface-container p-0.5 rounded border-0 bg-transparent cursor-pointer flex items-center justify-center"
+                      >close</button>
+                    </div>
+                  {:else}
+                    <span class="truncate pr-2">{attempt.name}</span>
+                  {/if}
+                </div>
+
+                {#if editingAttemptId !== attempt.id}
+                  <div class="flex items-center gap-0.5 shrink-0" onclick={e => e.stopPropagation()} role="presentation">
+                    <button 
+                      onclick={() => {
+                        editingAttemptId = attempt.id;
+                        editNameValue = attempt.name;
+                      }}
+                      class="material-symbols-outlined text-xs text-on-surface-variant hover:text-primary p-1 hover:bg-surface-container rounded opacity-0 group-hover:opacity-100 transition-opacity border-0 bg-transparent cursor-pointer flex items-center justify-center"
+                      title={store.settings.language === 'Deutsch' ? 'Umbenennen' : 'Rename'}
+                    >edit</button>
+                    {#if task.attempts && task.attempts.length > 1}
+                      <button
+                        onclick={() => {
+                          store.confirm(
+                            t('practice.attemptsDeleteTitle'),
+                            t('practice.attemptsDeleteConfirm', { name: attempt.name }),
+                            () => {
+                              store.deleteAttempt(store.activeProject.id, task.id, attempt.id);
+                            }
+                          );
+                        }}
+                        class="material-symbols-outlined text-xs text-error hover:bg-error/10 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity border-0 bg-transparent cursor-pointer flex items-center justify-center"
+                        title={t('practice.attemptsDeleteTitle')}
+                      >delete</button>
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+
+          <button
+            onclick={() => {
+              store.createAttempt(store.activeProject.id, task.id);
+              showAttemptsMenu = false;
+            }}
+            class="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/5 border-t border-outline-variant/30 transition-colors border-0 bg-transparent cursor-pointer rounded-b-xl"
+          >
+            <span class="material-symbols-outlined text-sm">add</span>
+            <span>{t('practice.attemptsNew')}</span>
+          </button>
+        </div>
+      {/if}
+    </div>
 
     <!-- Task Navigation Buttons -->
     {#if store.activeProject?.tasks?.length > 1}
