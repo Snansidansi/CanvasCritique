@@ -4189,10 +4189,6 @@
         bind:shapeType
         {canvasMode}
         {strokeHistory}
-        {redoStack}
-        {eraserUndoStack}
-        {handleUndo}
-        {handleRedo}
         onInsertImage={triggerImageUpload}
       />
 

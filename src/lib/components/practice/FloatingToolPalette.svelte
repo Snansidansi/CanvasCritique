@@ -10,10 +10,6 @@
     shapeType = $bindable(),
     canvasMode,
     strokeHistory,
-    redoStack,
-    eraserUndoStack,
-    handleUndo,
-    handleRedo,
     onInsertImage = null
   } = $props();
 
@@ -360,30 +356,7 @@
         </button>
       </div>
 
-      <!-- Floating Undo / Redo Buttons -->
-      <div class="flex items-center gap-3">
-        <div class="h-5 w-px bg-outline-variant/30"></div>
-        
-        <button 
-          onclick={handleUndo}
-          disabled={eraserUndoStack.length === 0}
-          class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer border-0 bg-transparent"
-          title={t('practice.palette.undo')}
-        >
-          <span class="material-symbols-outlined text-[20px]">undo</span>
-          <span class="text-[9px]">Undo</span>
-        </button>
-        
-        <button 
-          onclick={handleRedo}
-          disabled={redoStack.length === 0}
-          class="flex flex-col items-center gap-0.5 focus:outline-none transition-colors text-on-surface-variant hover:text-on-surface disabled:opacity-40 cursor-pointer border-0 bg-transparent"
-          title={t('practice.palette.redo')}
-        >
-          <span class="material-symbols-outlined text-[20px]">redo</span>
-          <span class="text-[9px]">Redo</span>
-        </button>
-      </div>
+
       
       <!-- Pen/Eraser stroke width controller -->
       <div class="flex items-center gap-1.5 border-l border-outline-variant pl-4 min-w-35 justify-end shrink-0">
