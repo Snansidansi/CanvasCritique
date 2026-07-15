@@ -44,9 +44,10 @@ export interface CheckWorkTask {
   instructionFiles?: Array<{ name: string; dataUrl?: string; mediaId?: string }>;
   solutionFiles?: Array<{ name: string; dataUrl?: string; mediaId?: string }>;
   contextFiles?: Array<{ name: string; dataUrl?: string; mediaId?: string }>;
-  defaultEditMode?: 'canvas' | 'text' | 'both';
+  defaultEditMode?: string;
   instructionFile?: { name: string; dataUrl?: string; mediaId?: string }; // legacy
   solutionFile?: { name: string; dataUrl?: string; mediaId?: string }; // legacy
+  multipleChoiceTasks?: any[];
 }
 
 export interface CheckWorkSettings {
@@ -85,6 +86,7 @@ export interface CheckWorkOptions {
   defaultSystemPrompt: string;
   activeMode?: 'canvas' | 'text' | 'both' | 'none';
   editorText?: string;
+  multipleChoiceAnswers?: Record<string, string[]>;
 }
 
 export interface CheckWorkMarker {
@@ -129,7 +131,8 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     settings,
     defaultSystemPrompt,
     activeMode = 'canvas',
-    editorText = ''
+    editorText = '',
+    multipleChoiceAnswers = {}
   } = options;
 
   // Helper to filter files
@@ -552,8 +555,39 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     dynamicInstructions += "- If there are errors in the typed text, return 'textMarkers' pointing to the lineIndex (0-based) and the exact substring containing the error.\n";
   }
 
+  if (task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0) {
+    dynamicInstructions += "- Evaluate the student's overall performance. Take into account the pre-graded Multiple Choice results listed in [STUDENT MULTIPLE CHOICE WORK] when determining the overall grade.\n";
+  }
+
   // Attach student submissions
   let studentWorkContent = "";
+  if (task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0) {
+    const lines: string[] = [];
+    lines.push('\n\n[STUDENT MULTIPLE CHOICE WORK]:');
+    lines.push('The student answered the following multiple choice questions. They have been pre-evaluated and graded:');
+    
+    task.multipleChoiceTasks.forEach((q, index) => {
+      const selected = multipleChoiceAnswers[q.id] || [];
+      const correctOptionIds = q.options.filter((o: any) => o.isCorrect).map((o: any) => o.id);
+      
+      const selectedSet = new Set(selected);
+      const correctSet = new Set(correctOptionIds);
+      const isCorrect = selectedSet.size === correctSet.size && [...selectedSet].every(id => correctSet.has(id));
+      
+      const questionText = q.question.replace(/\r?\n/g, ' ');
+      lines.push(`Question ${index + 1}: "${questionText}"`);
+      lines.push(`- Options provided:`);
+      q.options.forEach((o: any) => {
+        lines.push(`  * Option "${o.text}" (Correct: ${o.isCorrect ? 'Yes' : 'No'})`);
+      });
+      
+      const selectedTexts = q.options.filter((o: any) => selected.includes(o.id)).map((o: any) => o.text);
+      lines.push(`- Student selected: [${selectedTexts.join(', ')}]`);
+      lines.push(`- Pre-grading: ${isCorrect ? 'CORRECT' : 'INCORRECT'}`);
+    });
+    
+    studentWorkContent += lines.join('\n') + '\n\n';
+  }
   if (sendText) {
     studentWorkContent += `\n\n[STUDENT TEXT EDITOR WORK]:\n${editorText.trim()}\n\n`;
   }

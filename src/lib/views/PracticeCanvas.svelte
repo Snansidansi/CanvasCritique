@@ -3737,10 +3737,95 @@
     }
   }
 
+  function gradeMultipleChoiceLocally(questions: any[], answers: Record<string, string[]>): { feedbackText: string; feedbackScore: number } {
+    let correctCount = 0;
+    const totalQuestions = questions.length;
+    let feedbackLines: string[] = [];
+
+    const isDe = store.settings.language === 'Deutsch';
+
+    if (isDe) {
+      feedbackLines.push(`### Multiple-Choice-Auswertung`);
+    } else {
+      feedbackLines.push(`### Multiple Choice Evaluation`);
+    }
+
+    for (let i = 0; i < totalQuestions; i++) {
+      const q = questions[i];
+      const selected = answers[q.id] || [];
+      const correctOptionIds = q.options.filter((o: any) => o.isCorrect).map((o: any) => o.id);
+      
+      const selectedSet = new Set(selected);
+      const correctSet = new Set(correctOptionIds);
+      const isCorrect = selectedSet.size === correctSet.size && [...selectedSet].every(id => correctSet.has(id));
+
+      const questionText = q.question.replace(/\r?\n/g, ' ');
+      const displayQuestion = questionText.substring(0, 50) + (questionText.length > 50 ? '...' : '');
+
+      if (isCorrect) {
+        correctCount++;
+        feedbackLines.push(`- **Frage ${i + 1}:** ${displayQuestion} → ✅ ${isDe ? 'Richtig' : 'Correct'}`);
+      } else {
+        const correctNames = q.options.filter((o: any) => o.isCorrect).map((o: any) => o.text || '...').join(', ');
+        feedbackLines.push(`- **Frage ${i + 1}:** ${displayQuestion} → ❌ ${isDe ? 'Falsch' : 'Incorrect'} (${isDe ? 'Richtige Antwort' : 'Correct answer'}: *${correctNames}*)`);
+      }
+    }
+
+    const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 100;
+    
+    if (isDe) {
+      feedbackLines.push(`\n**Gesamtergebnis:** ${correctCount} von ${totalQuestions} richtig (${score}%)`);
+    } else {
+      feedbackLines.push(`\n**Overall Result:** ${correctCount} of ${totalQuestions} correct (${score}%)`);
+    }
+
+    return {
+      feedbackText: feedbackLines.join('\n'),
+      feedbackScore: score
+    };
+  }
+
   // Multimodal AI Grading using Cropped PNG bounding box
   // Multimodal AI Grading using Cropped PNG bounding box
   async function checkWork() {
     if (!store.activeProject || !store.activeTask) return;
+
+    // Check if we should grade locally (Multiple Choice only)
+    const hasDrawing = pages && (
+      (pages.some((p: any) => p.strokeHistory && p.strokeHistory.length > 0)) ||
+      (canvasImages && canvasImages.length > 0)
+    );
+    const hasText = editorText && editorText.trim() !== '';
+    const hasMc = task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0;
+
+    if (hasMc && !hasDrawing && !hasText) {
+      const result = gradeMultipleChoiceLocally(task.multipleChoiceTasks, selectedAnswers);
+      feedbackText = result.feedbackText;
+      feedbackScore = result.feedbackScore;
+      feedbackMarkers = [];
+      hasCheckedWork = true;
+      showFeedback = true;
+      showCritiqueBanner = true;
+
+      // Save to database
+      const updatedData: any = {
+        critique: {
+          feedbackText: result.feedbackText,
+          feedbackScore: result.feedbackScore,
+          feedbackMarkers: [],
+          canvasCritique: null,
+          textCritique: null
+        }
+      };
+      if (result.feedbackScore === 100 && store.settings.autoCompleteOnSuccess) {
+        updatedData.completed = true;
+      } else {
+        updatedData.completed = false;
+      }
+      
+      await store.updateTask(store.activeProject.id, task.id, updatedData);
+      return;
+    }
 
     const effectiveSettings = store.activeProject
       ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
@@ -3913,7 +3998,8 @@
         },
         defaultSystemPrompt: DEFAULT_SYSTEM_PROMPT,
         activeMode,
-        editorText
+        editorText,
+        multipleChoiceAnswers: selectedAnswers
       });
 
       // Auto-toggle to Preview mode when feedback is submitted
