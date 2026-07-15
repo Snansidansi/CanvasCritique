@@ -2029,8 +2029,14 @@
     }
 
     if (isClickInSelection) {
-      isMovingSelection = true;
-      selectionDragStart = { x: coords.x, y: coords.y };
+      if (selectedImage) {
+        isMovingImage = true;
+        imageDragStart = { x: coords.x, y: coords.y };
+        imageStartRect = { x: selectedImage.x, y: selectedImage.y, width: selectedImage.width, height: selectedImage.height };
+      } else {
+        isMovingSelection = true;
+        selectionDragStart = { x: coords.x, y: coords.y };
+      }
       selectionBox = null;
       if (longPressTimer) {
         clearTimeout(longPressTimer);
@@ -2246,6 +2252,7 @@
         infiniteStrokes = [...infiniteStrokes];
       }
       invalidateCache();
+      requestRedraw();
     } else if (activeTool === 'select' || isPointerSelect) {
       if (selectionBox) {
         selectionBox.x2 = coords.x;
@@ -2349,6 +2356,7 @@
     if (isMovingSelection) {
       saveToStore();
       isMovingSelection = false;
+      requestRedraw();
     } else if (activeTool === 'select' || isPointerSelect) {
       if (selectionBox) {
         selectedStrokes = getStrokesInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2);
