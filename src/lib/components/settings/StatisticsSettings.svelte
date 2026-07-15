@@ -736,9 +736,9 @@
                 id="statsStartDate"
                 type="date"
                 bind:value={customStartDate}
-                class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-md pl-2 pr-8 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-32"
+                class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-3 pr-9 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-38 transition-colors"
               />
-              <span class="material-symbols-outlined absolute right-2 text-on-surface-variant pointer-events-none text-base select-none">
+              <span class="material-symbols-outlined absolute right-2.5 text-primary pointer-events-none text-[16px] select-none">
                 calendar_today
               </span>
             </div>
@@ -752,9 +752,9 @@
                 id="statsEndDate"
                 type="date"
                 bind:value={customEndDate}
-                class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-md pl-2 pr-8 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-32"
+                class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-3 pr-9 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-38 transition-colors"
               />
-              <span class="material-symbols-outlined absolute right-2 text-on-surface-variant pointer-events-none text-base select-none">
+              <span class="material-symbols-outlined absolute right-2.5 text-primary pointer-events-none text-[16px] select-none">
                 calendar_today
               </span>
             </div>
@@ -1029,9 +1029,9 @@
                 tableStartDate = e.currentTarget.value;
                 tablePage = 1;
               }}
-              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-2 pr-8 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-32"
+              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-3 pr-9 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-38 transition-colors"
             />
-            <span class="material-symbols-outlined absolute right-2 text-on-surface-variant pointer-events-none text-base select-none">
+            <span class="material-symbols-outlined absolute right-2.5 text-primary pointer-events-none text-[16px] select-none">
               calendar_today
             </span>
           </div>
@@ -1045,9 +1045,9 @@
                 tableEndDate = e.currentTarget.value;
                 tablePage = 1;
               }}
-              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-2 pr-8 py-1 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-32"
+              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-3 pr-9 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-38 transition-colors"
             />
-            <span class="material-symbols-outlined absolute right-2 text-on-surface-variant pointer-events-none text-base select-none">
+            <span class="material-symbols-outlined absolute right-2.5 text-primary pointer-events-none text-[16px] select-none">
               calendar_today
             </span>
           </div>
