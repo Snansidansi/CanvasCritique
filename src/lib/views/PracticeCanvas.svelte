@@ -15,6 +15,7 @@
   import CustomBgModal from '../components/practice/CustomBgModal.svelte';
   import FloatingToolPalette from '../components/practice/FloatingToolPalette.svelte';
   import MarkerTooltip from '../components/practice/MarkerTooltip.svelte';
+  import MultipleChoicePractice from '../components/practice/MultipleChoicePractice.svelte';
 
   // External Helpers
   import { parseMarkdown } from '../utils/markdown';
@@ -58,9 +59,11 @@
   let bgOpacity = $state(15); // Background template opacity range 1-100
   let customBgUrl = $state(null);
   
-  // Active editing mode ('canvas' or 'text')
+  // Active editing mode ('canvas', 'text', 'multiple_choice')
   let showCanvas = $state(true);
   let showText = $state(false);
+  let showMultipleChoice = $state(false);
+  let selectedAnswers = $state<Record<string, string[]>>({});
 
   let infoPanelsLayout = $state<'vertical' | 'horizontal'>('vertical');
   let workspaceLayout = $state<'vertical' | 'horizontal'>('horizontal');
@@ -1452,6 +1455,13 @@
     });
   }
 
+  function handleAnswersChanged(newAnswers: Record<string, string[]>) {
+    selectedAnswers = newAnswers;
+    if (task.id) {
+      store.saveMultipleChoiceAnswers(task.id, newAnswers);
+    }
+  }
+
 
 
   let lastInitializedTaskId = '';
@@ -1482,19 +1492,39 @@
       
       // Union logic: start with default edit mode, then additionally show any editor with existing data
       const defaultMode = task.defaultEditMode || 'both';
-      if (defaultMode === 'canvas') {
+      const activeModes = defaultMode.split(',').map(m => m.trim());
+      
+      if (activeModes.includes('both')) {
         showCanvas = true;
-        showText = false;
-      } else if (defaultMode === 'text') {
-        showCanvas = false;
         showText = true;
+        showMultipleChoice = false;
       } else {
-        showCanvas = true;
-        showText = true;
+        showCanvas = activeModes.includes('canvas');
+        showText = activeModes.includes('text');
+        showMultipleChoice = activeModes.includes('multiple_choice');
       }
-      // Additionally open editors that contain data (union, not intersection)
+
+      // Check if MC tasks are defined
+      const hasMc = task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0;
+      if (!hasMc) {
+        showMultipleChoice = false;
+      }
+
+      // Union logic: Additionally open editors that contain data
       if (hasDrawing) showCanvas = true;
       if (hasText) showText = true;
+      
+      // If none are open but we have MC, default to MC. Else default to Canvas.
+      if (!showCanvas && !showText && !showMultipleChoice) {
+        if (hasMc) {
+          showMultipleChoice = true;
+        } else {
+          showCanvas = true;
+        }
+      }
+
+      const activeAttempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+      selectedAnswers = activeAttempt?.multipleChoiceAnswers || {};
 
       if (saved && hasDrawing) {
         pages = saved.pages || [
@@ -3921,6 +3951,7 @@
     {canvasMode}
     bind:showCanvas
     bind:showText
+    bind:showMultipleChoice
     bind:pages
     bind:activePageIndex
     {strokeHistory}
@@ -3940,7 +3971,7 @@
   />
 
   <!-- Interactive practice screen split layout -->
-  <div class="grow h-full flex overflow-hidden relative w-full {sidebarPosition === 'top' || sidebarPosition === 'bottom' ? 'flex-col' : 'flex-row'}">
+  <div class="grow h-full flex overflow-hidden relative w-full {sidebarPosition === 'top' || sidebarPosition === 'bottom' ? 'flex-col' : 'flex-row'} font-sans">
     
     <!-- Info panels: task, solution, and critique -->
     <PracticeInfoPanels
@@ -3953,13 +3984,13 @@
       {handleCritiqueClick}
       {task}
       textFontSize={canvasTextFontSize}
-      isRightContentVisible={showCanvas || showText}
+      isRightContentVisible={showCanvas || showText || showMultipleChoice}
       infoPanelsLayout={infoPanelsLayout}
       {sidebarPosition}
       onSelectProvidedImage={handleSelectProvidedImage}
     />
 
-    {#if showCanvas || showText}
+    {#if showCanvas || showText || showMultipleChoice}
     <div 
       class="grow flex overflow-hidden relative {workspaceLayout === 'vertical' ? 'flex-col' : 'flex-row'}" 
       style="order: {sidebarPosition === 'right' || sidebarPosition === 'bottom' ? 1 : 3}; 
@@ -4282,7 +4313,7 @@
     </section>
     {/if}
 
-    {#if showCanvas && showText}
+    {#if showCanvas && (showText || showMultipleChoice)}
       <!-- Adjustable Split Separator -->
       {#if workspaceLayout === 'vertical'}
         <div 
@@ -4309,62 +4340,87 @@
       {/if}
     {/if}
 
-    {#if showText}
-      <!-- Right side: Text Editor Workspace (LaTeX / Markdown Live Preview / Raw Editor) -->
-      <section 
-        class="text-editor-workspace flex flex-col bg-surface-container-lowest overflow-hidden select-text font-sans relative {showCanvas ? 'shrink-0' : 'grow'} {workspaceLayout === 'vertical' ? 'w-full' : 'h-full'}"
+    {#if showText || showMultipleChoice}
+      <!-- Right/Bottom Workspace container -->
+      <div 
+        class="flex overflow-hidden relative {showCanvas ? 'shrink-0' : 'grow'} {workspaceLayout === 'vertical' ? 'w-full flex-col' : 'h-full flex-row'}"
         style={showCanvas ? (workspaceLayout === 'vertical' ? `height: ${editorSplitHeight}px;` : `width: ${editorSplitWidth}px;`) : ''}
       >
-        
-        <div class="flex flex-col grow h-full w-full overflow-hidden p-6">
-          
-          <!-- Editor Title & Status Bar -->
-          <div class="flex justify-between items-center mb-3 select-none">
-            <h3 class="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
-              <span class="material-symbols-outlined text-[16px]">edit_note</span>
-              {store.settings.editorShowAllRaw ? t('practice.textEditor.writeTitle') : t('practice.textEditor.previewTitle')}
-            </h3>
-            <button 
-              type="button"
-              onclick={() => {
-                store.settings.editorShowAllRaw = !store.settings.editorShowAllRaw;
-                store.saveSettings();
-                activeLineIndex = null;
-              }}
-              class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
-              title="Toggle editor mode"
-            >
-              <span class="w-1.5 h-1.5 rounded-full {store.settings.editorShowAllRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
-              {store.settings.editorShowAllRaw ? 'Raw Mode' : t('practice.textEditor.previewTitle')}
-            </button>
-          </div>
+        <!-- Multiple Choice Practice panel -->
+        {#if showMultipleChoice}
+          <section class="flex flex-col bg-surface-container-lowest overflow-hidden select-text font-sans relative grow h-full min-w-0">
+            <MultipleChoicePractice
+              multipleChoiceTasks={task.multipleChoiceTasks}
+              bind:selectedAnswers={selectedAnswers}
+              fontSize={canvasTextFontSize}
+              onAnswersChanged={handleAnswersChanged}
+            />
+          </section>
+        {/if}
 
-          <!-- Main Editor Space -->
-          {#if store.settings.editorShowAllRaw}
-            <textarea
-              bind:value={editorText}
-              oninput={handleEditorInput}
-              placeholder=""
-              class="grow w-full h-full resize-none bg-transparent text-on-surface focus:outline-none leading-relaxed border border-outline-variant/30 rounded-xl p-6 font-sans shadow-inner bg-surface-container-low/20 animate-fade-in"
-              style="font-size: {store.getEffectiveSettings(store.activeProject?.id || '', store.activeTask?.id).editorFontSize || 16}px;"
-            ></textarea>
+        <!-- Split separator between Multiple Choice and Text Editor if both are visible -->
+        {#if showMultipleChoice && showText}
+          {#if workspaceLayout === 'vertical'}
+            <div class="h-px bg-outline-variant/30 w-full shrink-0"></div>
           {:else}
-            <!-- Preview Mode: non-editable rendered HTML -->
-            <div 
-              role="document"
-              class="grow w-full h-full overflow-y-auto bg-surface-container-low/20 border border-outline-variant/30 rounded-xl p-6 select-text text-left leading-relaxed max-w-none prose dark:prose-invert animate-fade-in custom-scrollbar"
-              style="font-size: {store.getEffectiveSettings(store.activeProject?.id || '', store.activeTask?.id).editorFontSize || 16}px;"
-              onpointerover={handlePreviewPointerOver}
-              onpointerout={handlePreviewPointerOut}
-            >
-              {@html getParsedPreviewHtml(editorText)}
-            </div>
+            <div class="w-px bg-outline-variant/30 self-stretch shrink-0 border-r border-outline-variant/10"></div>
           {/if}
+        {/if}
 
-        </div>
+        <!-- Text Editor Workspace -->
+        {#if showText}
+          <section class="text-editor-workspace flex flex-col bg-surface-container-lowest overflow-hidden select-text font-sans relative grow h-full min-w-0">
+            
+            <div class="flex flex-col grow h-full w-full overflow-hidden p-6">
+              
+              <!-- Editor Title & Status Bar -->
+              <div class="flex justify-between items-center mb-3 select-none">
+                <h3 class="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider font-sans">
+                  <span class="material-symbols-outlined text-[16px]">edit_note</span>
+                  {store.settings.editorShowAllRaw ? t('practice.textEditor.writeTitle') : t('practice.textEditor.previewTitle')}
+                </h3>
+                <button 
+                  type="button"
+                  onclick={() => {
+                    store.settings.editorShowAllRaw = !store.settings.editorShowAllRaw;
+                    store.saveSettings();
+                    activeLineIndex = null;
+                  }}
+                  class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
+                  title="Toggle editor mode"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full {store.settings.editorShowAllRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
+                  {store.settings.editorShowAllRaw ? 'Raw Mode' : t('practice.textEditor.previewTitle')}
+                </button>
+              </div>
 
+              <!-- Main Editor Space -->
+              {#if store.settings.editorShowAllRaw}
+                <textarea
+                  bind:value={editorText}
+                  oninput={handleEditorInput}
+                  placeholder=""
+                  class="grow w-full h-full resize-none bg-transparent text-on-surface focus:outline-none leading-relaxed border border-outline-variant/30 rounded-xl p-6 font-sans shadow-inner bg-surface-container-low/20 animate-fade-in"
+                  style="font-size: {store.getEffectiveSettings(store.activeProject?.id || '', store.activeTask?.id).editorFontSize || 16}px;"
+                ></textarea>
+              {:else}
+                <!-- Preview Mode: non-editable rendered HTML -->
+                <div 
+                  role="document"
+                  class="grow w-full h-full overflow-y-auto bg-surface-container-low/20 border border-outline-variant/30 rounded-xl p-6 select-text text-left leading-relaxed max-w-none prose dark:prose-invert animate-fade-in custom-scrollbar"
+                  style="font-size: {store.getEffectiveSettings(store.activeProject?.id || '', store.activeTask?.id).editorFontSize || 16}px;"
+                  onpointerover={handlePreviewPointerOver}
+                  onpointerout={handlePreviewPointerOut}
+                >
+                  {@html getParsedPreviewHtml(editorText)}
+                </div>
+              {/if}
 
-      </section>
+            </div>
+
+          </section>
+        {/if}
+      </div>
     {/if}
     </div>
     {/if}

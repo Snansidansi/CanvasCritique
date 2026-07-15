@@ -7,6 +7,7 @@
     canvasMode,
     showCanvas = $bindable(true),
     showText = $bindable(false),
+    showMultipleChoice = $bindable(false),
     pages = $bindable(),
     activePageIndex = $bindable(),
     strokeHistory,
@@ -24,7 +25,7 @@
     handleRedo,
     checkWork
   } = $props();
-
+  
   let currentTaskIndex = $derived(
     store.activeProject?.tasks?.findIndex(t => t.id === task.id) ?? -1
   );
@@ -128,7 +129,7 @@
       </button>
 
       {#if showAttemptsMenu}
-        <div class="absolute top-full left-0 mt-1.5 w-60 bg-surface border border-outline-variant rounded-xl shadow-xl z-50 flex flex-col animate-fade-in">
+        <div class="absolute top-full left-0 mt-1.5 w-60 bg-surface border border-outline-variant rounded-xl shadow-xl z-50 flex flex-col animate-fade-in font-sans">
           <div class="px-3.5 py-2.5 border-b border-outline-variant/30 text-xs font-bold text-primary flex items-center gap-1.5">
             <span class="material-symbols-outlined text-sm">history</span>
             <span>{t('practice.attemptsTitle')}</span>
@@ -235,7 +236,7 @@
   </div>
 
   <!-- Center: Premium Practice Controls Toolbar -->
-  <div class="flex items-center gap-4 text-xs font-semibold text-on-surface-variant flex-wrap justify-center">
+  <div class="flex items-center gap-4 text-xs font-semibold text-on-surface-variant flex-wrap justify-center font-sans">
     
     <!-- Editor Mode Switcher Dropdown -->
     <div class="relative editor-menu-container border-r border-outline-variant/30 pr-4">
@@ -250,7 +251,7 @@
       </button>
 
       {#if showEditorMenu}
-        <div class="absolute top-full left-0 mt-1.5 w-48 bg-surface border border-outline-variant rounded-xl shadow-xl z-50 flex flex-col py-1.5 animate-fade-in text-xs">
+        <div class="absolute top-full left-0 mt-1.5 w-48 bg-surface border border-outline-variant rounded-xl shadow-xl z-50 flex flex-col py-1.5 animate-fade-in text-xs font-sans">
           <!-- Canvas Toggle -->
           <label 
             class="flex items-center justify-between px-3 py-2 hover:bg-surface-container-low transition-colors cursor-pointer select-none font-medium text-on-surface"
@@ -286,6 +287,26 @@
               class="accent-primary h-4 w-4 cursor-pointer"
             />
           </label>
+
+          <!-- Multiple Choice Toggle -->
+          {#if task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0}
+            <label 
+              class="flex items-center justify-between px-3 py-2 hover:bg-surface-container-low transition-colors cursor-pointer select-none font-medium text-on-surface"
+            >
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-base text-on-surface-variant">rule</span>
+                <span>{t('practice.modeMultipleChoiceLabel') || (store.settings.language === 'Deutsch' ? 'Multiple Choice' : 'Multiple Choice')}</span>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={showMultipleChoice} 
+                onchange={(e) => {
+                  showMultipleChoice = e.currentTarget.checked;
+                }}
+                class="accent-primary h-4 w-4 cursor-pointer"
+              />
+            </label>
+          {/if}
         </div>
       {/if}
     </div>
