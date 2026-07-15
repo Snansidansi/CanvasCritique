@@ -2206,7 +2206,6 @@
         invalidateCache();
         requestRedraw();
       }
-      saveToStore();
       return;
     }
 
