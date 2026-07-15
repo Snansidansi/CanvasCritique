@@ -112,7 +112,7 @@
   });
 
   $effect(() => {
-    if (showText && editorText.trim() === '') {
+    if (showText && editorText.trim() === '' && !store.settings.editorShowAllRaw) {
       store.settings.editorShowAllRaw = true;
       store.saveSettings();
     }
