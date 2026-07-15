@@ -3939,6 +3939,7 @@
       onSelectProvidedImage={handleSelectProvidedImage}
     />
 
+    {#if showCanvas || showText}
     <div 
       class="grow flex overflow-hidden relative {workspaceLayout === 'vertical' ? 'flex-col' : 'flex-row'}" 
       style="order: {sidebarPosition === 'right' || sidebarPosition === 'bottom' ? 1 : 3}; 
@@ -4346,6 +4347,7 @@
       </section>
     {/if}
     </div>
+    {/if}
   </div>
 </div>
 
