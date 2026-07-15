@@ -459,8 +459,23 @@
   // Canvas element references & container sizes
   let canvasElement = $state(null);
   let canvasContainer = $state(null);
+  let rawContainerWidth = $state(800);
+  let rawContainerHeight = $state(600);
   let containerWidth = $state(800);
   let containerHeight = $state(600);
+
+  $effect(() => {
+    const w = Math.round(rawContainerWidth / 8) * 8;
+    const h = Math.round(rawContainerHeight / 8) * 8;
+    untrack(() => {
+      if (containerWidth !== w) {
+        containerWidth = w;
+      }
+      if (containerHeight !== h) {
+        containerHeight = h;
+      }
+    });
+  });
   
   let canvasWidth = $derived(canvasMode === 'infinite' ? Math.round(containerWidth / 8) * 8 : 800);
   let canvasHeight = $derived(canvasMode === 'infinite' ? Math.round(containerHeight / 8) * 8 : 1130);
@@ -3875,8 +3890,8 @@
     {#if showCanvas}
       <section 
       bind:this={canvasContainer} 
-      bind:clientWidth={containerWidth}
-      bind:clientHeight={containerHeight}
+      bind:clientWidth={rawContainerWidth}
+      bind:clientHeight={rawContainerHeight}
       ondragover={handleDragOver}
       ondrop={handleDrop}
       role="presentation"

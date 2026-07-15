@@ -36,8 +36,23 @@
   let startWidth = 0;
 
   // Panel resizing states and effects
+  let rawContainerWidth = $state(0);
+  let rawContainerHeight = $state(0);
   let containerWidth = $state(0);
   let containerHeight = $state(0);
+
+  $effect(() => {
+    const w = Math.round(rawContainerWidth / 8) * 8;
+    const h = Math.round(rawContainerHeight / 8) * 8;
+    untrack(() => {
+      if (containerWidth !== w) {
+        containerWidth = w;
+      }
+      if (containerHeight !== h) {
+        containerHeight = h;
+      }
+    });
+  });
   let panelSizes = $state<Record<string, number>>({});
   let lastContainerSize = 0;
 
@@ -596,8 +611,8 @@
 
 {#if activeLeftPanels.length > 0}
   <section 
-    bind:clientHeight={containerHeight}
-    bind:clientWidth={containerWidth}
+    bind:clientHeight={rawContainerHeight}
+    bind:clientWidth={rawContainerWidth}
     class="bg-surface-container-low flex overflow-hidden {isRightContentVisible ? 'shrink-0' : 'grow w-full'} {infoPanelsLayout === 'vertical' ? 'flex-col' : 'flex-row'}
            {sidebarFlow === 'column' ? 'w-full' : 'h-full'}
            {sidebarPosition === 'left' ? 'border-r border-outline-variant' : ''}
