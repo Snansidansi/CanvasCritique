@@ -732,9 +732,58 @@ Return a SINGLE JSON object with the following schema:
 
   function getOpenRouterMedia(mediaFile: { name: string; dataUrl?: string }) {
     if (!mediaFile || !mediaFile.dataUrl) return null;
+    
+    const nameLower = mediaFile.name.toLowerCase();
+    
+    // PDF Document Modality
+    if (nameLower.endsWith('.pdf')) {
+      return {
+        type: 'file',
+        file: {
+          filename: mediaFile.name,
+          file_data: mediaFile.dataUrl
+        }
+      };
+    }
+    
+    // Audio Modality
+    if (nameLower.endsWith('.mp3') || nameLower.endsWith('.wav') || nameLower.endsWith('.m4a') || nameLower.endsWith('.ogg')) {
+      let format = 'mp3';
+      if (nameLower.endsWith('.wav')) format = 'wav';
+      else if (nameLower.endsWith('.ogg')) format = 'ogg';
+      else if (nameLower.endsWith('.m4a')) format = 'm4a';
+      
+      const base64Data = mediaFile.dataUrl.includes(',') 
+        ? mediaFile.dataUrl.split(',')[1] 
+        : mediaFile.dataUrl;
+
+      return {
+        type: 'input_audio',
+        input_audio: {
+          data: base64Data,
+          format: format
+        }
+      };
+    }
+    
+    // Video Modality
+    if (nameLower.endsWith('.mp4') || nameLower.endsWith('.webm') || nameLower.endsWith('.mov')) {
+      return {
+        type: 'video_url',
+        video_url: {
+          url: mediaFile.dataUrl
+        },
+        videoUrl: {
+          url: mediaFile.dataUrl
+        }
+      };
+    }
+
+    // Default: Image Modality
     return {
       type: 'image_url',
-      imageUrl: { url: mediaFile.dataUrl }
+      imageUrl: { url: mediaFile.dataUrl },
+      image_url: { url: mediaFile.dataUrl }
     };
   }
 
