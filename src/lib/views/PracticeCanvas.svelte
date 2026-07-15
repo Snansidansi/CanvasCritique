@@ -1461,7 +1461,15 @@
     const taskId = task.id;
     if (taskId) {
       const isNewTask = taskId !== lastInitializedTaskId;
+      if (!isNewTask) return;
       lastInitializedTaskId = taskId;
+      
+      // Clear selections since we switched task
+      selectedStrokes = [];
+      selectedImage = null;
+      selectionBox = null;
+      isMovingSelection = false;
+
       const saved = untrack(() => store.getCanvasState(taskId));
       const text = untrack(() => store.getEditorText(taskId) || '');
       
@@ -1471,24 +1479,23 @@
         (saved.canvasImages && saved.canvasImages.length > 0)
       );
       const hasText = text.trim() !== '';
-      // Only set edit mode when opening a new/different task, not on every re-render
-      if (isNewTask) {
-        // Union logic: start with default edit mode, then additionally show any editor with existing data
-        const defaultMode = task.defaultEditMode || 'both';
-        if (defaultMode === 'canvas') {
-          showCanvas = true;
-          showText = false;
-        } else if (defaultMode === 'text') {
-          showCanvas = false;
-          showText = true;
-        } else {
-          showCanvas = true;
-          showText = true;
-        }
-        // Additionally open editors that contain data (union, not intersection)
-        if (hasDrawing) showCanvas = true;
-        if (hasText) showText = true;
+      
+      // Union logic: start with default edit mode, then additionally show any editor with existing data
+      const defaultMode = task.defaultEditMode || 'both';
+      if (defaultMode === 'canvas') {
+        showCanvas = true;
+        showText = false;
+      } else if (defaultMode === 'text') {
+        showCanvas = false;
+        showText = true;
+      } else {
+        showCanvas = true;
+        showText = true;
       }
+      // Additionally open editors that contain data (union, not intersection)
+      if (hasDrawing) showCanvas = true;
+      if (hasText) showText = true;
+
       if (saved && hasDrawing) {
         pages = saved.pages || [
           {
@@ -1536,7 +1543,6 @@
         zoomScale = saved.zoomScale || 1;
         activePageIndex = saved.activePageIndex || 0;
         canvasImages = saved.canvasImages || [];
-        selectedImage = null;
       } else {
         pages = [
           {
@@ -1553,7 +1559,6 @@
         panOffset = { x: 0, y: 0 };
         zoomScale = 1;
         activePageIndex = 0;
-        selectedImage = null;
       }
     }
   });
