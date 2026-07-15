@@ -6,7 +6,8 @@
 
   let {
     multipleChoiceTasks = $bindable([]),
-    fontSize = 13
+    fontSize = 13,
+    onOpenPreview = () => {}
   } = $props();
 
   // Active preview states per question (mapping question.id -> boolean)
@@ -19,9 +20,6 @@
   let editingOptionIndex = $state<number>(-1);
   let editingFileNameValue = $state('');
   let renameInputEl = $state<HTMLInputElement | null>(null);
-
-  // Self-contained Preview Modal State
-  let previewFile = $state<MediaFile | null>(null);
 
   function autoResize(node: HTMLTextAreaElement, _val: any) {
     const update = () => {
@@ -507,14 +505,14 @@
                     <div 
                       onclick={() => {
                         if (editingFileIndex !== mIndex || editingFileType !== 'question' || editingQuestionIndex !== qIndex) {
-                          previewFile = file;
+                          onOpenPreview(file);
                         }
                       }}
                       class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow"
                       title={t('taskEditor.clickToPreview') || 'Klicken für Vorschau'}
                       role="button"
                       tabindex="0"
-                      onkeydown={(e) => { if (e.key === 'Enter') previewFile = file; }}
+                      onkeydown={(e) => { if (e.key === 'Enter') onOpenPreview(file); }}
                     >
                       <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
                         {getFileIcon(file.name)}
@@ -663,14 +661,14 @@
                             <div 
                               onclick={() => {
                                 if (editingFileIndex !== omIndex || editingFileType !== 'option' || editingQuestionIndex !== qIndex || editingOptionIndex !== oIndex) {
-                                  previewFile = file;
+                                  onOpenPreview(file);
                                 }
                               }}
                               class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow"
                               title={t('taskEditor.clickToPreview') || 'Klicken für Vorschau'}
                               role="button"
                               tabindex="0"
-                              onkeydown={(e) => { if (e.key === 'Enter') previewFile = file; }}
+                              onkeydown={(e) => { if (e.key === 'Enter') onOpenPreview(file); }}
                             >
                               <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
                                 {getFileIcon(file.name)}
@@ -728,21 +726,3 @@
     </div>
   {/if}
 </div>
-
-<!-- Premium Self-Contained Image Preview Modal Popup Overlay -->
-{#if previewFile}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-100 flex items-center justify-center bg-black/75 backdrop-blur-sm animate-fade-in select-none" onclick={() => previewFile = null}>
-    <div class="relative max-w-[90%] max-h-[90%] flex flex-col items-center" onclick={e => e.stopPropagation()}>
-      <button 
-        onclick={() => previewFile = null}
-        class="absolute -top-10 right-0 text-white bg-black/50 hover:bg-black/80 rounded-full p-2 border-0 flex items-center justify-center cursor-pointer transition-colors focus:outline-none"
-      >
-        <span class="material-symbols-outlined text-lg">close</span>
-      </button>
-      <img src={previewFile.dataUrl} alt={previewFile.name} class="max-w-full max-h-[80vh] rounded-xl shadow-2xl object-contain bg-white dark:bg-zinc-900 border border-outline-variant/20" />
-      <span class="text-white text-xs font-semibold mt-3 font-sans truncate max-w-lg">{previewFile.name}</span>
-    </div>
-  </div>
-{/if}

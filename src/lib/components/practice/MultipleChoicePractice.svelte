@@ -10,11 +10,60 @@
     selectedAnswers = $bindable({}),
     fontSize = 13,
     showSolution = false,
+    onSelectProvidedImage = () => {},
     onAnswersChanged = () => {}
   } = $props();
 
   let expandedMediaIds = $state<Record<string, boolean>>({});
-  let previewFile = $state<MediaFile | null>(null);
+  
+  // Media loading registry for db files
+  let loadedMedia = $state<Record<string, { url: string; loading: boolean; error: boolean }>>({});
+
+  // Preview Modal states matching PracticeInfoPanels 1-to-1
+  let previewFile = $state<{ name: string; dataUrl: string } | null>(null);
+  let modalZoom = $state(1);
+  let modalPan = $state({ x: 0, y: 0 });
+  let isModalDragging = $state(false);
+  let modalDragStart = $state({ x: 0, y: 0 });
+  let modalBasePan = $state({ x: 0, y: 0 });
+  let modalActivePointers = new Map<number, PointerEvent>();
+  let modalIsPinching = false;
+  let modalInitialPinchDistance = 0;
+  let modalInitialPinchZoom = 1;
+  let modalInitialPinchMidpoint = { x: 0, y: 0 };
+  let modalInitialPinchPan = { x: 0, y: 0 };
+  let modalInitialPinchCenter = { x: 0, y: 0 };
+
+  // Fetch data urls reactively when tasks load/change (no base64 stored in task JSON!)
+  $effect(() => {
+    const filesToLoad: any[] = [];
+    multipleChoiceTasks.forEach(q => {
+      if (q.questionMedia) {
+        filesToLoad.push(...q.questionMedia.filter((f: any) => f.mediaId && !f.dataUrl));
+      }
+      if (q.options) {
+        q.options.forEach((o: any) => {
+          if (o.media) {
+            filesToLoad.push(...o.media.filter((f: any) => f.mediaId && !f.dataUrl));
+          }
+        });
+      }
+    });
+
+    for (const file of filesToLoad) {
+      const mediaId = file.mediaId;
+      if (mediaId && !loadedMedia[mediaId]) {
+        loadedMedia[mediaId] = { url: '', loading: true, error: false };
+        import('../../db/media').then(({ getMediaDataUrl }) => {
+          getMediaDataUrl(mediaId).then(url => {
+            loadedMedia[mediaId] = { url, loading: false, error: false };
+          }).catch(() => {
+            loadedMedia[mediaId] = { url: '', loading: false, error: true };
+          });
+        });
+      }
+    }
+  });
 
   function isOptionSelected(questionId: string, optionId: string): boolean {
     const list = selectedAnswers[questionId] || [];
@@ -32,7 +81,12 @@
         list = [...list, optionId];
       }
     } else {
-      list = [optionId];
+      // Single Choice de-selection support
+      if (list.includes(optionId)) {
+        list = [];
+      } else {
+        list = [optionId];
+      }
     }
 
     selectedAnswers = {
@@ -57,11 +111,160 @@
     return true; // Default open
   }
 
+  function resolveMediaUrl(file: { name: string; dataUrl?: string; mediaId?: string }): string {
+    if (file.dataUrl) return file.dataUrl;
+    if (file.mediaId && loadedMedia[file.mediaId]?.url) return loadedMedia[file.mediaId].url;
+    return '';
+  }
+
+  function isMediaLoading(file: { name: string; dataUrl?: string; mediaId?: string }): boolean {
+    if (file.dataUrl) return false;
+    if (file.mediaId && loadedMedia[file.mediaId]?.loading) return true;
+    return false;
+  }
+
+  function isMediaError(file: { name: string; dataUrl?: string; mediaId?: string }): boolean {
+    if (file.dataUrl) return false;
+    if (file.mediaId && loadedMedia[file.mediaId]?.error) return true;
+    return false;
+  }
+
   function getBaseName(filename: string): string {
     if (!filename) return '';
     const lastDotIndex = filename.lastIndexOf('.');
     if (lastDotIndex === -1 || lastDotIndex === 0) return filename;
     return filename.substring(0, lastDotIndex);
+  }
+
+  function decodeBase64Text(dataUrl: string): string {
+    if (!dataUrl) return '';
+    try {
+      const base64Data = dataUrl.split(',')[1];
+      return decodeURIComponent(escape(atob(base64Data)));
+    } catch (e) {
+      console.error('Failed to decode text document', e);
+      return t('taskEditor.errorDecode') || 'Fehler beim Dekodieren';
+    }
+  }
+
+  async function openPreview(file: { name: string; dataUrl?: string; mediaId?: string }) {
+    if (!isIntegratedFile(file.name)) {
+      openAttachmentInDefaultApp(file).catch(err => {
+        console.error('Failed to open attachment:', err);
+      });
+      return;
+    }
+    const url = resolveMediaUrl(file);
+    previewFile = { name: file.name, dataUrl: url };
+    modalZoom = 1;
+    modalPan = { x: 0, y: 0 };
+  }
+
+  function closePreview() {
+    previewFile = null;
+  }
+
+  function handleModalWheel(e: WheelEvent) {
+    e.preventDefault();
+    const zoomFactor = 0.1;
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const newZoom = modalZoom + direction * zoomFactor;
+    modalZoom = Math.max(0.5, Math.min(newZoom, 8));
+    if (modalZoom === 1) {
+      modalPan = { x: 0, y: 0 };
+    }
+  }
+
+  function handleModalPointerDown(e: PointerEvent) {
+    const container = e.currentTarget as HTMLElement;
+    try { container.setPointerCapture(e.pointerId); } catch (_) {}
+    modalActivePointers.set(e.pointerId, e);
+
+    if (modalActivePointers.size === 2) {
+      const pts = Array.from(modalActivePointers.values());
+      const isMultiTouch = pts.every(p => p.pointerType === 'touch');
+      if (isMultiTouch && modalZoom > 0) {
+        const p1 = pts[0];
+        const p2 = pts[1];
+        modalInitialPinchDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+        modalInitialPinchZoom = modalZoom;
+        modalInitialPinchMidpoint = { x: (p1.clientX + p2.clientX) / 2, y: (p1.clientY + p2.clientY) / 2 };
+        modalInitialPinchPan = { ...modalPan };
+        const rect = container.getBoundingClientRect();
+        modalInitialPinchCenter = {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2
+        };
+        modalIsPinching = true;
+        isModalDragging = false;
+        e.preventDefault();
+        return;
+      }
+    }
+
+    if (modalActivePointers.size > 2) {
+      e.preventDefault();
+      return;
+    }
+
+    if (modalZoom <= 1) return;
+    isModalDragging = true;
+    modalDragStart = { x: e.clientX, y: e.clientY };
+    modalBasePan = { ...modalPan };
+  }
+
+  function handleModalPointerMove(e: PointerEvent) {
+    if (e.buttons === 0) {
+      modalActivePointers.clear();
+      isModalDragging = false;
+      modalIsPinching = false;
+      return;
+    }
+    modalActivePointers.set(e.pointerId, e);
+
+    if (modalIsPinching && modalActivePointers.size === 2) {
+      e.preventDefault();
+      const pts = Array.from(modalActivePointers.values());
+      const p1 = pts[0];
+      const p2 = pts[1];
+      const currentDistance = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      const currentMidpoint = { x: (p1.clientX + p2.clientX) / 2, y: (p1.clientY + p2.clientY) / 2 };
+      if (modalInitialPinchDistance > 0) {
+        const factor = currentDistance / modalInitialPinchDistance;
+        const newZoom = Math.max(0.5, Math.min(8, modalInitialPinchZoom * factor));
+        const cx = modalInitialPinchCenter.x;
+        const cy = modalInitialPinchCenter.y;
+        const worldX = (modalInitialPinchMidpoint.x - cx - modalInitialPinchPan.x) / modalInitialPinchZoom;
+        const worldY = (modalInitialPinchMidpoint.y - cy - modalInitialPinchPan.y) / modalInitialPinchZoom;
+        modalZoom = newZoom;
+        modalPan = {
+          x: (currentMidpoint.x - cx) - worldX * newZoom,
+          y: (currentMidpoint.y - cy) - worldY * newZoom
+        };
+      }
+      return;
+    }
+
+    if (modalActivePointers.size > 1) return;
+
+    if (!isModalDragging) return;
+    const dx = e.clientX - modalDragStart.x;
+    const dy = e.clientY - modalDragStart.y;
+    modalPan = {
+      x: modalBasePan.x + dx,
+      y: modalBasePan.y + dy
+    };
+  }
+
+  function handleModalPointerUp(e: PointerEvent) {
+    modalActivePointers.delete(e.pointerId);
+    if (modalActivePointers.size < 2) modalIsPinching = false;
+    if (modalActivePointers.size === 0) isModalDragging = false;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch (_) {}
+  }
+
+  function handleModalPointerCancel(e: PointerEvent) {
+    handleModalPointerUp(e);
   }
 </script>
 
@@ -90,17 +293,20 @@
 
       <!-- Question Media Accordions (exactly like sidebar) -->
       {#if question.questionMedia && question.questionMedia.length > 0}
-        <div class="flex flex-col gap-2 mt-1">
+        <div class="flex flex-col gap-3 mt-1">
           {#each question.questionMedia as file, idx}
             {@const mediaId = `q-${question.id}-${idx}`}
             {@const open = isMediaExpanded(mediaId)}
+            {@const fileUrl = resolveMediaUrl(file)}
+            {@const loading = isMediaLoading(file)}
+            {@const error = isMediaError(file)}
             <div class="bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-sm flex flex-col transition-all w-full">
               <!-- Header Bar -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div 
                 onclick={() => toggleMedia(mediaId)}
-                class="w-full px-4 py-2.5 flex items-center justify-between hover:bg-surface-container-high transition-colors font-sans text-xs font-semibold text-on-surface cursor-pointer select-none text-left"
+                class="w-full px-4 py-3 flex items-center justify-between hover:bg-surface-container-high transition-colors font-sans text-xs font-semibold text-on-surface cursor-pointer select-none text-left"
               >
                 <div class="flex items-center gap-2 min-w-0">
                   <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
@@ -112,7 +318,20 @@
                   {#if isImageFile(file.name)}
                     <button
                       type="button"
-                      onclick={() => previewFile = file}
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        onSelectProvidedImage(file);
+                      }}
+                      class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
+                      title={t('practice.infoPanels.placeOnCanvas') || 'Auf Canvas platzieren'}
+                    >
+                      place_item
+                    </button>
+                  {/if}
+                  {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
+                    <button
+                      type="button"
+                      onclick={() => openPreview(file)}
                       class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
                       title={t('practice.infoPanels.openFullScreen') || 'Vorschau'}
                     >
@@ -128,22 +347,27 @@
               <!-- Media Content Panel -->
               {#if open}
                 <div class="border-t border-outline-variant bg-surface-container-lowest p-3 flex justify-center items-center overflow-x-auto min-h-20 w-full">
-                  {#if isAudioFile(file.name)}
-                    <AudioPlayer dataUrl={file.dataUrl} compact={true} />
+                  {#if loading}
+                    <div class="flex items-center justify-center py-4 gap-2 text-on-surface-variant text-[10px]">
+                      <div class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      {t('taskEditor.audio.loading') || 'Wird geladen...'}
+                    </div>
+                  {:else if error}
+                    <span class="text-[10px] text-error italic">{t('practice.infoPanels.mediaError') || 'Fehler beim Laden'}</span>
+                  {:else if isAudioFile(file.name)}
+                    {#if fileUrl}
+                      <AudioPlayer dataUrl={fileUrl} compact={true} />
+                    {/if}
                   {:else if isVideoFile(file.name)}
-                    <!-- svelte-ignore a11y_media_has_caption -->
-                    <video 
-                      src={file.dataUrl} 
-                      controls 
-                      class="max-w-full max-h-64 rounded-lg shadow-sm border border-outline-variant/10"
-                    ></video>
-                  {:else if isImageFile(file.name)}
-                    <img 
-                      src={file.dataUrl} 
-                      alt={file.name} 
-                      class="max-w-full max-h-64 rounded-lg object-contain" 
-                    />
-                  {:else}
+                    {#if fileUrl}
+                      <!-- svelte-ignore a11y_media_has_caption -->
+                      <video 
+                        src={fileUrl} 
+                        controls 
+                        class="max-w-full max-h-64 rounded-lg shadow-sm border border-outline-variant/10"
+                      ></video>
+                    {/if}
+                  {:else if !isIntegratedFile(file.name)}
                     <button
                       type="button"
                       onclick={() => openAttachmentInDefaultApp(file).catch(err => console.error(err))}
@@ -157,6 +381,28 @@
                         <p class="text-[10px] text-on-surface-variant mt-1">{t('practice.infoPanels.openDefaultApp') || 'Mit Standard-App öffnen'}</p>
                       </div>
                     </button>
+                  {:else}
+                    <div class="w-full max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10" style="aspect-ratio: 4/3;">
+                      {#if file.name.toLowerCase().endsWith('.pdf')}
+                        <iframe 
+                          src={fileUrl} 
+                          title={file.name} 
+                          class="w-full h-full border-0 rounded-lg"
+                        ></iframe>
+                      {:else if file.name.toLowerCase().endsWith('.md')}
+                        <div class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans prose prose-sm dark:prose-invert">
+                          {@html parseMarkdown(decodeBase64Text(fileUrl))}
+                        </div>
+                      {:else if file.name.toLowerCase().endsWith('.txt')}
+                        <pre class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant/30 text-left">{decodeBase64Text(fileUrl)}</pre>
+                      {:else}
+                        <img 
+                          src={fileUrl} 
+                          alt={file.name} 
+                          class="max-w-full max-h-full object-contain rounded-lg shadow-sm" 
+                        />
+                      {/if}
+                    </div>
                   {/if}
                 </div>
               {/if}
@@ -227,6 +473,9 @@
                 {#each option.media as file, oIdx}
                   {@const oMediaId = `opt-${question.id}-${option.id}-${oIdx}`}
                   {@const oOpen = isMediaExpanded(oMediaId)}
+                  {@const fileUrl = resolveMediaUrl(file)}
+                  {@const loading = isMediaLoading(file)}
+                  {@const error = isMediaError(file)}
                   <div class="bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-sm flex flex-col transition-all w-full">
                     <!-- Header Bar -->
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -245,7 +494,20 @@
                         {#if isImageFile(file.name)}
                           <button
                             type="button"
-                            onclick={() => previewFile = file}
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              onSelectProvidedImage(file);
+                            }}
+                            class="material-symbols-outlined text-[16px] text-primary hover:bg-primary/10 p-0.5 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                            title={t('practice.infoPanels.placeOnCanvas') || 'Auf Canvas platzieren'}
+                          >
+                            place_item
+                          </button>
+                        {/if}
+                        {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
+                          <button
+                            type="button"
+                            onclick={() => openPreview(file)}
                             class="material-symbols-outlined text-[16px] text-primary hover:bg-primary/10 p-0.5 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
                             title={t('practice.infoPanels.openFullScreen') || 'Vorschau'}
                           >
@@ -261,22 +523,27 @@
                     <!-- Media Content Panel -->
                     {#if oOpen}
                       <div class="border-t border-outline-variant bg-surface-container-lowest p-2.5 flex justify-center items-center overflow-x-auto min-h-16 w-full">
-                        {#if isAudioFile(file.name)}
-                          <AudioPlayer dataUrl={file.dataUrl} compact={true} />
+                        {#if loading}
+                          <div class="flex items-center justify-center py-2 gap-2 text-on-surface-variant text-[9px]">
+                            <div class="w-2.5 h-2.5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                            {t('taskEditor.audio.loading') || 'Wird geladen...'}
+                          </div>
+                        {:else if error}
+                          <span class="text-[9px] text-error italic">{t('practice.infoPanels.mediaError') || 'Fehler'}</span>
+                        {:else if isAudioFile(file.name)}
+                          {#if fileUrl}
+                            <AudioPlayer dataUrl={fileUrl} compact={true} />
+                          {/if}
                         {:else if isVideoFile(file.name)}
-                          <!-- svelte-ignore a11y_media_has_caption -->
-                          <video 
-                            src={file.dataUrl} 
-                            controls 
-                            class="max-w-full max-h-48 rounded-lg shadow-sm border border-outline-variant/10"
-                          ></video>
-                        {:else if isImageFile(file.name)}
-                          <img 
-                            src={file.dataUrl} 
-                            alt={file.name} 
-                            class="max-w-full max-h-48 rounded-lg object-contain" 
-                          />
-                        {:else}
+                          {#if fileUrl}
+                            <!-- svelte-ignore a11y_media_has_caption -->
+                            <video 
+                              src={fileUrl} 
+                              controls 
+                              class="max-w-full max-h-48 rounded-lg shadow-sm border border-outline-variant/10"
+                            ></video>
+                          {/if}
+                        {:else if !isIntegratedFile(file.name)}
                           <button
                             type="button"
                             onclick={() => openAttachmentInDefaultApp(file).catch(err => console.error(err))}
@@ -290,6 +557,26 @@
                               <p class="text-[9px] text-on-surface-variant mt-0.5">{t('practice.infoPanels.openDefaultApp') || 'Mit Standard-App öffnen'}</p>
                             </div>
                           </button>
+                        {:else}
+                          <div class="w-full max-h-[50vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10" style="aspect-ratio: 4/3;">
+                            {#if file.name.toLowerCase().endsWith('.pdf')}
+                              <iframe 
+                                src={fileUrl} 
+                                title={file.name} 
+                                class="w-full h-full border-0 rounded-lg"
+                              ></iframe>
+                            {:else if file.name.toLowerCase().endsWith('.md')}
+                              <div class="w-full h-full p-3 overflow-auto bg-surface-container-high rounded-lg text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans prose prose-sm dark:prose-invert">
+                                {@html parseMarkdown(decodeBase64Text(fileUrl))}
+                              </div>
+                            {:else}
+                              <img 
+                                src={fileUrl} 
+                                alt={file.name} 
+                                class="max-w-full max-h-full object-contain rounded-lg shadow-sm" 
+                              />
+                            {/if}
+                          </div>
                         {/if}
                       </div>
                     {/if}
@@ -305,20 +592,79 @@
   {/each}
 </div>
 
-<!-- Premium Self-Contained Image Preview Modal Popup Overlay -->
+<!-- Full-screen Media Preview Modal (Copied 1-to-1 from PracticeInfoPanels) -->
 {#if previewFile}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-100 flex items-center justify-center bg-black/75 backdrop-blur-sm animate-fade-in" onclick={() => previewFile = null}>
-    <div class="relative max-w-[90%] max-h-[90%] flex flex-col items-center" onclick={e => e.stopPropagation()}>
-      <button 
-        onclick={() => previewFile = null}
-        class="absolute -top-10 right-0 text-white bg-black/50 hover:bg-black/80 rounded-full p-2 border-0 flex items-center justify-center cursor-pointer transition-colors focus:outline-none"
+  <div 
+    onclick={closePreview}
+    class="fixed inset-0 z-100 flex flex-col justify-center items-center bg-black/85 backdrop-blur-sm p-8"
+  >
+    <div 
+      onclick={(e) => e.stopPropagation()}
+      class="relative w-[95%] h-[95%] max-w-[95vw] max-h-[95vh] bg-surface rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-outline-variant"
+    >
+      <!-- Modal Header -->
+      <header class="flex items-center justify-between px-6 py-4 border-b border-outline-variant select-none shrink-0 bg-surface">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="material-symbols-outlined text-primary text-[20px] shrink-0">
+            {getFileIcon(previewFile.name)}
+          </span>
+          <h2 class="font-bold text-sm text-on-surface truncate pr-6">{previewFile.name}</h2>
+        </div>
+        <button 
+          type="button" 
+          onclick={closePreview}
+          class="material-symbols-outlined text-[20px] text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+        >
+          close
+        </button>
+      </header>
+
+      <!-- Modal Body (Zoom / Pan support for images) -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div 
+        onwheel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? handleModalWheel : null}
+        onpointerdown={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? handleModalPointerDown : null}
+        onpointermove={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? handleModalPointerMove : null}
+        onpointerup={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? handleModalPointerUp : null}
+        onpointercancel={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? handleModalPointerCancel : null}
+        class="grow bg-surface-container-lowest p-6 flex justify-center items-center min-h-0 select-text {previewFile.name.toLowerCase().endsWith('.pdf') || previewFile.name.toLowerCase().endsWith('.txt') || previewFile.name.toLowerCase().endsWith('.md') || isAudioFile(previewFile.name) || isVideoFile(previewFile.name) ? 'overflow-auto' : 'overflow-hidden relative'}"
+        style={!previewFile.name.toLowerCase().endsWith('.pdf') && !previewFile.name.toLowerCase().endsWith('.txt') && !previewFile.name.toLowerCase().endsWith('.md') && !isAudioFile(previewFile.name) && !isVideoFile(previewFile.name) ? `cursor: ${modalZoom > 1 ? (isModalDragging ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;` : ''}
       >
-        <span class="material-symbols-outlined text-lg">close</span>
-      </button>
-      <img src={previewFile.dataUrl} alt={previewFile.name} class="max-w-full max-h-[80vh] rounded-xl shadow-2xl object-contain bg-white dark:bg-zinc-900 border border-outline-variant/20" />
-      <span class="text-white text-xs font-semibold mt-3 font-sans truncate max-w-lg">{previewFile.name}</span>
+        {#if isAudioFile(previewFile.name)}
+          <div class="w-full max-w-md">
+            <AudioPlayer dataUrl={previewFile.dataUrl} />
+          </div>
+        {:else if isVideoFile(previewFile.name)}
+          <!-- svelte-ignore a11y_media_has_caption -->
+          <video 
+            src={previewFile.dataUrl} 
+            controls 
+            class="max-w-full max-h-full rounded-lg shadow-md"
+          ></video>
+        {:else if previewFile.name.toLowerCase().endsWith('.pdf')}
+          <iframe 
+            src={previewFile.dataUrl} 
+            title={previewFile.name} 
+            class="w-full h-full border-0 rounded-lg shadow-sm"
+          ></iframe>
+        {:else if previewFile.name.toLowerCase().endsWith('.md')}
+          <div class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl text-on-surface select-text leading-relaxed border border-outline-variant text-left wrap-break-word font-sans prose prose-sm dark:prose-invert">
+            {@html parseMarkdown(decodeBase64Text(previewFile.dataUrl))}
+          </div>
+        {:else if previewFile.name.toLowerCase().endsWith('.txt')}
+          <pre class="w-full h-full p-6 overflow-auto bg-surface-container-high rounded-xl font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant text-left">{decodeBase64Text(previewFile.dataUrl)}</pre>
+        {:else}
+          <img 
+            src={previewFile.dataUrl} 
+            alt={previewFile.name} 
+            class="max-w-full max-h-full object-contain rounded-lg shadow-md select-none transition-transform duration-75 ease-out"
+            style="transform: translate({modalPan.x}px, {modalPan.y}px) scale({modalZoom}); transform-origin: center center;"
+            draggable="false"
+          />
+        {/if}
+      </div>
     </div>
   </div>
 {/if}

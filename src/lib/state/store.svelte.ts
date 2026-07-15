@@ -1045,7 +1045,7 @@ class CanvasCritiqueStore {
       contextFiles: this.stripDataUrls(contextFiles),
       background,
       providedFiles: this.stripDataUrls(providedFiles),
-      multipleChoiceTasks
+      multipleChoiceTasks: this.stripMultipleChoiceDataUrls(multipleChoiceTasks)
     };
 
     project.tasks.push(newTask);
@@ -1100,7 +1100,7 @@ class CanvasCritiqueStore {
     if (updatedData.contextFiles !== undefined) task.contextFiles = this.stripDataUrls(updatedData.contextFiles);
     if (updatedData.providedFiles !== undefined) task.providedFiles = this.stripDataUrls(updatedData.providedFiles);
     if (updatedData.activeAttemptId !== undefined) task.activeAttemptId = updatedData.activeAttemptId;
-    if (updatedData.multipleChoiceTasks !== undefined) task.multipleChoiceTasks = updatedData.multipleChoiceTasks;
+    if (updatedData.multipleChoiceTasks !== undefined) task.multipleChoiceTasks = this.stripMultipleChoiceDataUrls(updatedData.multipleChoiceTasks);
 
     // Auto-add category if it isn't listed
     if (task.category && project.categories && !project.categories.includes(task.category)) {
@@ -1711,6 +1711,31 @@ class CanvasCritiqueStore {
         return rest;
       }
       return f;
+    });
+  }
+
+  private stripMultipleChoiceDataUrls(questions: any[]): any[] {
+    if (!questions || !Array.isArray(questions)) return [];
+    return questions.map(q => {
+      const qMedia = q.questionMedia ? q.questionMedia.map((f: any) => {
+        const { dataUrl, ...rest } = f;
+        return rest;
+      }) : [];
+      const opts = q.options ? q.options.map((o: any) => {
+        const oMedia = o.media ? o.media.map((f: any) => {
+          const { dataUrl, ...rest } = f;
+          return rest;
+        }) : [];
+        return {
+          ...o,
+          media: oMedia
+        };
+      }) : [];
+      return {
+        ...q,
+        questionMedia: qMedia,
+        options: opts
+      };
     });
   }
 

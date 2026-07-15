@@ -3816,8 +3816,10 @@
       feedbackScore = result.feedbackScore;
       feedbackMarkers = [];
       hasCheckedWork = true;
-      showFeedback = true;
-      showCritiqueBanner = true;
+      showFeedback = false;
+      showSolution = true;
+      showTask = false;
+      showCritiqueBanner = false;
 
       // Save to database
       const updatedData: any = {
@@ -4452,6 +4454,7 @@
               bind:selectedAnswers={selectedAnswers}
               fontSize={canvasTextFontSize}
               showSolution={showSolution}
+              onSelectProvidedImage={handleSelectProvidedImage}
               onAnswersChanged={handleAnswersChanged}
             />
           </section>

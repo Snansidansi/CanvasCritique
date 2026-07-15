@@ -1552,7 +1552,7 @@
 
       {#if isModeActive('multiple_choice')}
         {@const effectiveFontSize = settingsOverride.overrideCanvas ? settingsOverride.canvasFontSize : (store.getEffectiveSettings(targetProjectId).canvasFontSize ?? 13)}
-        <MultipleChoiceEditor bind:multipleChoiceTasks={multipleChoiceTasks} fontSize={effectiveFontSize} />
+        <MultipleChoiceEditor bind:multipleChoiceTasks={multipleChoiceTasks} fontSize={effectiveFontSize} onOpenPreview={openPreview} />
       {/if}
 
       <!-- Provided Canvas Images Collapsible Section -->
