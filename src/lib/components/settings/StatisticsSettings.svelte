@@ -9,6 +9,7 @@
   let showRequests = $state(false);
   let showTokens = $state(false);
   let hoverIndex = $state<number | null>(null);
+  let modelStatsMode = $state<'chart' | 'selection' | 'total'>('chart');
 
   // statsDaily fallback is no longer used since statistics are in own table
 
@@ -79,13 +80,34 @@
 
   // Group request history by model inside range
   const modelStats = $derived.by(() => {
-    const { start, end } = activeRangeDates;
+    let start: Date | null = null;
+    let end: Date | null = null;
+
+    if (modelStatsMode === 'chart') {
+      const range = activeRangeDates;
+      start = range.start;
+      end = range.end;
+    } else if (modelStatsMode === 'selection') {
+      if (tableStartDate) {
+        start = tableStartDate.includes('T') ? new Date(tableStartDate) : new Date(tableStartDate + 'T00:00:00.000');
+      }
+      if (tableEndDate) {
+        end = tableEndDate.includes('T') ? new Date(tableEndDate) : new Date(tableEndDate + 'T23:59:59.999');
+        if (!isNaN(end.getTime()) && tableEndDate.includes('T')) {
+          end.setMinutes(59, 59, 999);
+        }
+      }
+    }
+
     const history = store.statsHistory;
     const models: Record<string, { requests: number, inputTokens: number, outputTokens: number, cost: number }> = {};
 
     for (const log of history) {
       const logDate = new Date(log.timestamp);
-      if (logDate >= start && logDate <= end) {
+      const afterStart = !start || isNaN(start.getTime()) || logDate >= start;
+      const beforeEnd = !end || isNaN(end.getTime()) || logDate <= end;
+
+      if (afterStart && beforeEnd) {
         if (!models[log.model]) {
           models[log.model] = { requests: 0, inputTokens: 0, outputTokens: 0, cost: 0 };
         }
@@ -1120,7 +1142,7 @@
   <!-- Usage by Model Section -->
   {#if store.statsHistory && store.statsHistory.length > 0}
     <section class="bg-surface p-6 rounded-xl border border-outline-variant shadow-sm space-y-4">
-      <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+      <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-outline-variant pb-3">
         <div class="flex flex-col gap-0.5">
           <h4 class="font-bold text-sm text-on-surface">
             {store.settings.language === 'Deutsch' ? 'Nutzung nach Modell' : 'Usage by Model'}
@@ -1129,9 +1151,37 @@
             {store.settings.language === 'Deutsch' ? 'Detaillierte Aufschlüsselung der Anfragen pro KI-Modell' : 'Detailed breakdown of requests per AI model'}
           </p>
         </div>
-        <span class="text-xs font-semibold px-2 py-1 bg-surface-container rounded-full text-primary">
-          {modelStats.length} {store.settings.language === 'Deutsch' ? 'Modelle' : 'Models'}
-        </span>
+
+        <div class="flex items-center gap-3">
+          <!-- Timeframe Capsules for Model Stats -->
+          <div class="bg-surface-container-low border border-outline-variant/60 rounded-lg p-0.5 flex">
+            <button
+              onclick={() => modelStatsMode = 'chart'}
+              class="px-2.5 py-1 text-[11px] rounded-md font-semibold transition-all cursor-pointer
+                     {modelStatsMode === 'chart' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
+            >
+              {t('stats.modelStatsChart') || (store.settings.language === 'Deutsch' ? 'Diagramm' : 'Chart')}
+            </button>
+            <button
+              onclick={() => modelStatsMode = 'selection'}
+              class="px-2.5 py-1 text-[11px] rounded-md font-semibold transition-all cursor-pointer
+                     {modelStatsMode === 'selection' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
+            >
+              {t('stats.modelStatsSelection') || (store.settings.language === 'Deutsch' ? 'Auswahl' : 'Selection')}
+            </button>
+            <button
+              onclick={() => modelStatsMode = 'total'}
+              class="px-2.5 py-1 text-[11px] rounded-md font-semibold transition-all cursor-pointer
+                     {modelStatsMode === 'total' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
+            >
+              {t('stats.modelStatsTotal') || (store.settings.language === 'Deutsch' ? 'Gesamt' : 'Total')}
+            </button>
+          </div>
+
+          <span class="text-xs font-semibold px-2 py-1 bg-surface-container rounded-full text-primary shrink-0">
+            {modelStats.length} {store.settings.language === 'Deutsch' ? 'Modelle' : 'Models'}
+          </span>
+        </div>
       </div>
 
       <div class="overflow-x-auto">

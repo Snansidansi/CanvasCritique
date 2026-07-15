@@ -663,7 +663,10 @@
       "notifyResetSuccess": "Statistiken erfolgreich zurückgesetzt",
       "notifyTrackingStatus": "Nutzungsverfolgung {status}",
       "usage": "Nutzung",
-      "onlyForStats": "Nur für Statistiken"
+      "onlyForStats": "Nur für Statistiken",
+      "modelStatsChart": "Diagramm",
+      "modelStatsSelection": "Auswahl",
+      "modelStatsTotal": "Gesamt"
     },
     "language": {
       "title": "Sprachauswahl",

@@ -664,7 +664,10 @@
       "notifyResetSuccess": "Statistics reset successfully",
       "notifyTrackingStatus": "Usage tracking {status}",
       "usage": "Usage",
-      "onlyForStats": "Only for statistics"
+      "onlyForStats": "Only for statistics",
+      "modelStatsChart": "Chart",
+      "modelStatsSelection": "Selection",
+      "modelStatsTotal": "Total"
     },
     "language": {
       "title": "Language Selection",
