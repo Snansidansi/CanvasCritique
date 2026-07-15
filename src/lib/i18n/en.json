@@ -153,6 +153,25 @@
     "defaultEditModeCanvas": "Canvas Only",
     "defaultEditModeText": "Text Editor Only",
     "defaultEditModeBoth": "Both",
+    "mc": {
+      "title": "Multiple Choice Tasks",
+      "subtitle": "Create tasks with one or more correct answers",
+      "addQuestion": "Add Question",
+      "questionPlaceholder": "Enter your question here (Markdown and LaTeX supported)...",
+      "addOption": "Add Option",
+      "optionPlaceholder": "Option text...",
+      "isCorrect": "Correct",
+      "deleteQuestion": "Delete Question",
+      "deleteOption": "Delete",
+      "noQuestions": "No multiple choice tasks added yet.",
+      "editMode": "Edit",
+      "previewMode": "Preview",
+      "mediaTitle": "Media for this question",
+      "optionMediaTitle": "Media for this option",
+      "optionsTitle": "Answer Options",
+      "noQuestionText": "No question entered",
+      "noOptionText": "No answer option entered"
+    },
     "contextTitle": "Task Context",
     "contextSubtitle": "Add context files and guidelines for the AI that will not be displayed on the canvas",
     "contextTextLabel": "Context text guidelines",
@@ -299,6 +318,12 @@
     "modeCanvasLabel": "Canvas",
     "modeText": "Switch to Markdown/LaTeX Text Editor",
     "modeTextLabel": "Text Editor",
+    "modeMultipleChoice": "Switch to Multiple Choice Tasks",
+    "modeMultipleChoiceLabel": "Multiple Choice",
+    "mc": {
+      "multipleAnswers": "Multiple Answers (Checkboxes)",
+      "singleAnswer": "Single Answer (Radio Buttons)"
+    },
     "textEditor": {
       "writeTitle": "Text Editor",
       "previewTitle": "Preview",

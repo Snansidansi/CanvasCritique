@@ -152,6 +152,25 @@
     "defaultEditModeCanvas": "Nur Leinwand",
     "defaultEditModeText": "Nur Text-Editor",
     "defaultEditModeBoth": "Beide",
+    "mc": {
+      "title": "Multiple-Choice-Aufgaben",
+      "subtitle": "Erstelle Aufgaben mit einer oder mehreren richtigen Antworten",
+      "addQuestion": "Frage hinzufügen",
+      "questionPlaceholder": "Gib hier deine Frage ein (Markdown und LaTeX unterstützt)...",
+      "addOption": "Option hinzufügen",
+      "optionPlaceholder": "Optionstext...",
+      "isCorrect": "Richtig",
+      "deleteQuestion": "Frage löschen",
+      "deleteOption": "Löschen",
+      "noQuestions": "Noch keine Multiple-Choice-Aufgaben hinzugefügt.",
+      "editMode": "Bearbeiten",
+      "previewMode": "Vorschau",
+      "mediaTitle": "Medien für diese Frage",
+      "optionMediaTitle": "Medien für diese Option",
+      "optionsTitle": "Antwortoptionen",
+      "noQuestionText": "Keine Frage eingegeben",
+      "noOptionText": "Keine Antwortoption eingegeben"
+    },
     "contextTitle": "Aufgabenkontext",
     "contextSubtitle": "Füge Kontext-Dateien und Richtlinien für die KI hinzu, die nicht auf der Leinwand angezeigt werden",
     "contextTextLabel": "Kontext-Textrichtlinien",
@@ -298,6 +317,12 @@
     "modeCanvasLabel": "Leinwand",
     "modeText": "Zum Markdown/LaTeX Texteditor wechseln",
     "modeTextLabel": "Texteditor",
+    "modeMultipleChoice": "Zu Multiple-Choice-Aufgaben wechseln",
+    "modeMultipleChoiceLabel": "Multiple Choice",
+    "mc": {
+      "multipleAnswers": "Mehrfachauswahl (Kontrollkästchen)",
+      "singleAnswer": "Einfachauswahl (Radiobuttons)"
+    },
     "textEditor": {
       "writeTitle": "Texteditor",
       "previewTitle": "Vorschau",
