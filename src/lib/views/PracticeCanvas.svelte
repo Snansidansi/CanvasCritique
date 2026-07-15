@@ -1377,6 +1377,17 @@
       showSolution = false;
       lastCritiqueScore = task?.critique?.feedbackScore;
       
+      const hasInstructions = task.instructions && task.instructions.trim() !== '';
+      const hasInstructionFiles = task.instructionFiles && task.instructionFiles.length > 0;
+      const hasProvidedFiles = task.providedFiles && task.providedFiles.length > 0;
+      const hasLegacyInstructionFile = !!task.instructionFile;
+      
+      if (!hasInstructions && !hasInstructionFiles && !hasProvidedFiles && !hasLegacyInstructionFile) {
+        showTask = false;
+      } else {
+        showTask = true;
+      }
+      
       const targetBg = task.background || store.activeProject?.default_background || 'grid';
       activeBg = targetBg;
       
