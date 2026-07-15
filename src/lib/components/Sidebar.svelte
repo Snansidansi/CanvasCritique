@@ -2,11 +2,11 @@
   import { store } from "../state/store.svelte";
   import { t } from "../services/i18n";
 
-  // Local state for sidebar expansion on desktop
-  let isCollapsed = $state(false);
+  // State for sidebar expansion on desktop (synced with global store)
+  let isCollapsed = $derived(store.sidebarCollapsed);
 
   function toggleCollapse() {
-    isCollapsed = !isCollapsed;
+    store.sidebarCollapsed = !store.sidebarCollapsed;
   }
 
   function handleNavigate(view, project = null) {

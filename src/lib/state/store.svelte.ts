@@ -78,6 +78,7 @@ class CanvasCritiqueStore {
   canvasSaves = $state<Record<string, any>>({});
   editorTexts = $state<Record<string, string>>({});
   canvasSettingsOpen = $state(false);
+  sidebarCollapsed = $state(false);
   lastDetectedButton = $state<{ button: number; buttons: number; pointerType: string } | null>(null);
   profiles = $state<Profile[]>([]);
   activeProfileId = $state<string>('');
