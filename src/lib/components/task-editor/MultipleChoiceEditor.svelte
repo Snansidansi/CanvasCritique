@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { t } from '../../services/i18n';
   import { parseMarkdown } from '../../utils/markdown';
   import { saveMediaToDb, isImageFile, isAudioFile, isVideoFile, getFileIcon } from '../../db/media';
@@ -62,9 +63,10 @@
     };
   }
 
-  function addQuestion() {
+  async function addQuestion() {
+    const qId = 'mc-q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
     const newQuestion: MultipleChoiceTask = {
-      id: 'mc-q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9),
+      id: qId,
       question: '',
       questionMedia: [],
       options: [
@@ -83,6 +85,11 @@
       ]
     };
     multipleChoiceTasks = [...multipleChoiceTasks, newQuestion];
+    await tick();
+    const el = document.querySelector(`[data-mc-question-id="${qId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }
 
   function deleteQuestion(qIndex: number) {
@@ -502,7 +509,7 @@
 </script>
 
 <div class="flex flex-col gap-6 mt-4">
-  <div class="flex justify-between items-center bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+  <div class="sticky -top-4 z-20 flex justify-between items-center bg-surface-container-low/95 backdrop-blur-md p-4 rounded-xl border border-outline-variant shadow-sm transition-all mb-1">
     <div class="flex flex-col gap-0.5">
       <h3 class="text-sm font-bold text-on-surface">{t('taskEditor.mc.title') || 'Multiple-Choice-Aufgaben'}</h3>
       <span class="text-xs text-on-surface-variant">
@@ -529,7 +536,10 @@
   {:else}
     <div class="flex flex-col gap-4">
       {#each multipleChoiceTasks as question, qIndex (question.id)}
-        <div class="border border-outline-variant rounded-2xl bg-surface-container-lowest p-5 flex flex-col gap-4 relative shadow-sm transition-all hover:shadow-md">
+        <div 
+          data-mc-question-id={question.id}
+          class="border border-outline-variant rounded-2xl bg-surface-container-lowest p-5 flex flex-col gap-4 relative shadow-sm transition-all hover:shadow-md"
+        >
           
           <!-- Question Header Toolbar -->
           <div class="flex justify-between items-center border-b border-outline-variant/40 pb-3">

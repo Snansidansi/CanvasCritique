@@ -751,6 +751,24 @@ class CanvasCritiqueStore {
                   isReferenced = true;
                   break;
                 }
+                if (task.multipleChoiceTasks) {
+                  for (const mcTask of task.multipleChoiceTasks) {
+                    if (mcTask.questionMedia && mcTask.questionMedia.some((f: any) => f.mediaId === mediaId)) {
+                      isReferenced = true;
+                      break;
+                    }
+                    if (mcTask.options) {
+                      for (const opt of mcTask.options) {
+                        if (opt.media && opt.media.some((f: any) => f.mediaId === mediaId)) {
+                          isReferenced = true;
+                          break;
+                        }
+                      }
+                    }
+                    if (isReferenced) break;
+                  }
+                }
+                if (isReferenced) break;
               }
             }
             if (isReferenced) break;
@@ -2109,6 +2127,28 @@ class CanvasCritiqueStore {
                   }
                 }
               }
+              if (task.multipleChoiceTasks) {
+                for (const mcTask of task.multipleChoiceTasks) {
+                  if (mcTask.questionMedia) {
+                    for (const file of mcTask.questionMedia) {
+                      if (file.mediaId) {
+                        mediaIdsToPack.push(file.mediaId);
+                      }
+                    }
+                  }
+                  if (mcTask.options) {
+                    for (const opt of mcTask.options) {
+                      if (opt.media) {
+                        for (const file of opt.media) {
+                          if (file.mediaId) {
+                            mediaIdsToPack.push(file.mediaId);
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
 
             let icon = project.icon;
@@ -2285,6 +2325,28 @@ class CanvasCritiqueStore {
               for (const file of task.providedFiles) {
                 if (file.mediaId) {
                   mediaIdsToPack.push(file.mediaId);
+                }
+              }
+            }
+            if (task.multipleChoiceTasks) {
+              for (const mcTask of task.multipleChoiceTasks) {
+                if (mcTask.questionMedia) {
+                  for (const file of mcTask.questionMedia) {
+                    if (file.mediaId) {
+                      mediaIdsToPack.push(file.mediaId);
+                    }
+                  }
+                }
+                if (mcTask.options) {
+                  for (const opt of mcTask.options) {
+                    if (opt.media) {
+                      for (const file of opt.media) {
+                        if (file.mediaId) {
+                          mediaIdsToPack.push(file.mediaId);
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -2632,6 +2694,34 @@ class CanvasCritiqueStore {
                   file.dataUrl = await getMediaDataUrl(file.mediaId);
                   delete file.mediaId;
                 } catch (err) { console.error('[store] Failed to inline context file for full export:', err); }
+              }
+            }
+          }
+          if (task.multipleChoiceTasks) {
+            for (const mcTask of task.multipleChoiceTasks) {
+              if (mcTask.questionMedia) {
+                for (const file of mcTask.questionMedia) {
+                  if (file.mediaId && !file.dataUrl) {
+                    try {
+                      file.dataUrl = await getMediaDataUrl(file.mediaId);
+                      delete file.mediaId;
+                    } catch (err) { console.error('[store] Failed to inline MC question file for full export:', err); }
+                  }
+                }
+              }
+              if (mcTask.options) {
+                for (const opt of mcTask.options) {
+                  if (opt.media) {
+                    for (const file of opt.media) {
+                      if (file.mediaId && !file.dataUrl) {
+                        try {
+                          file.dataUrl = await getMediaDataUrl(file.mediaId);
+                          delete file.mediaId;
+                        } catch (err) { console.error('[store] Failed to inline MC option file for full export:', err); }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
