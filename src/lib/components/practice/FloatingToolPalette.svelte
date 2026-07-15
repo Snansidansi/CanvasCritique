@@ -188,7 +188,7 @@
 <div 
   bind:this={paletteElement}
   class="fixed bg-surface-container/95 backdrop-blur-md shadow-lg border border-outline-variant/30 select-none z-20 flex items-center
-         {isCollapsed ? 'w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : (canvasMode === 'infinite' ? 'w-[788px]' : 'w-[738px]') + ' h-12 pl-4 pr-7 rounded-full'}
+         {isCollapsed ? 'w-12 max-w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : 'w-fit max-w-[850px] h-12 pl-4 pr-7 rounded-full'}
          {isDragging ? '' : 'palette-transition'}"
   style="{positionStyle} touch-action: none;"
   onpointerdown={onPointerDown}
@@ -219,7 +219,7 @@
   {/if}
 
   <!-- Combined inner wrapper that handles fade and overflow -->
-  <div class="grow flex items-center justify-between min-w-0 pl-2 transition-all duration-200 {isCollapsed ? 'opacity-0 w-0 pointer-events-none overflow-hidden' : 'opacity-100'}">
+  <div class="flex items-center gap-4 min-w-0 pl-2 transition-all duration-200 {isCollapsed ? 'opacity-0 w-0 pointer-events-none overflow-hidden' : 'opacity-100'}">
     <!-- Color Pickers -->
     <div class="flex items-center gap-1.5 border-r border-outline-variant pr-4 shrink-0">
       {#each recentColors as color, idx}
@@ -250,7 +250,7 @@
           <span class="material-symbols-outlined text-[14px]">add</span>
         </button>
       {/if}
-
+ 
       <!-- Custom Color Picker Button -->
       <button 
         onclick={() => colorInput?.click()}
@@ -268,10 +268,7 @@
         class="hidden" 
       />
     </div>
-
-    <!-- Spacer to push the tools and slider to the right end, absorbing the variable remaining space -->
-    <div class="grow"></div>
-
+ 
     <!-- Tool selectors (Pen / Eraser / Hand / Select) and Brush slider -->
     <div class="flex items-center gap-4 text-xs font-semibold pl-4 shrink-0">
       <div class="flex items-center gap-3">
@@ -405,6 +402,7 @@
 <style>
   .palette-transition {
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                 padding 0.3s cubic-bezier(0.4, 0, 0.2, 1),
