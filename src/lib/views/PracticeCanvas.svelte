@@ -3530,6 +3530,7 @@
         p.x += dx;
         p.y += dy;
       }
+      stroke.bounds = calculateStrokeBounds(stroke);
     }
     
     const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
