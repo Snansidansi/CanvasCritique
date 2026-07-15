@@ -12,6 +12,44 @@
   // Active preview states per question (mapping question.id -> boolean)
   let showQuestionPreview = $state<Record<string, boolean>>({});
 
+  // Inline Rename State
+  let editingFileIndex = $state<number | null>(null);
+  let editingFileType = $state<'question' | 'option' | null>(null);
+  let editingQuestionIndex = $state<number>(-1);
+  let editingOptionIndex = $state<number>(-1);
+  let editingFileNameValue = $state('');
+  let renameInputEl = $state<HTMLInputElement | null>(null);
+
+  // Self-contained Preview Modal State
+  let previewFile = $state<MediaFile | null>(null);
+
+  function autoResize(node: HTMLTextAreaElement, _val: any) {
+    const update = () => {
+      node.style.height = 'auto';
+      node.style.overflowY = 'hidden';
+      const style = window.getComputedStyle(node);
+      const isBorderBox = style.boxSizing === 'border-box';
+      let height = node.scrollHeight;
+      if (isBorderBox) {
+        const borderTop = parseFloat(style.borderTopWidth) || 0;
+        const borderBottom = parseFloat(style.borderBottomWidth) || 0;
+        height += borderTop + borderBottom;
+      }
+      node.style.height = `${height}px`;
+    };
+    const timer = setTimeout(update, 0);
+    node.addEventListener('input', update);
+    return {
+      update() {
+        update();
+      },
+      destroy() {
+        clearTimeout(timer);
+        node.removeEventListener('input', update);
+      }
+    };
+  }
+
   function addQuestion() {
     const newQuestion: MultipleChoiceTask = {
       id: 'mc-q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9),
@@ -276,6 +314,59 @@
       } catch (_) {}
     }
   }
+
+  function getBaseName(filename: string): string {
+    if (!filename) return '';
+    const lastDotIndex = filename.lastIndexOf('.');
+    if (lastDotIndex === -1 || lastDotIndex === 0) return filename;
+    return filename.substring(0, lastDotIndex);
+  }
+
+  function startRenameFile(qIndex: number, fileIndex: number, type: 'question' | 'option', oIndex: number = -1) {
+    editingQuestionIndex = qIndex;
+    editingOptionIndex = oIndex;
+    editingFileIndex = fileIndex;
+    editingFileType = type;
+    
+    const file = type === 'question' 
+      ? multipleChoiceTasks[qIndex].questionMedia[fileIndex] 
+      : multipleChoiceTasks[qIndex].options[oIndex].media[fileIndex];
+    
+    editingFileNameValue = getBaseName(file.name);
+    setTimeout(() => {
+      if (renameInputEl) {
+        renameInputEl.focus();
+        renameInputEl.select();
+      }
+    }, 50);
+  }
+
+  function saveInlineRename() {
+    if (editingFileIndex === null || editingFileType === null) return;
+    
+    const name = editingFileNameValue.trim();
+    if (!name) return cancelInlineRename();
+    
+    const list = [...multipleChoiceTasks];
+    if (editingFileType === 'question') {
+      const file = list[editingQuestionIndex].questionMedia[editingFileIndex];
+      const ext = file.name.substring(file.name.lastIndexOf('.'));
+      file.name = name + ext;
+    } else {
+      const file = list[editingQuestionIndex].options[editingOptionIndex].media[editingFileIndex];
+      const ext = file.name.substring(file.name.lastIndexOf('.'));
+      file.name = name + ext;
+    }
+    multipleChoiceTasks = list;
+    
+    editingFileIndex = null;
+    editingFileType = null;
+  }
+
+  function cancelInlineRename() {
+    editingFileIndex = null;
+    editingFileType = null;
+  }
 </script>
 
 <div class="flex flex-col gap-6 mt-4">
@@ -373,8 +464,9 @@
             {:else}
               <textarea
                 bind:value={question.question}
+                use:autoResize={question.question}
                 placeholder={t('taskEditor.mc.questionPlaceholder') || 'Gib hier deine Frage ein (Markdown und LaTeX unterstützt)...'}
-                class="w-full bg-transparent border border-outline-variant rounded-xl p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-y min-h-20 focus:outline-none"
+                class="w-full bg-transparent border border-outline-variant rounded-xl p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-none overflow-hidden focus:outline-none"
               ></textarea>
             {/if}
           </div>
@@ -409,16 +501,62 @@
             </label>
 
             {#if question.questionMedia.length > 0}
-              <div class="flex flex-wrap gap-2 mt-1">
+              <div class="flex flex-col gap-1.5 mt-2 w-full">
                 {#each question.questionMedia as file, mIndex}
-                  <div class="flex items-center gap-1.5 bg-surface-container-low border border-outline-variant rounded-lg pl-2 pr-1 py-1 text-xs text-on-surface shadow-sm">
-                    <span class="material-symbols-outlined text-sm text-on-surface-variant">{getFileIcon(file.name)}</span>
-                    <span class="truncate max-w-37.5 font-medium">{file.name}</span>
-                    <button 
-                      type="button" 
-                      onclick={() => removeQuestionMedia(qIndex, mIndex)}
-                      class="material-symbols-outlined text-[14px] text-on-surface-variant hover:text-error p-0.5 rounded cursor-pointer border-0 bg-transparent flex items-center justify-center"
-                    >close</button>
+                  <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm w-full font-sans select-none">
+                    <div 
+                      onclick={() => {
+                        if (editingFileIndex !== mIndex || editingFileType !== 'question' || editingQuestionIndex !== qIndex) {
+                          previewFile = file;
+                        }
+                      }}
+                      class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow"
+                      title={t('taskEditor.clickToPreview') || 'Klicken für Vorschau'}
+                      role="button"
+                      tabindex="0"
+                      onkeydown={(e) => { if (e.key === 'Enter') previewFile = file; }}
+                    >
+                      <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
+                        {getFileIcon(file.name)}
+                      </span>
+                      {#if editingFileIndex === mIndex && editingFileType === 'question' && editingQuestionIndex === qIndex}
+                        <input
+                          bind:this={renameInputEl}
+                          type="text"
+                          bind:value={editingFileNameValue}
+                          onclick={(e) => e.stopPropagation()}
+                          onkeydown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter') {
+                              saveInlineRename();
+                            } else if (e.key === 'Escape') {
+                              cancelInlineRename();
+                            }
+                          }}
+                          onblur={saveInlineRename}
+                          class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium font-sans"
+                        />
+                      {:else}
+                        <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
+                      {/if}
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0" onclick={e => e.stopPropagation()}>
+                      <button 
+                        type="button"
+                        onclick={() => startRenameFile(qIndex, mIndex, 'question')}
+                        class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                        title={t('taskEditor.renameFileTooltip') || 'Rename File'}
+                      >
+                        edit
+                      </button>
+                      <button 
+                        type="button" 
+                        onclick={() => removeQuestionMedia(qIndex, mIndex)}
+                        class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                      >
+                        close
+                      </button>
+                    </div>
                   </div>
                 {/each}
               </div>
@@ -519,16 +657,62 @@
                     </label>
 
                     {#if option.media && option.media.length > 0}
-                      <div class="flex flex-wrap gap-1 items-center min-w-0">
+                      <div class="flex flex-col gap-1.5 mt-1.5 w-full">
                         {#each option.media as file, omIndex}
-                          <div class="flex items-center gap-1 bg-surface-container-low border border-outline-variant/60 rounded px-1.5 py-0.5 text-[10px] text-on-surface shadow-sm max-w-30">
-                            <span class="material-symbols-outlined text-[10px] text-on-surface-variant shrink-0">{getFileIcon(file.name)}</span>
-                            <span class="truncate font-medium">{file.name}</span>
-                            <button 
-                              type="button" 
-                              onclick={() => removeOptionMedia(qIndex, oIndex, omIndex)}
-                              class="material-symbols-outlined text-[11px] text-on-surface-variant hover:text-error p-0.5 rounded cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
-                            >close</button>
+                          <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm w-full font-sans select-none">
+                            <div 
+                              onclick={() => {
+                                if (editingFileIndex !== omIndex || editingFileType !== 'option' || editingQuestionIndex !== qIndex || editingOptionIndex !== oIndex) {
+                                  previewFile = file;
+                                }
+                              }}
+                              class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow"
+                              title={t('taskEditor.clickToPreview') || 'Klicken für Vorschau'}
+                              role="button"
+                              tabindex="0"
+                              onkeydown={(e) => { if (e.key === 'Enter') previewFile = file; }}
+                            >
+                              <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
+                                {getFileIcon(file.name)}
+                              </span>
+                              {#if editingFileIndex === omIndex && editingFileType === 'option' && editingQuestionIndex === qIndex && editingOptionIndex === oIndex}
+                                <input
+                                  bind:this={renameInputEl}
+                                  type="text"
+                                  bind:value={editingFileNameValue}
+                                  onclick={(e) => e.stopPropagation()}
+                                  onkeydown={(e) => {
+                                    e.stopPropagation();
+                                    if (e.key === 'Enter') {
+                                      saveInlineRename();
+                                    } else if (e.key === 'Escape') {
+                                      cancelInlineRename();
+                                    }
+                                  }}
+                                  onblur={saveInlineRename}
+                                  class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium font-sans"
+                                />
+                              {:else}
+                                <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
+                              {/if}
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0" onclick={e => e.stopPropagation()}>
+                              <button 
+                                type="button"
+                                onclick={() => startRenameFile(qIndex, omIndex, 'option', oIndex)}
+                                class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                                title={t('taskEditor.renameFileTooltip') || 'Rename File'}
+                              >
+                                edit
+                              </button>
+                              <button 
+                                type="button" 
+                                onclick={() => removeOptionMedia(qIndex, oIndex, omIndex)}
+                                class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                              >
+                                close
+                              </button>
+                            </div>
                           </div>
                         {/each}
                       </div>
@@ -544,3 +728,21 @@
     </div>
   {/if}
 </div>
+
+<!-- Premium Self-Contained Image Preview Modal Popup Overlay -->
+{#if previewFile}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="fixed inset-0 z-100 flex items-center justify-center bg-black/75 backdrop-blur-sm animate-fade-in select-none" onclick={() => previewFile = null}>
+    <div class="relative max-w-[90%] max-h-[90%] flex flex-col items-center" onclick={e => e.stopPropagation()}>
+      <button 
+        onclick={() => previewFile = null}
+        class="absolute -top-10 right-0 text-white bg-black/50 hover:bg-black/80 rounded-full p-2 border-0 flex items-center justify-center cursor-pointer transition-colors focus:outline-none"
+      >
+        <span class="material-symbols-outlined text-lg">close</span>
+      </button>
+      <img src={previewFile.dataUrl} alt={previewFile.name} class="max-w-full max-h-[80vh] rounded-xl shadow-2xl object-contain bg-white dark:bg-zinc-900 border border-outline-variant/20" />
+      <span class="text-white text-xs font-semibold mt-3 font-sans truncate max-w-lg">{previewFile.name}</span>
+    </div>
+  </div>
+{/if}

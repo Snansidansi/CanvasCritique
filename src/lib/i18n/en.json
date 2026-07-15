@@ -10,7 +10,9 @@
     "loading": "Loading...",
     "importing": "Importing...",
     "exporting": "Exporting...",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "question": "Question",
+    "addFile": "Add File"
   },
   "dashboard": {
     "title": "Dashboard",

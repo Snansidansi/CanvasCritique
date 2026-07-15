@@ -10,7 +10,9 @@
     "loading": "Wird geladen...",
     "importing": "Importiere...",
     "exporting": "Exportiere...",
-    "deleting": "Wird gelöscht..."
+    "deleting": "Wird gelöscht...",
+    "question": "Frage",
+    "addFile": "Datei hinzufügen"
   },
   "dashboard": {
     "title": "Lektionsübersicht",
