@@ -107,6 +107,9 @@ export interface ProjectSettingsOverride {
   taskMediaFilterExtensions?: string;
   solutionMediaFilterMode?: string;
   solutionMediaFilterExtensions?: string;
+  sendMcMedia?: boolean;
+  mcMediaFilterMode?: string;
+  mcMediaFilterExtensions?: string;
 }
 
 export interface Project {
@@ -194,6 +197,9 @@ export interface Settings {
   taskMediaFilterExtensions?: string;
   solutionMediaFilterMode?: string;
   solutionMediaFilterExtensions?: string;
+  sendMcMedia: boolean;
+  mcMediaFilterMode?: string;
+  mcMediaFilterExtensions?: string;
   webdavEnabled?: boolean;
   webdavUrl?: string;
   webdavUsername?: string;

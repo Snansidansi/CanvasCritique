@@ -144,6 +144,31 @@
     </div>
   </div>
 
+  <!-- Group: Multiple Choice Editor -->
+  <div class="flex flex-col gap-2">
+    <div class="text-[11px] font-bold uppercase tracking-wider text-primary border-b border-outline-variant/30 pb-1 flex items-center gap-1 select-none">
+      <span class="material-symbols-outlined text-[14px]">rule</span>
+      {t('settings.api.groupMc') || 'Multiple Choice Editor'}
+    </div>
+
+    <!-- Send MC Media Toggle -->
+    <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant">
+      <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-[18px] text-primary">perm_media</span>
+        {t('settings.api.sendMcMedia') || 'Multiple-Choice-Medien senden'}
+      </span>
+      <label class="relative inline-flex items-center cursor-pointer select-none">
+        <input 
+          type="checkbox" 
+          bind:checked={settings.sendMcMedia}
+          onchange={handleInputChange}
+          class="sr-only peer" 
+        />
+        <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+      </label>
+    </div>
+  </div>
+
   <!-- Group 4: Context guidelines (if active) -->
   {#if !hideContextFilters}
     <div class="flex flex-col gap-2">

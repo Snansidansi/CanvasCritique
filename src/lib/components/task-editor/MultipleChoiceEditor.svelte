@@ -21,6 +21,20 @@
   let editingFileNameValue = $state('');
   let renameInputEl = $state<HTMLInputElement | null>(null);
 
+  // Drag and Drop States matching TaskEditor.svelte exactly
+  let isMediaDragActive = $state(false);
+  let draggedFileIndex = $state<number | null>(null);
+  let draggedFileType = $state<'question_media' | 'option_media' | null>(null);
+  let draggedQuestionIndex = $state<number>(-1);
+  let draggedOptionIndex = $state<number>(-1);
+  let hoveredFileIndex = $state<number | null>(null);
+
+  let mediaDragPointerStartX = 0;
+  let mediaDragPointerStartY = 0;
+  let mediaDragGhostOffsetX = 0;
+  let mediaDragGhostOffsetY = 0;
+  let mediaDragGhostEl: HTMLElement | null = null;
+
   function autoResize(node: HTMLTextAreaElement, _val: any) {
     const update = () => {
       node.style.height = 'auto';
@@ -365,6 +379,126 @@
     editingFileIndex = null;
     editingFileType = null;
   }
+
+  // Pointer drag and drop reordering handlers matching TaskEditor.svelte
+  function handleFilePointerDown(
+    e: PointerEvent,
+    index: number,
+    type: 'question_media' | 'option_media',
+    qIndex: number,
+    oIndex: number = -1
+  ) {
+    if (e.button !== 0 && e.button !== -1) return;
+    const target = e.currentTarget as HTMLElement;
+
+    if ((e.target as HTMLElement).closest('.remove-file-btn') || 
+        ((e.target as HTMLElement).closest('.preview-file-click') && !(e.target as HTMLElement).closest('.drag-handle'))) return;
+
+    mediaDragPointerStartX = e.clientX;
+    mediaDragPointerStartY = e.clientY;
+
+    try { target.setPointerCapture(e.pointerId); } catch (_) {}
+
+    function onMove(me: PointerEvent) {
+      const dx = me.clientX - mediaDragPointerStartX;
+      const dy = me.clientY - mediaDragPointerStartY;
+
+      if (!isMediaDragActive && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+        isMediaDragActive = true;
+        draggedFileIndex = index;
+        draggedFileType = type;
+        draggedQuestionIndex = qIndex;
+        draggedOptionIndex = oIndex;
+
+        const ghost = target.cloneNode(true) as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        ghost.style.cssText = `
+          position: fixed;
+          pointer-events: none;
+          z-index: 9999;
+          width: ${rect.width}px;
+          opacity: 0.85;
+          left: ${rect.left}px;
+          top: ${rect.top}px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+          border-radius: 0.5rem;
+          transform: scale(1.02);
+          transition: none;
+        `;
+        mediaDragGhostOffsetX = me.clientX - rect.left;
+        mediaDragGhostOffsetY = me.clientY - rect.top;
+        document.body.appendChild(ghost);
+        mediaDragGhostEl = ghost;
+      }
+
+      if (!isMediaDragActive) return;
+
+      if (mediaDragGhostEl) {
+        mediaDragGhostEl.style.left = `${me.clientX - mediaDragGhostOffsetX}px`;
+        mediaDragGhostEl.style.top  = `${me.clientY - mediaDragGhostOffsetY}px`;
+      }
+
+      if (mediaDragGhostEl) mediaDragGhostEl.style.display = 'none';
+      const el = document.elementFromPoint(me.clientX, me.clientY);
+      if (mediaDragGhostEl) mediaDragGhostEl.style.display = '';
+
+      const fileRow = el?.closest('[data-file-index]') as HTMLElement | null;
+      if (fileRow && fileRow.dataset.fileType === type) {
+        const rowQIndex = parseInt(fileRow.dataset.qIndex || '-1', 10);
+        const rowOIndex = parseInt(fileRow.dataset.oIndex || '-1', 10);
+        if (rowQIndex === qIndex && rowOIndex === oIndex) {
+          hoveredFileIndex = parseInt(fileRow.dataset.fileIndex || '0', 10);
+        } else {
+          hoveredFileIndex = null;
+        }
+      } else {
+        hoveredFileIndex = null;
+      }
+    }
+
+    function onUp(ue: PointerEvent) {
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
+      try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
+
+      if (mediaDragGhostEl) {
+        mediaDragGhostEl.remove();
+        mediaDragGhostEl = null;
+      }
+
+      if (isMediaDragActive && draggedFileIndex !== null && hoveredFileIndex !== null && draggedFileIndex !== hoveredFileIndex) {
+        reorderFiles(type, qIndex, oIndex, draggedFileIndex, hoveredFileIndex);
+      }
+
+      isMediaDragActive = false;
+      draggedFileIndex = null;
+      draggedFileType = null;
+      draggedQuestionIndex = -1;
+      draggedOptionIndex = -1;
+      hoveredFileIndex = null;
+    }
+
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
+  }
+
+  function reorderFiles(type: 'question_media' | 'option_media', qIndex: number, oIndex: number, from: number, to: number) {
+    const list = [...multipleChoiceTasks];
+    if (type === 'question_media') {
+      const mediaList = [...list[qIndex].questionMedia];
+      const [moved] = mediaList.splice(from, 1);
+      mediaList.splice(to, 0, moved);
+      list[qIndex].questionMedia = mediaList;
+    } else {
+      const mediaList = [...list[qIndex].options[oIndex].media];
+      const [moved] = mediaList.splice(from, 1);
+      mediaList.splice(to, 0, moved);
+      list[qIndex].options[oIndex].media = mediaList;
+    }
+    multipleChoiceTasks = list;
+  }
 </script>
 
 <div class="flex flex-col gap-6 mt-4">
@@ -501,19 +635,31 @@
             {#if question.questionMedia.length > 0}
               <div class="flex flex-col gap-1.5 mt-2 w-full">
                 {#each question.questionMedia as file, mIndex}
-                  <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm w-full font-sans select-none">
+                  {#if isMediaDragActive && draggedFileType === 'question_media' && draggedQuestionIndex === qIndex && hoveredFileIndex === mIndex}
+                    <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
+                  {/if}
+                  <div 
+                    data-file-index={mIndex}
+                    data-file-type="question_media"
+                    data-q-index={qIndex}
+                    onpointerdown={(e) => handleFilePointerDown(e, mIndex, 'question_media', qIndex)}
+                    class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none w-full font-sans {isMediaDragActive && draggedFileType === 'question_media' && draggedQuestionIndex === qIndex && draggedFileIndex === mIndex ? 'opacity-40 scale-95' : ''}"
+                  >
                     <div 
                       onclick={() => {
                         if (editingFileIndex !== mIndex || editingFileType !== 'question' || editingQuestionIndex !== qIndex) {
                           onOpenPreview(file);
                         }
                       }}
-                      class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow"
+                      class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
                       title={t('taskEditor.clickToPreview') || 'Klicken für Vorschau'}
                       role="button"
                       tabindex="0"
                       onkeydown={(e) => { if (e.key === 'Enter') onOpenPreview(file); }}
                     >
+                      <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
+                        drag_indicator
+                      </span>
                       <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
                         {getFileIcon(file.name)}
                       </span>
@@ -550,7 +696,7 @@
                       <button 
                         type="button" 
                         onclick={() => removeQuestionMedia(qIndex, mIndex)}
-                        class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                        class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors remove-file-btn"
                       >
                         close
                       </button>
@@ -617,7 +763,7 @@
                       <button
                         type="button"
                         onclick={() => deleteOption(qIndex, oIndex)}
-                        class="text-on-surface-variant hover:text-error p-1 hover:bg-surface-container rounded-lg cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
+                        class="text-on-surface-variant hover:text-error p-1 hover:bg-surface-container rounded-lg cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0 animate-fade-in"
                         title={t('taskEditor.mc.deleteOption') || 'Option löschen'}
                       >
                         <span class="material-symbols-outlined text-[16px]">close</span>
@@ -657,19 +803,32 @@
                     {#if option.media && option.media.length > 0}
                       <div class="flex flex-col gap-1.5 mt-1.5 w-full">
                         {#each option.media as file, omIndex}
-                          <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm w-full font-sans select-none">
+                          {#if isMediaDragActive && draggedFileType === 'option_media' && draggedQuestionIndex === qIndex && draggedOptionIndex === oIndex && hoveredFileIndex === omIndex}
+                            <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
+                          {/if}
+                          <div 
+                            data-file-index={omIndex}
+                            data-file-type="option_media"
+                            data-q-index={qIndex}
+                            data-o-index={oIndex}
+                            onpointerdown={(e) => handleFilePointerDown(e, omIndex, 'option_media', qIndex, oIndex)}
+                            class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none w-full font-sans {isMediaDragActive && draggedFileType === 'option_media' && draggedQuestionIndex === qIndex && draggedOptionIndex === oIndex && draggedFileIndex === omIndex ? 'opacity-40 scale-95' : ''}"
+                          >
                             <div 
                               onclick={() => {
                                 if (editingFileIndex !== omIndex || editingFileType !== 'option' || editingQuestionIndex !== qIndex || editingOptionIndex !== oIndex) {
                                   onOpenPreview(file);
                                 }
                               }}
-                              class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow"
+                              class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
                               title={t('taskEditor.clickToPreview') || 'Klicken für Vorschau'}
                               role="button"
                               tabindex="0"
                               onkeydown={(e) => { if (e.key === 'Enter') onOpenPreview(file); }}
                             >
+                              <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
+                                drag_indicator
+                              </span>
                               <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
                                 {getFileIcon(file.name)}
                               </span>
@@ -706,7 +865,7 @@
                               <button 
                                 type="button" 
                                 onclick={() => removeOptionMedia(qIndex, oIndex, omIndex)}
-                                class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                                class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors remove-file-btn"
                               >
                                 close
                               </button>

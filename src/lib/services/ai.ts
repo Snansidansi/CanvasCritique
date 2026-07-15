@@ -70,6 +70,9 @@ export interface CheckWorkSettings {
   taskMediaFilterExtensions?: string;
   solutionMediaFilterMode?: string;
   solutionMediaFilterExtensions?: string;
+  sendMcMedia?: boolean;
+  mcMediaFilterMode?: string;
+  mcMediaFilterExtensions?: string;
 }
 
 export interface CheckWorkOptions {
@@ -164,6 +167,30 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     }
   }
 
+  function shouldIncludeMcFile(filename: string): boolean {
+    if (!settings) return true;
+    const mode = settings.mcMediaFilterMode ?? 'blacklist';
+    const extensionsStr = settings.mcMediaFilterExtensions ?? '';
+    
+    const extensions = extensionsStr
+      .split(',')
+      .map((ext: string) => ext.trim().toLowerCase())
+      .filter((ext: string) => ext.length > 0)
+      .map((ext: string) => ext.startsWith('.') ? ext : '.' + ext);
+      
+    if (extensions.length === 0) {
+      return mode === 'blacklist';
+    }
+    
+    const fileExt = '.' + filename.split('.').pop()!.toLowerCase();
+    
+    if (mode === 'whitelist') {
+      return extensions.includes(fileExt);
+    } else {
+      return !extensions.includes(fileExt);
+    }
+  }
+
   // Resolve media files from filesystem to data URLs
   const task = { ...initialTask };
   if (task.instructionFiles) {
@@ -221,6 +248,64 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
         task.solutionFile = { ...task.solutionFile, dataUrl: await getMediaDataUrl(task.solutionFile.mediaId) };
       } catch (_) {}
     }
+  }
+
+  // Resolve Multiple Choice media files
+  if (task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0) {
+    const sendMcMedia = settings?.sendMcMedia ?? true;
+    task.multipleChoiceTasks = await Promise.all(
+      task.multipleChoiceTasks.map(async (q) => {
+        const resolvedQ = { ...q };
+
+        // Process questionMedia
+        if (resolvedQ.questionMedia) {
+          if (!sendMcMedia) {
+            resolvedQ.questionMedia = [];
+          } else {
+            resolvedQ.questionMedia = await Promise.all(
+              resolvedQ.questionMedia.map(async (f) => {
+                if (!f.dataUrl && f.mediaId) {
+                  try {
+                    return { ...f, dataUrl: await getMediaDataUrl(f.mediaId) };
+                  } catch (_) {}
+                }
+                return { ...f };
+              })
+            );
+            resolvedQ.questionMedia = resolvedQ.questionMedia.filter(f => shouldIncludeMcFile(f.name));
+          }
+        }
+
+        // Process option.media
+        if (resolvedQ.options) {
+          resolvedQ.options = await Promise.all(
+            resolvedQ.options.map(async (o) => {
+              const resolvedO = { ...o };
+              if (resolvedO.media) {
+                if (!sendMcMedia) {
+                  resolvedO.media = [];
+                } else {
+                  resolvedO.media = await Promise.all(
+                    resolvedO.media.map(async (f) => {
+                      if (!f.dataUrl && f.mediaId) {
+                        try {
+                          return { ...f, dataUrl: await getMediaDataUrl(f.mediaId) };
+                        } catch (_) {}
+                      }
+                      return { ...f };
+                    })
+                  );
+                  resolvedO.media = resolvedO.media.filter(f => shouldIncludeMcFile(f.name));
+                }
+              }
+              return resolvedO;
+            })
+          );
+        }
+
+        return resolvedQ;
+      })
+    );
   }
 
   // Helper to determine if history contains any visible (non-eraser) drawing strokes with points

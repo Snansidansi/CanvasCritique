@@ -3,6 +3,7 @@
   import { t } from '../../services/i18n';
   import { getMediaDataUrl, isAudioFile, isVideoFile, isImageFile, getFileIcon, isIntegratedFile, openAttachmentInDefaultApp } from '../../db/media';
   import AudioPlayer from './AudioPlayer.svelte';
+  import MediaPreviewItem from './MediaPreviewItem.svelte';
 
   let {
     splitWidth = $bindable(400),
@@ -18,7 +19,22 @@
     infoPanelsLayout = 'vertical',
     sidebarPosition = 'left',
     onSelectProvidedImage = (file: any) => {}
-  } = $props();
+  } = $props<{
+    splitWidth?: number;
+    activeLeftPanels: any;
+    feedbackScore: any;
+    isChecking: boolean;
+    feedbackText: any;
+    parseMarkdown: any;
+    handleCritiqueClick: any;
+    task: any;
+    textFontSize?: number;
+    isRightContentVisible?: boolean;
+    infoPanelsLayout?: 'vertical' | 'horizontal';
+    sidebarPosition?: 'left' | 'right' | 'top' | 'bottom';
+    onSelectProvidedImage?: (file: any) => void;
+  }>();
+
 
   let providedMediaExpanded = $state(false);
 
@@ -698,140 +714,15 @@
                 <div class="flex flex-col gap-3">
                   {#each task.instructionFiles as file, idx}
                     {@const mediaId = `task-inst-${idx}`}
-                    {@const open = isMediaExpanded(mediaId, true)}
-                    <div class="bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-sm flex flex-col transition-all">
-                      <!-- svelte-ignore a11y_click_events_have_key_events -->
-                      <!-- svelte-ignore a11y_no_static_element_interactions -->
-                      <div 
-                        onclick={() => toggleMedia(mediaId)}
-                        class="w-full px-4 py-3 flex items-center justify-between hover:bg-surface-container-high transition-colors font-sans text-xs font-semibold text-on-surface cursor-pointer select-none text-left"
-                      >
-                        <div class="flex items-center gap-2 min-w-0">
-                          <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
-                            {getFileIcon(file.name)}
-                          </span>
-                          <span class="truncate pr-4">{getBaseName(file.name)}</span>
-                        </div>
-                        <div class="flex items-center shrink-0">
-                          {#if isImageFile(file.name)}
-                          <button
-                            type="button"
-                            onclick={(e) => {
-                              e.stopPropagation();
-                              onSelectProvidedImage(file);
-                            }}
-                            class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
-                            title={t('practice.infoPanels.placeOnCanvas')}
-                          >
-                            place_item
-                          </button>
-                          {/if}
-                          {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
-                          <button
-                            type="button"
-                            onclick={(e) => {
-                              e.stopPropagation();
-                              openPreview(file);
-                            }}
-                            class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
-                            title={t('practice.infoPanels.openFullScreen')}
-                          >
-                            zoom_in
-                          </button>
-                          {/if}
-                          <span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform shrink-0" style="transform: rotate({open ? '180deg' : '0deg'});">
-                            keyboard_arrow_down
-                          </span>
-                        </div>
-                      </div>
-
-                      {#if open}
-                        {@const fileUrl = resolveMediaUrl(file)}
-                        {@const loading = isMediaLoading(file)}
-                        {@const error = isMediaError(file)}
-                        <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
-                          {#if loading}
-                            <div class="flex items-center justify-center py-4 gap-2 text-on-surface-variant text-[10px]">
-                              <div class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                              {t('taskEditor.audio.loading')}
-                            </div>
-                          {:else if error}
-                            <span class="text-[10px] text-error italic">{t('practice.infoPanels.mediaError')}</span>
-                          {:else if isAudioFile(file.name)}
-                            {#if fileUrl}
-                              <AudioPlayer dataUrl={fileUrl} compact={true} />
-                            {/if}
-                          {:else if isVideoFile(file.name)}
-                            {#if fileUrl}
-                              <!-- svelte-ignore a11y_media_has_caption -->
-                              <video 
-                                src={fileUrl} 
-                                controls 
-                                class="max-w-full max-h-full rounded-lg shadow-sm border border-outline-variant/10"
-                              ></video>
-                            {/if}
-                          {:else if !isIntegratedFile(file.name)}
-                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <div 
-                              onclick={() => openAttachmentInDefaultApp(file).catch(err => console.error(err))}
-                              class="w-full p-4 flex flex-col items-center justify-center gap-3 bg-surface-container-low hover:bg-surface-container-high border border-outline-variant rounded-xl cursor-pointer transition-all select-none hover:shadow-md py-6 group"
-                            >
-                              <span class="material-symbols-outlined text-[36px] text-primary shrink-0 group-hover:scale-105 transition-transform">
-                                {getFileIcon(file.name)}
-                              </span>
-                              <div class="text-center">
-                                <p class="text-xs font-bold text-on-surface truncate max-w-sidebar-width">{getBaseName(file.name)}</p>
-                                <p class="text-[10px] text-on-surface-variant mt-1">{t('practice.infoPanels.openDefaultApp')}</p>
-                              </div>
-                            </div>
-                          {:else}
-                            <div 
-                              class="w-full max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10"
-                              style="aspect-ratio: {isImageFile(file.name) ? (imageRatios[mediaId] || '4/3') : '4/3'};"
-                            >
-                              {#if file.name.toLowerCase().endsWith('.pdf')}
-                                <iframe 
-                                  src={fileUrl} 
-                                  title={file.name} 
-                                  class="w-full h-full border-0 rounded-lg"
-                                ></iframe>
-                              {:else if file.name.toLowerCase().endsWith('.md')}
-                                <div class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans prose prose-sm dark:prose-invert" style="font-size: {textFontSize}px;">
-                                  {@html parseMarkdown(decodeBase64Text(fileUrl))}
-                                </div>
-                              {:else if file.name.toLowerCase().endsWith('.txt')}
-                                <pre class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg font-mono text-on-surface whitespace-pre-wrap select-text text-left border border-outline-variant/30 leading-relaxed" style="font-size: {textFontSize}px;">{decodeBase64Text(fileUrl)}</pre>
-                              {:else}
-                                {@const inlineImgState = inlineStates[mediaId]}
-                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                <img 
-                                  src={fileUrl} 
-                                  alt={file.name} 
-                                  data-media-id={mediaId}
-                                  onload={(e) => {
-                                    const img = e.currentTarget as HTMLImageElement;
-                                    if (img.naturalWidth && img.naturalHeight) {
-                                      imageRatios[mediaId] = img.naturalWidth / img.naturalHeight;
-                                    }
-                                  }}
-                                  onclick={(e) => handleInlineClick(e, file, mediaId)}
-                                  onwheel={handleInlineWheel}
-                                  onpointerdown={handleInlinePointerDown}
-                                  onpointermove={handleInlinePointerMove}
-                                  onpointerup={handleInlinePointerUp}
-                                  onpointercancel={handleInlinePointerCancel}
-                                  class="w-full h-full object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
-                                  style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
-                                  draggable="false"
-                                />
-                              {/if}
-                            </div>
-                          {/if}
-                        </div>
-                      {/if}
-                    </div>
+                    <MediaPreviewItem
+                      {file}
+                      {mediaId}
+                      open={isMediaExpanded(mediaId, true)}
+                      onToggle={() => toggleMedia(mediaId)}
+                      onSelectProvidedImage={onSelectProvidedImage}
+                      onOpenPreview={openPreview}
+                      fontSize={textFontSize}
+                    />
                   {/each}
                 </div>
               </div>
@@ -914,140 +805,15 @@
                 <div class="flex flex-col gap-3">
                   {#each task.solutionFiles as file, idx}
                     {@const mediaId = `sol-sol-${idx}`}
-                    {@const open = isMediaExpanded(mediaId, true)}
-                    <div class="bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-sm flex flex-col transition-all">
-                      <!-- svelte-ignore a11y_click_events_have_key_events -->
-                      <!-- svelte-ignore a11y_no_static_element_interactions -->
-                      <div 
-                        onclick={() => toggleMedia(mediaId)}
-                        class="w-full px-4 py-3 flex items-center justify-between hover:bg-surface-container-high transition-colors font-sans text-xs font-semibold text-on-surface cursor-pointer select-none text-left"
-                      >
-                        <div class="flex items-center gap-2 min-w-0">
-                          <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
-                            {getFileIcon(file.name)}
-                          </span>
-                          <span class="truncate pr-4">{getBaseName(file.name)}</span>
-                        </div>
-                        <div class="flex items-center shrink-0">
-                          {#if isImageFile(file.name)}
-                          <button
-                            type="button"
-                            onclick={(e) => {
-                              e.stopPropagation();
-                              onSelectProvidedImage(file);
-                            }}
-                            class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
-                            title={t('practice.infoPanels.placeOnCanvas')}
-                          >
-                            place_item
-                          </button>
-                          {/if}
-                          {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
-                          <button
-                            type="button"
-                            onclick={(e) => {
-                              e.stopPropagation();
-                              openPreview(file);
-                            }}
-                            class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
-                            title={t('practice.infoPanels.openFullScreen')}
-                          >
-                            zoom_in
-                          </button>
-                          {/if}
-                          <span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform shrink-0" style="transform: rotate({open ? '180deg' : '0deg'});">
-                            keyboard_arrow_down
-                          </span>
-                        </div>
-                      </div>
-
-                      {#if open}
-                        {@const fileUrl = resolveMediaUrl(file)}
-                        {@const loading = isMediaLoading(file)}
-                        {@const error = isMediaError(file)}
-                        <div class="border-t border-outline-variant bg-surface-container-lowest p-2 flex justify-center items-center overflow-x-auto min-h-20">
-                          {#if loading}
-                            <div class="flex items-center justify-center py-4 gap-2 text-on-surface-variant text-[10px]">
-                              <div class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                              {t('taskEditor.audio.loading')}
-                            </div>
-                          {:else if error}
-                            <span class="text-[10px] text-error italic">{t('practice.infoPanels.mediaError')}</span>
-                          {:else if isAudioFile(file.name)}
-                            {#if fileUrl}
-                              <AudioPlayer dataUrl={fileUrl} compact={true} />
-                            {/if}
-                          {:else if isVideoFile(file.name)}
-                            {#if fileUrl}
-                              <!-- svelte-ignore a11y_media_has_caption -->
-                              <video 
-                                src={fileUrl} 
-                                controls 
-                                class="max-w-full max-h-full rounded-lg shadow-sm border border-outline-variant/10"
-                              ></video>
-                            {/if}
-                          {:else if !isIntegratedFile(file.name)}
-                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <div 
-                              onclick={() => openAttachmentInDefaultApp(file).catch(err => console.error(err))}
-                              class="w-full p-4 flex flex-col items-center justify-center gap-3 bg-surface-container-low hover:bg-surface-container-high border border-outline-variant rounded-xl cursor-pointer transition-all select-none hover:shadow-md py-6 group"
-                            >
-                              <span class="material-symbols-outlined text-[36px] text-primary shrink-0 group-hover:scale-105 transition-transform">
-                                {getFileIcon(file.name)}
-                              </span>
-                              <div class="text-center">
-                                <p class="text-xs font-bold text-on-surface truncate max-w-sidebar-width">{getBaseName(file.name)}</p>
-                                <p class="text-[10px] text-on-surface-variant mt-1">{t('practice.infoPanels.openDefaultApp')}</p>
-                              </div>
-                            </div>
-                          {:else}
-                            <div 
-                              class="w-full max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10"
-                              style="aspect-ratio: {isImageFile(file.name) ? (imageRatios[mediaId] || '4/3') : '4/3'};"
-                            >
-                              {#if file.name.toLowerCase().endsWith('.pdf')}
-                                <iframe 
-                                  src={fileUrl} 
-                                  title={file.name} 
-                                  class="w-full h-full border-0 rounded-lg"
-                                ></iframe>
-                              {:else if file.name.toLowerCase().endsWith('.md')}
-                                <div class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans">
-                                  {@html parseMarkdown(decodeBase64Text(fileUrl))}
-                                </div>
-                              {:else if file.name.toLowerCase().endsWith('.txt')}
-                                <pre class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-xs font-mono text-on-surface whitespace-pre-wrap select-text text-left border border-outline-variant/30 leading-relaxed">{decodeBase64Text(fileUrl)}</pre>
-                              {:else}
-                                {@const inlineImgState = inlineStates[mediaId]}
-                                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                <img 
-                                  src={fileUrl} 
-                                  alt={file.name} 
-                                  data-media-id={mediaId}
-                                  onload={(e) => {
-                                    const img = e.currentTarget as HTMLImageElement;
-                                    if (img.naturalWidth && img.naturalHeight) {
-                                      imageRatios[mediaId] = img.naturalWidth / img.naturalHeight;
-                                    }
-                                  }}
-                                  onclick={(e) => handleInlineClick(e, file, mediaId)}
-                                  onwheel={handleInlineWheel}
-                                  onpointerdown={handleInlinePointerDown}
-                                  onpointermove={handleInlinePointerMove}
-                                  onpointerup={handleInlinePointerUp}
-                                  onpointercancel={handleInlinePointerCancel}
-                                  class="w-full h-full object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
-                                  style="transform: translate({inlineImgState?.panX ?? 0}px, {inlineImgState?.panY ?? 0}px) scale({inlineImgState?.zoom ?? 1}); transform-origin: center center; cursor: {(inlineImgState?.zoom ?? 1) > 1 ? ((inlineImgState?.isDragging) ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
-                                  draggable="false"
-                                />
-                              {/if}
-                            </div>
-                          {/if}
-                        </div>
-                      {/if}
-                    </div>
+                    <MediaPreviewItem
+                      {file}
+                      {mediaId}
+                      open={isMediaExpanded(mediaId, true)}
+                      onToggle={() => toggleMedia(mediaId)}
+                      onSelectProvidedImage={onSelectProvidedImage}
+                      onOpenPreview={openPreview}
+                      fontSize={textFontSize}
+                    />
                   {/each}
                 </div>
               </div>

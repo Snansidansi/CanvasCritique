@@ -3,6 +3,7 @@
   import { parseMarkdown } from '../../utils/markdown';
   import { isImageFile, isAudioFile, isVideoFile, getFileIcon, isIntegratedFile, openAttachmentInDefaultApp } from '../../db/media';
   import AudioPlayer from './AudioPlayer.svelte';
+  import MediaPreviewItem from './MediaPreviewItem.svelte';
   import type { MultipleChoiceTask, MediaFile } from '../../state/types';
 
   let {
@@ -12,15 +13,19 @@
     showSolution = false,
     onSelectProvidedImage = () => {},
     onAnswersChanged = () => {}
+  }: {
+    multipleChoiceTasks?: MultipleChoiceTask[];
+    selectedAnswers?: Record<string, string[]>;
+    fontSize?: number;
+    showSolution?: boolean;
+    onSelectProvidedImage?: (file: any) => void;
+    onAnswersChanged?: (answers: Record<string, string[]>) => void;
   } = $props();
 
   let expandedMediaIds = $state<Record<string, boolean>>({});
-  
-  // Media loading registry for db files
-  let loadedMedia = $state<Record<string, { url: string; loading: boolean; error: boolean }>>({});
 
   // Preview Modal states matching PracticeInfoPanels 1-to-1
-  let previewFile = $state<{ name: string; dataUrl: string } | null>(null);
+  let previewFile = $state<{ name: string; dataUrl: string; mediaId?: string } | null>(null);
   let modalZoom = $state(1);
   let modalPan = $state({ x: 0, y: 0 });
   let isModalDragging = $state(false);
@@ -33,37 +38,6 @@
   let modalInitialPinchMidpoint = { x: 0, y: 0 };
   let modalInitialPinchPan = { x: 0, y: 0 };
   let modalInitialPinchCenter = { x: 0, y: 0 };
-
-  // Fetch data urls reactively when tasks load/change (no base64 stored in task JSON!)
-  $effect(() => {
-    const filesToLoad: any[] = [];
-    multipleChoiceTasks.forEach(q => {
-      if (q.questionMedia) {
-        filesToLoad.push(...q.questionMedia.filter((f: any) => f.mediaId && !f.dataUrl));
-      }
-      if (q.options) {
-        q.options.forEach((o: any) => {
-          if (o.media) {
-            filesToLoad.push(...o.media.filter((f: any) => f.mediaId && !f.dataUrl));
-          }
-        });
-      }
-    });
-
-    for (const file of filesToLoad) {
-      const mediaId = file.mediaId;
-      if (mediaId && !loadedMedia[mediaId]) {
-        loadedMedia[mediaId] = { url: '', loading: true, error: false };
-        import('../../db/media').then(({ getMediaDataUrl }) => {
-          getMediaDataUrl(mediaId).then(url => {
-            loadedMedia[mediaId] = { url, loading: false, error: false };
-          }).catch(() => {
-            loadedMedia[mediaId] = { url: '', loading: false, error: true };
-          });
-        });
-      }
-    }
-  });
 
   function isOptionSelected(questionId: string, optionId: string): boolean {
     const list = selectedAnswers[questionId] || [];
@@ -108,32 +82,8 @@
     if (expandedMediaIds[mediaId] !== undefined) {
       return expandedMediaIds[mediaId];
     }
-    return true; // Default open
-  }
-
-  function resolveMediaUrl(file: { name: string; dataUrl?: string; mediaId?: string }): string {
-    if (file.dataUrl) return file.dataUrl;
-    if (file.mediaId && loadedMedia[file.mediaId]?.url) return loadedMedia[file.mediaId].url;
-    return '';
-  }
-
-  function isMediaLoading(file: { name: string; dataUrl?: string; mediaId?: string }): boolean {
-    if (file.dataUrl) return false;
-    if (file.mediaId && loadedMedia[file.mediaId]?.loading) return true;
+    // Collapsed by default for lazy loading performance!
     return false;
-  }
-
-  function isMediaError(file: { name: string; dataUrl?: string; mediaId?: string }): boolean {
-    if (file.dataUrl) return false;
-    if (file.mediaId && loadedMedia[file.mediaId]?.error) return true;
-    return false;
-  }
-
-  function getBaseName(filename: string): string {
-    if (!filename) return '';
-    const lastDotIndex = filename.lastIndexOf('.');
-    if (lastDotIndex === -1 || lastDotIndex === 0) return filename;
-    return filename.substring(0, lastDotIndex);
   }
 
   function decodeBase64Text(dataUrl: string): string {
@@ -142,20 +92,13 @@
       const base64Data = dataUrl.split(',')[1];
       return decodeURIComponent(escape(atob(base64Data)));
     } catch (e) {
-      console.error('Failed to decode text document', e);
+      console.error('[MultipleChoicePractice] Failed to decode text document', e);
       return t('taskEditor.errorDecode') || 'Fehler beim Dekodieren';
     }
   }
 
-  async function openPreview(file: { name: string; dataUrl?: string; mediaId?: string }) {
-    if (!isIntegratedFile(file.name)) {
-      openAttachmentInDefaultApp(file).catch(err => {
-        console.error('Failed to open attachment:', err);
-      });
-      return;
-    }
-    const url = resolveMediaUrl(file);
-    previewFile = { name: file.name, dataUrl: url };
+  async function openPreview(file: { name: string; dataUrl: string; mediaId?: string }) {
+    previewFile = file;
     modalZoom = 1;
     modalPan = { x: 0, y: 0 };
   }
@@ -291,122 +234,20 @@
         {@html parseMarkdown(question.question || '')}
       </div>
 
-      <!-- Question Media Accordions (exactly like sidebar) -->
+      <!-- Question Media Accordions (reusing the extracted MediaPreviewItem component) -->
       {#if question.questionMedia && question.questionMedia.length > 0}
-        <div class="flex flex-col gap-3 mt-1">
+        <div class="flex flex-col gap-3 mt-1 animate-fade-in">
           {#each question.questionMedia as file, idx}
             {@const mediaId = `q-${question.id}-${idx}`}
-            {@const open = isMediaExpanded(mediaId)}
-            {@const fileUrl = resolveMediaUrl(file)}
-            {@const loading = isMediaLoading(file)}
-            {@const error = isMediaError(file)}
-            <div class="bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-sm flex flex-col transition-all w-full">
-              <!-- Header Bar -->
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div 
-                onclick={() => toggleMedia(mediaId)}
-                class="w-full px-4 py-3 flex items-center justify-between hover:bg-surface-container-high transition-colors font-sans text-xs font-semibold text-on-surface cursor-pointer select-none text-left"
-              >
-                <div class="flex items-center gap-2 min-w-0">
-                  <span class="material-symbols-outlined text-[18px] text-primary shrink-0">
-                    {getFileIcon(file.name)}
-                  </span>
-                  <span class="truncate pr-4">{getBaseName(file.name)}</span>
-                </div>
-                <div class="flex items-center shrink-0 gap-1.5" onclick={e => e.stopPropagation()}>
-                  {#if isImageFile(file.name)}
-                    <button
-                      type="button"
-                      onclick={(e) => {
-                        e.stopPropagation();
-                        onSelectProvidedImage(file);
-                      }}
-                      class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors mr-1.5"
-                      title={t('practice.infoPanels.placeOnCanvas') || 'Auf Canvas platzieren'}
-                    >
-                      place_item
-                    </button>
-                  {/if}
-                  {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
-                    <button
-                      type="button"
-                      onclick={() => openPreview(file)}
-                      class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
-                      title={t('practice.infoPanels.openFullScreen') || 'Vorschau'}
-                    >
-                      zoom_in
-                    </button>
-                  {/if}
-                  <span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform shrink-0" style="transform: rotate({open ? '180deg' : '0deg'});">
-                    keyboard_arrow_down
-                  </span>
-                </div>
-              </div>
-
-              <!-- Media Content Panel -->
-              {#if open}
-                <div class="border-t border-outline-variant bg-surface-container-lowest p-3 flex justify-center items-center overflow-x-auto min-h-20 w-full">
-                  {#if loading}
-                    <div class="flex items-center justify-center py-4 gap-2 text-on-surface-variant text-[10px]">
-                      <div class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                      {t('taskEditor.audio.loading') || 'Wird geladen...'}
-                    </div>
-                  {:else if error}
-                    <span class="text-[10px] text-error italic">{t('practice.infoPanels.mediaError') || 'Fehler beim Laden'}</span>
-                  {:else if isAudioFile(file.name)}
-                    {#if fileUrl}
-                      <AudioPlayer dataUrl={fileUrl} compact={true} />
-                    {/if}
-                  {:else if isVideoFile(file.name)}
-                    {#if fileUrl}
-                      <!-- svelte-ignore a11y_media_has_caption -->
-                      <video 
-                        src={fileUrl} 
-                        controls 
-                        class="max-w-full max-h-64 rounded-lg shadow-sm border border-outline-variant/10"
-                      ></video>
-                    {/if}
-                  {:else if !isIntegratedFile(file.name)}
-                    <button
-                      type="button"
-                      onclick={() => openAttachmentInDefaultApp(file).catch(err => console.error(err))}
-                      class="w-full p-4 flex flex-col items-center justify-center gap-3 bg-surface-container-low hover:bg-surface-container-high border border-outline-variant rounded-xl cursor-pointer transition-all select-none py-6 group"
-                    >
-                      <span class="material-symbols-outlined text-[36px] text-primary shrink-0 group-hover:scale-105 transition-transform">
-                        {getFileIcon(file.name)}
-                      </span>
-                      <div class="text-center">
-                        <p class="text-xs font-bold text-on-surface truncate max-w-sidebar-width">{getBaseName(file.name)}</p>
-                        <p class="text-[10px] text-on-surface-variant mt-1">{t('practice.infoPanels.openDefaultApp') || 'Mit Standard-App öffnen'}</p>
-                      </div>
-                    </button>
-                  {:else}
-                    <div class="w-full max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10" style="aspect-ratio: 4/3;">
-                      {#if file.name.toLowerCase().endsWith('.pdf')}
-                        <iframe 
-                          src={fileUrl} 
-                          title={file.name} 
-                          class="w-full h-full border-0 rounded-lg"
-                        ></iframe>
-                      {:else if file.name.toLowerCase().endsWith('.md')}
-                        <div class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans prose prose-sm dark:prose-invert">
-                          {@html parseMarkdown(decodeBase64Text(fileUrl))}
-                        </div>
-                      {:else if file.name.toLowerCase().endsWith('.txt')}
-                        <pre class="w-full h-full p-4 overflow-auto bg-surface-container-high rounded-lg font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant/30 text-left">{decodeBase64Text(fileUrl)}</pre>
-                      {:else}
-                        <img 
-                          src={fileUrl} 
-                          alt={file.name} 
-                          class="max-w-full max-h-full object-contain rounded-lg shadow-sm" 
-                        />
-                      {/if}
-                    </div>
-                  {/if}
-                </div>
-              {/if}
-            </div>
+            <MediaPreviewItem
+              {file}
+              {mediaId}
+              open={isMediaExpanded(mediaId)}
+              onToggle={() => toggleMedia(mediaId)}
+              onSelectProvidedImage={onSelectProvidedImage}
+              onOpenPreview={openPreview}
+              fontSize={fontSize}
+            />
           {/each}
         </div>
       {/if}
@@ -467,120 +308,20 @@
               </div>
             </div>
 
-            <!-- Option Media Accordions (exactly like sidebar) -->
+            <!-- Option Media Accordions (reusing the extracted MediaPreviewItem component) -->
             {#if option.media && option.media.length > 0}
-              <div class="flex flex-col gap-2 pl-8 border-l border-outline-variant/30 mt-1" onclick={e => e.stopPropagation()} role="presentation">
+              <div class="flex flex-col gap-2 pl-8 border-l border-outline-variant/30 mt-1 animate-fade-in" onclick={e => e.stopPropagation()} role="presentation">
                 {#each option.media as file, oIdx}
                   {@const oMediaId = `opt-${question.id}-${option.id}-${oIdx}`}
-                  {@const oOpen = isMediaExpanded(oMediaId)}
-                  {@const fileUrl = resolveMediaUrl(file)}
-                  {@const loading = isMediaLoading(file)}
-                  {@const error = isMediaError(file)}
-                  <div class="bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-sm flex flex-col transition-all w-full">
-                    <!-- Header Bar -->
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <div 
-                      onclick={() => toggleMedia(oMediaId)}
-                      class="w-full px-3.5 py-2 flex items-center justify-between hover:bg-surface-container-high transition-colors font-sans text-[11px] font-semibold text-on-surface cursor-pointer select-none text-left"
-                    >
-                      <div class="flex items-center gap-1.5 min-w-0">
-                        <span class="material-symbols-outlined text-[16px] text-primary shrink-0">
-                          {getFileIcon(file.name)}
-                        </span>
-                        <span class="truncate pr-4">{getBaseName(file.name)}</span>
-                      </div>
-                      <div class="flex items-center shrink-0 gap-1" onclick={e => e.stopPropagation()}>
-                        {#if isImageFile(file.name)}
-                          <button
-                            type="button"
-                            onclick={(e) => {
-                              e.stopPropagation();
-                              onSelectProvidedImage(file);
-                            }}
-                            class="material-symbols-outlined text-[16px] text-primary hover:bg-primary/10 p-0.5 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
-                            title={t('practice.infoPanels.placeOnCanvas') || 'Auf Canvas platzieren'}
-                          >
-                            place_item
-                          </button>
-                        {/if}
-                        {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
-                          <button
-                            type="button"
-                            onclick={() => openPreview(file)}
-                            class="material-symbols-outlined text-[16px] text-primary hover:bg-primary/10 p-0.5 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
-                            title={t('practice.infoPanels.openFullScreen') || 'Vorschau'}
-                          >
-                            zoom_in
-                          </button>
-                        {/if}
-                        <span class="material-symbols-outlined text-[16px] text-on-surface-variant transition-transform shrink-0" style="transform: rotate({oOpen ? '180deg' : '0deg'});">
-                          keyboard_arrow_down
-                        </span>
-                      </div>
-                    </div>
-
-                    <!-- Media Content Panel -->
-                    {#if oOpen}
-                      <div class="border-t border-outline-variant bg-surface-container-lowest p-2.5 flex justify-center items-center overflow-x-auto min-h-16 w-full">
-                        {#if loading}
-                          <div class="flex items-center justify-center py-2 gap-2 text-on-surface-variant text-[9px]">
-                            <div class="w-2.5 h-2.5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                            {t('taskEditor.audio.loading') || 'Wird geladen...'}
-                          </div>
-                        {:else if error}
-                          <span class="text-[9px] text-error italic">{t('practice.infoPanels.mediaError') || 'Fehler'}</span>
-                        {:else if isAudioFile(file.name)}
-                          {#if fileUrl}
-                            <AudioPlayer dataUrl={fileUrl} compact={true} />
-                          {/if}
-                        {:else if isVideoFile(file.name)}
-                          {#if fileUrl}
-                            <!-- svelte-ignore a11y_media_has_caption -->
-                            <video 
-                              src={fileUrl} 
-                              controls 
-                              class="max-w-full max-h-48 rounded-lg shadow-sm border border-outline-variant/10"
-                            ></video>
-                          {/if}
-                        {:else if !isIntegratedFile(file.name)}
-                          <button
-                            type="button"
-                            onclick={() => openAttachmentInDefaultApp(file).catch(err => console.error(err))}
-                            class="w-full p-3 flex flex-col items-center justify-center gap-2 bg-surface-container-low hover:bg-surface-container-high border border-outline-variant rounded-lg cursor-pointer transition-all select-none py-4 group"
-                          >
-                            <span class="material-symbols-outlined text-[28px] text-primary shrink-0 group-hover:scale-105 transition-transform">
-                              {getFileIcon(file.name)}
-                            </span>
-                            <div class="text-center">
-                              <p class="text-[11px] font-bold text-on-surface truncate max-w-sidebar-width">{getBaseName(file.name)}</p>
-                              <p class="text-[9px] text-on-surface-variant mt-0.5">{t('practice.infoPanels.openDefaultApp') || 'Mit Standard-App öffnen'}</p>
-                            </div>
-                          </button>
-                        {:else}
-                          <div class="w-full max-h-[50vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10" style="aspect-ratio: 4/3;">
-                            {#if file.name.toLowerCase().endsWith('.pdf')}
-                              <iframe 
-                                src={fileUrl} 
-                                title={file.name} 
-                                class="w-full h-full border-0 rounded-lg"
-                              ></iframe>
-                            {:else if file.name.toLowerCase().endsWith('.md')}
-                              <div class="w-full h-full p-3 overflow-auto bg-surface-container-high rounded-lg text-on-surface select-text text-left border border-outline-variant/30 leading-relaxed wrap-break-word font-sans prose prose-sm dark:prose-invert">
-                                {@html parseMarkdown(decodeBase64Text(fileUrl))}
-                              </div>
-                            {:else}
-                              <img 
-                                src={fileUrl} 
-                                alt={file.name} 
-                                class="max-w-full max-h-full object-contain rounded-lg shadow-sm" 
-                              />
-                            {/if}
-                          </div>
-                        {/if}
-                      </div>
-                    {/if}
-                  </div>
+                  <MediaPreviewItem
+                    {file}
+                    mediaId={oMediaId}
+                    open={isMediaExpanded(oMediaId)}
+                    onToggle={() => toggleMedia(oMediaId)}
+                    onSelectProvidedImage={onSelectProvidedImage}
+                    onOpenPreview={openPreview}
+                    fontSize={fontSize}
+                  />
                 {/each}
               </div>
             {/if}
@@ -598,7 +339,7 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div 
     onclick={closePreview}
-    class="fixed inset-0 z-100 flex flex-col justify-center items-center bg-black/85 backdrop-blur-sm p-8"
+    class="fixed inset-0 z-100 flex flex-col justify-center items-center bg-black/85 backdrop-blur-sm p-8 select-none"
   >
     <div 
       onclick={(e) => e.stopPropagation()}

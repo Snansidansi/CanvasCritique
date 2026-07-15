@@ -231,6 +231,9 @@ class CanvasCritiqueStore {
       taskMediaFilterExtensions: useTaskMediaFilter ? (taskOverride.taskMediaFilterExtensions ?? globalSettings.taskMediaFilterExtensions) : (useProjMediaFilter ? (projOverride.taskMediaFilterExtensions ?? globalSettings.taskMediaFilterExtensions) : globalSettings.taskMediaFilterExtensions),
       solutionMediaFilterMode: useTaskMediaFilter ? (taskOverride.solutionMediaFilterMode ?? globalSettings.solutionMediaFilterMode) : (useProjMediaFilter ? (projOverride.solutionMediaFilterMode ?? globalSettings.solutionMediaFilterMode) : globalSettings.solutionMediaFilterMode),
       solutionMediaFilterExtensions: useTaskMediaFilter ? (taskOverride.solutionMediaFilterExtensions ?? globalSettings.solutionMediaFilterExtensions) : (useProjMediaFilter ? (projOverride.solutionMediaFilterExtensions ?? globalSettings.solutionMediaFilterExtensions) : globalSettings.solutionMediaFilterExtensions),
+      sendMcMedia: useTaskEvaluation ? (taskOverride.sendMcMedia ?? globalSettings.sendMcMedia) : (useProjEvaluation ? (projOverride.sendMcMedia ?? globalSettings.sendMcMedia) : globalSettings.sendMcMedia),
+      mcMediaFilterMode: useTaskMediaFilter ? (taskOverride.mcMediaFilterMode ?? globalSettings.mcMediaFilterMode) : (useProjMediaFilter ? (projOverride.mcMediaFilterMode ?? globalSettings.mcMediaFilterMode) : globalSettings.mcMediaFilterMode),
+      mcMediaFilterExtensions: useTaskMediaFilter ? (taskOverride.mcMediaFilterExtensions ?? globalSettings.mcMediaFilterExtensions) : (useProjMediaFilter ? (projOverride.mcMediaFilterExtensions ?? globalSettings.mcMediaFilterExtensions) : globalSettings.mcMediaFilterExtensions),
       language: (taskOverride?.overrideSettings) ? (taskOverride.language ?? globalSettings.language) : ((projOverride?.overrideSettings) ? (projOverride.language ?? globalSettings.language) : globalSettings.language),
     };
   }
@@ -357,6 +360,15 @@ class CanvasCritiqueStore {
       }
       if (this.settings.solutionMediaFilterExtensions === undefined) {
         this.settings.solutionMediaFilterExtensions = '';
+      }
+      if (this.settings.sendMcMedia === undefined) {
+        this.settings.sendMcMedia = true;
+      }
+      if (!this.settings.mcMediaFilterMode) {
+        this.settings.mcMediaFilterMode = 'blacklist';
+      }
+      if (this.settings.mcMediaFilterExtensions === undefined) {
+        this.settings.mcMediaFilterExtensions = '';
       }
       if (!this.settings.penRecentColors || !Array.isArray(this.settings.penRecentColors)) {
         this.settings.penRecentColors = ['#000000', '#1d4ed8', '#dc2626', '#059669'];

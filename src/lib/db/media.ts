@@ -139,6 +139,23 @@ export async function getMediaDataUrl(mediaId: string): Promise<string> {
   return `data:${mime_type};base64,${base64}`;
 }
 
+export async function getMediaBlobUrl(mediaId: string): Promise<string> {
+  const db = getDb();
+  const rows: any[] = await db.select(
+    'SELECT mime_type FROM media WHERE id = ?',
+    [mediaId]
+  );
+  if (rows.length === 0) throw new Error(`Media ${mediaId} not found`);
+
+  const { mime_type } = rows[0];
+
+  const mediaDir = await getMediaDir();
+  const filePath = await join(mediaDir, mediaId);
+  const bytes = await readFile(filePath);
+  const blob = new Blob([bytes], { type: mime_type });
+  return URL.createObjectURL(blob);
+}
+
 export async function getMediaBytesAndMime(mediaId: string): Promise<{ bytes: Uint8Array; mimeType: string }> {
   const db = getDb();
   const rows: any[] = await db.select(
