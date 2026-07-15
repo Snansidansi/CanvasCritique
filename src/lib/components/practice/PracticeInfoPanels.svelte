@@ -36,22 +36,34 @@
   let startWidth = 0;
 
   // Panel resizing states and effects
-  let rawContainerWidth = $state(0);
-  let rawContainerHeight = $state(0);
+  let infoPanelsContainer = $state<HTMLElement | null>(null);
   let containerWidth = $state(0);
   let containerHeight = $state(0);
 
   $effect(() => {
-    const w = Math.round(rawContainerWidth / 8) * 8;
-    const h = Math.round(rawContainerHeight / 8) * 8;
-    untrack(() => {
-      if (containerWidth !== w) {
-        containerWidth = w;
-      }
-      if (containerHeight !== h) {
-        containerHeight = h;
+    if (!infoPanelsContainer) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        const w = Math.round(width / 8) * 8;
+        const h = Math.round(height / 8) * 8;
+
+        requestAnimationFrame(() => {
+          if (containerWidth !== w) {
+            containerWidth = w;
+          }
+          if (containerHeight !== h) {
+            containerHeight = h;
+          }
+        });
       }
     });
+
+    resizeObserver.observe(infoPanelsContainer);
+    return () => {
+      resizeObserver.disconnect();
+    };
   });
   let panelSizes = $state<Record<string, number>>({});
   let lastContainerSize = 0;
@@ -611,8 +623,7 @@
 
 {#if activeLeftPanels.length > 0}
   <section 
-    bind:clientHeight={rawContainerHeight}
-    bind:clientWidth={rawContainerWidth}
+    bind:this={infoPanelsContainer}
     class="bg-surface-container-low flex overflow-hidden {isRightContentVisible ? 'shrink-0' : 'grow w-full'} {infoPanelsLayout === 'vertical' ? 'flex-col' : 'flex-row'}
            {sidebarFlow === 'column' ? 'w-full' : 'h-full'}
            {sidebarPosition === 'left' ? 'border-r border-outline-variant' : ''}

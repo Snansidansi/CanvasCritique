@@ -464,23 +464,34 @@
 
   // Canvas element references & container sizes
   let canvasElement = $state(null);
-  let canvasContainer = $state(null);
-  let rawContainerWidth = $state(800);
-  let rawContainerHeight = $state(600);
+  let canvasContainer = $state<HTMLElement | null>(null);
   let containerWidth = $state(800);
   let containerHeight = $state(600);
 
   $effect(() => {
-    const w = Math.round(rawContainerWidth / 8) * 8;
-    const h = Math.round(rawContainerHeight / 8) * 8;
-    untrack(() => {
-      if (containerWidth !== w) {
-        containerWidth = w;
-      }
-      if (containerHeight !== h) {
-        containerHeight = h;
+    if (!canvasContainer) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        const w = Math.round(width / 8) * 8;
+        const h = Math.round(height / 8) * 8;
+
+        requestAnimationFrame(() => {
+          if (containerWidth !== w) {
+            containerWidth = w;
+          }
+          if (containerHeight !== h) {
+            containerHeight = h;
+          }
+        });
       }
     });
+
+    resizeObserver.observe(canvasContainer);
+    return () => {
+      resizeObserver.disconnect();
+    };
   });
   
   let canvasWidth = $derived(canvasMode === 'infinite' ? Math.round(containerWidth / 8) * 8 : 800);
@@ -3892,8 +3903,6 @@
     {#if showCanvas}
       <section 
       bind:this={canvasContainer} 
-      bind:clientWidth={rawContainerWidth}
-      bind:clientHeight={rawContainerHeight}
       ondragover={handleDragOver}
       ondrop={handleDrop}
       role="presentation"
