@@ -264,10 +264,6 @@
               checked={showCanvas} 
               onchange={(e) => {
                 showCanvas = e.currentTarget.checked;
-                // Ensure at least one view is active
-                if (!showCanvas && !showText) {
-                  showText = true;
-                }
               }}
               class="accent-primary h-4 w-4 cursor-pointer"
             />
@@ -286,10 +282,6 @@
               checked={showText} 
               onchange={(e) => {
                 showText = e.currentTarget.checked;
-                // Ensure at least one view is active
-                if (!showText && !showCanvas) {
-                  showCanvas = true;
-                }
               }}
               class="accent-primary h-4 w-4 cursor-pointer"
             />
