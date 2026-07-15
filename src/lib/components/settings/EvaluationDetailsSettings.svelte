@@ -125,6 +125,23 @@
         <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
       </label>
     </div>
+
+    <!-- Show Canvas Annotations Toggle -->
+    <div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg border border-outline-variant" title={t('settings.api.showCanvasAnnotationsTooltip')}>
+      <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-[18px] text-primary">draw</span>
+        {t('settings.api.showCanvasAnnotations')}
+      </span>
+      <label class="relative inline-flex items-center cursor-pointer select-none">
+        <input 
+          type="checkbox" 
+          bind:checked={settings.showCanvasAnnotations}
+          onchange={handleInputChange}
+          class="sr-only peer" 
+        />
+        <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+      </label>
+    </div>
   </div>
 
   <!-- Group 4: Context guidelines (if active) -->

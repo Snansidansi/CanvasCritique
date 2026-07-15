@@ -377,6 +377,12 @@
       : store.settings.canvasMode
   );
 
+  let showCanvasAnnotations = $derived(
+    store.activeProject
+      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id).showCanvasAnnotations !== false
+      : store.settings.showCanvasAnnotations !== false
+  );
+
   let canvasTextFontSize = $derived(
     store.activeProject
       ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id).canvasFontSize ?? 13
@@ -3927,7 +3933,7 @@
           ></canvas>
 
           <!-- SVG Overlays for Markers (Infinite Mode) -->
-          {#if showFeedback && hasCheckedWork && !isChecking}
+          {#if showFeedback && hasCheckedWork && !isChecking && showCanvasAnnotations}
             <svg class="absolute inset-0 pointer-events-none z-20 w-full h-full">
               {#each feedbackMarkers as marker}
                 {#if marker.underlinePoints && marker.underlinePoints.length > 1}
@@ -4025,7 +4031,7 @@
         </div>
 
         <!-- Clickable Marker Buttons (A4 Page Mode) - Placed outside the scaled div to remain crisp and full size -->
-        {#if showFeedback && hasCheckedWork && !isChecking}
+        {#if showFeedback && hasCheckedWork && !isChecking && showCanvasAnnotations}
           {@const leftOffset = (containerWidth - 800 * a4Scale) / 2 + panOffset.x}
           {@const topOffset = (containerHeight - 1130 * a4Scale) / 2 + panOffset.y}
           
