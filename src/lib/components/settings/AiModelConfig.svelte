@@ -16,7 +16,6 @@
   } = $props();
 
   // Dropdown open states
-  let geminiModelOpen = $state(false);
   let openRouterModelOpen = $state(false);
   let openRouterProviderOpen = $state(false);
 
@@ -28,7 +27,6 @@
   let filterVideo = $derived(settings.filterVideo ?? false);
 
   // Default models and providers list
-  let geminiModelsList = $state(['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash-8b']);
   let openRouterModelsList = $state([
     'google/gemini-flash-1.5',
     'meta-llama/llama-3.1-8b-instruct',
@@ -102,27 +100,7 @@
     return ['Google', 'OpenAI', 'Anthropic', 'Meta', 'Mistral', 'Together', 'DeepInfra', 'Lepton', 'Groq', 'Alibaba Cloud'].sort();
   });
 
-  // Dynamic model fetching (always uses global api keys for fetching since keys are not overridden)
-  async function fetchGeminiModels() {
-    const key = store.settings.geminiApiKey;
-    if (!key) return;
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.models && data.models.length > 0) {
-          const models = data.models
-            .filter((m: any) => m.supportedGenerationMethods.includes('generateContent'))
-            .map((m: any) => m.name.replace('models/', ''));
-          if (models.length > 0) {
-            geminiModelsList = models;
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Error fetching Gemini models:', e);
-    }
-  }
+
 
   async function fetchOpenRouterModels() {
     try {
@@ -151,17 +129,8 @@
     }
   });
 
-  $effect(() => {
-    if (store.settings.geminiApiKey) {
-      fetchGeminiModels();
-    }
-  });
-
   onMount(() => {
     fetchOpenRouterModels();
-    if (store.settings.geminiApiKey) {
-      fetchGeminiModels();
-    }
   });
 
   const selectedModelHasReasoningEfforts = $derived.by(() => {
@@ -182,26 +151,7 @@
     return !!info?.reasoning?.mandatory;
   });
 
-  // Filtered dropdown suggestions based on active text input values
-  let filteredGeminiModels = $derived(
-    geminiModelsList
-      .filter(m => {
-        const name = m.toLowerCase();
-        // Exclude image generation, embeddings, etc. (non-text output models)
-        if (name.includes('imagen') || name.includes('embed') || name.includes('similarity')) {
-          return false;
-        }
 
-        const supported = getModelSupportedModalities('gemini', m);
-        if (filterImage && !supported.image) return false;
-        if (filterPdf && !supported.pdf) return false;
-        if (filterAudio && !supported.audio) return false;
-        if (filterVideo && !supported.video) return false;
-
-        return true;
-      })
-      .filter(m => fuzzyMatch(m, settings.geminiModel || ''))
-  );
 
   let filteredOpenRouterModels = $derived(
     (openRouterModelsFullList.length > 0 ? openRouterModelsFullList : openRouterModelsList.map(id => ({ id, name: '', description: '', architecture: null })))
@@ -262,216 +212,13 @@
       .filter(p => fuzzyMatch(p, providerSearchTerm))
   );
 
-  function handleProviderChange(provider: string) {
-    settings.apiProvider = provider;
-    if (onchange) onchange();
-  }
-
   function handleInputChange() {
     if (onchange) onchange();
   }
 </script>
 
 <div class="flex flex-col gap-6">
-  <!-- Provider Tabs -->
-  <div class="flex flex-col sm:flex-row gap-3">
-    <button 
-      type="button"
-      onclick={() => handleProviderChange('gemini')}
-      class="flex items-center gap-3 p-4 border rounded-lg flex-1 transition-all text-left focus:outline-none cursor-pointer
-             {settings.apiProvider === 'gemini' ? 'border-primary bg-primary/5 font-semibold text-primary' : 'border-outline-variant hover:border-primary text-on-surface bg-surface-container-low'}"
-    >
-      <span class="material-symbols-outlined">{settings.apiProvider === 'gemini' ? 'radio_button_checked' : 'radio_button_unchecked'}</span>
-      <span class="text-sm">{t('settings.api.providerGemini')}</span>
-    </button>
-    
-    <button 
-      type="button"
-      onclick={() => handleProviderChange('openrouter')}
-      class="flex items-center gap-3 p-4 border rounded-lg flex-1 transition-all text-left focus:outline-none cursor-pointer
-             {settings.apiProvider === 'openrouter' ? 'border-primary bg-primary/5 font-semibold text-primary' : 'border-outline-variant hover:border-primary text-on-surface bg-surface-container-low'}"
-    >
-      <span class="material-symbols-outlined">{settings.apiProvider === 'openrouter' ? 'radio_button_checked' : 'radio_button_unchecked'}</span>
-      <span class="text-sm">{t('settings.api.providerOpenRouter')}</span>
-    </button>
-  </div>
-
-  <!-- API Inputs based on selected provider -->
-  {#if settings.apiProvider === 'gemini'}
-    <div class="space-y-4 animate-fade-in">
-      {#if showKeys}
-        <!-- Gemini API Key -->
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-semibold text-on-surface" for="geminiKey">{t('settings.api.geminiKeyLabel')}</label>
-          <input 
-            type="password" 
-            id="geminiKey"
-            bind:value={settings.geminiApiKey}
-            onchange={handleInputChange}
-            placeholder={t('settings.api.geminiKeyPlaceholder')} 
-            class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
-          />
-        </div>
-      {/if}
-
-      <!-- Model Filtering Options -->
-      <div class="flex flex-col gap-2.5 bg-surface-container-low p-3 rounded-lg border border-outline-variant select-none">
-        <span class="text-xs text-on-surface font-bold flex items-center gap-1.5 mb-1">
-          <span class="material-symbols-outlined text-[18px] text-primary">filter_list</span>
-          {store.settings.language === 'Deutsch' ? 'Modellfilter' : 'Model Filters'}
-        </span>
-        
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-          <!-- Image (Vision) Toggle -->
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[18px] text-primary">image</span>
-              {t('settings.api.filterImage')}
-            </span>
-            <label class="relative inline-flex items-center cursor-pointer select-none">
-              <input 
-                type="checkbox" 
-                bind:checked={settings.filterImage}
-                onchange={handleInputChange}
-                class="sr-only peer" 
-              />
-              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-
-          <!-- Files (PDF) Toggle -->
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[18px] text-primary">description</span>
-              {t('settings.api.filterPdf')}
-            </span>
-            <label class="relative inline-flex items-center cursor-pointer select-none">
-              <input 
-                type="checkbox" 
-                bind:checked={settings.filterPdf}
-                onchange={handleInputChange}
-                class="sr-only peer" 
-              />
-              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-
-          <!-- Audio Toggle -->
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[18px] text-primary">audiotrack</span>
-              {t('settings.api.filterAudio')}
-            </span>
-            <label class="relative inline-flex items-center cursor-pointer select-none">
-              <input 
-                type="checkbox" 
-                bind:checked={settings.filterAudio}
-                onchange={handleInputChange}
-                class="sr-only peer" 
-              />
-              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-
-          <!-- Video Toggle -->
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-on-surface font-medium flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[18px] text-primary">videocam</span>
-              {t('settings.api.filterVideo')}
-            </span>
-            <label class="relative inline-flex items-center cursor-pointer select-none">
-              <input 
-                type="checkbox" 
-                bind:checked={settings.filterVideo}
-                onchange={handleInputChange}
-                class="sr-only peer" 
-              />
-              <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Gemini Model (Searchable Autocomplete) -->
-      <div class="flex flex-col gap-1.5 relative">
-        <label class="text-xs font-semibold text-on-surface" for="geminiModel">{t('settings.api.modelSelection')}</label>
-        <div class="relative">
-          <input 
-            type="text" 
-            id="geminiModel"
-            name="gemini-model-autocomplete-off"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="off"
-            spellcheck="false"
-            bind:value={settings.geminiModel}
-            onfocus={() => geminiModelOpen = true}
-            oninput={handleInputChange}
-            placeholder={t('settings.api.modelPlaceholder')}
-            class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
-          />
-          <button 
-            type="button"
-            onclick={() => geminiModelOpen = !geminiModelOpen}
-            class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant flex items-center justify-center cursor-pointer"
-          >
-            <span class="material-symbols-outlined">{geminiModelOpen ? 'expand_less' : 'expand_more'}</span>
-          </button>
-        </div>
-
-        {#if geminiModelOpen}
-          <!-- Invisible click-away overlay -->
-          <button type="button" class="fixed inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none" aria-label="Close dropdown" onclick={() => geminiModelOpen = false}></button>
-          <!-- Dropdown card -->
-          <div class="absolute top-[calc(100%+4px)] left-0 w-full bg-surface-container-high border border-outline-variant rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto custom-scrollbar p-1">
-            {#if filteredGeminiModels.length > 0}
-              {#each filteredGeminiModels as modelOption}
-                <button
-                  type="button"
-                  onclick={() => {
-                    settings.geminiModel = modelOption;
-                    geminiModelOpen = false;
-                    handleInputChange();
-                  }}
-                  class="w-full text-left px-3 py-2 text-sm rounded-md transition-colors hover:bg-primary/10 hover:text-primary cursor-pointer {settings.geminiModel === modelOption ? 'bg-primary/5 text-primary font-semibold' : 'text-on-surface'}"
-                >
-                  {modelOption}
-                </button>
-              {/each}
-            {:else}
-              <div class="px-3 py-2 text-xs text-on-surface-variant italic">{t('settings.api.customModelPressEnter')}</div>
-            {/if}
-          </div>
-        {/if}
-      </div>
-
-      <!-- Max Output Tokens -->
-      <div class="flex flex-col gap-1.5 mt-2">
-        <div class="flex items-center gap-1.5">
-          <label class="text-xs font-semibold text-on-surface flex items-center gap-1" for="geminiMaxTokens">
-            {t('settings.api.maxOutputTokens')}
-            <span class="text-[10px] text-on-surface-variant font-normal">({t('settings.api.maxOutputTokensDesc')})</span>
-          </label>
-          <div class="group relative flex items-center">
-            <span class="material-symbols-outlined text-[15px] text-outline cursor-help select-none">help</span>
-            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-64 bg-surface-container-high text-on-surface border border-outline-variant text-[10.5px] p-2.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 leading-relaxed normal-case select-text font-normal">
-              {t('settings.api.maxOutputTokensTooltip')}
-            </div>
-          </div>
-        </div>
-        <input 
-          type="number" 
-          id="geminiMaxTokens"
-          min="0"
-          placeholder="0"
-          bind:value={settings.maxOutputTokens}
-          oninput={handleInputChange}
-          class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
-        />
-      </div>
-    </div>
-  {:else}
-    <div class="space-y-4 animate-fade-in">
+  <div class="space-y-4 animate-fade-in">
       {#if showKeys}
         <!-- OpenRouter API Key -->
         <div class="flex flex-col gap-1.5">
@@ -643,6 +390,31 @@
         />
       </div>
 
+      <!-- Show Canvas Annotations Toggle -->
+      <div class="flex items-center justify-between bg-surface-container-low px-3 py-2.5 rounded-lg border border-outline-variant mt-2">
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs text-on-surface font-semibold flex items-center gap-1.5 select-none">
+            <span class="material-symbols-outlined text-[18px] text-primary">draw</span>
+            {t('settings.api.showCanvasAnnotations') || 'Fehler auf Zeichenfläche markieren'}
+          </span>
+          <div class="group relative flex items-center">
+            <span class="material-symbols-outlined text-[15px] text-outline cursor-help select-none">info</span>
+            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-64 bg-surface-container-high text-on-surface border border-outline-variant text-[10.5px] p-2.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 leading-relaxed normal-case select-text font-normal text-left">
+              {t('settings.api.showCanvasAnnotationsTooltip') || 'Zeigt visuelle Markierungen für Fehler/Korrekturen direkt auf der Zeichenfläche an. Da manche Modelle ungenaue Positionsdaten zurückgeben, kann dies deaktiviert werden, um nur Text-Rückmeldungen zu erhalten.'}
+            </div>
+          </div>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer select-none">
+          <input 
+            type="checkbox" 
+            bind:checked={settings.showCanvasAnnotations}
+            onchange={handleInputChange}
+            class="sr-only peer" 
+          />
+          <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+        </label>
+      </div>
+
       <!-- OpenRouter Provider (Searchable Multiple Tag Autocomplete) - PLACED SECOND -->
       <div class="flex flex-col gap-1.5 relative">
         <span class="text-xs font-semibold text-on-surface">{t('settings.api.selectedProviders')}</span>
@@ -781,7 +553,6 @@
         </div>
       {/if}
 
-    </div>
-  {/if}
+  </div>
 </div>
 

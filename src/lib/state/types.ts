@@ -53,11 +53,10 @@ export interface ProjectSettingsOverride {
   overrideSystemPrompt?: boolean;
   overrideTaskNumbering?: boolean;
   overrideMediaFilter?: boolean;
-  apiProvider?: string;
-  geminiModel?: string;
   openRouterModel?: string;
   openRouterProvider?: string[];
   openRouterReasoning?: boolean | string;
+  showCanvasAnnotations?: boolean;
   sendTaskMedia?: boolean;
   sendSolutionMedia?: boolean;
   sendCanvasBackground?: boolean;
@@ -114,7 +113,7 @@ export interface ApiStats {
 export interface RequestLog {
   id: string;
   timestamp: string;
-  provider: 'gemini' | 'openrouter';
+  provider: 'openrouter';
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -123,17 +122,14 @@ export interface RequestLog {
 }
 
 export interface DailyStats {
-  gemini: ApiStats;
   openrouter: ApiStats;
 }
 
 export interface Settings {
   theme: string;
-  apiProvider: string;
-  geminiApiKey: string;
   openRouterApiKey: string;
-  geminiModel: string;
   openRouterModel: string;
+  showCanvasAnnotations: boolean;
   openRouterProvider: string[];
   openRouterReasoning: boolean | string;
   sendTaskMedia: boolean;
@@ -159,8 +155,6 @@ export interface Settings {
   recentColors: string[];
   penSize: number;
   statsEnabled: boolean;
-  geminiInputCostPerMillion: number;
-  geminiOutputCostPerMillion: number;
   eraserMode: 'normal' | 'stroke';
   eraserRadiusNormal: number;
   eraserRadiusStroke: number;

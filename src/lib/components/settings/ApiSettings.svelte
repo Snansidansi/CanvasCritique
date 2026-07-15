@@ -5,6 +5,7 @@
   import MediaFilterSettings from './MediaFilterSettings.svelte';
   import { t } from '../../services/i18n';
   import { estimateCost } from '../../services/ai';
+  import { OpenRouter, HTTPClient } from '@openrouter/sdk';
 
   // Connection test state
   let connectionTestStatus = $state(''); // 'idle' | 'testing' | 'success' | 'error'
@@ -19,7 +20,6 @@
     connectionTestStatus = 'testing';
     connectionTestMessage = t('settings.api.testConnectionActive');
 
-    const provider = store.settings.apiProvider;
     const apiKey = store.apiKey;
     const model = store.model;
 
@@ -30,177 +30,152 @@
     }
 
     try {
-      if (provider === 'gemini') {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const requestBody: any = {
-          contents: [{ parts: [{ text: "Reply EXCLUSIVELY with the word 'yes' and nothing else." }] }]
-        };
-        if (store.settings.maxOutputTokens && store.settings.maxOutputTokens > 0) {
-          requestBody.generationConfig = {
-            maxOutputTokens: store.settings.maxOutputTokens
-          };
-        }
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
-        });
-        const data = await response.json();
-        if (response.ok && data.candidates && data.candidates[0]) {
-          connectionTestStatus = 'success';
-          connectionTestMessage = t('settings.api.testConnectionSuccess');
-
-          // Log request to stats database
+      // OpenRouter SDK integration
+      const httpClient = new HTTPClient();
+      httpClient.addHook('beforeRequest', async (req) => {
+        if (req.url.includes('/chat/completions')) {
           try {
-            const inputTokens = data.usageMetadata?.promptTokenCount || 0;
-            const outputTokens = data.usageMetadata?.candidatesTokenCount || 0;
-            const reasoningTokens = 0;
-            const cost = estimateCost('gemini', model, inputTokens, outputTokens, {
-              geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
-              geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
-            });
-            await store.recordRequest('gemini', model, inputTokens, outputTokens, reasoningTokens, cost);
-          } catch (statsErr) {
-            console.error('Failed to log Gemini connection test stats:', statsErr);
-          }
-        } else {
-          connectionTestStatus = 'error';
-          connectionTestMessage = t('settings.api.testConnectionError', { error: data.error?.message || 'Invalid API key or model.' });
-        }
-      } else {
-        const url = 'https://openrouter.ai/api/v1/chat/completions';
-        const reasoningSetting = store.settings.openRouterReasoning;
-        
-        // Check if model supports reasoning from store
-        const modelInfo = store.openRouterModels.find((m: any) => m.id === model);
-        let supportsReasoning = false;
-        let isMandatory = false;
-        if (modelInfo) {
-          supportsReasoning = !!modelInfo.reasoning;
-          isMandatory = !!modelInfo.reasoning?.mandatory;
-        } else {
-          // Fallback keywords if openRouterModels isn't loaded/cached yet
-          const modelLower = model.toLowerCase();
-          if (
-            modelLower.includes('deepseek-r1') ||
-            modelLower.includes('o1-') ||
-            modelLower.includes('o3-') ||
-            modelLower.includes('thinking') ||
-            modelLower.includes('qwq')
-          ) {
-            supportsReasoning = true;
-            if (modelLower.includes('deepseek-r1') || modelLower.includes('qwq')) {
-              isMandatory = true;
-            }
-          }
-        }
-
-        const requestBody: any = {
-          model: model,
-          messages: [{ role: "user", content: "Reply EXCLUSIVELY with the word 'yes' and nothing else." }]
-        };
-
-        if (store.settings.maxOutputTokens && store.settings.maxOutputTokens > 0) {
-          requestBody.max_tokens = store.settings.maxOutputTokens;
-        }
-
-        if (supportsReasoning) {
-          if (reasoningSetting === 'none' || reasoningSetting === false) {
-            if (isMandatory) {
-              requestBody.reasoning = {
-                exclude: true
-              };
+            const cloned = req.clone();
+            const bodyText = await cloned.text();
+            const bodyJson = JSON.parse(bodyText);
+            
+            const reasoningSetting = store.settings.openRouterReasoning;
+            
+            // Check if model supports reasoning from store
+            const modelInfo = store.openRouterModels.find((m: any) => m.id === model);
+            let supportsReasoning = false;
+            let isMandatory = false;
+            if (modelInfo) {
+              supportsReasoning = !!modelInfo.reasoning;
+              isMandatory = !!modelInfo.reasoning?.mandatory;
             } else {
-              requestBody.reasoning = {
-                effort: 'none',
-                exclude: true
-              };
+              // Fallback keywords if openRouterModels isn't loaded/cached yet
+              const modelLower = model.toLowerCase();
+              if (
+                modelLower.includes('deepseek-r1') ||
+                modelLower.includes('o1-') ||
+                modelLower.includes('o3-') ||
+                modelLower.includes('thinking') ||
+                modelLower.includes('qwq')
+              ) {
+                supportsReasoning = true;
+                if (modelLower.includes('deepseek-r1') || modelLower.includes('qwq')) {
+                  isMandatory = true;
+                }
+              }
             }
-          } else if (typeof reasoningSetting === 'string' && reasoningSetting !== 'auto') {
-            requestBody.reasoning = {
-              exclude: false,
-              effort: reasoningSetting
-            };
-          } else {
-            requestBody.reasoning = {
-              exclude: false
-            };
+
+            if (supportsReasoning) {
+              if (reasoningSetting === 'none' || reasoningSetting === false) {
+                if (isMandatory) {
+                  bodyJson.reasoning = {
+                    exclude: true
+                  };
+                } else {
+                  bodyJson.reasoning = {
+                    effort: 'none',
+                    exclude: true
+                  };
+                }
+              } else if (typeof reasoningSetting === 'string' && reasoningSetting !== 'auto') {
+                bodyJson.reasoning = {
+                  exclude: false,
+                  effort: reasoningSetting
+                };
+              } else {
+                bodyJson.reasoning = {
+                  exclude: false
+                };
+              }
+            } else {
+              // Must not send reasoning parameter to non-reasoning models
+              delete bodyJson.reasoning;
+            }
+            
+            return new Request(req.url, {
+              method: req.method,
+              headers: req.headers,
+              body: JSON.stringify(bodyJson)
+            });
+          } catch (err) {
+            console.error('Error modifying OpenRouter request body in hook:', err);
           }
         }
-        const selectedProviders = store.settings.openRouterProvider || [];
-        if (selectedProviders.length > 0) {
-          requestBody.provider = {
-            order: selectedProviders
-          };
-        }
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify(requestBody)
-        });
-        const data = await response.json();
-        if (response.ok && data.choices && data.choices[0]) {
-          connectionTestStatus = 'success';
-          connectionTestMessage = t('settings.api.testConnectionSuccess');
+      });
 
-          // Log request to stats database
-          try {
-            const inputTokens = data.usage?.prompt_tokens || data.usage?.promptTokens || 0;
-            const outputTokens = data.usage?.completion_tokens || data.usage?.completionTokens || 0;
-            const reasoningTokens = data.usage?.completion_tokens_details?.reasoning_tokens || data.usage?.completionTokensDetails?.reasoningTokens || 0;
-            
-            let cost = 0;
-            let costResolved = false;
-            const generationId = data.id;
-            
-            if (generationId && apiKey) {
-              try {
-                // Wait briefly for OpenRouter backend to index the generation
-                await new Promise(resolve => setTimeout(resolve, 800));
-                const genRes = await fetch(`https://openrouter.ai/api/v1/generation?id=${generationId}`, {
-                  headers: {
-                    'Authorization': `Bearer ${apiKey}`
-                  }
-                });
-                if (genRes.ok) {
-                  const genData = await genRes.json();
-                  if (genData?.data) {
-                    const byokUsage = genData.data.byok_usage_inference || 0;
-                    const normalUsage = genData.data.usage || 0;
-                    cost = byokUsage || normalUsage || 0;
-                    if (cost > 0) {
-                      costResolved = true;
-                    }
+      const client = new OpenRouter({
+        apiKey: apiKey,
+        httpClient: httpClient
+      });
+
+      const chatResult = await client.chat.send({
+        chatRequest: {
+          model: model,
+          messages: [
+            {
+              role: 'user',
+              content: "Reply EXCLUSIVELY with the word 'yes' and nothing else."
+            }
+          ],
+          ...(store.settings.maxOutputTokens && store.settings.maxOutputTokens > 0 ? { maxTokens: store.settings.maxOutputTokens } : {})
+        }
+      });
+
+      if (chatResult && chatResult.choices && chatResult.choices[0]) {
+        connectionTestStatus = 'success';
+        connectionTestMessage = t('settings.api.testConnectionSuccess');
+
+        // Log request to stats database
+        try {
+          const inputTokens = chatResult.usage?.promptTokens || 0;
+          const outputTokens = chatResult.usage?.completionTokens || 0;
+          const reasoningTokens = chatResult.usage?.completionTokensDetails?.reasoningTokens || 0;
+          const generationId = chatResult.id;
+
+          let cost = 0;
+          let costResolved = false;
+
+          if (generationId && apiKey) {
+            try {
+              // Wait briefly for OpenRouter backend to index the generation (e.g., 800ms)
+              await new Promise(resolve => setTimeout(resolve, 800));
+              const genRes = await fetch(`https://openrouter.ai/api/v1/generation?id=${generationId}`, {
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`
+                }
+              });
+              if (genRes.ok) {
+                const genData = await genRes.json();
+                if (genData?.data) {
+                  const byokUsage = genData.data.byok_usage_inference || 0;
+                  const normalUsage = genData.data.usage || 0;
+                  cost = byokUsage || normalUsage || 0;
+                  if (cost > 0) {
+                    costResolved = true;
                   }
                 }
-              } catch (err) {
-                console.error('Failed to fetch exact cost for connection test from OpenRouter API:', err);
               }
+            } catch (err) {
+              console.error('Failed to fetch exact cost for connection test from OpenRouter API:', err);
             }
-
-            if (!costResolved) {
-              const price = store.openRouterPrices[model];
-              if (price) {
-                cost = (inputTokens * price.prompt) + (outputTokens * price.completion);
-              } else {
-                cost = estimateCost('openrouter', model, inputTokens, outputTokens, {
-                  geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
-                  geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
-                });
-              }
-            }
-
-            await store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost);
-          } catch (statsErr) {
-            console.error('Failed to log OpenRouter connection test stats:', statsErr);
           }
-        } else {
-          connectionTestStatus = 'error';
-          connectionTestMessage = t('settings.api.testConnectionError', { error: data.error?.message || 'Invalid API key or model.' });
+
+          if (!costResolved) {
+            const price = store.openRouterPrices[model];
+            if (price) {
+              cost = (inputTokens * price.prompt) + (outputTokens * price.completion);
+            } else {
+              cost = estimateCost(model, inputTokens, outputTokens);
+            }
+          }
+
+          await store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost);
+        } catch (statsErr) {
+          console.error('Failed to log OpenRouter connection test stats:', statsErr);
         }
+      } else {
+        connectionTestStatus = 'error';
+        connectionTestMessage = t('settings.api.testConnectionError', { error: 'Invalid API key or model.' });
       }
     } catch (err) {
       connectionTestStatus = 'error';
@@ -261,55 +236,7 @@
       {/if}
     </div>
 
-    {#if store.settings.apiProvider === 'gemini' && store.settings.statsEnabled}
-      <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
-        <h4 class="text-sm font-bold text-on-surface flex items-center gap-2">
-          <span class="material-symbols-outlined text-primary text-lg">payments</span>
-          {t('settings.stats.geminiCostTitle')} <span class="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">{t('settings.stats.onlyForStats')}</span>
-        </h4>
-        <p class="text-xs text-on-surface-variant leading-relaxed">
-          {t('settings.stats.geminiCostDesc')}
-        </p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-1">
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-semibold text-on-surface" for="geminiInputCost">
-              {t('settings.stats.geminiInputCostLabel')}
-            </label>
-            <div class="relative">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">$</span>
-              <input
-                type="number"
-                id="geminiInputCost"
-                bind:value={store.settings.geminiInputCostPerMillion}
-                onchange={handleInputChange}
-                step="0.001"
-                min="0"
-                class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-7 pr-3 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
-              />
-            </div>
-            <span class="text-[10px] text-on-surface-variant">{t('settings.stats.perMillionTokens')}</span>
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-semibold text-on-surface" for="geminiOutputCost">
-              {t('settings.stats.geminiOutputCostLabel')}
-            </label>
-            <div class="relative">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">$</span>
-              <input
-                type="number"
-                id="geminiOutputCost"
-                bind:value={store.settings.geminiOutputCostPerMillion}
-                onchange={handleInputChange}
-                step="0.001"
-                min="0"
-                class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg pl-7 pr-3 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
-              />
-            </div>
-            <span class="text-[10px] text-on-surface-variant">{t('settings.stats.perMillionTokens')}</span>
-          </div>
-        </div>
-      </div>
-    {/if}
+
 
     <!-- Evaluation Payload Settings -->
     <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">

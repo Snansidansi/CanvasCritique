@@ -26,9 +26,8 @@
         overrideEvaluation: false,
         overrideSystemPrompt: false,
         overrideMediaFilter: false,
-        apiProvider: store.settings.apiProvider,
-        geminiModel: store.settings.geminiModel,
         openRouterModel: store.settings.openRouterModel,
+        showCanvasAnnotations: store.settings.showCanvasAnnotations,
         openRouterProvider: [...(store.settings.openRouterProvider || [])],
         openRouterReasoning: store.settings.openRouterReasoning,
         sendTaskMedia: store.settings.sendTaskMedia,
@@ -155,11 +154,10 @@
 
     if (checked) {
       if (category === 'overrideModel') {
-        project.settingsOverride.apiProvider = project.settingsOverride.apiProvider ?? store.settings.apiProvider;
-        project.settingsOverride.geminiModel = project.settingsOverride.geminiModel ?? store.settings.geminiModel;
         project.settingsOverride.openRouterModel = project.settingsOverride.openRouterModel ?? store.settings.openRouterModel;
         project.settingsOverride.openRouterProvider = project.settingsOverride.openRouterProvider ?? store.settings.openRouterProvider;
         project.settingsOverride.openRouterReasoning = project.settingsOverride.openRouterReasoning ?? store.settings.openRouterReasoning;
+        project.settingsOverride.showCanvasAnnotations = project.settingsOverride.showCanvasAnnotations ?? store.settings.showCanvasAnnotations;
       } else if (category === 'overrideCanvas') {
         project.settingsOverride.canvasMode = project.settingsOverride.canvasMode ?? store.settings.canvasMode;
         project.settingsOverride.canvasFontSize = project.settingsOverride.canvasFontSize ?? store.settings.canvasFontSize;
@@ -283,7 +281,7 @@
                 <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">smart_toy</span>
                 <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
                 <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
-                  {t('lessonSettings.usingGlobalDesc', { provider: store.settings.apiProvider === 'gemini' ? 'Gemini' : 'OpenRouter', model: store.settings.apiProvider === 'gemini' ? store.settings.geminiModel : store.settings.openRouterModel })}
+                  {t('lessonSettings.usingGlobalDesc', { provider: 'OpenRouter', model: store.settings.openRouterModel })}
                 </p>
               </div>
             {/if}

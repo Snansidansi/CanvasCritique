@@ -55,7 +55,6 @@
 
   // 1. Calculate range aggregate statistics
   const aggregates = $derived.by(() => {
-    let gemini = { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 };
     let openrouter = { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 };
 
     const { start, end } = activeRangeDates;
@@ -64,22 +63,16 @@
     for (const log of history) {
       const logDate = new Date(log.timestamp);
       if (logDate >= start && logDate <= end) {
-        const statsObj = log.provider === 'gemini' ? gemini : openrouter;
-        statsObj.requests += 1;
-        statsObj.inputTokens += log.inputTokens || 0;
-        statsObj.outputTokens += log.outputTokens || 0;
-        statsObj.reasoningTokens += log.reasoningTokens || 0;
-        statsObj.cost += log.cost || 0;
+        openrouter.requests += 1;
+        openrouter.inputTokens += log.inputTokens || 0;
+        openrouter.outputTokens += log.outputTokens || 0;
+        openrouter.reasoningTokens += log.reasoningTokens || 0;
+        openrouter.cost += log.cost || 0;
       }
     }
 
-    const combined = {
-      requests: gemini.requests + openrouter.requests,
-      inputTokens: gemini.inputTokens + openrouter.inputTokens,
-      outputTokens: gemini.outputTokens + openrouter.outputTokens,
-      reasoningTokens: gemini.reasoningTokens + openrouter.reasoningTokens,
-      cost: gemini.cost + openrouter.cost
-    };
+    const combined = openrouter;
+    const gemini = { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 };
 
     return { gemini, openrouter, combined };
   });
@@ -88,13 +81,13 @@
   const modelStats = $derived.by(() => {
     const { start, end } = activeRangeDates;
     const history = store.statsHistory;
-    const models: Record<string, { requests: number; inputTokens: number; outputTokens: number; cost: number; provider: string }> = {};
+    const models: Record<string, { requests: number, inputTokens: number, outputTokens: number, cost: number }> = {};
 
     for (const log of history) {
       const logDate = new Date(log.timestamp);
       if (logDate >= start && logDate <= end) {
         if (!models[log.model]) {
-          models[log.model] = { requests: 0, inputTokens: 0, outputTokens: 0, cost: 0, provider: log.provider };
+          models[log.model] = { requests: 0, inputTokens: 0, outputTokens: 0, cost: 0 };
         }
         const item = models[log.model];
         item.requests += 1;
@@ -156,15 +149,9 @@
           const hour = logDate.getHours();
           const item = list[hour];
           if (item) {
-            if (log.provider === 'gemini') {
-              item.geminiCost += log.cost || 0;
-              item.geminiRequests += 1;
-              item.geminiTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
-            } else {
-              item.openRouterCost += log.cost || 0;
-              item.openRouterRequests += 1;
-              item.openRouterTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
-            }
+            item.openRouterCost += log.cost || 0;
+            item.openRouterRequests += 1;
+            item.openRouterTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
             item.totalCost = item.geminiCost + item.openRouterCost;
             item.totalRequests = item.geminiRequests + item.openRouterRequests;
             item.totalTokens = item.geminiTokens + item.openRouterTokens;
@@ -202,15 +189,9 @@
       let geminiTokens = 0, openRouterTokens = 0;
 
       for (const log of logs) {
-        if (log.provider === 'gemini') {
-          geminiCost += log.cost || 0;
-          geminiRequests += 1;
-          geminiTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
-        } else {
-          openRouterCost += log.cost || 0;
-          openRouterRequests += 1;
-          openRouterTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
-        }
+        openRouterCost += log.cost || 0;
+        openRouterRequests += 1;
+        openRouterTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
       }
 
       list.push({
@@ -341,9 +322,7 @@
     );
   }
 
-  function handleGeminiCostChange() {
-    store.saveSettings();
-  }
+
 
   // Format Helper functions
   function formatCost(val: number): string {
@@ -564,7 +543,7 @@
 
 
   <!-- Aggregates Grid -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
     <!-- Combined Card -->
     <div class="bg-linear-to-br from-primary/10 via-primary/5 to-surface p-5 rounded-xl border border-primary/20 shadow-sm relative overflow-hidden">
       <div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-xl translate-x-8 -translate-y-8"></div>
@@ -592,36 +571,6 @@
         <div class="flex justify-between">
           <span>{t('settings.stats.reasoningTokens')}</span>
           <span class="font-semibold text-on-surface">{formatTokens(aggregates.combined.reasoningTokens)}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Gemini Card -->
-    <div class="bg-surface p-5 rounded-xl border border-outline-variant shadow-sm hover:shadow-md transition-shadow">
-      <div class="flex items-center gap-2.5 mb-4">
-        <GeminiLogo class="text-secondary w-5 h-5 shrink-0" />
-        <h4 class="font-bold text-sm text-on-surface">{t('settings.stats.geminiApi')}</h4>
-      </div>
-      <div class="space-y-2.5 text-xs text-on-surface-variant">
-        <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>{t('settings.stats.cost')}</span>
-          <span class="font-bold text-on-surface text-sm">{formatCost(aggregates.gemini.cost)}</span>
-        </div>
-        <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>{t('settings.stats.requests')}</span>
-          <span class="font-semibold text-on-surface">{aggregates.gemini.requests}</span>
-        </div>
-        <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>{t('settings.stats.inputTokens')}</span>
-          <span class="font-semibold text-on-surface">{formatTokens(aggregates.gemini.inputTokens)}</span>
-        </div>
-        <div class="flex justify-between border-b border-outline-variant/30 pb-1.5">
-          <span>{t('settings.stats.outputTokens')}</span>
-          <span class="font-semibold text-on-surface">{formatTokens(aggregates.gemini.outputTokens)}</span>
-        </div>
-        <div class="flex justify-between">
-          <span>{t('settings.stats.reasoningTokens')}</span>
-          <span class="font-semibold text-on-surface">{formatTokens(aggregates.gemini.reasoningTokens)}</span>
         </div>
       </div>
     </div>
@@ -1071,7 +1020,6 @@
             <tr class="border-b border-outline-variant/60 text-on-surface-variant font-semibold">
               <th class="py-2 pr-4">{store.settings.language === 'Deutsch' ? 'Zeitstempel' : 'Timestamp'}</th>
               <th class="py-2 px-4">{store.settings.language === 'Deutsch' ? 'Modell' : 'Model'}</th>
-              <th class="py-2 px-4">{store.settings.language === 'Deutsch' ? 'Anbieter' : 'Provider'}</th>
               <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Input Tokens' : 'Input Tokens'}</th>
               <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Output Tokens' : 'Output Tokens'}</th>
               <th class="py-2 pl-4 text-right">{store.settings.language === 'Deutsch' ? 'Preis' : 'Cost'}</th>
@@ -1084,11 +1032,6 @@
                   {new Date(log.timestamp).toLocaleString(store.settings.language === 'Deutsch' ? 'de-DE' : 'en-US', { dateStyle: 'short', timeStyle: 'short' })}
                 </td>
                 <td class="py-2.5 px-4 font-mono font-medium truncate max-w-50" title={log.model}>{log.model}</td>
-                <td class="py-2.5 px-4 capitalize">
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold {log.provider === 'gemini' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}">
-                    {log.provider}
-                  </span>
-                </td>
                 <td class="py-2.5 px-4 text-right font-mono">{log.inputTokens.toLocaleString()}</td>
                 <td class="py-2.5 px-4 text-right font-mono">{log.outputTokens.toLocaleString()}</td>
                 <td class="py-2.5 pl-4 text-right font-semibold font-mono text-primary">{formatCost(log.cost)}</td>
@@ -1195,8 +1138,7 @@
         <table class="w-full text-left border-collapse text-xs">
           <thead>
             <tr class="border-b border-outline-variant/60 text-on-surface-variant font-semibold">
-              <th class="py-2 pr-4">{store.settings.language === 'Deutsch' ? 'Modellname' : 'Model Name'}</th>
-              <th class="py-2 px-4">{store.settings.language === 'Deutsch' ? 'Anbieter' : 'Provider'}</th>
+              <th class="py-2 pr-4">{store.settings.language === 'Deutsch' ? 'Modell' : 'Model'}</th>
               <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Anfragen' : 'Requests'}</th>
               <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Tokens (In/Out)' : 'Tokens (In/Out)'}</th>
               <th class="py-2 pl-4 text-right">{store.settings.language === 'Deutsch' ? 'Kosten' : 'Cost'}</th>
@@ -1206,11 +1148,6 @@
             {#each modelStats as m}
               <tr class="hover:bg-surface-container-low/30 transition-colors">
                 <td class="py-2.5 pr-4 font-mono font-medium truncate max-w-50" title={m.name}>{m.name}</td>
-                <td class="py-2.5 px-4 capitalize">
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold {m.provider === 'gemini' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}">
-                    {m.provider}
-                  </span>
-                </td>
                 <td class="py-2.5 px-4 text-right font-medium">{m.requests}</td>
                 <td class="py-2.5 px-4 text-right text-on-surface-variant font-mono">
                   {formatTokens(m.inputTokens)} / {formatTokens(m.outputTokens)}

@@ -10,42 +10,29 @@ import { store } from '../state/store.svelte';
 import { getMediaDataUrl } from '../db/media';
 import { OpenRouter, HTTPClient } from '@openrouter/sdk';
 
-export function estimateCost(provider: 'gemini' | 'openrouter', model: string, inputTokens: number, outputTokens: number, overrides?: { geminiInputCostPerMillion?: number; geminiOutputCostPerMillion?: number }): number {
+export function estimateCost(model: string, inputTokens: number, outputTokens: number): number {
   const modelLower = model.toLowerCase();
   
-  if (provider === 'gemini') {
-    const inputPrice = overrides?.geminiInputCostPerMillion ?? 0.075;
-    const outputPrice = overrides?.geminiOutputCostPerMillion ?? 0.30;
-    if (modelLower.includes('gemini-1.5-flash-8b')) {
-      return (inputTokens * 0.0375 + outputTokens * 0.15) / 1000000;
-    } else if (modelLower.includes('gemini-1.5-flash') || modelLower.includes('gemini-2.0-flash')) {
-      return (inputTokens * inputPrice + outputTokens * outputPrice) / 1000000;
-    } else if (modelLower.includes('gemini-1.5-pro')) {
-      return (inputTokens * 1.25 + outputTokens * 5.00) / 1000000;
-    }
-    return (inputTokens * inputPrice + outputTokens * outputPrice) / 1000000;
-  } else {
-    if (modelLower.includes('gemini-flash-1.5') || modelLower.includes('gemini-2.0-flash')) {
-      return (inputTokens * 0.075 + outputTokens * 0.30) / 1000000;
-    } else if (modelLower.includes('gemini-pro-1.5')) {
-      return (inputTokens * 1.25 + outputTokens * 5.00) / 1000000;
-    } else if (modelLower.includes('claude-3.5-sonnet') || modelLower.includes('claude-3-5-sonnet')) {
-      return (inputTokens * 3.00 + outputTokens * 15.00) / 1000000;
-    } else if (modelLower.includes('claude-3-opus')) {
-      return (inputTokens * 15.00 + outputTokens * 75.00) / 1000000;
-    } else if (modelLower.includes('gpt-4o-mini')) {
-      return (inputTokens * 0.15 + outputTokens * 0.60) / 1000000;
-    } else if (modelLower.includes('gpt-4o')) {
-      return (inputTokens * 2.50 + outputTokens * 10.00) / 1000000;
-    } else if (modelLower.includes('llama-3-8b') || modelLower.includes('llama3-8b')) {
-      return (inputTokens * 0.05 + outputTokens * 0.05) / 1000000;
-    } else if (modelLower.includes('llama-3-70b') || modelLower.includes('llama3-70b')) {
-      return (inputTokens * 0.35 + outputTokens * 0.40) / 1000000;
-    } else if (modelLower.includes('deepseek-chat') || modelLower.includes('deepseek-coder') || modelLower.includes('deepseek-v3') || modelLower.includes('deepseek-r1')) {
-      return (inputTokens * 0.14 + outputTokens * 0.28) / 1000000;
-    }
-    return (inputTokens * 0.20 + outputTokens * 0.80) / 1000000;
+  if (modelLower.includes('gemini-flash-1.5') || modelLower.includes('gemini-2.0-flash')) {
+    return (inputTokens * 0.075 + outputTokens * 0.30) / 1000000;
+  } else if (modelLower.includes('gemini-pro-1.5')) {
+    return (inputTokens * 1.25 + outputTokens * 5.00) / 1000000;
+  } else if (modelLower.includes('claude-3.5-sonnet') || modelLower.includes('claude-3-5-sonnet')) {
+    return (inputTokens * 3.00 + outputTokens * 15.00) / 1000000;
+  } else if (modelLower.includes('claude-3-opus')) {
+    return (inputTokens * 15.00 + outputTokens * 75.00) / 1000000;
+  } else if (modelLower.includes('gpt-4o-mini')) {
+    return (inputTokens * 0.15 + outputTokens * 0.60) / 1000000;
+  } else if (modelLower.includes('gpt-4o')) {
+    return (inputTokens * 2.50 + outputTokens * 10.00) / 1000000;
+  } else if (modelLower.includes('llama-3-8b') || modelLower.includes('llama3-8b')) {
+    return (inputTokens * 0.05 + outputTokens * 0.05) / 1000000;
+  } else if (modelLower.includes('llama-3-70b') || modelLower.includes('llama3-70b')) {
+    return (inputTokens * 0.35 + outputTokens * 0.40) / 1000000;
+  } else if (modelLower.includes('deepseek-chat') || modelLower.includes('deepseek-coder') || modelLower.includes('deepseek-v3') || modelLower.includes('deepseek-r1')) {
+    return (inputTokens * 0.14 + outputTokens * 0.28) / 1000000;
   }
+  return (inputTokens * 0.20 + outputTokens * 0.80) / 1000000;
 }
 
 export interface CheckWorkTask {
@@ -63,13 +50,11 @@ export interface CheckWorkTask {
 }
 
 export interface CheckWorkSettings {
-  apiProvider: string; // 'gemini' | 'openrouter'
-  geminiApiKey: string;
   openRouterApiKey: string;
-  geminiModel: string;
   openRouterModel: string;
   openRouterReasoning: boolean | string;
   openRouterProvider?: string[];
+  showCanvasAnnotations: boolean;
   sendTaskMedia?: boolean;
   sendSolutionMedia?: boolean;
   sendCanvasBackground?: boolean;
@@ -392,9 +377,8 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     }
   }
 
-  const apiKey = settings.apiProvider === 'gemini' ? settings.geminiApiKey : settings.openRouterApiKey;
-  const provider = settings.apiProvider;
-  const model = settings.apiProvider === 'gemini' ? settings.geminiModel : settings.openRouterModel;
+  const apiKey = settings.openRouterApiKey;
+  const model = settings.openRouterModel;
 
   // Check if API key is provided
   if (!apiKey) {
@@ -643,27 +627,8 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
   const targetLanguage = languageMap[lang] || lang;
   prompt += `\n\n**Language Requirement (CRITICAL):**\nYour entire feedback, critique, descriptions, and JSON string values (except "type" keys) MUST be written in ${targetLanguage}.`;
 
-  function getInlineDataFromMedia(mediaFile: { name: string; dataUrl?: string }) {
-    if (!mediaFile || !mediaFile.dataUrl) return null;
-    const match = mediaFile.dataUrl.match(/^data:(.*?);base64,(.*)$/);
-    if (!match) return null;
-    return {
-      inlineData: {
-        mimeType: match[1],
-        data: match[2]
-      }
-    };
-  }
 
-  function getOpenRouterMedia(mediaFile: { name: string; dataUrl?: string }) {
-    if (!mediaFile || !mediaFile.dataUrl) return null;
-    return {
-      type: 'image_url',
-      imageUrl: { url: mediaFile.dataUrl }
-    };
-  }
 
-  const additionalGeminiParts: any[] = [];
   const additionalOpenRouterParts: any[] = [];
 
   if (sendTaskMedia) {
@@ -672,16 +637,12 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
         if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
           return;
         }
-        const geminiPart = getInlineDataFromMedia(file);
-        if (geminiPart) additionalGeminiParts.push(geminiPart);
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       });
     } else if (task.instructionFile) {
       const file = task.instructionFile;
       if (!(file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown'))) {
-        const geminiPart = getInlineDataFromMedia(file);
-        if (geminiPart) additionalGeminiParts.push(geminiPart);
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       }
@@ -694,16 +655,12 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
         if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
           return;
         }
-        const geminiPart = getInlineDataFromMedia(file);
-        if (geminiPart) additionalGeminiParts.push(geminiPart);
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       });
     } else if (task.solutionFile) {
       const file = task.solutionFile;
       if (!(file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown'))) {
-        const geminiPart = getInlineDataFromMedia(file);
-        if (geminiPart) additionalGeminiParts.push(geminiPart);
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       }
@@ -716,234 +673,185 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
         if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
           return;
         }
-        const geminiPart = getInlineDataFromMedia(file);
-        if (geminiPart) additionalGeminiParts.push(geminiPart);
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       });
     }
   }
 
+  function getOpenRouterMedia(mediaFile: { name: string; dataUrl?: string }) {
+    if (!mediaFile || !mediaFile.dataUrl) return null;
+    return {
+      type: 'image_url',
+      imageUrl: { url: mediaFile.dataUrl }
+    };
+  }
+
   let textResult = '';
-  if (provider === 'gemini') {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              ...additionalGeminiParts,
-              ...pageImages.map(imgData => ({
-                inlineData: {
-                  mimeType: "image/png",
-                  data: imgData
-                }
-              }))
-            ]
-          }
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          ...(settings.maxOutputTokens && settings.maxOutputTokens > 0 ? { maxOutputTokens: settings.maxOutputTokens } : {})
-        }
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`API returned error status: ${response.status}`);
-    }
-
-    const resData = await response.json();
-    
-    // Extract and record LLM usage statistics
-    try {
-      const inputTokens = resData.usageMetadata?.promptTokenCount || 0;
-      const outputTokens = resData.usageMetadata?.candidatesTokenCount || 0;
-      const reasoningTokens = 0;
-      const cost = estimateCost('gemini', model, inputTokens, outputTokens, {
-        geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
-        geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
-      });
-      store.recordRequest('gemini', model, inputTokens, outputTokens, reasoningTokens, cost);
-    } catch (err) {
-      console.error('Failed to log LLM statistics:', err);
-    }
-
-    textResult = resData.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from AI.';
-  } else {
-    // OpenRouter SDK integration
-    const httpClient = new HTTPClient();
-    httpClient.addHook('beforeRequest', async (req) => {
-      if (req.url.includes('/chat/completions')) {
-        try {
-          const cloned = req.clone();
-          const bodyText = await cloned.text();
-          const bodyJson = JSON.parse(bodyText);
-          
-          const reasoningSetting = settings.openRouterReasoning;
-          
-          // Check if model supports reasoning from store
-          const modelInfo = store.openRouterModels.find((m: any) => m.id === model);
-          let supportsReasoning = false;
-          let isMandatory = false;
-          if (modelInfo) {
-            supportsReasoning = !!modelInfo.reasoning;
-            isMandatory = !!modelInfo.reasoning?.mandatory;
-          } else {
-            // Fallback keywords if openRouterModels isn't loaded/cached yet
-            const modelLower = model.toLowerCase();
-            if (
-              modelLower.includes('deepseek-r1') ||
-              modelLower.includes('o1-') ||
-              modelLower.includes('o3-') ||
-              modelLower.includes('thinking') ||
-              modelLower.includes('qwq')
-            ) {
-              supportsReasoning = true;
-              if (modelLower.includes('deepseek-r1') || modelLower.includes('qwq')) {
-                isMandatory = true;
-              }
+  // OpenRouter SDK integration
+  const httpClient = new HTTPClient();
+  httpClient.addHook('beforeRequest', async (req) => {
+    if (req.url.includes('/chat/completions')) {
+      try {
+        const cloned = req.clone();
+        const bodyText = await cloned.text();
+        const bodyJson = JSON.parse(bodyText);
+        
+        const reasoningSetting = settings.openRouterReasoning;
+        
+        // Check if model supports reasoning from store
+        const modelInfo = store.openRouterModels.find((m: any) => m.id === model);
+        let supportsReasoning = false;
+        let isMandatory = false;
+        if (modelInfo) {
+          supportsReasoning = !!modelInfo.reasoning;
+          isMandatory = !!modelInfo.reasoning?.mandatory;
+        } else {
+          // Fallback keywords if openRouterModels isn't loaded/cached yet
+          const modelLower = model.toLowerCase();
+          if (
+            modelLower.includes('deepseek-r1') ||
+            modelLower.includes('o1-') ||
+            modelLower.includes('o3-') ||
+            modelLower.includes('thinking') ||
+            modelLower.includes('qwq')
+          ) {
+            supportsReasoning = true;
+            if (modelLower.includes('deepseek-r1') || modelLower.includes('qwq')) {
+              isMandatory = true;
             }
           }
+        }
 
-          if (supportsReasoning) {
-            if (reasoningSetting === 'none' || reasoningSetting === false) {
-              if (isMandatory) {
-                bodyJson.reasoning = {
-                  exclude: true
-                };
-              } else {
-                bodyJson.reasoning = {
-                  effort: 'none',
-                  exclude: true
-                };
-              }
-            } else if (typeof reasoningSetting === 'string' && reasoningSetting !== 'auto') {
+        if (supportsReasoning) {
+          if (reasoningSetting === 'none' || reasoningSetting === false) {
+            if (isMandatory) {
               bodyJson.reasoning = {
-                exclude: false,
-                effort: reasoningSetting
+                exclude: true
               };
             } else {
               bodyJson.reasoning = {
-                exclude: false
+                effort: 'none',
+                exclude: true
               };
             }
+          } else if (typeof reasoningSetting === 'string' && reasoningSetting !== 'auto') {
+            bodyJson.reasoning = {
+              exclude: false,
+              effort: reasoningSetting
+            };
           } else {
-            // Must not send reasoning parameter to non-reasoning models
-            delete bodyJson.reasoning;
+            bodyJson.reasoning = {
+              exclude: false
+            };
           }
-          
-          return new Request(req.url, {
-            method: req.method,
-            headers: req.headers,
-            body: JSON.stringify(bodyJson)
-          });
-        } catch (err) {
-          console.error('Error modifying OpenRouter request body in hook:', err);
-        }
-      }
-    });
-
-    const client = new OpenRouter({
-      apiKey: apiKey,
-      httpClient: httpClient
-    });
-
-    const contentParts: any[] = [
-      { type: 'text', text: prompt },
-      ...additionalOpenRouterParts,
-      ...pageImages.map(imgData => ({
-        type: 'image_url',
-        imageUrl: { url: `data:image/png;base64,${imgData}` }
-      }))
-    ];
-
-    const chatRequest: any = {
-      model: model,
-      messages: [
-        {
-          role: 'user',
-          content: contentParts
-        }
-      ],
-      ...(settings.maxOutputTokens && settings.maxOutputTokens > 0 ? { maxTokens: settings.maxOutputTokens } : {})
-    };
-
-    const selectedProviders = settings.openRouterProvider || [];
-    if (selectedProviders.length > 0) {
-      chatRequest.provider = {
-        order: selectedProviders
-      };
-    }
-
-    const chatResult = await client.chat.send({
-      chatRequest: chatRequest
-    });
-
-    // Extract and record LLM usage statistics
-    try {
-      const inputTokens = chatResult.usage?.promptTokens || 0;
-      const outputTokens = chatResult.usage?.completionTokens || 0;
-      const reasoningTokens = chatResult.usage?.completionTokensDetails?.reasoningTokens || 0;
-      const generationId = chatResult.id;
-
-      let cost = 0;
-      let costResolved = false;
-
-      if (generationId && apiKey) {
-        try {
-          // Wait briefly for OpenRouter backend to index the generation (e.g., 800ms)
-          await new Promise(resolve => setTimeout(resolve, 800));
-          const genRes = await fetch(`https://openrouter.ai/api/v1/generation?id=${generationId}`, {
-            headers: {
-              'Authorization': `Bearer ${apiKey}`
-            }
-          });
-          if (genRes.ok) {
-            const genData = await genRes.json();
-            if (genData?.data) {
-              const byokUsage = genData.data.byok_usage_inference || 0;
-              const normalUsage = genData.data.usage || 0;
-              cost = byokUsage || normalUsage || 0;
-              if (cost > 0) {
-                costResolved = true;
-                console.log('[openrouter-cost] Resolved exact cost from generation API:', cost);
-              }
-            }
-          }
-        } catch (err) {
-          console.error('[openrouter-cost] Failed to fetch exact cost from generation API:', err);
-        }
-      }
-
-      if (!costResolved) {
-        // Fallback: calculate using session-cached prices
-        const price = store.openRouterPrices[model];
-        if (price) {
-          cost = (inputTokens * price.prompt) + (outputTokens * price.completion);
-          console.log('[openrouter-cost] Calculated cost from cached pricing:', cost);
         } else {
-          // Fallback to static estimateCost
-          cost = estimateCost('openrouter', model, inputTokens, outputTokens, {
-            geminiInputCostPerMillion: store.settings.geminiInputCostPerMillion,
-            geminiOutputCostPerMillion: store.settings.geminiOutputCostPerMillion
-          });
-          console.log('[openrouter-cost] Fallback to estimateCost:', cost);
+          // Must not send reasoning parameter to non-reasoning models
+          delete bodyJson.reasoning;
         }
+        
+        return new Request(req.url, {
+          method: req.method,
+          headers: req.headers,
+          body: JSON.stringify(bodyJson)
+        });
+      } catch (err) {
+        console.error('Error modifying OpenRouter request body in hook:', err);
       }
+    }
+  });
 
-      store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost);
-    } catch (err) {
-      console.error('Failed to log LLM statistics:', err);
+  const client = new OpenRouter({
+    apiKey: apiKey,
+    httpClient: httpClient
+  });
+
+  const contentParts: any[] = [
+    { type: 'text', text: prompt },
+    ...additionalOpenRouterParts,
+    ...pageImages.map(imgData => ({
+      type: 'image_url',
+      imageUrl: { url: `data:image/png;base64,${imgData}` }
+    }))
+  ];
+
+  const chatRequest: any = {
+    model: model,
+    messages: [
+      {
+        role: 'user',
+        content: contentParts
+      }
+    ],
+    ...(settings.maxOutputTokens && settings.maxOutputTokens > 0 ? { maxTokens: settings.maxOutputTokens } : {})
+  };
+
+  const selectedProviders = settings.openRouterProvider || [];
+  if (selectedProviders.length > 0) {
+    chatRequest.provider = {
+      order: selectedProviders
+    };
+  }
+
+  const chatResult = await client.chat.send({
+    chatRequest: chatRequest
+  });
+
+  // Extract and record LLM usage statistics
+  try {
+    const inputTokens = chatResult.usage?.promptTokens || 0;
+    const outputTokens = chatResult.usage?.completionTokens || 0;
+    const reasoningTokens = chatResult.usage?.completionTokensDetails?.reasoningTokens || 0;
+    const generationId = chatResult.id;
+
+    let cost = 0;
+    let costResolved = false;
+
+    if (generationId && apiKey) {
+      try {
+        // Wait briefly for OpenRouter backend to index the generation (e.g., 800ms)
+        await new Promise(resolve => setTimeout(resolve, 800));
+        const genRes = await fetch(`https://openrouter.ai/api/v1/generation?id=${generationId}`, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`
+          }
+        });
+        if (genRes.ok) {
+          const genData = await genRes.json();
+          if (genData?.data) {
+            const byokUsage = genData.data.byok_usage_inference || 0;
+            const normalUsage = genData.data.usage || 0;
+            cost = byokUsage || normalUsage || 0;
+            if (cost > 0) {
+              costResolved = true;
+              console.log('[openrouter-cost] Resolved exact cost from generation API:', cost);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[openrouter-cost] Failed to fetch exact cost from generation API:', err);
+      }
     }
 
-    textResult = chatResult.choices?.[0]?.message?.content || 'No response from AI.';
+    if (!costResolved) {
+      // Fallback: calculate using session-cached prices
+      const price = store.openRouterPrices[model];
+      if (price) {
+        cost = (inputTokens * price.prompt) + (outputTokens * price.completion);
+        console.log('[openrouter-cost] Calculated cost from cached pricing:', cost);
+      } else {
+        // Fallback to static estimateCost
+        cost = estimateCost(model, inputTokens, outputTokens);
+        console.log('[openrouter-cost] Fallback to estimateCost:', cost);
+      }
+    }
+
+    store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost);
+  } catch (err) {
+    console.error('Failed to log LLM statistics:', err);
   }
+
+  textResult = chatResult.choices?.[0]?.message?.content || 'No response from AI.';
 
   let parsed: any;
   try {

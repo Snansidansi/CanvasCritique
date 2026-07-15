@@ -3631,9 +3631,7 @@
       ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
       : store.settings;
 
-    const selectedModelId = effectiveSettings.apiProvider === 'gemini' 
-      ? effectiveSettings.geminiModel 
-      : effectiveSettings.openRouterModel;
+    const selectedModelId = effectiveSettings.openRouterModel;
 
     const sendTaskMedia = effectiveSettings.sendTaskMedia ?? true;
     const sendSolutionMedia = effectiveSettings.sendSolutionMedia ?? true;
@@ -3709,7 +3707,7 @@
       }
     }
 
-    const supported = getModelSupportedModalities(effectiveSettings.apiProvider, selectedModelId);
+    const supported = getModelSupportedModalities('openrouter', selectedModelId);
     const unsupportedFiles = filesToSend.filter(f => 
       (f.modality === 'image' && !supported.image) ||
       (f.modality === 'audio' && !supported.audio) ||
@@ -3778,11 +3776,9 @@
         task: taskDataToSend,
         projectGuidelines: store.activeProject!.guidelines?.trim(),
         settings: {
-          apiProvider: effectiveSettings.apiProvider,
-          geminiApiKey: effectiveSettings.geminiApiKey,
           openRouterApiKey: effectiveSettings.openRouterApiKey,
-          geminiModel: effectiveSettings.geminiModel,
           openRouterModel: effectiveSettings.openRouterModel,
+          showCanvasAnnotations: effectiveSettings.showCanvasAnnotations,
           openRouterReasoning: effectiveSettings.openRouterReasoning,
           openRouterProvider: effectiveSettings.openRouterProvider,
           sendTaskMedia: effectiveSettings.sendTaskMedia,

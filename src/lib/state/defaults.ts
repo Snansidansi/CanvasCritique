@@ -86,11 +86,9 @@ function getSystemLanguage(): string {
 
 export const defaultSettings: Settings = {
   theme: 'system',
-  apiProvider: 'gemini',
-  geminiApiKey: '',
   openRouterApiKey: '',
-  geminiModel: 'gemini-1.5-flash',
   openRouterModel: 'google/gemini-flash-1.5',
+  showCanvasAnnotations: true,
   openRouterProvider: [],
   openRouterReasoning: true,
   sendTaskMedia: true,
@@ -116,8 +114,6 @@ export const defaultSettings: Settings = {
   penSize: 3,
   autoCompleteOnSuccess: true,
   statsEnabled: true,
-  geminiInputCostPerMillion: 0.075,
-  geminiOutputCostPerMillion: 0.30,
   eraserMode: 'normal',
   eraserRadiusNormal: 24,
   eraserRadiusStroke: 24,

@@ -464,10 +464,7 @@
     },
     "api": {
       "title": "API",
-      "providerGemini": "Gemini",
       "providerOpenRouter": "OpenRouter",
-      "geminiKeyLabel": "Gemini API Key",
-      "geminiKeyPlaceholder": "Enter your Gemini API key",
       "openRouterKeyLabel": "OpenRouter API Key",
       "openRouterKeyPlaceholder": "Enter your OpenRouter API key",
       "showOnlyVision": "Show Only Vision Models",
@@ -504,6 +501,8 @@
       "mediaFilterBlacklist": "Blacklist (do not send these extensions)",
       "mediaFilterExtensions": "Allowed/Blocked Extensions (comma-separated)",
       "mediaFilterPlaceholder": "e.g. .png, .webm, .mp4",
+      "showCanvasAnnotations": "Mark errors on canvas",
+      "showCanvasAnnotationsTooltip": "Shows visual markers for errors/corrections directly on the canvas. Since some models return inaccurate coordinates, this can be disabled to receive only text feedback.",
       "testConnectionBtn": "Test Connection",
       "testConnectionActive": "Testing connection...",
       "testConnectionNoKey": "No API key provided",
@@ -648,8 +647,7 @@
       "inputTokens": "Input Tokens",
       "outputTokens": "Output Tokens",
       "reasoningTokens": "Reasoning Tokens",
-      "geminiApi": "Gemini API",
-      "openRouterApi": "OpenRouter API",
+      "openRouterApi": "API Statistics",
       "costMetricBtn": "Cost",
       "requestsMetricBtn": "Requests",
       "tokensMetricBtn": "Tokens",
@@ -666,12 +664,7 @@
       "notifyResetSuccess": "Statistics reset successfully",
       "notifyTrackingStatus": "Usage tracking {status}",
       "usage": "Usage",
-      "onlyForStats": "Only for statistics",
-      "geminiCostTitle": "Gemini Token Cost Configuration",
-      "geminiCostDesc": "Set custom prices per million tokens for Gemini cost calculation. These are used for statistics only and do not affect actual API billing.",
-      "geminiInputCostLabel": "Gemini Input Token Price per Million (for statistics only)",
-      "geminiOutputCostLabel": "Gemini Output Token Price per Million (for statistics only)",
-      "perMillionTokens": "USD per 1 million tokens"
+      "onlyForStats": "Only for statistics"
     },
     "language": {
       "title": "Language Selection",

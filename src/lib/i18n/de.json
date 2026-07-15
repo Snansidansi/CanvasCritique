@@ -463,10 +463,7 @@
     },
     "api": {
       "title": "API",
-      "providerGemini": "Gemini",
       "providerOpenRouter": "OpenRouter",
-      "geminiKeyLabel": "Gemini API-Schlüssel",
-      "geminiKeyPlaceholder": "Gib deinen Gemini API-Schlüssel ein",
       "openRouterKeyLabel": "OpenRouter API-Schlüssel",
       "openRouterKeyPlaceholder": "Gib deinen OpenRouter API-Schlüssel ein",
       "showOnlyVision": "Nur Vision-Modelle anzeigen",
@@ -503,6 +500,8 @@
       "mediaFilterBlacklist": "Blacklist (diese Endungen nicht senden)",
       "mediaFilterExtensions": "Erlaubte/Blockierte Endungen (kommagetrennt)",
       "mediaFilterPlaceholder": "z.B. .png, .webm, .mp4",
+      "showCanvasAnnotations": "Fehler auf Zeichenfläche markieren",
+      "showCanvasAnnotationsTooltip": "Zeigt visuelle Markierungen für Fehler/Korrekturen direkt auf der Zeichenfläche an. Da manche Modelle ungenaue Positionsdaten zurückgeben, kann dies deaktiviert werden, um nur Text-Rückmeldungen zu erhalten.",
       "testConnectionBtn": "Verbindung testen",
       "testConnectionActive": "Verbindungstest läuft...",
       "testConnectionNoKey": "Kein API-Schlüssel angegeben",
@@ -647,8 +646,7 @@
       "inputTokens": "Eingabe-Token",
       "outputTokens": "Ausgabe-Token",
       "reasoningTokens": "Reasoning-Token",
-      "geminiApi": "Gemini API",
-      "openRouterApi": "OpenRouter API",
+      "openRouterApi": "API-Statistiken",
       "costMetricBtn": "Kosten",
       "requestsMetricBtn": "Anfragen",
       "tokensMetricBtn": "Token",
@@ -665,12 +663,7 @@
       "notifyResetSuccess": "Statistiken erfolgreich zurückgesetzt",
       "notifyTrackingStatus": "Nutzungsverfolgung {status}",
       "usage": "Nutzung",
-      "onlyForStats": "Nur für Statistiken",
-      "geminiCostTitle": "Gemini Token-Kostenkonfiguration",
-      "geminiCostDesc": "Lege benutzerdefinierte Preise pro Million Token für die Gemini-Kostenberechnung fest. Diese werden nur für die Statistik verwendet und beeinflussen nicht die tatsächliche API-Abrechnung.",
-      "geminiInputCostLabel": "Gemini Eingabe-Token Preis pro Million (nur für Statistiken)",
-      "geminiOutputCostLabel": "Gemini Ausgabe-Token Preis pro Million (nur für Statistiken)",
-      "perMillionTokens": "USD pro 1 Million Token"
+      "onlyForStats": "Nur für Statistiken"
     },
     "language": {
       "title": "Sprachauswahl",

@@ -97,15 +97,11 @@ class CanvasCritiqueStore {
 
   // Getters for dynamic API/Model selection
   get apiKey(): string {
-    return this.settings.apiProvider === 'gemini'
-      ? this.settings.geminiApiKey
-      : this.settings.openRouterApiKey;
+    return this.settings.openRouterApiKey;
   }
 
   get model(): string {
-    return this.settings.apiProvider === 'gemini'
-      ? this.settings.geminiModel
-      : this.settings.openRouterModel;
+    return this.settings.openRouterModel;
   }
 
   get isDbReady(): boolean {
@@ -203,11 +199,10 @@ class CanvasCritiqueStore {
 
     return {
       ...globalSettings,
-      apiProvider: useTaskModel ? (taskOverride.apiProvider ?? globalSettings.apiProvider) : (useProjModel ? (projOverride.apiProvider ?? globalSettings.apiProvider) : globalSettings.apiProvider),
-      geminiModel: useTaskModel ? (taskOverride.geminiModel ?? globalSettings.geminiModel) : (useProjModel ? (projOverride.geminiModel ?? globalSettings.geminiModel) : globalSettings.geminiModel),
       openRouterModel: useTaskModel ? (taskOverride.openRouterModel ?? globalSettings.openRouterModel) : (useProjModel ? (projOverride.openRouterModel ?? globalSettings.openRouterModel) : globalSettings.openRouterModel),
       openRouterReasoning: useTaskModel ? (taskOverride.openRouterReasoning ?? globalSettings.openRouterReasoning) : (useProjModel ? (projOverride.openRouterReasoning ?? globalSettings.openRouterReasoning) : globalSettings.openRouterReasoning),
       openRouterProvider: useTaskModel ? (taskOverride.openRouterProvider ?? globalSettings.openRouterProvider) : (useProjModel ? (projOverride.openRouterProvider ?? globalSettings.openRouterProvider) : globalSettings.openRouterProvider),
+      showCanvasAnnotations: useTaskModel ? (taskOverride.showCanvasAnnotations ?? globalSettings.showCanvasAnnotations) : (useProjModel ? (projOverride.showCanvasAnnotations ?? globalSettings.showCanvasAnnotations) : globalSettings.showCanvasAnnotations),
       sendTaskMedia: useTaskEvaluation ? (taskOverride.sendTaskMedia ?? globalSettings.sendTaskMedia) : (useProjEvaluation ? (projOverride.sendTaskMedia ?? globalSettings.sendTaskMedia) : globalSettings.sendTaskMedia),
       sendSolutionMedia: useTaskEvaluation ? (taskOverride.sendSolutionMedia ?? globalSettings.sendSolutionMedia) : (useProjEvaluation ? (projOverride.sendSolutionMedia ?? globalSettings.sendSolutionMedia) : globalSettings.sendSolutionMedia),
       sendCanvasBackground: useTaskEvaluation ? (taskOverride.sendCanvasBackground ?? globalSettings.sendCanvasBackground) : (useProjEvaluation ? (projOverride.sendCanvasBackground ?? globalSettings.sendCanvasBackground) : globalSettings.sendCanvasBackground),
@@ -328,12 +323,7 @@ class CanvasCritiqueStore {
       } else if (!this.settings.openRouterProvider) {
         this.settings.openRouterProvider = [];
       }
-      if (typeof this.settings.geminiInputCostPerMillion !== 'number' || isNaN(this.settings.geminiInputCostPerMillion) || this.settings.geminiInputCostPerMillion <= 0) {
-        this.settings.geminiInputCostPerMillion = 0.075;
-      }
-      if (typeof this.settings.geminiOutputCostPerMillion !== 'number' || isNaN(this.settings.geminiOutputCostPerMillion) || this.settings.geminiOutputCostPerMillion <= 0) {
-        this.settings.geminiOutputCostPerMillion = 0.30;
-      }
+
       if (!this.settings.canvasFontSize || typeof this.settings.canvasFontSize !== 'number') {
         this.settings.canvasFontSize = 13;
       }
@@ -2115,7 +2105,7 @@ class CanvasCritiqueStore {
   }
 
   async recordRequest(
-    provider: 'gemini' | 'openrouter',
+    provider: 'openrouter',
     model: string,
     inputTokens: number,
     outputTokens: number,

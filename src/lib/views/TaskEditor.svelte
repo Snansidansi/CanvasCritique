@@ -38,9 +38,8 @@
     overrideSystemPrompt: false,
     overrideTaskNumbering: false,
     overrideMediaFilter: false,
-    apiProvider: 'gemini',
-    geminiModel: 'gemini-1.5-pro',
     openRouterModel: 'google/gemini-2.0-pro-exp-02-05:free',
+    showCanvasAnnotations: true,
     openRouterProvider: [],
     openRouterReasoning: false,
     sendTaskMedia: true,
@@ -147,11 +146,10 @@
     if (checked) {
       const parent = store.getEffectiveSettings(targetProjectId);
       if (category === 'overrideModel') {
-        settingsOverride.apiProvider = parent.apiProvider;
-        settingsOverride.geminiModel = parent.geminiModel;
         settingsOverride.openRouterModel = parent.openRouterModel;
         settingsOverride.openRouterReasoning = parent.openRouterReasoning;
         settingsOverride.openRouterProvider = parent.openRouterProvider;
+        settingsOverride.showCanvasAnnotations = parent.showCanvasAnnotations;
       } else if (category === 'overrideEvaluation') {
         settingsOverride.sendTaskMedia = parent.sendTaskMedia;
         settingsOverride.sendSolutionMedia = parent.sendSolutionMedia;
@@ -248,11 +246,10 @@
           overrideSystemPrompt: store.editingTask.settingsOverride.overrideSystemPrompt ?? false,
           overrideTaskNumbering: store.editingTask.settingsOverride.overrideTaskNumbering ?? false,
           overrideMediaFilter: store.editingTask.settingsOverride.overrideMediaFilter ?? false,
-          apiProvider: store.editingTask.settingsOverride.apiProvider ?? parentSettings.apiProvider,
-          geminiModel: store.editingTask.settingsOverride.geminiModel ?? parentSettings.geminiModel,
           openRouterModel: store.editingTask.settingsOverride.openRouterModel ?? parentSettings.openRouterModel,
           openRouterProvider: store.editingTask.settingsOverride.openRouterProvider ?? parentSettings.openRouterProvider,
           openRouterReasoning: store.editingTask.settingsOverride.openRouterReasoning ?? parentSettings.openRouterReasoning,
+          showCanvasAnnotations: store.editingTask.settingsOverride.showCanvasAnnotations ?? parentSettings.showCanvasAnnotations,
           sendTaskMedia: store.editingTask.settingsOverride.sendTaskMedia ?? parentSettings.sendTaskMedia,
           sendSolutionMedia: store.editingTask.settingsOverride.sendSolutionMedia ?? parentSettings.sendSolutionMedia,
           sendCanvasBackground: store.editingTask.settingsOverride.sendCanvasBackground ?? parentSettings.sendCanvasBackground,
@@ -284,11 +281,10 @@
           overrideSystemPrompt: false,
           overrideTaskNumbering: false,
           overrideMediaFilter: false,
-          apiProvider: parentSettings.apiProvider,
-          geminiModel: parentSettings.geminiModel,
           openRouterModel: parentSettings.openRouterModel,
           openRouterProvider: parentSettings.openRouterProvider,
           openRouterReasoning: parentSettings.openRouterReasoning,
+          showCanvasAnnotations: parentSettings.showCanvasAnnotations,
           sendTaskMedia: parentSettings.sendTaskMedia,
           sendSolutionMedia: parentSettings.sendSolutionMedia,
           sendCanvasBackground: parentSettings.sendCanvasBackground,
@@ -339,11 +335,10 @@
         overrideSystemPrompt: false,
         overrideTaskNumbering: false,
         overrideMediaFilter: false,
-        apiProvider: parentSettings.apiProvider,
-        geminiModel: parentSettings.geminiModel,
         openRouterModel: parentSettings.openRouterModel,
         openRouterProvider: parentSettings.openRouterProvider,
         openRouterReasoning: parentSettings.openRouterReasoning,
+        showCanvasAnnotations: parentSettings.showCanvasAnnotations,
         sendTaskMedia: parentSettings.sendTaskMedia,
         sendSolutionMedia: parentSettings.sendSolutionMedia,
         sendCanvasBackground: parentSettings.sendCanvasBackground,
@@ -383,11 +378,10 @@
         overrideSystemPrompt: false,
         overrideTaskNumbering: false,
         overrideMediaFilter: false,
-        apiProvider: parentSettings.apiProvider,
-        geminiModel: parentSettings.geminiModel,
         openRouterModel: parentSettings.openRouterModel,
         openRouterProvider: parentSettings.openRouterProvider,
         openRouterReasoning: parentSettings.openRouterReasoning,
+        showCanvasAnnotations: parentSettings.showCanvasAnnotations,
         sendTaskMedia: parentSettings.sendTaskMedia,
         sendSolutionMedia: parentSettings.sendSolutionMedia,
         sendCanvasBackground: parentSettings.sendCanvasBackground,
@@ -1886,7 +1880,7 @@
                     <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">smart_toy</span>
                     <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
                     <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
-                      {t('lessonSettings.usingGlobalDesc', { provider: store.settings.apiProvider === 'gemini' ? 'Gemini' : 'OpenRouter', model: store.settings.apiProvider === 'gemini' ? store.settings.geminiModel : store.settings.openRouterModel })}
+                      {t('lessonSettings.usingGlobalDesc', { provider: 'OpenRouter', model: store.settings.openRouterModel })}
                     </p>
                   </div>
                 {/if}
