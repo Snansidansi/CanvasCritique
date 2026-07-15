@@ -1850,10 +1850,14 @@
         initialPinchPanOffset = { ...panOffset };
         isPinching = true;
         
-        // Cancel drawing or simple panning
+        // Cancel drawing, simple panning, and long-press context menu
         isDrawing = false;
         currentStroke = [];
         isPanning = false;
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
         
         e.preventDefault();
         return;
@@ -1861,6 +1865,10 @@
     }
 
     if (activePointers.size > 2) {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
       e.preventDefault();
       return;
     }
@@ -2207,6 +2215,10 @@
     }
 
     if (activePointers.size > 1) {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
       return;
     }
 
