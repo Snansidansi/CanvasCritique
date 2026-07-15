@@ -386,15 +386,20 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
   }
 
   // Build AI prompt
-  const pageInfoPrompt = canvasMode === 'a4'
-    ? `You are checking a multi-page A4 handwriting document. You have been sent a sequence of page images. The first image represents Page Index 0, the second represents Page Index 1, etc.
+  const showCanvasAnnotations = settings.showCanvasAnnotations !== false;
+  const pageInfoPrompt = (sendCanvas && showCanvasAnnotations)
+    ? (canvasMode === 'a4'
+      ? `You are checking a multi-page A4 handwriting document. You have been sent a sequence of page images. The first image represents Page Index 0, the second represents Page Index 1, etc.
 Your JSON response MUST specify the 'pageIndex' for each marker to identify which page image it is located on (0-based index corresponding to the image sequence).`
-    : `Examine the single infinite canvas screenshot. The image represents Page Index 0.`;
+      : `Examine the single infinite canvas screenshot. The image represents Page Index 0.`)
+    : '';
 
   // Build image dimensions info for accurate marker placement
-  const imageDimensionsInfo = pageBoxes.map((box, i) => 
-    `Image ${i}: ${box.width}px wide × ${box.height}px tall.`
-  ).join('\n');
+  const imageDimensionsInfo = (sendCanvas && showCanvasAnnotations)
+    ? pageBoxes.map((box, i) => 
+        `Image ${i}: ${box.width}px wide × ${box.height}px tall.`
+      ).join('\n')
+    : '';
 
   // Get project-level guidelines if available
   let guidelinesPrompt = projectGuidelines 
@@ -472,7 +477,7 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
   }
 
   let contextTextFilesContent = '';
-  if (sendContextMedia && sendContextText) {
+  if (sendContextText) {
     if (task.contextFiles && Array.isArray(task.contextFiles)) {
       task.contextFiles.forEach(file => {
         if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
@@ -519,6 +524,8 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     prompt += `\n\n${taskContextText}`;
   }
   
+  // pageInfoPrompt and imageDimensionsInfo are already calculated above based on showCanvasAnnotations.
+
   prompt = prompt
     .replace(/\{\{task_name\}\}/g, task.name)
     .replace(/\{\{task_section\}\}/g, task.section || '')
@@ -526,94 +533,133 @@ Your JSON response MUST specify the 'pageIndex' for each marker to identify whic
     .replace(/\{\{page_info\}\}/g, pageInfoPrompt)
     .replace(/\{\{image_dimensions\}\}/g, imageDimensionsInfo);
 
-  let canvasInstructions = "";
-  if (!sendCanvas) {
-    canvasInstructions = "\n\n**CRITICAL (No Canvas Sent):**\nNo canvas drawings were sent because the student is working in the text-editor only. Therefore, you MUST return an EMPTY array for the 'markers' field (i.e. \"markers\": []). Do not try to place any coordinates. Provide all corrections and helpful feedback in the text editor section.\n";
-  } else {
-    canvasInstructions = "\n\nThe student's canvas drawings are sent as image(s). Please place feedback markers at their corresponding coordinates relative to the canvas drawing.\n";
+  // Dynamic Instructions based on what is sent and showCanvasAnnotations
+  let dynamicInstructions = "\n\n**EVALUATION REQUIREMENTS:**\n";
+  
+  if (sendCanvas) {
+    dynamicInstructions += "- Read the student's handwritten work from the attached page image(s).\n";
+    if (showCanvasAnnotations) {
+      dynamicInstructions += "- Place feedback markers next to the student's handwritten work on the canvas images.\n";
+      dynamicInstructions += "- Normalized marker coordinates (x, y from 0 to 1000) MUST be relative to the cropped page image boundary.\n";
+      dynamicInstructions += "- For incorrect or partially correct answers, you MUST provide at least two points in 'underlinePoints' to underline the mistake on the canvas.\n";
+    } else {
+      dynamicInstructions += "- Evaluate the student's canvas drawings visually in the general critique. Do NOT return any coordinates, markers, or underline paths.\n";
+    }
+  }
+  
+  if (sendText) {
+    dynamicInstructions += "- The student's typed text editor work is provided below under [STUDENT TEXT EDITOR WORK]. Check it carefully.\n";
+    dynamicInstructions += "- If there are errors in the typed text, return 'textMarkers' pointing to the lineIndex (0-based) and the exact substring containing the error.\n";
   }
 
-  let textInstructions = "";
-  if (sendText && editorText && editorText.trim()) {
-    textInstructions = `\n\n**CRITICAL (Text Editor Evaluation):**\nThe student has submitted text in the Text Editor (provided below under [STUDENT TEXT EDITOR WORK]). Read it carefully, check its correctness, and provide helpful LaTeX/Markdown feedback and corrections.\n`;
-  }
-
+  // Attach student submissions
   let studentWorkContent = "";
-  if (sendText && editorText && editorText.trim()) {
+  if (sendText) {
     studentWorkContent += `\n\n[STUDENT TEXT EDITOR WORK]:\n${editorText.trim()}\n\n`;
   }
   if (sendCanvas) {
     studentWorkContent += `\n\n[STUDENT CANVAS WORK]:\nThe student's canvas drawings are provided as the page image(s) attached to this message.\n\n`;
   }
 
+  // Response Schemas
   let responseFormatInstructions = "";
-  if (sendCanvas && sendText && editorText.trim()) {
-    responseFormatInstructions = `
-\n**CRITICAL JSON SCHEMA REQUIREMENT (BOTH CANVAS AND TEXT EVALUATION):**
-Since you are checking BOTH the student's handwritten canvas drawing AND their typed text-editor work, you MUST evaluate them TOGETHER as a single, combined submission. For example, if a student solves some exercises in the text editor and others on the canvas, they are all part of the same submission. Do NOT mark any exercise as missing if it is present in either the canvas or the text editor.
-Return a SINGLE unified JSON object with the following schema:
+  if (sendCanvas && sendText) {
+    if (showCanvasAnnotations) {
+      responseFormatInstructions = `
+**JSON SCHEMA REQUIREMENT (BOTH CANVAS AND TEXT EVALUATION - WITH CANVAS ANNOTATIONS):**
+Return a SINGLE JSON object with the following schema:
 {
-  "generalCritique": "Critique text evaluating the combined submission (handwritten drawings and text editor work).",
-  "grade": number (0-100 overall grade representing the combined evaluation),
+  "generalCritique": "Critique text evaluating the combined submission (drawings and text editor work).",
+  "grade": number (0-100 overall grade),
   "canvasMarkers": [
     {
-      "pageIndex": number (0-based index of the page in the sent sequence),
-      "x": number (X coordinate relative to cropped page width, 0 to 1000),
-      "y": number (Y coordinate relative to cropped page height, 0 to 1000),
+      "pageIndex": number (0-based),
+      "x": number (0 to 1000),
+      "y": number (0 to 1000),
       "type": "correct" | "incorrect" | "partial",
-      "feedback": "Specific feedback for this canvas mistake (1 sentence max).",
+      "feedback": "Brief feedback for this canvas spot (1 sentence max).",
       "underlinePoints": [{"x": number, "y": number}, ...]
     }
   ],
   "textMarkers": [
     {
-      "lineIndex": number (0-based index of the line in the student's [STUDENT TEXT EDITOR WORK] that has the error),
-      "substring": "The exact word/phrase/substring in that line that is wrong",
+      "lineIndex": number (0-based line index in student text),
+      "substring": "The exact word/phrase/substring that is wrong",
       "type": "correct" | "incorrect" | "partial",
-      "feedback": "Brief feedback explaining what is wrong with this word/phrase (1 sentence max)."
+      "feedback": "Brief feedback explaining what is wrong (1 sentence max)."
     }
   ]
 }
 `;
-  } else if (sendText && editorText.trim()) {
+    } else {
+      responseFormatInstructions = `
+**JSON SCHEMA REQUIREMENT (BOTH CANVAS AND TEXT EVALUATION - NO CANVAS ANNOTATIONS):**
+Return a SINGLE JSON object with the following schema:
+{
+  "generalCritique": "Critique text evaluating the combined submission (drawings and text editor work).",
+  "grade": number (0-100 overall grade),
+  "textMarkers": [
+    {
+      "lineIndex": number (0-based line index in student text),
+      "substring": "The exact word/phrase/substring that is wrong",
+      "type": "correct" | "incorrect" | "partial",
+      "feedback": "Brief feedback explaining what is wrong (1 sentence max)."
+    }
+  ]
+}
+`;
+    }
+  } else if (sendText) {
     responseFormatInstructions = `
-\n**CRITICAL JSON SCHEMA REQUIREMENT (TEXT EDITOR ONLY):**
-Since you are checking ONLY the student's typed text-editor work, you MUST return a JSON object with the following schema:
+**JSON SCHEMA REQUIREMENT (TEXT EDITOR ONLY):**
+Return a SINGLE JSON object with the following schema:
 {
   "generalCritique": "Critique text evaluating their text editor work.",
   "grade": number (0-100 grade),
   "textMarkers": [
     {
-      "lineIndex": number (0-based index of the line in the student's [STUDENT TEXT EDITOR WORK] that has the error),
-      "substring": "The exact word/phrase/substring in that line that is wrong",
+      "lineIndex": number (0-based line index in student text),
+      "substring": "The exact word/phrase/substring that is wrong",
       "type": "correct" | "incorrect" | "partial",
-      "feedback": "Brief feedback explaining what is wrong with this word/phrase (1 sentence max)."
+      "feedback": "Brief feedback explaining what is wrong (1 sentence max)."
     }
   ]
 }
 `;
   } else {
-    responseFormatInstructions = `
-\n**CRITICAL JSON SCHEMA REQUIREMENT (CANVAS ONLY):**
-Since you are checking ONLY the student's handwritten drawings on the canvas images, you MUST return a JSON object with the following schema:
+    // Canvas Only
+    if (showCanvasAnnotations) {
+      responseFormatInstructions = `
+**JSON SCHEMA REQUIREMENT (CANVAS ONLY - WITH CANVAS ANNOTATIONS):**
+Return a SINGLE JSON object with the following schema:
 {
   "generalCritique": "Overall critique evaluating their canvas drawings.",
   "grade": number (0-100 grade),
   "markers": [
     {
-      "pageIndex": number (0-based index of the page in the sent sequence),
-      "x": number (X coordinate relative to cropped page width, 0 to 1000),
-      "y": number (Y coordinate relative to cropped page height, 0 to 1000),
+      "pageIndex": number (0-based index of the page),
+      "x": number (0 to 1000),
+      "y": number (0 to 1000),
       "type": "correct" | "incorrect" | "partial",
-      "feedback": "Specific feedback for this canvas mistake (1 sentence max).",
+      "feedback": "Specific feedback for this canvas spot (1 sentence max).",
       "underlinePoints": [{"x": number, "y": number}, ...]
     }
   ]
 }
 `;
+    } else {
+      responseFormatInstructions = `
+**JSON SCHEMA REQUIREMENT (CANVAS ONLY - NO CANVAS ANNOTATIONS):**
+Return a SINGLE JSON object with the following schema:
+{
+  "generalCritique": "Overall critique evaluating their canvas drawings.",
+  "grade": number (0-100 grade)
+}
+`;
+    }
   }
 
-  prompt += canvasInstructions + textInstructions + studentWorkContent + responseFormatInstructions;
+  prompt += dynamicInstructions + studentWorkContent + responseFormatInstructions;
 
   // Language Requirement mapping
   const languageMap: Record<string, string> = {
@@ -637,12 +683,14 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
         if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
           return;
         }
+        additionalOpenRouterParts.push({ type: 'text', text: `[Task Instruction Attachment: "${file.name}"]` });
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       });
     } else if (task.instructionFile) {
       const file = task.instructionFile;
       if (!(file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown'))) {
+        additionalOpenRouterParts.push({ type: 'text', text: `[Task Instruction Attachment: "${file.name}"]` });
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       }
@@ -655,12 +703,14 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
         if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
           return;
         }
+        additionalOpenRouterParts.push({ type: 'text', text: `[Expected Solution Attachment: "${file.name}"]` });
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       });
     } else if (task.solutionFile) {
       const file = task.solutionFile;
       if (!(file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown'))) {
+        additionalOpenRouterParts.push({ type: 'text', text: `[Expected Solution Attachment: "${file.name}"]` });
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       }
@@ -673,6 +723,7 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
         if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md') || file.dataUrl?.startsWith('data:text/plain') || file.dataUrl?.startsWith('data:text/markdown')) {
           return;
         }
+        additionalOpenRouterParts.push({ type: 'text', text: `[Context Document Attachment: "${file.name}"]` });
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       });
@@ -769,10 +820,13 @@ Since you are checking ONLY the student's handwritten drawings on the canvas ima
   const contentParts: any[] = [
     { type: 'text', text: prompt },
     ...additionalOpenRouterParts,
-    ...pageImages.map(imgData => ({
-      type: 'image_url',
-      imageUrl: { url: `data:image/png;base64,${imgData}` }
-    }))
+    ...pageImages.flatMap((imgData, idx) => [
+      { type: 'text', text: `[Student Canvas Drawing - Page Index ${idx}]` },
+      {
+        type: 'image_url',
+        imageUrl: { url: `data:image/png;base64,${imgData}` }
+      }
+    ])
   ];
 
   const chatRequest: any = {

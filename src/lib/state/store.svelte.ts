@@ -482,10 +482,16 @@ class CanvasCritiqueStore {
             category: task.category,
             instructionFiles: this.stripDataUrls(task.instructionFiles || []),
             solutionFiles: this.stripDataUrls(task.solutionFiles || []),
+            contextFiles: this.stripDataUrls(task.contextFiles || []),
+            providedFiles: this.stripDataUrls(task.providedFiles || []),
             critique: task.critique || null,
             canvasData: this.canvasSaves[task.id] || null,
             background: task.background || null,
-            settingsOverride: task.settingsOverride || null
+            settingsOverride: task.settingsOverride || null,
+            aiInstructions: task.aiInstructions || null,
+            defaultEditMode: task.defaultEditMode || null,
+            templateCanvasData: task.templateCanvasData || null,
+            editorText: task.editorText || null
           });
         } else {
           const t = { ...task, canvasData: this.canvasSaves[task.id] || null };
@@ -1096,7 +1102,8 @@ class CanvasCritiqueStore {
       settingsOverride: task.settingsOverride || null,
       defaultEditMode: task.defaultEditMode || 'both',
       contextFiles: task.contextFiles || [],
-      providedFiles: task.providedFiles || []
+      providedFiles: task.providedFiles || [],
+      templateCanvasData: task.templateCanvasData || null
     });
     await this.saveProjects();
 
@@ -1595,6 +1602,12 @@ class CanvasCritiqueStore {
                   if (t.providedFiles !== undefined) {
                     matchedTask.providedFiles = this.stripDataUrls(await this.convertImportedFiles(t.providedFiles));
                   }
+                  if (t.contextFiles !== undefined) {
+                    matchedTask.contextFiles = this.stripDataUrls(await this.convertImportedFiles(t.contextFiles));
+                  }
+                  matchedTask.aiInstructions = t.aiInstructions !== undefined ? t.aiInstructions : matchedTask.aiInstructions;
+                  matchedTask.defaultEditMode = t.defaultEditMode !== undefined ? t.defaultEditMode : matchedTask.defaultEditMode;
+                  matchedTask.templateCanvasData = t.templateCanvasData !== undefined ? t.templateCanvasData : matchedTask.templateCanvasData;
                   if (options.importCompleted && t.completed !== undefined) matchedTask.completed = !!t.completed;
                   if (options.importCritique && t.critique !== undefined) matchedTask.critique = t.critique;
                   if (t.settingsOverride !== undefined) matchedTask.settingsOverride = t.settingsOverride;
@@ -1627,6 +1640,7 @@ class CanvasCritiqueStore {
                   solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
                 }
                 let providedFiles = this.stripDataUrls(await this.convertImportedFiles(t.providedFiles || []));
+                let contextFiles = this.stripDataUrls(await this.convertImportedFiles(t.contextFiles || []));
 
                 const newTask: Task = {
                   id: taskId,
@@ -1639,7 +1653,10 @@ class CanvasCritiqueStore {
                   instructionFiles,
                   solutionFiles,
                   providedFiles,
+                  contextFiles,
                   editorText: t.editorText || '',
+                  defaultEditMode: t.defaultEditMode || 'both',
+                  templateCanvasData: t.templateCanvasData || null,
                   settingsOverride: t.settingsOverride || null
                 };
                 if (t.editorText) {
@@ -1689,6 +1706,7 @@ class CanvasCritiqueStore {
               solutionFiles = this.stripDataUrls(await this.convertImportedFiles([t.solutionFile]));
             }
             let providedFiles = this.stripDataUrls(await this.convertImportedFiles(t.providedFiles || []));
+            let contextFiles = this.stripDataUrls(await this.convertImportedFiles(t.contextFiles || []));
 
             const taskCategory = options.targetCategory || t.category || 'Basics';
 
@@ -1703,7 +1721,10 @@ class CanvasCritiqueStore {
               instructionFiles,
               solutionFiles,
               providedFiles,
+              contextFiles,
               editorText: t.editorText || '',
+              defaultEditMode: t.defaultEditMode || 'both',
+              templateCanvasData: t.templateCanvasData || null,
               settingsOverride: t.settingsOverride || null
             };
             if (t.editorText) {
@@ -1820,6 +1841,12 @@ class CanvasCritiqueStore {
               if (cloned.solutionFiles) {
                 cloned.solutionFiles = [...cloned.solutionFiles];
               }
+              if (cloned.contextFiles) {
+                cloned.contextFiles = [...cloned.contextFiles];
+              }
+              if (cloned.providedFiles) {
+                cloned.providedFiles = [...cloned.providedFiles];
+              }
               return cloned;
             });
 
@@ -1835,6 +1862,20 @@ class CanvasCritiqueStore {
               }
               if (task.solutionFiles) {
                 for (const file of task.solutionFiles) {
+                  if (file.mediaId) {
+                    mediaIdsToPack.push(file.mediaId);
+                  }
+                }
+              }
+              if (task.contextFiles) {
+                for (const file of task.contextFiles) {
+                  if (file.mediaId) {
+                    mediaIdsToPack.push(file.mediaId);
+                  }
+                }
+              }
+              if (task.providedFiles) {
+                for (const file of task.providedFiles) {
                   if (file.mediaId) {
                     mediaIdsToPack.push(file.mediaId);
                   }
@@ -2000,6 +2041,20 @@ class CanvasCritiqueStore {
             }
             if (task.solutionFiles) {
               for (const file of task.solutionFiles) {
+                if (file.mediaId) {
+                  mediaIdsToPack.push(file.mediaId);
+                }
+              }
+            }
+            if (task.contextFiles) {
+              for (const file of task.contextFiles) {
+                if (file.mediaId) {
+                  mediaIdsToPack.push(file.mediaId);
+                }
+              }
+            }
+            if (task.providedFiles) {
+              for (const file of task.providedFiles) {
                 if (file.mediaId) {
                   mediaIdsToPack.push(file.mediaId);
                 }
@@ -2339,6 +2394,16 @@ class CanvasCritiqueStore {
                   file.dataUrl = await getMediaDataUrl(file.mediaId);
                   delete file.mediaId;
                 } catch (err) { console.error('[store] Failed to inline provided file for full export:', err); }
+              }
+            }
+          }
+          if (task.contextFiles) {
+            for (const file of task.contextFiles) {
+              if (file.mediaId && !file.dataUrl) {
+                try {
+                  file.dataUrl = await getMediaDataUrl(file.mediaId);
+                  delete file.mediaId;
+                } catch (err) { console.error('[store] Failed to inline context file for full export:', err); }
               }
             }
           }
