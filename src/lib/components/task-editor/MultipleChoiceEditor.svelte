@@ -141,6 +141,141 @@
     list[qIndex].options[oIndex].media = list[qIndex].options[oIndex].media.filter((_, i) => i !== mediaIndex);
     multipleChoiceTasks = list;
   }
+
+  function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function pasteQuestionMediaFromClipboard(qIndex: number) {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      let addedAny = false;
+      const list = [...multipleChoiceTasks];
+
+      for (const item of clipboardItems) {
+        const imageType = item.types.find(t => t.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const ext = imageType.split('/')[1] || 'png';
+          const base64Data = await blobToBase64(blob);
+          const name = `clipboard_mc_q_${Date.now()}.${ext}`;
+          let mediaId = '';
+          try { mediaId = await saveMediaToDb(base64Data, name); } catch (_) {}
+          
+          list[qIndex].questionMedia = [
+            ...list[qIndex].questionMedia,
+            { name, dataUrl: base64Data, mediaId: mediaId || undefined }
+          ];
+          addedAny = true;
+          continue;
+        }
+
+        const textType = item.types.find(t => t === 'text/plain');
+        if (textType) {
+          const blob = await item.getType(textType);
+          const text = await blob.text();
+          const base64Data = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
+          const name = `clipboard_mc_q_${Date.now()}.txt`;
+          let mediaId = '';
+          try { mediaId = await saveMediaToDb(base64Data, name); } catch (_) {}
+          
+          list[qIndex].questionMedia = [
+            ...list[qIndex].questionMedia,
+            { name, dataUrl: base64Data, mediaId: mediaId || undefined }
+          ];
+          addedAny = true;
+        }
+      }
+      if (addedAny) {
+        multipleChoiceTasks = list;
+      }
+    } catch (err) {
+      console.error('Failed to read clipboard:', err);
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          const base64Data = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
+          const name = `clipboard_mc_q_${Date.now()}.txt`;
+          let mediaId = '';
+          try { mediaId = await saveMediaToDb(base64Data, name); } catch (_) {}
+          const list = [...multipleChoiceTasks];
+          list[qIndex].questionMedia = [
+            ...list[qIndex].questionMedia,
+            { name, dataUrl: base64Data, mediaId: mediaId || undefined }
+          ];
+          multipleChoiceTasks = list;
+        }
+      } catch (_) {}
+    }
+  }
+
+  async function pasteOptionMediaFromClipboard(qIndex: number, oIndex: number) {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      let addedAny = false;
+      const list = [...multipleChoiceTasks];
+
+      for (const item of clipboardItems) {
+        const imageType = item.types.find(t => t.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const ext = imageType.split('/')[1] || 'png';
+          const base64Data = await blobToBase64(blob);
+          const name = `clipboard_mc_o_${Date.now()}.${ext}`;
+          let mediaId = '';
+          try { mediaId = await saveMediaToDb(base64Data, name); } catch (_) {}
+          
+          list[qIndex].options[oIndex].media = [
+            ...(list[qIndex].options[oIndex].media || []),
+            { name, dataUrl: base64Data, mediaId: mediaId || undefined }
+          ];
+          addedAny = true;
+          continue;
+        }
+
+        const textType = item.types.find(t => t === 'text/plain');
+        if (textType) {
+          const blob = await item.getType(textType);
+          const text = await blob.text();
+          const base64Data = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
+          const name = `clipboard_mc_o_${Date.now()}.txt`;
+          let mediaId = '';
+          try { mediaId = await saveMediaToDb(base64Data, name); } catch (_) {}
+          
+          list[qIndex].options[oIndex].media = [
+            ...(list[qIndex].options[oIndex].media || []),
+            { name, dataUrl: base64Data, mediaId: mediaId || undefined }
+          ];
+          addedAny = true;
+        }
+      }
+      if (addedAny) {
+        multipleChoiceTasks = list;
+      }
+    } catch (err) {
+      console.error('Failed to read clipboard:', err);
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          const base64Data = `data:text/plain;base64,${btoa(unescape(encodeURIComponent(text)))}`;
+          const name = `clipboard_mc_o_${Date.now()}.txt`;
+          let mediaId = '';
+          try { mediaId = await saveMediaToDb(base64Data, name); } catch (_) {}
+          const list = [...multipleChoiceTasks];
+          list[qIndex].options[oIndex].media = [
+            ...(list[qIndex].options[oIndex].media || []),
+            { name, dataUrl: base64Data, mediaId: mediaId || undefined }
+          ];
+          multipleChoiceTasks = list;
+        }
+      } catch (_) {}
+    }
+  }
 </script>
 
 <div class="flex flex-col gap-6 mt-4">
@@ -245,23 +380,33 @@
           </div>
 
           <!-- Question Media Attachments -->
-          <div class="flex flex-col gap-2 bg-surface-container-low/30 rounded-xl p-4 border border-outline-variant/30">
-            <div class="flex justify-between items-center">
-              <span class="text-xs font-bold text-on-surface-variant flex items-center gap-1.5">
+          <div class="flex flex-col gap-2.5 bg-surface-container-low/30 rounded-xl p-4 border border-outline-variant/30 font-sans">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs font-bold text-on-surface-variant flex items-center gap-1.5 font-sans">
                 <span class="material-symbols-outlined text-sm">attachment</span>
                 {t('taskEditor.mc.mediaTitle') || 'Medien für diese Frage'}
               </span>
-              <label class="flex items-center gap-1 px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded-lg text-[10px] font-bold text-on-surface-variant cursor-pointer transition-colors">
-                <span class="material-symbols-outlined text-[14px]">upload</span>
-                <span>{t('common.addFile') || 'Datei hinzufügen'}</span>
-                <input 
-                  type="file" 
-                  multiple 
-                  class="hidden" 
-                  onchange={(e) => handleQuestionMediaUpload(e, qIndex)}
-                />
-              </label>
+              <button
+                type="button"
+                onclick={() => pasteQuestionMediaFromClipboard(qIndex)}
+                class="flex items-center gap-1 px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded-lg text-[10px] font-bold text-primary cursor-pointer transition-colors focus:outline-none"
+              >
+                <span class="material-symbols-outlined text-[13px]">content_paste</span>
+                <span>{t('taskEditor.pasteClipboard') || 'Aus Zwischenablage einfügen'}</span>
+              </button>
             </div>
+
+            <!-- Click to Select Area -->
+            <label class="flex flex-col items-center justify-center border border-dashed border-outline-variant rounded-xl p-4 hover:bg-surface-container-high/40 transition-colors cursor-pointer text-center group bg-surface-container-lowest/50 select-none">
+              <span class="material-symbols-outlined text-xl text-on-surface-variant group-hover:text-primary mb-1 transition-colors">cloud_upload</span>
+              <span class="text-[10.5px] font-bold text-on-surface mb-0.5">{t('common.addFile') || 'Datei hinzufügen (Klicken)'}</span>
+              <input 
+                type="file" 
+                multiple 
+                class="hidden" 
+                onchange={(e) => handleQuestionMediaUpload(e, qIndex)}
+              />
+            </label>
 
             {#if question.questionMedia.length > 0}
               <div class="flex flex-wrap gap-2 mt-1">
@@ -345,33 +490,26 @@
                   </div>
 
                   <!-- Option Media Attachments -->
-                  <div class="flex items-center gap-2 bg-surface-container-low/20 rounded-lg px-3 py-1.5 border border-outline-variant/20 justify-between">
-                    <div class="flex items-center gap-1.5 min-w-0 grow">
-                      <span class="material-symbols-outlined text-xs text-on-surface-variant shrink-0">attach_file</span>
-                      <span class="text-[9.5px] font-bold text-on-surface-variant truncate mr-2 font-sans">
+                  <div class="flex flex-col gap-2 bg-surface-container-low/20 rounded-xl p-3 border border-outline-variant/20 font-sans">
+                    <div class="flex justify-between items-center">
+                      <span class="text-[10px] font-bold text-on-surface-variant flex items-center gap-1">
+                        <span class="material-symbols-outlined text-xs">attach_file</span>
                         {t('taskEditor.mc.optionMediaTitle') || 'Medien für diese Option'}
                       </span>
-                      
-                      {#if option.media && option.media.length > 0}
-                        <div class="flex flex-wrap gap-1 items-center min-w-0 grow">
-                          {#each option.media as file, omIndex}
-                            <div class="flex items-center gap-1 bg-surface-container-low border border-outline-variant/60 rounded px-1.5 py-0.5 text-[10px] text-on-surface shadow-sm max-w-30">
-                              <span class="material-symbols-outlined text-[10px] text-on-surface-variant shrink-0">{getFileIcon(file.name)}</span>
-                              <span class="truncate font-medium">{file.name}</span>
-                              <button 
-                                type="button" 
-                                onclick={() => removeOptionMedia(qIndex, oIndex, omIndex)}
-                                class="material-symbols-outlined text-[11px] text-on-surface-variant hover:text-error p-0.5 rounded cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
-                              >close</button>
-                            </div>
-                          {/each}
-                        </div>
-                      {/if}
+                      <button
+                        type="button"
+                        onclick={() => pasteOptionMediaFromClipboard(qIndex, oIndex)}
+                        class="flex items-center gap-0.5 px-2 py-0.5 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded text-[9px] font-bold text-primary cursor-pointer transition-colors focus:outline-none shrink-0"
+                      >
+                        <span class="material-symbols-outlined text-[11px]">content_paste</span>
+                        <span>{t('taskEditor.pasteClipboard') || 'Einfügen'}</span>
+                      </button>
                     </div>
 
-                    <label class="flex items-center gap-0.5 px-2 py-0.5 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded text-[9px] font-bold text-on-surface-variant cursor-pointer transition-colors shrink-0">
-                      <span class="material-symbols-outlined text-[12px]">upload</span>
-                      <span>{t('common.addFile') || 'Datei'}</span>
+                    <!-- Click to Select Area -->
+                    <label class="flex flex-col items-center justify-center border border-dashed border-outline-variant/80 rounded-lg p-2.5 hover:bg-surface-container-high/40 transition-colors cursor-pointer text-center group bg-surface-container-lowest/30 select-none">
+                      <span class="material-symbols-outlined text-base text-on-surface-variant group-hover:text-primary mb-0.5 transition-colors">cloud_upload</span>
+                      <span class="text-[9.5px] font-bold text-on-surface">{t('common.addFile') || 'Datei hinzufügen'}</span>
                       <input 
                         type="file" 
                         multiple 
@@ -379,6 +517,22 @@
                         onchange={(e) => handleOptionMediaUpload(e, qIndex, oIndex)}
                       />
                     </label>
+
+                    {#if option.media && option.media.length > 0}
+                      <div class="flex flex-wrap gap-1 items-center min-w-0">
+                        {#each option.media as file, omIndex}
+                          <div class="flex items-center gap-1 bg-surface-container-low border border-outline-variant/60 rounded px-1.5 py-0.5 text-[10px] text-on-surface shadow-sm max-w-30">
+                            <span class="material-symbols-outlined text-[10px] text-on-surface-variant shrink-0">{getFileIcon(file.name)}</span>
+                            <span class="truncate font-medium">{file.name}</span>
+                            <button 
+                              type="button" 
+                              onclick={() => removeOptionMedia(qIndex, oIndex, omIndex)}
+                              class="material-symbols-outlined text-[11px] text-on-surface-variant hover:text-error p-0.5 rounded cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
+                            >close</button>
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
                   </div>
                 </div>
               {/each}

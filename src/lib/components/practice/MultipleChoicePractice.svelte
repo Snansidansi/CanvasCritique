@@ -9,6 +9,7 @@
     multipleChoiceTasks = [],
     selectedAnswers = $bindable({}),
     fontSize = 13,
+    hasCheckedWork = false,
     onAnswersChanged = () => {}
   } = $props();
 
@@ -18,6 +19,7 @@
   }
 
   function handleOptionToggle(question: MultipleChoiceTask, optionId: string, isCheckbox: boolean) {
+    if (hasCheckedWork) return;
     const questionId = question.id;
     let list = [...(selectedAnswers[questionId] || [])];
 
@@ -102,27 +104,46 @@
       <div class="flex flex-col gap-3 mt-2">
         {#each question.options as option (option.id)}
           {@const selected = isOptionSelected(question.id, option.id)}
+          {@const correct = option.isCorrect}
+          {@const showResult = hasCheckedWork}
+          {@const stateClass = !showResult 
+            ? (selected ? 'bg-primary/5 border-primary shadow-sm' : 'bg-surface-container-low border-outline-variant/40 hover:bg-surface-container-high cursor-pointer')
+            : (selected && correct ? 'bg-emerald-500/10 border-emerald-500 border-2 shadow-sm text-emerald-800 dark:text-emerald-300 cursor-default' :
+               selected && !correct ? 'bg-error/10 border-error border-2 shadow-sm text-error cursor-default' :
+               !selected && correct ? 'bg-emerald-500/5 border-emerald-500/50 border-2 border-dashed text-emerald-800 dark:text-emerald-300 cursor-default' :
+               'bg-surface-container-low/50 border-outline-variant/20 opacity-60 cursor-default')}
           <div 
-            class="flex flex-col gap-2.5 p-3.5 rounded-xl border transition-all cursor-pointer font-sans
-                   {selected 
-                     ? 'bg-primary/5 border-primary shadow-sm' 
-                     : 'bg-surface-container-low border-outline-variant/40 hover:bg-surface-container-high'}"
+            class="flex flex-col gap-2.5 p-3.5 rounded-xl border transition-all font-sans {stateClass}"
             onclick={() => handleOptionToggle(question, option.id, isCheckbox)}
             role="button"
             tabindex="0"
             onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { handleOptionToggle(question, option.id, isCheckbox); e.preventDefault(); } }}
           >
             <div class="flex items-start gap-3 w-full">
-              <!-- Checkbox / Radio graphic indicator -->
+              <!-- Checkbox / Radio graphic / Feedback indicator -->
               <div class="flex items-center justify-center shrink-0 mt-0.5 select-none">
-                {#if isCheckbox}
-                  <span class="material-symbols-outlined text-[20px] {selected ? 'text-primary' : 'text-on-surface-variant/70'}">
-                    {selected ? 'check_box' : 'check_box_outline_blank'}
-                  </span>
+                {#if showResult}
+                  {#if selected && correct}
+                    <span class="material-symbols-outlined text-[20px] text-emerald-600 font-bold">check_circle</span>
+                  {:else if selected && !correct}
+                    <span class="material-symbols-outlined text-[20px] text-error font-bold">cancel</span>
+                  {:else}
+                    <span class="material-symbols-outlined text-[20px] {correct ? 'text-emerald-600/70' : 'text-on-surface-variant/30'}">
+                      {isCheckbox 
+                        ? (correct ? 'check_box_outline_blank' : 'check_box_outline_blank')
+                        : (correct ? 'radio_button_unchecked' : 'radio_button_unchecked')}
+                    </span>
+                  {/if}
                 {:else}
-                  <span class="material-symbols-outlined text-[20px] {selected ? 'text-primary' : 'text-on-surface-variant/70'}">
-                    {selected ? 'radio_button_checked' : 'radio_button_unchecked'}
-                  </span>
+                  {#if isCheckbox}
+                    <span class="material-symbols-outlined text-[20px] {selected ? 'text-primary' : 'text-on-surface-variant/70'}">
+                      {selected ? 'check_box' : 'check_box_outline_blank'}
+                    </span>
+                  {:else}
+                    <span class="material-symbols-outlined text-[20px] {selected ? 'text-primary' : 'text-on-surface-variant/70'}">
+                      {selected ? 'radio_button_checked' : 'radio_button_unchecked'}
+                    </span>
+                  {/if}
                 {/if}
               </div>
 

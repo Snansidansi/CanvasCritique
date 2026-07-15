@@ -4451,6 +4451,7 @@
               multipleChoiceTasks={task.multipleChoiceTasks}
               bind:selectedAnswers={selectedAnswers}
               fontSize={canvasTextFontSize}
+              hasCheckedWork={hasCheckedWork}
               onAnswersChanged={handleAnswersChanged}
             />
           </section>

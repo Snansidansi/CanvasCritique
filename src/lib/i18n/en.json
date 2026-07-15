@@ -321,8 +321,8 @@
     "modeMultipleChoice": "Switch to Multiple Choice Tasks",
     "modeMultipleChoiceLabel": "Multiple Choice",
     "mc": {
-      "multipleAnswers": "Multiple Answers (Checkboxes)",
-      "singleAnswer": "Single Answer (Radio Buttons)"
+      "multipleAnswers": "Multiple Choice",
+      "singleAnswer": "Single Choice"
     },
     "textEditor": {
       "writeTitle": "Text Editor",

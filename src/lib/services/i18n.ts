@@ -2,6 +2,7 @@ import { store } from '../state/store.svelte';
 import en from '../i18n/en.json';
 import de from '../i18n/de.json';
 
+// Core translations map
 const translations: Record<string, any> = {
   English: en,
   Deutsch: de

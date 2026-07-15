@@ -320,8 +320,8 @@
     "modeMultipleChoice": "Zu Multiple-Choice-Aufgaben wechseln",
     "modeMultipleChoiceLabel": "Multiple Choice",
     "mc": {
-      "multipleAnswers": "Mehrfachauswahl (Kontrollkästchen)",
-      "singleAnswer": "Einfachauswahl (Radiobuttons)"
+      "multipleAnswers": "Mehrfachauswahl",
+      "singleAnswer": "Einfachauswahl"
     },
     "textEditor": {
       "writeTitle": "Texteditor",
