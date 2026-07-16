@@ -14,6 +14,9 @@
   // Active preview states per question (mapping question.id -> boolean)
   let showQuestionPreview = $state<Record<string, boolean>>({});
 
+  // Collapsible MC Editor state
+  let isEditorExpanded = $state(true);
+
   // Inline Rename State
   let editingFileIndex = $state<number | null>(null);
   let editingFileType = $state<'question' | 'option' | null>(null);
@@ -64,6 +67,7 @@
   }
 
   async function addQuestion() {
+    isEditorExpanded = true;
     const qId = 'mc-q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
     const newQuestion: MultipleChoiceTask = {
       id: qId,
@@ -510,23 +514,45 @@
 
 <div class="flex flex-col gap-6 mt-4">
   <div class="sticky -top-4 z-20 flex justify-between items-center bg-surface-container-low/95 backdrop-blur-md p-4 rounded-xl border border-outline-variant shadow-sm transition-all mb-1">
-    <div class="flex flex-col gap-0.5">
-      <h3 class="text-sm font-bold text-on-surface">{t('taskEditor.mc.title') || 'Multiple-Choice-Aufgaben'}</h3>
-      <span class="text-xs text-on-surface-variant">
-        {t('taskEditor.mc.subtitle') || 'Erstelle Aufgaben mit einer oder mehreren richtigen Antworten'}
-      </span>
+    <div class="flex items-center gap-3">
+      <button
+        type="button"
+        onclick={() => isEditorExpanded = !isEditorExpanded}
+        class="p-1 hover:bg-surface-container rounded-lg transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center text-on-surface-variant focus:outline-none"
+        title={isEditorExpanded ? (t('common.collapse') || 'Zuklappen') : (t('common.expand') || 'Aufklappen')}
+      >
+        <span class="material-symbols-outlined text-[24px] transition-transform duration-200" style="transform: rotate({isEditorExpanded ? '180' : '0'}deg)">
+          expand_more
+        </span>
+      </button>
+
+      <div class="flex flex-col gap-0.5">
+        <h3 class="text-sm font-bold text-on-surface">{t('taskEditor.mc.title') || 'Multiple-Choice-Aufgaben'}</h3>
+        <span class="text-xs text-on-surface-variant">
+          {t('taskEditor.mc.subtitle') || 'Erstelle Aufgaben mit einer oder mehreren richtigen Antworten'}
+        </span>
+      </div>
     </div>
-    <button
-      type="button"
-      onclick={addQuestion}
-      class="flex items-center gap-1.5 px-4 py-2 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold shadow-sm transition-colors border-0 cursor-pointer focus:outline-none"
-    >
-      <span class="material-symbols-outlined text-[16px]">add</span>
-      <span>{t('taskEditor.mc.addQuestion') || 'Frage hinzufügen'}</span>
-    </button>
+
+    <div class="flex items-center gap-2">
+      {#if multipleChoiceTasks.length > 0}
+        <span class="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+          {multipleChoiceTasks.length}
+        </span>
+      {/if}
+      <button
+        type="button"
+        onclick={addQuestion}
+        class="flex items-center gap-1.5 px-4 py-2 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold shadow-sm transition-colors border-0 cursor-pointer focus:outline-none"
+      >
+        <span class="material-symbols-outlined text-[16px]">add</span>
+        <span>{t('taskEditor.mc.addQuestion') || 'Frage hinzufügen'}</span>
+      </button>
+    </div>
   </div>
 
-  {#if multipleChoiceTasks.length === 0}
+  {#if isEditorExpanded}
+    {#if multipleChoiceTasks.length === 0}
     <div class="flex flex-col items-center justify-center p-8 border-2 border-dashed border-outline-variant rounded-2xl bg-surface-container-lowest text-center">
       <span class="material-symbols-outlined text-on-surface-variant/40 text-[48px] mb-2">rule</span>
       <p class="text-sm font-semibold text-on-surface-variant">
@@ -893,5 +919,6 @@
         </div>
       {/each}
     </div>
+  {/if}
   {/if}
 </div>

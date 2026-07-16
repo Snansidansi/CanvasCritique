@@ -12,7 +12,9 @@
     "exporting": "Exporting...",
     "deleting": "Deleting...",
     "question": "Question",
-    "addFile": "Add File"
+    "addFile": "Add File",
+    "collapse": "Collapse",
+    "expand": "Expand"
   },
   "dashboard": {
     "title": "Dashboard",

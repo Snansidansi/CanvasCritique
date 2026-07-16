@@ -12,7 +12,9 @@
     "exporting": "Exportiere...",
     "deleting": "Wird gelöscht...",
     "question": "Frage",
-    "addFile": "Datei hinzufügen"
+    "addFile": "Datei hinzufügen",
+    "collapse": "Zuklappen",
+    "expand": "Aufklappen"
   },
   "dashboard": {
     "title": "Lektionsübersicht",
