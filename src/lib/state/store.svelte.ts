@@ -96,6 +96,7 @@ class CanvasCritiqueStore {
   private _isProcessingQueue = false;
   openRouterPrices = $state<Record<string, { prompt: number; completion: number }>>({});
   openRouterModels = $state<any[]>([]);
+  fetchedPriceModels = $state<string[]>([]);
   statsHistory = $state<RequestLog[]>([]);
 
   private _dbReady = false;
@@ -246,7 +247,6 @@ class CanvasCritiqueStore {
     await migrateMediaExtensions();
     await this.loadState(db);
     this._dbReady = true;
-    this.fetchOpenRouterPrices();
   }
 
   private getDb() {
@@ -2513,6 +2513,15 @@ class CanvasCritiqueStore {
     } catch (err) {
       console.error('[store] Failed to fetch OpenRouter prices:', err);
     }
+  }
+
+  async ensurePricingLoaded(model: string): Promise<void> {
+    if (!model) return;
+    if (this.fetchedPriceModels.includes(model)) {
+      return;
+    }
+    await this.fetchOpenRouterPrices();
+    this.fetchedPriceModels.push(model);
   }
 
   showLoading(text: string): void {

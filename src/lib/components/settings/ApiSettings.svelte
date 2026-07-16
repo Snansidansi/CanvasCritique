@@ -29,6 +29,14 @@
       return;
     }
 
+    if (model) {
+      try {
+        await store.ensurePricingLoaded(model);
+      } catch (err) {
+        console.error('Failed to load OpenRouter pricing details for test:', err);
+      }
+    }
+
     try {
       // OpenRouter SDK integration
       const httpClient = new HTTPClient();

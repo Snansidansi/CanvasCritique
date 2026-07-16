@@ -473,6 +473,15 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
     throw new Error("No API key configured. Please add your API key in settings.");
   }
 
+  // Lazy-load OpenRouter models/prices for this model if not already cached in this session
+  if (model) {
+    try {
+      await store.ensurePricingLoaded(model);
+    } catch (err) {
+      console.error('[ai] Failed to load OpenRouter pricing details:', err);
+    }
+  }
+
   // Build AI prompt
   const showCanvasAnnotations = settings.showCanvasAnnotations !== false;
   const pageInfoPrompt = (sendCanvas && showCanvasAnnotations)
