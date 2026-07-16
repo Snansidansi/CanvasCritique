@@ -718,6 +718,12 @@ class CanvasCritiqueStore {
   }
 
   async cleanOrphanedMedia(): Promise<number> {
+    try {
+      await this.persistAllCanvasStates();
+    } catch (e) {
+      console.error('[store] Failed to persist canvas states before media cleanup:', e);
+    }
+
     const db = this.getDb();
     try {
       const rows: any[] = await db.select('SELECT id FROM media');
@@ -1458,8 +1464,38 @@ class CanvasCritiqueStore {
     return null;
   }
 
-  async saveCanvasState(taskId: string, data: any): Promise<void> {
+  async saveCanvasState(taskId: string, data: any, writeToDisk = false): Promise<void> {
     this.canvasSaves[taskId] = data;
+
+    const task = this.findTaskById(taskId);
+    if (task) {
+      (task as any).canvasData = data;
+      if (task.activeAttemptId) {
+        const attempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+        if (attempt) {
+          attempt.canvasData = data;
+          attempt.timestamp = new Date().toISOString();
+        }
+      }
+    }
+
+    if (writeToDisk) {
+      const db = this.getDb();
+      await setCanvasState(db, taskId, data);
+
+      if (task && task.activeAttemptId) {
+        const attempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+        if (attempt) {
+          await dbUpdateAttempt(db, attempt.id, { canvasData: data, timestamp: attempt.timestamp });
+        }
+      }
+    }
+  }
+
+  async persistCanvasState(taskId: string): Promise<void> {
+    const data = this.canvasSaves[taskId];
+    if (!data) return;
+
     const db = this.getDb();
     await setCanvasState(db, taskId, data);
 
@@ -1471,6 +1507,12 @@ class CanvasCritiqueStore {
         attempt.timestamp = new Date().toISOString();
         await dbUpdateAttempt(db, attempt.id, { canvasData: data, timestamp: attempt.timestamp });
       }
+    }
+  }
+
+  async persistAllCanvasStates(): Promise<void> {
+    for (const taskId of Object.keys(this.canvasSaves)) {
+      await this.persistCanvasState(taskId);
     }
   }
 

@@ -250,6 +250,12 @@ export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup 
   if (!client || !settings.webdavEnabled) return;
   if (store.isSyncing) return; // Prevent concurrent syncs
 
+  try {
+    await store.persistAllCanvasStates();
+  } catch (e) {
+    console.error('Failed to persist canvas states before WebDAV sync:', e);
+  }
+
   if (!skipCleanup) {
     try {
       await store.cleanOrphanedMedia();

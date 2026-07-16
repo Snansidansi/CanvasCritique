@@ -144,7 +144,7 @@
           for (const proj of imported.projects) {
             if (proj.canvasSaves) {
               for (const [taskId, canvasState] of Object.entries(proj.canvasSaves)) {
-                await store.saveCanvasState(taskId, canvasState);
+                await store.saveCanvasState(taskId, canvasState, true);
               }
             }
           }

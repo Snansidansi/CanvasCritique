@@ -1,6 +1,6 @@
 <script lang="ts">
   import { store, DEFAULT_SYSTEM_PROMPT, type Task } from '../state/store.svelte';
-  import { onMount, tick, untrack } from 'svelte';
+  import { onMount, tick, untrack, onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
   import { t } from '../services/i18n';
   import { jsPDF } from 'jspdf';
@@ -516,6 +516,7 @@
   // Cache for historical strokes to avoid drawing all strokes every frame
   let cachedStrokesCanvas: HTMLCanvasElement | null = null;
   let cachedStrokesCtx: CanvasRenderingContext2D | null = null;
+  let cachedStrokeRefs: Stroke[] = [];
   let cacheIsValid = false;
 
   function invalidateCache() {
@@ -546,11 +547,19 @@
     const sizeChanged = !cachedStrokesCanvas || 
                         cachedStrokesCanvas.width !== canvasWidth || 
                         cachedStrokesCanvas.height !== canvasHeight;
-    if (sizeChanged) {
+    
+    const panOrZoomChanged = canvasMode === 'infinite' && (
+      cachedPan.x !== panOffset.x ||
+      cachedPan.y !== panOffset.y ||
+      cachedZoom !== zoomScale
+    );
+
+    if (sizeChanged || panOrZoomChanged) {
       cacheIsValid = false;
     }
 
     if (cacheIsValid && cachedStrokesCanvas) return;
+
     if (!cachedStrokesCanvas) {
       cachedStrokesCanvas = document.createElement('canvas');
     }
@@ -558,45 +567,69 @@
       cachedStrokesCanvas.width = canvasWidth;
       cachedStrokesCanvas.height = canvasHeight;
       cachedStrokesCtx = cachedStrokesCanvas.getContext('2d');
+      cacheIsValid = false;
     }
+
     if (cachedStrokesCtx) {
-      cachedStrokesCtx.clearRect(0, 0, cachedStrokesCanvas.width, cachedStrokesCanvas.height);
-      cachedStrokesCtx.save();
-      if (canvasMode === 'infinite') {
-        cachedStrokesCtx.translate(panOffset.x, panOffset.y);
-        cachedStrokesCtx.scale(zoomScale, zoomScale);
-      }
-      for (const stroke of strokeHistory) {
-        const bounds = stroke.bounds || calculateStrokeBounds(stroke);
-        let isVisible = true;
+      const currentHistory = strokeHistory;
+      
+      const canIncrementalDraw = !sizeChanged && !panOrZoomChanged && 
+                                 cachedStrokesCanvas && cachedStrokeRefs.length > 0 && 
+                                 currentHistory.length >= cachedStrokeRefs.length &&
+                                 cachedStrokeRefs.every((stroke, idx) => currentHistory[idx] === stroke);
+
+      if (canIncrementalDraw) {
+        cachedStrokesCtx.save();
         if (canvasMode === 'infinite') {
-          const screenMinX = bounds.minX * zoomScale + panOffset.x;
-          const screenMinY = bounds.minY * zoomScale + panOffset.y;
-          const screenMaxX = bounds.maxX * zoomScale + panOffset.x;
-          const screenMaxY = bounds.maxY * zoomScale + panOffset.y;
-          
-          isVisible = !(
-            screenMaxX < 0 ||
-            screenMinX > canvasWidth ||
-            screenMaxY < 0 ||
-            screenMinY > canvasHeight
-          );
-        } else {
-          isVisible = !(
-            bounds.maxX < 0 ||
-            bounds.minX > 800 ||
-            bounds.maxY < 0 ||
-            bounds.minY > 1130
-          );
+          cachedStrokesCtx.translate(panOffset.x, panOffset.y);
+          cachedStrokesCtx.scale(zoomScale, zoomScale);
         }
-        
-        if (isVisible) {
+        for (let i = cachedStrokeRefs.length; i < currentHistory.length; i++) {
+          const stroke = currentHistory[i];
           drawStroke(cachedStrokesCtx, stroke);
         }
+        cachedStrokesCtx.restore();
+      } else {
+        cachedStrokesCtx.clearRect(0, 0, cachedStrokesCanvas.width, cachedStrokesCanvas.height);
+        cachedStrokesCtx.save();
+        if (canvasMode === 'infinite') {
+          cachedStrokesCtx.translate(panOffset.x, panOffset.y);
+          cachedStrokesCtx.scale(zoomScale, zoomScale);
+        }
+        for (const stroke of currentHistory) {
+          const bounds = stroke.bounds || calculateStrokeBounds(stroke);
+          let isVisible = true;
+          if (canvasMode === 'infinite') {
+            const screenMinX = bounds.minX * zoomScale + panOffset.x;
+            const screenMinY = bounds.minY * zoomScale + panOffset.y;
+            const screenMaxX = bounds.maxX * zoomScale + panOffset.x;
+            const screenMaxY = bounds.maxY * zoomScale + panOffset.y;
+            
+            isVisible = !(
+              screenMaxX < 0 ||
+              screenMinX > canvasWidth ||
+              screenMaxY < 0 ||
+              screenMinY > canvasHeight
+            );
+          } else {
+            isVisible = !(
+              bounds.maxX < 0 ||
+              bounds.minX > 800 ||
+              bounds.maxY < 0 ||
+              bounds.minY > 1130
+            );
+          }
+          
+          if (isVisible) {
+            drawStroke(cachedStrokesCtx, stroke);
+          }
+        }
+        cachedStrokesCtx.restore();
+        cachedPan = { ...panOffset };
+        cachedZoom = zoomScale;
       }
-      cachedStrokesCtx.restore();
-      cachedPan = { ...panOffset };
-      cachedZoom = zoomScale;
+      
+      cachedStrokeRefs = [...currentHistory];
     }
     cacheIsValid = true;
   }
@@ -1447,12 +1480,12 @@
   function saveToStoreDebounced() {
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
-      saveToStore();
+      saveToStore(false);
       saveTimeout = null;
     }, 500);
   }
 
-  function saveToStore() {
+  function saveToStore(writeToDisk = false) {
     if (!task || !task.id) return;
     store.saveCanvasState(task.id, {
       pages: JSON.parse(JSON.stringify(pages)),
@@ -1463,7 +1496,7 @@
       zoomScale,
       activePageIndex,
       canvasImages: JSON.parse(JSON.stringify(canvasImages))
-    });
+    }, writeToDisk);
   }
 
   function handleAnswersChanged(newAnswers: Record<string, string[]>) {
@@ -1476,14 +1509,32 @@
 
 
   let lastInitializedTaskId = '';
+  let lastInitializedAttemptId = '';
 
   // Load saved drawing state when active task shifts
   $effect(() => {
     const taskId = task.id;
+    const attemptId = task.activeAttemptId;
     if (taskId) {
-      const isNewTask = taskId !== lastInitializedTaskId;
-      if (!isNewTask) return;
+      const isNewTaskOrAttempt = taskId !== lastInitializedTaskId || attemptId !== lastInitializedAttemptId;
+      if (!isNewTaskOrAttempt) return;
+
+      // Save previous state to disk before we switch task/attempt
+      if (lastInitializedTaskId && lastInitializedAttemptId) {
+        store.saveCanvasState(lastInitializedTaskId, {
+          pages: JSON.parse(JSON.stringify(pages)),
+          infiniteStrokes: JSON.parse(JSON.stringify(infiniteStrokes)),
+          infiniteRedo: JSON.parse(JSON.stringify(infiniteRedo)),
+          infiniteEraserUndo: JSON.parse(JSON.stringify(infiniteEraserUndo)),
+          panOffset: { ...panOffset },
+          zoomScale,
+          activePageIndex,
+          canvasImages: JSON.parse(JSON.stringify(canvasImages))
+        }, true);
+      }
+
       lastInitializedTaskId = taskId;
+      lastInitializedAttemptId = attemptId;
       
       // Clear selections since we switched task
       selectedStrokes = [];
@@ -1601,6 +1652,21 @@
         zoomScale = 1;
         activePageIndex = 0;
       }
+    }
+  });
+
+  onDestroy(() => {
+    if (lastInitializedTaskId && lastInitializedAttemptId) {
+      store.saveCanvasState(lastInitializedTaskId, {
+        pages: JSON.parse(JSON.stringify(pages)),
+        infiniteStrokes: JSON.parse(JSON.stringify(infiniteStrokes)),
+        infiniteRedo: JSON.parse(JSON.stringify(infiniteRedo)),
+        infiniteEraserUndo: JSON.parse(JSON.stringify(infiniteEraserUndo)),
+        panOffset: { ...panOffset },
+        zoomScale,
+        activePageIndex,
+        canvasImages: JSON.parse(JSON.stringify(canvasImages))
+      }, true);
     }
   });
 
@@ -3812,6 +3878,7 @@
   // Multimodal AI Grading using Cropped PNG bounding box
   async function checkWork() {
     if (!store.activeProject || !store.activeTask) return;
+    saveToStore(true);
 
     // Check if we should grade locally (Multiple Choice only)
     const hasDrawing = pages && (
