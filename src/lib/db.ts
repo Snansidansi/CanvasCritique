@@ -502,7 +502,7 @@ export async function saveTaskSolutionToDisk(taskId: string, solutionData: { can
     const { exists, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
     const filePath = await join(canvasDataDir, `${taskId}.json`);
 
-    let currentData: { canvasData: any; editorText: string } = { canvasData: null, editorText: '' };
+    let currentData: { canvasData: any; editorText: string; updatedAt?: string } = { canvasData: null, editorText: '', updatedAt: '' };
     if (await exists(filePath)) {
       try {
         const raw = await readFile(filePath);
@@ -520,6 +520,8 @@ export async function saveTaskSolutionToDisk(taskId: string, solutionData: { can
       currentData.editorText = solutionData.editorText;
     }
 
+    currentData.updatedAt = new Date().toISOString();
+
     const text = JSON.stringify(currentData, null, 2);
     const bytes = new TextEncoder().encode(text);
     await writeFile(filePath, bytes);
@@ -528,7 +530,7 @@ export async function saveTaskSolutionToDisk(taskId: string, solutionData: { can
   }
 }
 
-export async function loadTaskSolutionFromDisk(taskId: string): Promise<{ canvasData: any; editorText: string }> {
+export async function loadTaskSolutionFromDisk(taskId: string): Promise<{ canvasData: any; editorText: string; updatedAt?: string }> {
   try {
     const canvasDataDir = await getCanvasDataDir();
     const { join } = await import('@tauri-apps/api/path');
@@ -540,7 +542,8 @@ export async function loadTaskSolutionFromDisk(taskId: string): Promise<{ canvas
       const parsed = JSON.parse(text);
       return {
         canvasData: parsed.canvasData || null,
-        editorText: parsed.editorText || ''
+        editorText: parsed.editorText || '',
+        updatedAt: parsed.updatedAt || undefined
       };
     }
   } catch (err) {

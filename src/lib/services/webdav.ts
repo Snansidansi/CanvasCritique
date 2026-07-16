@@ -1,7 +1,7 @@
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { store } from '../state/store.svelte';
 import { t } from './i18n';
-import { backupDatabase, replaceDatabase, getDb, getSettings, saveSettings, getCanvasDataDir } from '../db';
+import { backupDatabase, replaceDatabase, getDb, getSettings, saveSettings, getCanvasDataDir, loadTaskSolutionFromDisk } from '../db';
 import { defaultSettings } from '../state/defaults';
 import { appLocalDataDir, appDataDir, join } from '@tauri-apps/api/path';
 import { readFile, remove, exists, mkdir, readDir, stat } from '@tauri-apps/plugin-fs';
@@ -250,23 +250,23 @@ export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup 
   if (!client || !settings.webdavEnabled) return;
   if (store.isSyncing) return; // Prevent concurrent syncs
 
-  try {
-    await store.persistAllCanvasStates();
-  } catch (e) {
-    console.error('Failed to persist canvas states before WebDAV sync:', e);
-  }
-
-  if (!skipCleanup) {
-    try {
-      await store.cleanOrphanedMedia();
-    } catch (e) {
-      console.error('Media cleanup before WebDAV sync failed:', e);
-    }
-  }
-
   store.isSyncing = true;
+  store.showNotification(t('settings.data.notifications.syncStarted') || 'Syncing...', 'info');
+
   try {
-    store.showNotification(t('settings.data.notifications.syncStarted') || 'Syncing...', 'info');
+    try {
+      await store.persistAllCanvasStates();
+    } catch (e) {
+      console.error('Failed to persist canvas states before WebDAV sync:', e);
+    }
+
+    if (!skipCleanup) {
+      try {
+        await store.cleanOrphanedMedia();
+      } catch (e) {
+        console.error('Media cleanup before WebDAV sync failed:', e);
+      }
+    }
 
     // 1. Check sync metadata
     let remoteMeta: { lastSyncedTimestamp: string; dbHash?: string; version?: string } | null = null;
@@ -293,7 +293,6 @@ export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup 
         null,
         true
       );
-      store.isSyncing = false;
       return;
     }
 
@@ -329,6 +328,7 @@ export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup 
     }
 
     let dbTransferred = false;
+    let dbModifiedDuringSync = false;
 
     // 2. If remote DB is newer (or forced download) AND has changes, download and replace local DB
     const shouldDownload = (effectiveMode === 'download' || effectiveMode === 'bidirectional') && 
@@ -386,42 +386,11 @@ export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup 
       store.settings.lastSyncedTimestamp = finalTimestamp;
       store.settings.lastSyncedDbHash = remoteDbHash || localDbHash;
 
-      // Media Sync - download missing media referenced by the new DB
-      try {
-        await syncMedia(client, effectiveMode);
-      } catch (mediaErr) {
-        console.error('Failed to sync media after DB replace:', mediaErr);
-      }
-
-      // Canvas Data Sync - download missing canvas data referenced by the new DB
-      try {
-        await syncCanvasData(client, effectiveMode);
-      } catch (canvasErr) {
-        console.error('Failed to sync canvas data after DB replace:', canvasErr);
-      }
-
-      // Reload store state in-place to update UI without window reload
-      await store.loadState();
-
-      // If the local version is newer, update the remote version metadata on WebDAV
-      if (localVersionIsNewer) {
-        try {
-          await client.putFileContents('/' + SYNC_META_FILE, JSON.stringify({ 
-            lastSyncedTimestamp: finalTimestamp,
-            dbHash: remoteDbHash || localDbHash,
-            version: localVersion
-          }), { overwrite: true });
-        } catch (err) {
-          console.warn('Failed to update remote metadata version after download:', err);
-        }
-      }
-
-      store.showNotification(t('settings.data.notifications.syncDbDownloaded') || 'Database synced and updated.', 'success');
-      return; // Stop here
+      dbTransferred = true;
+    } else {
+      // Since we did not download, we clean up the local temp backup file created for hashing
+      await remove(localBackupPath);
     }
-
-    // Since we did not download, we clean up the local temp backup file created for hashing
-    await remove(localBackupPath);
 
     // 3. Media Sync
     try {
@@ -432,18 +401,26 @@ export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup 
 
     // 3.5. Canvas Data Sync
     try {
-      await syncCanvasData(client, effectiveMode);
+      dbModifiedDuringSync = await syncCanvasData(client, effectiveMode);
     } catch (canvasErr) {
       console.error('Failed to sync canvas data:', canvasErr);
     }
 
+    // Reload store state in-place to update UI without window reload
+    if (shouldDownload || dbModifiedDuringSync) {
+      await store.loadState();
+    }
+
     // 4. Upload Local DB to WebDAV if it has changes (and mode allows it)
     const shouldUpload = (effectiveMode === 'bidirectional' || effectiveMode === 'upload') && 
-      (forceMode === 'upload' || (remoteTimestamp <= localTimestamp && hasDbChanges));
+      (forceMode === 'upload' || (remoteTimestamp <= localTimestamp && hasDbChanges && !shouldDownload) || dbModifiedDuringSync);
 
     if (shouldUpload) {
       console.log('Uploading local DB to WebDAV...');
-      const compressedBytes = await compressGzip(dbBytes);
+      await backupDatabase(localBackupPath);
+      const finalDbBytes = await readFile(localBackupPath);
+      const localDbHashAfterSync = await computeSha256(finalDbBytes);
+      const compressedBytes = await compressGzip(finalDbBytes);
       await client.putFileContents('/' + REMOTE_DB_FILE_GZ, compressedBytes, { overwrite: true });
 
       // Clean up old uncompressed DB file if it exists on server
@@ -459,20 +436,21 @@ export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup 
       const newTimestamp = new Date().toISOString();
       await client.putFileContents('/' + SYNC_META_FILE, JSON.stringify({ 
         lastSyncedTimestamp: newTimestamp,
-        dbHash: localDbHash,
+        dbHash: localDbHashAfterSync,
         version: localVersion
       }), { overwrite: true });
 
       // Save locally (in memory and file only)
       store.settings.lastSyncedTimestamp = newTimestamp;
-      store.settings.lastSyncedDbHash = localDbHash;
-      await saveLocalSyncState(newTimestamp, localDbHash);
+      store.settings.lastSyncedDbHash = localDbHashAfterSync;
+      await saveLocalSyncState(newTimestamp, localDbHashAfterSync);
+      await remove(localBackupPath);
       dbTransferred = true;
     } else {
       // If we skipped both download and upload because the database hashes match, 
       // we still update the local settings' lastSyncedTimestamp to remoteTimestamp (if remote is equal)
       // to keep local and remote sync status in alignment.
-      if (!hasDbChanges && remoteTimestamp !== '0') {
+      if (!hasDbChanges && !shouldDownload && remoteTimestamp !== '0') {
         store.settings.lastSyncedTimestamp = remoteTimestamp;
         store.settings.lastSyncedDbHash = localDbHash;
         await saveLocalSyncState(remoteTimestamp, localDbHash);
@@ -515,7 +493,7 @@ async function decompressGzip(data: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(buffer);
 }
 
-async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 'download' | 'upload') {
+async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 'download' | 'upload'): Promise<boolean> {
   const db = getDb();
   const localCanvasDir = await getCanvasDataDir();
   const REMOTE_CANVAS_DIR = '/canvas_data';
@@ -525,9 +503,24 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
     await client.createDirectory(REMOTE_CANVAS_DIR);
   }
 
-  // Get all task IDs registered in the local SQLite database
-  const dbRows = await db.select('SELECT id FROM tasks') as Array<{ id: string }>;
-  const dbIds = new Set(dbRows.map(r => r.id));
+  // Get attempt timestamps for all tasks in database
+  const dbTaskRows = await db.select(`
+    SELECT t.id, t.active_attempt_id, a.timestamp as attempt_timestamp
+    FROM tasks t
+    LEFT JOIN task_attempts a ON t.active_attempt_id = a.id
+  `) as Array<{ id: string; active_attempt_id: string | null; attempt_timestamp: string | null }>;
+
+  const dbIds = new Set(dbTaskRows.map(r => r.id));
+  const dbTimestamps = new Map<string, string>();
+  const activeAttemptIds = new Map<string, string>();
+  for (const row of dbTaskRows) {
+    if (row.attempt_timestamp) {
+      dbTimestamps.set(row.id, row.attempt_timestamp);
+    }
+    if (row.active_attempt_id) {
+      activeAttemptIds.set(row.id, row.active_attempt_id);
+    }
+  }
 
   // Get local canvas_data list from the filesystem
   let localEntries: any[] = [];
@@ -567,6 +560,8 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
     console.warn('Failed to retrieve remote canvas_data list:', err);
   }
 
+  let dbModified = false;
+
   // Sync active task files
   for (const id of dbIds) {
     const localInfo = localFiles.get(id);
@@ -601,12 +596,28 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
         }
       }
     } else if (hasLocal && hasRemote) {
-      const localTime = localInfo.mtime.getTime();
-      const remoteTime = remoteInfo.lastmod.getTime();
+      // 1. Read local JSON file to get its updatedAt timestamp
+      let localUpdatedAt: string | null = null;
+      try {
+        const solution = await loadTaskSolutionFromDisk(id);
+        localUpdatedAt = solution.updatedAt || null;
+      } catch (err) {
+        console.error(`Failed to load local solution to get updatedAt for task ${id}:`, err);
+      }
+
+      // Fallback to local filesystem mtime if updatedAt is not in the JSON file
+      const localTimeStr = localUpdatedAt || localInfo.mtime.toISOString();
+      const localTime = new Date(localTimeStr).getTime();
+
+      // 2. Determine remote timestamp
+      // Use database synced attempt_timestamp if available, otherwise remote file's lastmod
+      const dbTimestamp = dbTimestamps.get(id);
+      const remoteTimeStr = dbTimestamp || remoteInfo.lastmod.toISOString();
+      const remoteTime = new Date(remoteTimeStr).getTime();
 
       if (remoteTime > localTime + 1000) {
         if (syncMode === 'bidirectional' || syncMode === 'download') {
-          console.log(`Downloading newer canvas ${id}...`);
+          console.log(`Downloading newer canvas ${id} (remote: ${remoteTimeStr}, local: ${localTimeStr})...`);
           try {
             const compressed = await client.getFileContents(`${REMOTE_CANVAS_DIR}/${id}.json.gz`, { format: 'binary' }) as Uint8Array;
             const decompressed = await decompressGzip(compressed);
@@ -619,12 +630,22 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
         }
       } else if (localTime > remoteTime + 1000) {
         if (syncMode === 'bidirectional' || syncMode === 'upload') {
-          console.log(`Uploading newer canvas ${id}...`);
+          console.log(`Uploading newer canvas ${id} (local: ${localTimeStr}, remote: ${remoteTimeStr})...`);
           try {
             const filePath = await join(localCanvasDir, `${id}.json`);
             const rawBytes = await readFile(filePath);
             const compressed = await compressGzip(rawBytes);
             await client.putFileContents(`${REMOTE_CANVAS_DIR}/${id}.json.gz`, compressed, { overwrite: true });
+
+            const activeAttemptId = activeAttemptIds.get(id);
+            if (activeAttemptId) {
+              await db.execute(
+                'UPDATE task_attempts SET timestamp = ? WHERE id = ?',
+                [localTimeStr, activeAttemptId]
+              );
+              dbModified = true;
+              console.log(`Updated database attempt timestamp to ${localTimeStr} for task ${id}`);
+            }
           } catch (err) {
             console.error(`Failed to upload canvas ${id}:`, err);
           }
@@ -659,6 +680,8 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
       }
     }
   }
+
+  return dbModified;
 }
 
 async function syncMedia(client: WebDAVClient, syncMode: 'bidirectional' | 'download' | 'upload') {
