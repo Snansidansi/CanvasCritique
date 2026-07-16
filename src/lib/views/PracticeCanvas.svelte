@@ -1487,15 +1487,22 @@
 
   function saveToStore(writeToDisk = false) {
     if (!task || !task.id) return;
+
+    const pagesData = writeToDisk ? JSON.parse(JSON.stringify(pages)) : pages;
+    const infiniteStrokesData = writeToDisk ? JSON.parse(JSON.stringify(infiniteStrokes)) : infiniteStrokes;
+    const infiniteRedoData = writeToDisk ? JSON.parse(JSON.stringify(infiniteRedo)) : infiniteRedo;
+    const infiniteEraserUndoData = writeToDisk ? JSON.parse(JSON.stringify(infiniteEraserUndo)) : infiniteEraserUndo;
+    const canvasImagesData = writeToDisk ? JSON.parse(JSON.stringify(canvasImages)) : canvasImages;
+
     store.saveCanvasState(task.id, {
-      pages: JSON.parse(JSON.stringify(pages)),
-      infiniteStrokes: JSON.parse(JSON.stringify(infiniteStrokes)),
-      infiniteRedo: JSON.parse(JSON.stringify(infiniteRedo)),
-      infiniteEraserUndo: JSON.parse(JSON.stringify(infiniteEraserUndo)),
+      pages: pagesData,
+      infiniteStrokes: infiniteStrokesData,
+      infiniteRedo: infiniteRedoData,
+      infiniteEraserUndo: infiniteEraserUndoData,
       panOffset: { ...panOffset },
       zoomScale,
       activePageIndex,
-      canvasImages: JSON.parse(JSON.stringify(canvasImages))
+      canvasImages: canvasImagesData
     }, writeToDisk);
   }
 
@@ -1519,93 +1526,112 @@
       const isNewTaskOrAttempt = taskId !== lastInitializedTaskId || attemptId !== lastInitializedAttemptId;
       if (!isNewTaskOrAttempt) return;
 
-      // Save previous state to disk before we switch task/attempt
-      if (lastInitializedTaskId && lastInitializedAttemptId) {
-        store.saveCanvasState(lastInitializedTaskId, {
-          pages: JSON.parse(JSON.stringify(pages)),
-          infiniteStrokes: JSON.parse(JSON.stringify(infiniteStrokes)),
-          infiniteRedo: JSON.parse(JSON.stringify(infiniteRedo)),
-          infiniteEraserUndo: JSON.parse(JSON.stringify(infiniteEraserUndo)),
-          panOffset: { ...panOffset },
-          zoomScale,
-          activePageIndex,
-          canvasImages: JSON.parse(JSON.stringify(canvasImages))
-        }, true);
-      }
-
-      lastInitializedTaskId = taskId;
-      lastInitializedAttemptId = attemptId;
-      
-      // Clear selections since we switched task
-      selectedStrokes = [];
-      selectedImage = null;
-      selectionBox = null;
-      isMovingSelection = false;
-
-      const saved = untrack(() => store.getCanvasState(taskId));
-      const text = untrack(() => store.getEditorText(taskId) || '');
-      
-      const hasDrawing = saved && (
-        (saved.infiniteStrokes && saved.infiniteStrokes.length > 0) || 
-        (saved.pages && saved.pages.some((p: any) => p.strokeHistory && p.strokeHistory.length > 0)) ||
-        (saved.canvasImages && saved.canvasImages.length > 0)
-      );
-      const hasText = text.trim() !== '';
-      
-      // Union logic: start with default edit mode, then additionally show any editor with existing data
-      const defaultMode = task.defaultEditMode || 'both';
-      const activeModes = defaultMode.split(',').map(m => m.trim());
-      
-      if (activeModes.includes('both')) {
-        showCanvas = true;
-        showText = true;
-        showMultipleChoice = false;
-      } else {
-        showCanvas = activeModes.includes('canvas');
-        showText = activeModes.includes('text');
-        showMultipleChoice = activeModes.includes('multiple_choice');
-      }
-
-      // Check if MC tasks are defined
-      const hasMc = task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0;
-      if (!hasMc) {
-        showMultipleChoice = false;
-      }
-
-      // Union logic: Additionally open editors that contain data
-      if (hasDrawing) showCanvas = true;
-      if (hasText) showText = true;
-      
-      // If none are open but we have MC, default to MC. Else default to Canvas.
-      if (!showCanvas && !showText && !showMultipleChoice) {
-        if (hasMc) {
-          showMultipleChoice = true;
-        } else {
-          showCanvas = true;
+      untrack(() => {
+        // Save previous state to disk before we switch task/attempt
+        if (lastInitializedTaskId && lastInitializedAttemptId) {
+          store.saveCanvasState(lastInitializedTaskId, {
+            pages: JSON.parse(JSON.stringify(pages)),
+            infiniteStrokes: JSON.parse(JSON.stringify(infiniteStrokes)),
+            infiniteRedo: JSON.parse(JSON.stringify(infiniteRedo)),
+            infiniteEraserUndo: JSON.parse(JSON.stringify(infiniteEraserUndo)),
+            panOffset: { ...panOffset },
+            zoomScale,
+            activePageIndex,
+            canvasImages: JSON.parse(JSON.stringify(canvasImages))
+          }, true);
         }
-      }
 
-      const activeAttempt = task.attempts?.find(a => a.id === task.activeAttemptId);
-      selectedAnswers = activeAttempt?.multipleChoiceAnswers || {};
+        lastInitializedTaskId = taskId;
+        lastInitializedAttemptId = attemptId;
+        
+        // Clear selections since we switched task
+        selectedStrokes = [];
+        selectedImage = null;
+        selectionBox = null;
+        isMovingSelection = false;
 
-      if (saved && hasDrawing) {
-        pages = saved.pages || [
-          {
-            id: 'page-' + Date.now(),
-            strokeHistory: [],
-            redoStack: [],
-            eraserUndoStack: []
+        const saved = store.getCanvasState(taskId);
+        const text = store.getEditorText(taskId) || '';
+        
+        const hasDrawing = saved && (
+          (saved.infiniteStrokes && saved.infiniteStrokes.length > 0) || 
+          (saved.pages && saved.pages.some((p: any) => p.strokeHistory && p.strokeHistory.length > 0)) ||
+          (saved.canvasImages && saved.canvasImages.length > 0)
+        );
+        const hasText = text.trim() !== '';
+        
+        // Union logic: start with default edit mode, then additionally show any editor with existing data
+        const defaultMode = task.defaultEditMode || 'both';
+        const activeModes = defaultMode.split(',').map(m => m.trim());
+        
+        if (activeModes.includes('both')) {
+          showCanvas = true;
+          showText = true;
+          showMultipleChoice = false;
+        } else {
+          showCanvas = activeModes.includes('canvas');
+          showText = activeModes.includes('text');
+          showMultipleChoice = activeModes.includes('multiple_choice');
+        }
+
+        // Check if MC tasks are defined
+        const hasMc = task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0;
+        if (!hasMc) {
+          showMultipleChoice = false;
+        }
+
+        // Union logic: Additionally open editors that contain data
+        if (hasDrawing) showCanvas = true;
+        if (hasText) showText = true;
+        
+        // If none are open but we have MC, default to MC. Else default to Canvas.
+        if (!showCanvas && !showText && !showMultipleChoice) {
+          if (hasMc) {
+            showMultipleChoice = true;
+          } else {
+            showCanvas = true;
           }
-        ];
-        for (const page of pages) {
-          if (!page.eraserUndoStack) page.eraserUndoStack = [];
-          for (const stroke of page.strokeHistory || []) {
+        }
+
+        const activeAttempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+        selectedAnswers = activeAttempt?.multipleChoiceAnswers || {};
+
+        if (saved && hasDrawing) {
+          pages = saved.pages || [
+            {
+              id: 'page-' + Date.now(),
+              strokeHistory: [],
+              redoStack: [],
+              eraserUndoStack: []
+            }
+          ];
+          for (const page of pages) {
+            if (!page.eraserUndoStack) page.eraserUndoStack = [];
+            for (const stroke of page.strokeHistory || []) {
+              ensureStrokeBounds(stroke);
+            }
+            for (const stroke of page.redoStack || []) {
+              ensureStrokeBounds(stroke);
+            }
+            for (const action of page.eraserUndoStack || []) {
+              if (action && action.points) {
+                ensureStrokeBounds(action);
+              } else if (action && action.removedStrokes) {
+                for (const s of action.removedStrokes || []) ensureStrokeBounds(s);
+                for (const s of action.addedStrokes || []) ensureStrokeBounds(s);
+              }
+            }
+          }
+          infiniteStrokes = saved.infiniteStrokes || [];
+          for (const stroke of infiniteStrokes) {
             ensureStrokeBounds(stroke);
           }
-          for (const stroke of page.redoStack || []) {
+          infiniteRedo = saved.infiniteRedo || [];
+          for (const stroke of infiniteRedo) {
             ensureStrokeBounds(stroke);
           }
-          for (const action of page.eraserUndoStack || []) {
+          infiniteEraserUndo = saved.infiniteEraserUndo || [];
+          for (const action of infiniteEraserUndo) {
             if (action && action.points) {
               ensureStrokeBounds(action);
             } else if (action && action.removedStrokes) {
@@ -1613,45 +1639,28 @@
               for (const s of action.addedStrokes || []) ensureStrokeBounds(s);
             }
           }
+          panOffset = saved.panOffset || { x: 0, y: 0 };
+          zoomScale = saved.zoomScale || 1;
+          activePageIndex = saved.activePageIndex || 0;
+          canvasImages = saved.canvasImages || [];
+        } else {
+          pages = [
+            {
+              id: 'page-' + Date.now(),
+              strokeHistory: [],
+              redoStack: [],
+              eraserUndoStack: []
+            }
+          ];
+          infiniteStrokes = [];
+          canvasImages = [];
+          infiniteRedo = [];
+          infiniteEraserUndo = [];
+          panOffset = { x: 0, y: 0 };
+          zoomScale = 1;
+          activePageIndex = 0;
         }
-        infiniteStrokes = saved.infiniteStrokes || [];
-        for (const stroke of infiniteStrokes) {
-          ensureStrokeBounds(stroke);
-        }
-        infiniteRedo = saved.infiniteRedo || [];
-        for (const stroke of infiniteRedo) {
-          ensureStrokeBounds(stroke);
-        }
-        infiniteEraserUndo = saved.infiniteEraserUndo || [];
-        for (const action of infiniteEraserUndo) {
-          if (action && action.points) {
-            ensureStrokeBounds(action);
-          } else if (action && action.removedStrokes) {
-            for (const s of action.removedStrokes || []) ensureStrokeBounds(s);
-            for (const s of action.addedStrokes || []) ensureStrokeBounds(s);
-          }
-        }
-        panOffset = saved.panOffset || { x: 0, y: 0 };
-        zoomScale = saved.zoomScale || 1;
-        activePageIndex = saved.activePageIndex || 0;
-        canvasImages = saved.canvasImages || [];
-      } else {
-        pages = [
-          {
-            id: 'page-' + Date.now(),
-            strokeHistory: [],
-            redoStack: [],
-            eraserUndoStack: []
-          }
-        ];
-        infiniteStrokes = [];
-        canvasImages = [];
-        infiniteRedo = [];
-        infiniteEraserUndo = [];
-        panOffset = { x: 0, y: 0 };
-        zoomScale = 1;
-        activePageIndex = 0;
-      }
+      });
     }
   });
 
