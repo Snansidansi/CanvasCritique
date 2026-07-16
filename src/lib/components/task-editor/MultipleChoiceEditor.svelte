@@ -658,40 +658,16 @@
                 </span>
               </button>
 
-              <div class="flex items-center gap-1.5">
-                {#if !questionMediaExpanded[question.id]}
-                  <!-- Collapsed mode: mini quick buttons -->
-                  <button
-                    type="button"
-                    onclick={() => pasteQuestionMediaFromClipboard(qIndex)}
-                    class="flex items-center gap-1 px-2.5 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded-lg text-[10px] font-bold text-primary cursor-pointer transition-colors focus:outline-none"
-                    title={t('taskEditor.pasteClipboard') || 'Aus Zwischenablage einfügen'}
-                  >
-                    <span class="material-symbols-outlined text-[13px]">content_paste</span>
-                    <span>{t('taskEditor.pasteClipboard') || 'Aus Zwischenablage einfügen'}</span>
-                  </button>
-                  <label class="flex items-center gap-1 px-2.5 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded-lg text-[10px] font-bold text-on-surface cursor-pointer transition-colors focus:outline-none select-none">
-                    <span class="material-symbols-outlined text-[13px] text-on-surface-variant">cloud_upload</span>
-                    <span>{t('common.addFile') || 'Datei hinzufügen'}</span>
-                    <input 
-                      type="file" 
-                      multiple 
-                      class="hidden" 
-                      onchange={(e) => handleQuestionMediaUpload(e, qIndex)}
-                    />
-                  </label>
-                {:else}
-                  <!-- Expanded mode: just paste button in header -->
-                  <button
-                    type="button"
-                    onclick={() => pasteQuestionMediaFromClipboard(qIndex)}
-                    class="flex items-center gap-1 px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded-lg text-[10px] font-bold text-primary cursor-pointer transition-colors focus:outline-none"
-                  >
-                    <span class="material-symbols-outlined text-[13px]">content_paste</span>
-                    <span>{t('taskEditor.pasteClipboard') || 'Aus Zwischenablage einfügen'}</span>
-                  </button>
-                {/if}
-              </div>
+              {#if questionMediaExpanded[question.id]}
+                <button
+                  type="button"
+                  onclick={() => pasteQuestionMediaFromClipboard(qIndex)}
+                  class="flex items-center gap-1 px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded-lg text-[10px] font-bold text-primary cursor-pointer transition-colors focus:outline-none"
+                >
+                  <span class="material-symbols-outlined text-[13px]">content_paste</span>
+                  <span>{t('taskEditor.pasteClipboard') || 'Aus Zwischenablage einfügen'}</span>
+                </button>
+              {/if}
             </div>
 
             <!-- Click to Select Area (only if expanded) -->
@@ -862,40 +838,16 @@
                         </span>
                       </button>
 
-                      <div class="flex items-center gap-1">
-                        {#if !optionMediaExpanded[option.id]}
-                          <!-- Collapsed mode: mini quick buttons -->
-                          <button
-                            type="button"
-                            onclick={() => pasteOptionMediaFromClipboard(qIndex, oIndex)}
-                            class="flex items-center gap-0.5 px-2 py-0.5 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded text-[9px] font-bold text-primary cursor-pointer transition-colors focus:outline-none shrink-0"
-                            title={t('taskEditor.pasteClipboard') || 'Einfügen'}
-                          >
-                            <span class="material-symbols-outlined text-[11px]">content_paste</span>
-                            <span>{t('taskEditor.pasteClipboard') || 'Einfügen'}</span>
-                          </button>
-                          <label class="flex items-center gap-0.5 px-2 py-0.5 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded text-[9px] font-bold text-on-surface cursor-pointer transition-colors focus:outline-none shrink-0 select-none">
-                            <span class="material-symbols-outlined text-[11px] text-on-surface-variant">cloud_upload</span>
-                            <span>{t('common.addFile') || 'Datei hinzufügen'}</span>
-                            <input 
-                              type="file" 
-                              multiple 
-                              class="hidden" 
-                              onchange={(e) => handleOptionMediaUpload(e, qIndex, oIndex)}
-                            />
-                          </label>
-                        {:else}
-                          <!-- Expanded mode: just paste button in header -->
-                          <button
-                            type="button"
-                            onclick={() => pasteOptionMediaFromClipboard(qIndex, oIndex)}
-                            class="flex items-center gap-0.5 px-2 py-0.5 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded text-[9px] font-bold text-primary cursor-pointer transition-colors focus:outline-none shrink-0"
-                          >
-                            <span class="material-symbols-outlined text-[11px]">content_paste</span>
-                            <span>{t('taskEditor.pasteClipboard') || 'Einfügen'}</span>
-                          </button>
-                        {/if}
-                      </div>
+                      {#if optionMediaExpanded[option.id]}
+                        <button
+                          type="button"
+                          onclick={() => pasteOptionMediaFromClipboard(qIndex, oIndex)}
+                          class="flex items-center gap-0.5 px-2 py-0.5 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded text-[9px] font-bold text-primary cursor-pointer transition-colors focus:outline-none shrink-0"
+                        >
+                          <span class="material-symbols-outlined text-[11px]">content_paste</span>
+                          <span>{t('taskEditor.pasteClipboard') || 'Einfügen'}</span>
+                        </button>
+                      {/if}
                     </div>
 
                     <!-- Click to Select Area (only if expanded) -->
