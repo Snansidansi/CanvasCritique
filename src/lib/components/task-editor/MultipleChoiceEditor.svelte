@@ -17,6 +17,10 @@
   // Collapsible MC Editor state
   let isEditorExpanded = $state(true);
 
+  // Collapsible media panels
+  let questionMediaExpanded = $state<Record<string, boolean>>({});
+  let optionMediaExpanded = $state<Record<string, boolean>>({});
+
   // Inline Rename State
   let editingFileIndex = $state<number | null>(null);
   let editingFileType = $state<'question' | 'option' | null>(null);
@@ -641,32 +645,68 @@
 
           <!-- Question Media Attachments -->
           <div class="flex flex-col gap-2.5 bg-surface-container-low/30 rounded-xl p-4 border border-outline-variant/30 font-sans">
-            <div class="flex justify-between items-center mb-1">
-              <span class="text-xs font-bold text-on-surface-variant flex items-center gap-1.5 font-sans">
-                <span class="material-symbols-outlined text-sm">attachment</span>
-                {t('taskEditor.mc.mediaTitle') || 'Medien für diese Frage'}
-              </span>
+            <div class="flex justify-between items-center w-full min-h-7">
               <button
                 type="button"
-                onclick={() => pasteQuestionMediaFromClipboard(qIndex)}
-                class="flex items-center gap-1 px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded-lg text-[10px] font-bold text-primary cursor-pointer transition-colors focus:outline-none"
+                onclick={() => questionMediaExpanded[question.id] = !questionMediaExpanded[question.id]}
+                class="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant hover:text-primary cursor-pointer border-0 bg-transparent p-0 transition-colors focus:outline-none text-left"
               >
-                <span class="material-symbols-outlined text-[13px]">content_paste</span>
-                <span>{t('taskEditor.pasteClipboard') || 'Aus Zwischenablage einfügen'}</span>
+                <span class="material-symbols-outlined text-sm">attachment</span>
+                <span>{t('taskEditor.mc.mediaTitle') || 'Medien für diese Frage'}</span>
+                <span class="material-symbols-outlined text-base transition-transform duration-200" style="transform: rotate({questionMediaExpanded[question.id] ? '180' : '0'}deg)">
+                  expand_more
+                </span>
               </button>
+
+              <div class="flex items-center gap-1.5">
+                {#if !questionMediaExpanded[question.id]}
+                  <!-- Collapsed mode: mini quick buttons -->
+                  <button
+                    type="button"
+                    onclick={() => pasteQuestionMediaFromClipboard(qIndex)}
+                    class="flex items-center gap-1 px-2.5 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded-lg text-[10px] font-bold text-primary cursor-pointer transition-colors focus:outline-none"
+                    title={t('taskEditor.pasteClipboard') || 'Aus Zwischenablage einfügen'}
+                  >
+                    <span class="material-symbols-outlined text-[13px]">content_paste</span>
+                    <span>{t('taskEditor.pasteClipboard') || 'Aus Zwischenablage einfügen'}</span>
+                  </button>
+                  <label class="flex items-center gap-1 px-2.5 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded-lg text-[10px] font-bold text-on-surface cursor-pointer transition-colors focus:outline-none select-none">
+                    <span class="material-symbols-outlined text-[13px] text-on-surface-variant">cloud_upload</span>
+                    <span>{t('common.addFile') || 'Datei hinzufügen'}</span>
+                    <input 
+                      type="file" 
+                      multiple 
+                      class="hidden" 
+                      onchange={(e) => handleQuestionMediaUpload(e, qIndex)}
+                    />
+                  </label>
+                {:else}
+                  <!-- Expanded mode: just paste button in header -->
+                  <button
+                    type="button"
+                    onclick={() => pasteQuestionMediaFromClipboard(qIndex)}
+                    class="flex items-center gap-1 px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded-lg text-[10px] font-bold text-primary cursor-pointer transition-colors focus:outline-none"
+                  >
+                    <span class="material-symbols-outlined text-[13px]">content_paste</span>
+                    <span>{t('taskEditor.pasteClipboard') || 'Aus Zwischenablage einfügen'}</span>
+                  </button>
+                {/if}
+              </div>
             </div>
 
-            <!-- Click to Select Area -->
-            <label class="flex flex-col items-center justify-center border border-dashed border-outline-variant rounded-xl p-4 hover:bg-surface-container-high/40 transition-colors cursor-pointer text-center group bg-surface-container-lowest/50 select-none">
-              <span class="material-symbols-outlined text-xl text-on-surface-variant group-hover:text-primary mb-1 transition-colors">cloud_upload</span>
-              <span class="text-[10.5px] font-bold text-on-surface mb-0.5">{t('common.addFile') || 'Datei hinzufügen (Klicken)'}</span>
-              <input 
-                type="file" 
-                multiple 
-                class="hidden" 
-                onchange={(e) => handleQuestionMediaUpload(e, qIndex)}
-              />
-            </label>
+            <!-- Click to Select Area (only if expanded) -->
+            {#if questionMediaExpanded[question.id]}
+              <label class="flex flex-col items-center justify-center border border-dashed border-outline-variant rounded-xl p-4 hover:bg-surface-container-high/40 transition-colors cursor-pointer text-center group bg-surface-container-lowest/50 select-none">
+                <span class="material-symbols-outlined text-xl text-on-surface-variant group-hover:text-primary mb-1 transition-colors">cloud_upload</span>
+                <span class="text-[10.5px] font-bold text-on-surface mb-0.5">{t('common.addFile') || 'Datei hinzufügen (Klicken)'}</span>
+                <input 
+                  type="file" 
+                  multiple 
+                  class="hidden" 
+                  onchange={(e) => handleQuestionMediaUpload(e, qIndex)}
+                />
+              </label>
+            {/if}
 
             {#if question.questionMedia.length > 0}
               <div class="flex flex-col gap-1.5 mt-2 w-full">
@@ -809,32 +849,68 @@
 
                   <!-- Option Media Attachments -->
                   <div class="flex flex-col gap-2 bg-surface-container-low/20 rounded-xl p-3 border border-outline-variant/20 font-sans">
-                    <div class="flex justify-between items-center">
-                      <span class="text-[10px] font-bold text-on-surface-variant flex items-center gap-1">
-                        <span class="material-symbols-outlined text-xs">attach_file</span>
-                        {t('taskEditor.mc.optionMediaTitle') || 'Medien für diese Option'}
-                      </span>
+                    <div class="flex justify-between items-center w-full min-h-5.5">
                       <button
                         type="button"
-                        onclick={() => pasteOptionMediaFromClipboard(qIndex, oIndex)}
-                        class="flex items-center gap-0.5 px-2 py-0.5 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded text-[9px] font-bold text-primary cursor-pointer transition-colors focus:outline-none shrink-0"
+                        onclick={() => optionMediaExpanded[option.id] = !optionMediaExpanded[option.id]}
+                        class="flex items-center gap-1 text-[10px] font-bold text-on-surface-variant hover:text-primary cursor-pointer border-0 bg-transparent p-0 transition-colors focus:outline-none text-left"
                       >
-                        <span class="material-symbols-outlined text-[11px]">content_paste</span>
-                        <span>{t('taskEditor.pasteClipboard') || 'Einfügen'}</span>
+                        <span class="material-symbols-outlined text-xs">attach_file</span>
+                        <span>{t('taskEditor.mc.optionMediaTitle') || 'Medien für diese Option'}</span>
+                        <span class="material-symbols-outlined text-sm transition-transform duration-200" style="transform: rotate({optionMediaExpanded[option.id] ? '180' : '0'}deg)">
+                          expand_more
+                        </span>
                       </button>
+
+                      <div class="flex items-center gap-1">
+                        {#if !optionMediaExpanded[option.id]}
+                          <!-- Collapsed mode: mini quick buttons -->
+                          <button
+                            type="button"
+                            onclick={() => pasteOptionMediaFromClipboard(qIndex, oIndex)}
+                            class="flex items-center gap-0.5 px-2 py-0.5 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded text-[9px] font-bold text-primary cursor-pointer transition-colors focus:outline-none shrink-0"
+                            title={t('taskEditor.pasteClipboard') || 'Einfügen'}
+                          >
+                            <span class="material-symbols-outlined text-[11px]">content_paste</span>
+                            <span>{t('taskEditor.pasteClipboard') || 'Einfügen'}</span>
+                          </button>
+                          <label class="flex items-center gap-0.5 px-2 py-0.5 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded text-[9px] font-bold text-on-surface cursor-pointer transition-colors focus:outline-none shrink-0 select-none">
+                            <span class="material-symbols-outlined text-[11px] text-on-surface-variant">cloud_upload</span>
+                            <span>{t('common.addFile') || 'Datei hinzufügen'}</span>
+                            <input 
+                              type="file" 
+                              multiple 
+                              class="hidden" 
+                              onchange={(e) => handleOptionMediaUpload(e, qIndex, oIndex)}
+                            />
+                          </label>
+                        {:else}
+                          <!-- Expanded mode: just paste button in header -->
+                          <button
+                            type="button"
+                            onclick={() => pasteOptionMediaFromClipboard(qIndex, oIndex)}
+                            class="flex items-center gap-0.5 px-2 py-0.5 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 rounded text-[9px] font-bold text-primary cursor-pointer transition-colors focus:outline-none shrink-0"
+                          >
+                            <span class="material-symbols-outlined text-[11px]">content_paste</span>
+                            <span>{t('taskEditor.pasteClipboard') || 'Einfügen'}</span>
+                          </button>
+                        {/if}
+                      </div>
                     </div>
 
-                    <!-- Click to Select Area -->
-                    <label class="flex flex-col items-center justify-center border border-dashed border-outline-variant/80 rounded-lg p-2.5 hover:bg-surface-container-high/40 transition-colors cursor-pointer text-center group bg-surface-container-lowest/30 select-none">
-                      <span class="material-symbols-outlined text-base text-on-surface-variant group-hover:text-primary mb-0.5 transition-colors">cloud_upload</span>
-                      <span class="text-[9.5px] font-bold text-on-surface">{t('common.addFile') || 'Datei hinzufügen'}</span>
-                      <input 
-                        type="file" 
-                        multiple 
-                        class="hidden" 
-                        onchange={(e) => handleOptionMediaUpload(e, qIndex, oIndex)}
-                      />
-                    </label>
+                    <!-- Click to Select Area (only if expanded) -->
+                    {#if optionMediaExpanded[option.id]}
+                      <label class="flex flex-col items-center justify-center border border-dashed border-outline-variant/80 rounded-lg p-2.5 hover:bg-surface-container-high/40 transition-colors cursor-pointer text-center group bg-surface-container-lowest/30 select-none">
+                        <span class="material-symbols-outlined text-base text-on-surface-variant group-hover:text-primary mb-0.5 transition-colors">cloud_upload</span>
+                        <span class="text-[9.5px] font-bold text-on-surface">{t('common.addFile') || 'Datei hinzufügen'}</span>
+                        <input 
+                          type="file" 
+                          multiple 
+                          class="hidden" 
+                          onchange={(e) => handleOptionMediaUpload(e, qIndex, oIndex)}
+                        />
+                      </label>
+                    {/if}
 
                     {#if option.media && option.media.length > 0}
                       <div class="flex flex-col gap-1.5 mt-1.5 w-full">
