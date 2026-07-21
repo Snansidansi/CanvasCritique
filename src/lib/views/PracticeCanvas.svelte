@@ -4590,14 +4590,14 @@
                   oninput={handleEditorInput}
                   placeholder=""
                   class="grow w-full h-full resize-none bg-transparent text-on-surface focus:outline-none leading-relaxed border border-outline-variant/30 rounded-xl p-6 font-sans shadow-inner bg-surface-container-low/20 animate-fade-in"
-                  style="font-size: {store.getEffectiveSettings(store.activeProject?.id || '', store.activeTask?.id).editorFontSize || 16}px;"
+                  style="font-size: {editorFontSize}px;"
                 ></textarea>
               {:else}
                 <!-- Preview Mode: non-editable rendered HTML -->
                 <div 
                   role="document"
                   class="grow w-full h-full overflow-y-auto bg-surface-container-low/20 border border-outline-variant/30 rounded-xl p-6 select-text text-left leading-relaxed max-w-none prose dark:prose-invert animate-fade-in custom-scrollbar"
-                  style="font-size: {store.getEffectiveSettings(store.activeProject?.id || '', store.activeTask?.id).editorFontSize || 16}px;"
+                  style="font-size: {editorFontSize}px;"
                   onpointerover={handlePreviewPointerOver}
                   onpointerout={handlePreviewPointerOut}
                 >
@@ -4629,7 +4629,7 @@
 {#if store.canvasSettingsOpen}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in select-none">
     <button type="button" aria-label="Close Canvas Settings" class="absolute inset-0 bg-transparent border-0 cursor-default p-0 m-0 w-full h-full focus:outline-none" onclick={() => store.canvasSettingsOpen = false}></button>
-    <div class="bg-surface border border-outline-variant rounded-xl p-6 w-[420px] max-w-[90%] max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl flex flex-col gap-5 z-10 relative">
+    <div class="bg-surface border border-outline-variant rounded-xl p-6 w-[760px] max-w-[95%] max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl flex flex-col gap-5 z-10 relative">
       <!-- Header -->
       <div class="flex items-center justify-between border-b border-outline-variant/30 pb-3">
         <div class="flex items-center gap-2 text-primary">
@@ -4644,320 +4644,326 @@
         </button>
       </div>
 
-      <!-- Background Selection -->
-      <div class="flex flex-col gap-2">
-        <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('practice.canvas.background')}</span>
-        <!-- Grid of standard options -->
-        <div class="grid grid-cols-3 gap-2">
-          <button 
-            onclick={() => activeBg = 'grid'}
-            class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
-                   {activeBg === 'grid' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
-          >
-            <span class="material-symbols-outlined text-xl">apps</span>
-            <span class="text-[11px] font-semibold">{t('practice.canvas.dots')}</span>
-          </button>
-          <button 
-            onclick={() => activeBg = 'lines'}
-            class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
-                   {activeBg === 'lines' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
-          >
-            <span class="material-symbols-outlined text-xl">reorder</span>
-            <span class="text-[11px] font-semibold">{t('practice.canvas.lines')}</span>
-          </button>
-          <button 
-            onclick={() => activeBg = 'blank'}
-            class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
-                   {activeBg === 'blank' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
-          >
-            <span class="material-symbols-outlined text-xl">check_box_outline_blank</span>
-            <span class="text-[11px] font-semibold">{t('practice.canvas.blank')}</span>
-          </button>
+      <!-- Two-column Layout -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Left Column: Background & Appearance Settings -->
+        <div class="flex flex-col gap-4">
+          <!-- Background Selection -->
+          <div class="flex flex-col gap-2">
+            <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('practice.canvas.background')}</span>
+            <!-- Grid of standard options -->
+            <div class="grid grid-cols-3 gap-2">
+              <button 
+                onclick={() => activeBg = 'grid'}
+                class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
+                       {activeBg === 'grid' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+              >
+                <span class="material-symbols-outlined text-xl">apps</span>
+                <span class="text-[11px] font-semibold">{t('practice.canvas.dots')}</span>
+              </button>
+              <button 
+                onclick={() => activeBg = 'lines'}
+                class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
+                       {activeBg === 'lines' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+              >
+                <span class="material-symbols-outlined text-xl">reorder</span>
+                <span class="text-[11px] font-semibold">{t('practice.canvas.lines')}</span>
+              </button>
+              <button 
+                onclick={() => activeBg = 'blank'}
+                class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
+                       {activeBg === 'blank' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+              >
+                <span class="material-symbols-outlined text-xl">check_box_outline_blank</span>
+                <span class="text-[11px] font-semibold">{t('practice.canvas.blank')}</span>
+              </button>
+            </div>
+
+            <!-- Custom Backgrounds list if any -->
+            {#if store.customBackgrounds.length > 0}
+              <div class="mt-2 flex flex-col gap-1.5">
+                <span class="text-[11px] font-semibold text-on-surface-variant">{t('practice.canvas.customTemplates')}</span>
+                <div class="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar border border-outline-variant/30 rounded-lg p-1">
+                  {#each store.customBackgrounds as customBg}
+                    <div class="flex items-center justify-between hover:bg-surface-container-high rounded-md group px-2 py-1">
+                      <button 
+                        onclick={() => activeBg = customBg.id}
+                        class="grow text-left text-xs flex items-center gap-2 cursor-pointer border-0 bg-transparent focus:outline-none {activeBg === customBg.id ? 'text-primary font-bold' : 'text-on-surface'}"
+                      >
+                        {#if customBg.icon && customBg.icon.startsWith('data:image/')}
+                          <img src={customBg.icon} class="w-4 h-4 object-contain rounded" alt="" />
+                        {:else}
+                          <span class="material-symbols-outlined text-base">image</span>
+                        {/if}
+                        <span class="truncate max-w-50">{customBg.name}</span>
+                      </button>
+                      <button 
+                        onclick={() => {
+                          store.confirm(
+                            t('practice.canvas.deleteBg'),
+                            t('practice.canvas.deleteBgConfirm', { name: customBg.name }),
+                            () => {
+                              if (activeBg === customBg.id) activeBg = 'grid';
+                              store.deleteCustomBackground(customBg.id);
+                            }
+                          );
+                        }}
+                        class="p-1 text-outline hover:text-error opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none cursor-pointer flex items-center justify-center border-0 bg-transparent"
+                        title="Delete Background"
+                      >
+                        <span class="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+
+            <button 
+              onclick={() => { 
+                isCustomBgModalOpen = true; 
+                store.canvasSettingsOpen = false;
+              }}
+              class="mt-2 w-full py-2 border border-dashed border-primary/50 text-primary hover:bg-primary/10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none bg-transparent"
+            >
+              <span class="material-symbols-outlined text-base">add_box</span>
+              <span>{t('practice.canvas.addCustomBg')}</span>
+            </button>
+          </div>
+
+          <!-- Opacity Slider -->
+          {#if activeBg !== 'blank'}
+            <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+              <div class="flex justify-between items-center">
+                <label for="bg-opacity-slider" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('practice.canvas.opacity')}</label>
+                <span class="text-xs font-bold text-primary">{bgOpacity}%</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-base text-outline">opacity</span>
+                <input 
+                  id="bg-opacity-slider"
+                  type="range" 
+                  min="1" 
+                  max="100" 
+                  bind:value={bgOpacity}
+                  class="grow h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary border-0"
+                />
+              </div>
+            </div>
+          {/if}
         </div>
 
-        <!-- Custom Backgrounds list if any -->
-        {#if store.customBackgrounds.length > 0}
-          <div class="mt-2 flex flex-col gap-1.5">
-            <span class="text-[11px] font-semibold text-on-surface-variant">{t('practice.canvas.customTemplates')}</span>
-            <div class="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar border border-outline-variant/30 rounded-lg p-1">
-              {#each store.customBackgrounds as customBg}
-                <div class="flex items-center justify-between hover:bg-surface-container-high rounded-md group px-2 py-1">
+        <!-- Right Column: Font Sizes, Layout & Actions -->
+        <div class="flex flex-col gap-4">
+          <!-- Font Sizes settings (Text Editor & Canvas side-by-side) -->
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Text Editor Font Size (Spinbox) -->
+            <div class="flex flex-col gap-2">
+              <label for="editor-font-size-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                {t('practice.canvas.editorFontSize')}
+              </label>
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-base text-outline">format_size</span>
+                <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
                   <button 
-                    onclick={() => activeBg = customBg.id}
-                    class="grow text-left text-xs flex items-center gap-2 cursor-pointer border-0 bg-transparent focus:outline-none {activeBg === customBg.id ? 'text-primary font-bold' : 'text-on-surface'}"
-                  >
-                    {#if customBg.icon && customBg.icon.startsWith('data:image/')}
-                      <img src={customBg.icon} class="w-4 h-4 object-contain rounded" alt="" />
-                    {:else}
-                      <span class="material-symbols-outlined text-base">image</span>
-                    {/if}
-                    <span class="truncate max-w-50">{customBg.name}</span>
-                  </button>
-                  <button 
+                    type="button"
                     onclick={() => {
-                      store.confirm(
-                        t('practice.canvas.deleteBg'),
-                        t('practice.canvas.deleteBgConfirm', { name: customBg.name }),
-                        () => {
-                          if (activeBg === customBg.id) activeBg = 'grid';
-                          store.deleteCustomBackground(customBg.id);
-                        }
-                      );
+                      store.settings.editorFontSize = Math.max(10, (store.settings.editorFontSize || 16) - 1);
+                      store.saveSettings();
                     }}
-                    class="p-1 text-outline hover:text-error opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none cursor-pointer flex items-center justify-center border-0 bg-transparent"
-                    title="Delete Background"
+                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
                   >
-                    <span class="material-symbols-outlined text-sm">delete</span>
+                    <span class="material-symbols-outlined text-xs font-bold">remove</span>
+                  </button>
+                  <input 
+                    id="editor-font-size-spinbox"
+                    type="number"
+                    min="10"
+                    max="40"
+                    bind:value={store.settings.editorFontSize}
+                    onchange={() => {
+                      if (typeof store.settings.editorFontSize !== 'number' || isNaN(store.settings.editorFontSize)) {
+                        store.settings.editorFontSize = 16;
+                      }
+                      store.settings.editorFontSize = Math.max(10, Math.min(store.settings.editorFontSize, 40));
+                      store.saveSettings();
+                    }}
+                    class="w-10 bg-transparent text-center text-xs font-bold text-on-surface focus:outline-none border-0 p-0"
+                  />
+                  <button 
+                    type="button"
+                    onclick={() => {
+                      store.settings.editorFontSize = Math.min(40, (store.settings.editorFontSize || 16) + 1);
+                      store.saveSettings();
+                    }}
+                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  >
+                    <span class="material-symbols-outlined text-xs font-bold">add</span>
                   </button>
                 </div>
+                <span class="text-xs font-bold text-on-surface-variant select-none">px</span>
+              </div>
+            </div>
+
+            <!-- Canvas Font Size (Spinbox) -->
+            <div class="flex flex-col gap-2">
+              <label for="canvas-font-size-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                {t('settings.canvas.textFontSize')}
+              </label>
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-base text-outline">text_fields</span>
+                <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
+                  <button 
+                    type="button"
+                    onclick={() => {
+                      store.settings.canvasFontSize = Math.max(10, (store.settings.canvasFontSize || 13) - 1);
+                      store.saveSettings();
+                    }}
+                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  >
+                    <span class="material-symbols-outlined text-xs font-bold">remove</span>
+                  </button>
+                  <input 
+                    id="canvas-font-size-spinbox"
+                    type="number"
+                    min="10"
+                    max="24"
+                    bind:value={store.settings.canvasFontSize}
+                    onchange={() => {
+                      if (typeof store.settings.canvasFontSize !== 'number' || isNaN(store.settings.canvasFontSize)) {
+                        store.settings.canvasFontSize = 13;
+                      }
+                      store.settings.canvasFontSize = Math.max(10, Math.min(store.settings.canvasFontSize, 24));
+                      store.saveSettings();
+                    }}
+                    class="w-10 bg-transparent text-center text-xs font-bold text-on-surface focus:outline-none border-0 p-0"
+                  />
+                  <button 
+                    type="button"
+                    onclick={() => {
+                      store.settings.canvasFontSize = Math.min(24, (store.settings.canvasFontSize || 13) + 1);
+                      store.saveSettings();
+                    }}
+                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  >
+                    <span class="material-symbols-outlined text-xs font-bold">add</span>
+                  </button>
+                </div>
+                <span class="text-xs font-bold text-on-surface-variant select-none">px</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Layout Settings Grid (Info Panels & Workspace Layout side-by-side) -->
+          <div class="grid grid-cols-2 gap-4 border-t border-outline-variant/30 pt-4">
+            <!-- Info Panels Layout -->
+            <div class="flex flex-col gap-2">
+              <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider text-ellipsis overflow-hidden whitespace-nowrap">
+                {t('practice.canvas.infoPanelsLayoutTitle')}
+              </span>
+              <div class="flex bg-surface-container rounded-lg border border-outline-variant p-0.5 grow">
+                <button 
+                  type="button"
+                  onclick={() => infoPanelsLayout = 'vertical'}
+                  class="grow py-1.5 px-2 rounded-md text-[10px] font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1
+                         {infoPanelsLayout === 'vertical' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
+                >
+                  <span class="material-symbols-outlined text-xs">view_stream</span>
+                  <span>{t('practice.canvas.layoutVertical')}</span>
+                </button>
+                <button 
+                  type="button"
+                  onclick={() => infoPanelsLayout = 'horizontal'}
+                  class="grow py-1.5 px-2 rounded-md text-[10px] font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1
+                         {infoPanelsLayout === 'horizontal' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
+                >
+                  <span class="material-symbols-outlined text-xs">view_week</span>
+                  <span>{t('practice.canvas.layoutHorizontal')}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Workspace Layout -->
+            <div class="flex flex-col gap-2">
+              <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider text-ellipsis overflow-hidden whitespace-nowrap">
+                {t('practice.canvas.workspaceLayoutTitle')}
+              </span>
+              <div class="flex bg-surface-container rounded-lg border border-outline-variant p-0.5 grow">
+                <button 
+                  type="button"
+                  onclick={() => workspaceLayout = 'vertical'}
+                  class="grow py-1.5 px-2 rounded-md text-[10px] font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1
+                         {workspaceLayout === 'vertical' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
+                >
+                  <span class="material-symbols-outlined text-xs">table_rows</span>
+                  <span>{t('practice.canvas.layoutVertical')}</span>
+                </button>
+                <button 
+                  type="button"
+                  onclick={() => workspaceLayout = 'horizontal'}
+                  class="grow py-1.5 px-2 rounded-md text-[10px] font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1
+                         {workspaceLayout === 'horizontal' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
+                >
+                  <span class="material-symbols-outlined text-xs">view_column</span>
+                  <span>{t('practice.canvas.layoutHorizontal')}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sidebar Position -->
+          <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                {t('practice.canvas.sidebarPositionTitle')}
+              </span>
+            </div>
+            <div class="grid grid-cols-4 gap-0.5 bg-surface-container rounded-lg border border-outline-variant p-0.5">
+              {#each [
+                { value: 'left', icon: 'dock_to_left', label: t('practice.canvas.posLeft') },
+                { value: 'right', icon: 'dock_to_right', label: t('practice.canvas.posRight') },
+                { value: 'top', icon: 'vertical_align_top', label: t('practice.canvas.posTop') },
+                { value: 'bottom', icon: 'vertical_align_bottom', label: t('practice.canvas.posBottom') }
+              ] as opt}
+                <button 
+                  type="button"
+                  onclick={() => sidebarPosition = opt.value as 'left' | 'right' | 'top' | 'bottom'}
+                  class="py-1.5 px-1 rounded-md text-[10px] font-semibold cursor-pointer focus:outline-none transition-all border-0 flex flex-col items-center justify-center gap-0.5
+                         {sidebarPosition === opt.value ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
+                >
+                  <span class="material-symbols-outlined text-sm">{opt.icon}</span>
+                  <span>{opt.label}</span>
+                </button>
               {/each}
             </div>
           </div>
-        {/if}
 
-        <button 
-          onclick={() => { 
-            isCustomBgModalOpen = true; 
-            store.canvasSettingsOpen = false;
-          }}
-          class="mt-2 w-full py-2 border border-dashed border-primary/50 text-primary hover:bg-primary/10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none bg-transparent"
-        >
-          <span class="material-symbols-outlined text-base">add_box</span>
-          <span>{t('practice.canvas.addCustomBg')}</span>
-        </button>
+          <!-- Actions side-by-side -->
+          <div class="grid grid-cols-2 gap-3 border-t border-outline-variant/30 pt-4 mt-1">
+            <button 
+              onclick={() => {
+                store.canvasSettingsOpen = false;
+                handleExportPdf();
+              }}
+              class="flex items-center justify-center gap-1.5 border border-outline-variant text-on-surface hover:bg-surface-container py-2.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none bg-transparent transition-colors"
+              title={showCanvas ? t('practice.exportCanvasPdf') : t('practice.exportTextPdf')}
+            >
+              <span class="material-symbols-outlined text-base text-primary">picture_as_pdf</span>
+              <span>{t('practice.exportPdfLabel')}</span>
+            </button>
 
-
-      </div>
-
-      <!-- Opacity Slider -->
-      {#if activeBg !== 'blank'}
-        <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-          <div class="flex justify-between items-center">
-            <label for="bg-opacity-slider" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('practice.canvas.opacity')}</label>
-            <span class="text-xs font-bold text-primary">{bgOpacity}%</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-base text-outline">opacity</span>
-            <input 
-              id="bg-opacity-slider"
-              type="range" 
-              min="1" 
-              max="100" 
-              bind:value={bgOpacity}
-              class="grow h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary border-0"
-            />
+            <button 
+              onclick={() => {
+                clearCanvas();
+              }}
+              class="flex items-center justify-center gap-1.5 border border-outline-variant text-on-surface-variant hover:bg-error/10 hover:text-error hover:border-error/30 py-2.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none bg-transparent transition-colors"
+              title="Clear Canvas"
+            >
+              <span class="material-symbols-outlined text-base">delete_sweep</span>
+              <span>{t('practice.canvas.clearCanvas')}</span>
+            </button>
           </div>
         </div>
-      {/if}
-
-      <!-- Text Editor Font Size (Spinbox) -->
-      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-        <div class="flex justify-between items-center">
-          <label for="editor-font-size-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-            {t('practice.canvas.editorFontSize')}
-          </label>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="material-symbols-outlined text-base text-outline">format_size</span>
-          <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
-            <button 
-              type="button"
-              onclick={() => {
-                store.settings.editorFontSize = Math.max(10, (store.settings.editorFontSize || 16) - 1);
-                store.saveSettings();
-              }}
-              class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
-            >
-              <span class="material-symbols-outlined text-sm">remove</span>
-            </button>
-            <input 
-              id="editor-font-size-spinbox"
-              type="number"
-              min="10"
-              max="40"
-              bind:value={store.settings.editorFontSize}
-              onchange={() => {
-                if (typeof store.settings.editorFontSize !== 'number' || isNaN(store.settings.editorFontSize)) {
-                  store.settings.editorFontSize = 16;
-                }
-                store.settings.editorFontSize = Math.max(10, Math.min(store.settings.editorFontSize, 40));
-                store.saveSettings();
-              }}
-              class="w-16 bg-transparent text-center text-xs font-bold text-on-surface focus:outline-none border-0 p-0"
-            />
-            <button 
-              type="button"
-              onclick={() => {
-                store.settings.editorFontSize = Math.min(40, (store.settings.editorFontSize || 16) + 1);
-                store.saveSettings();
-              }}
-              class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
-            >
-              <span class="material-symbols-outlined text-sm">add</span>
-            </button>
-          </div>
-          <span class="text-xs font-bold text-on-surface-variant select-none w-6 text-right">px</span>
-        </div>
-      </div>
-      <!-- Canvas Font Size (Spinbox) -->
-      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-        <div class="flex justify-between items-center">
-          <label for="canvas-font-size-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-            {t('settings.canvas.textFontSize')}
-          </label>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="material-symbols-outlined text-base text-outline">text_fields</span>
-          <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
-            <button 
-              type="button"
-              onclick={() => {
-                store.settings.canvasFontSize = Math.max(10, (store.settings.canvasFontSize || 13) - 1);
-                store.saveSettings();
-              }}
-              class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
-            >
-              <span class="material-symbols-outlined text-sm">remove</span>
-            </button>
-            <input 
-              id="canvas-font-size-spinbox"
-              type="number"
-              min="10"
-              max="24"
-              bind:value={store.settings.canvasFontSize}
-              onchange={() => {
-                if (typeof store.settings.canvasFontSize !== 'number' || isNaN(store.settings.canvasFontSize)) {
-                  store.settings.canvasFontSize = 13;
-                }
-                store.settings.canvasFontSize = Math.max(10, Math.min(store.settings.canvasFontSize, 24));
-                store.saveSettings();
-              }}
-              class="w-16 bg-transparent text-center text-xs font-bold text-on-surface focus:outline-none border-0 p-0"
-            />
-            <button 
-              type="button"
-              onclick={() => {
-                store.settings.canvasFontSize = Math.min(24, (store.settings.canvasFontSize || 13) + 1);
-                store.saveSettings();
-              }}
-              class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
-            >
-              <span class="material-symbols-outlined text-sm">add</span>
-            </button>
-          </div>
-          <span class="text-xs font-bold text-on-surface-variant select-none w-6 text-right">px</span>
-        </div>
-      </div>
-
-      <!-- Info Panels Layout -->
-      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-        <div class="flex justify-between items-center">
-          <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-            {t('practice.canvas.infoPanelsLayoutTitle')}
-          </span>
-        </div>
-        <div class="flex bg-surface-container rounded-lg border border-outline-variant p-0.5 grow">
-          <button 
-            type="button"
-            onclick={() => infoPanelsLayout = 'vertical'}
-            class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
-                   {infoPanelsLayout === 'vertical' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
-          >
-            <span class="material-symbols-outlined text-sm">view_stream</span>
-            <span>{t('practice.canvas.layoutVertical')}</span>
-          </button>
-          <button 
-            type="button"
-            onclick={() => infoPanelsLayout = 'horizontal'}
-            class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
-                   {infoPanelsLayout === 'horizontal' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
-          >
-            <span class="material-symbols-outlined text-sm">view_week</span>
-            <span>{t('practice.canvas.layoutHorizontal')}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Workspace Layout -->
-      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-        <div class="flex justify-between items-center">
-          <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-            {t('practice.canvas.workspaceLayoutTitle')}
-          </span>
-        </div>
-        <div class="flex bg-surface-container rounded-lg border border-outline-variant p-0.5 grow">
-          <button 
-            type="button"
-            onclick={() => workspaceLayout = 'vertical'}
-            class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
-                   {workspaceLayout === 'vertical' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
-          >
-            <span class="material-symbols-outlined text-sm">table_rows</span>
-            <span>{t('practice.canvas.layoutVertical')}</span>
-          </button>
-          <button 
-            type="button"
-            onclick={() => workspaceLayout = 'horizontal'}
-            class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
-                   {workspaceLayout === 'horizontal' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
-          >
-            <span class="material-symbols-outlined text-sm">view_column</span>
-            <span>{t('practice.canvas.layoutHorizontal')}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Sidebar Position -->
-      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-        <div class="flex justify-between items-center">
-          <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-            {t('practice.canvas.sidebarPositionTitle')}
-          </span>
-        </div>
-        <div class="grid grid-cols-4 gap-0.5 bg-surface-container rounded-lg border border-outline-variant p-0.5">
-          {#each [
-            { value: 'left', icon: 'dock_to_left', label: t('practice.canvas.posLeft') },
-            { value: 'right', icon: 'dock_to_right', label: t('practice.canvas.posRight') },
-            { value: 'top', icon: 'vertical_align_top', label: t('practice.canvas.posTop') },
-            { value: 'bottom', icon: 'vertical_align_bottom', label: t('practice.canvas.posBottom') }
-          ] as opt}
-            <button 
-              type="button"
-              onclick={() => sidebarPosition = opt.value as 'left' | 'right' | 'top' | 'bottom'}
-              class="py-1.5 px-1 rounded-md text-[10px] font-semibold cursor-pointer focus:outline-none transition-all border-0 flex flex-col items-center justify-center gap-0.5
-                     {sidebarPosition === opt.value ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
-            >
-              <span class="material-symbols-outlined text-sm">{opt.icon}</span>
-              <span>{opt.label}</span>
-            </button>
-          {/each}
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4 mt-1">
-        <button 
-          onclick={() => {
-            store.canvasSettingsOpen = false;
-            handleExportPdf();
-          }}
-          class="w-full flex items-center justify-center gap-1.5 border border-outline-variant text-on-surface hover:bg-surface-container py-2.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none bg-transparent transition-colors"
-          title={showCanvas ? t('practice.exportCanvasPdf') : t('practice.exportTextPdf')}
-        >
-          <span class="material-symbols-outlined text-base text-primary">picture_as_pdf</span>
-          <span>{t('practice.exportPdfLabel')}</span>
-        </button>
-
-        <button 
-          onclick={() => {
-            clearCanvas();
-          }}
-          class="w-full flex items-center justify-center gap-1.5 border border-outline-variant text-on-surface-variant hover:bg-error/10 hover:text-error hover:border-error/30 py-2.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none bg-transparent transition-colors"
-          title="Clear Canvas"
-        >
-          <span class="material-symbols-outlined text-base">delete_sweep</span>
-          <span>{t('practice.canvas.clearCanvas')}</span>
-        </button>
       </div>
     </div>
   </div>
