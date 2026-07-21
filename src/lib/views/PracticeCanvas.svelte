@@ -1138,9 +1138,27 @@
     !(editorText && editorText.trim() !== '')
   );
 
+  const mcEvaluationMarkdown = $derived.by(() => {
+    if (!task.multipleChoiceTasks || task.multipleChoiceTasks.length === 0) return '';
+    const result = gradeMultipleChoiceLocally(task.multipleChoiceTasks, selectedAnswers);
+    return result.feedbackText;
+  });
+
+  const combinedSolutionContent = $derived.by(() => {
+    let parts: string[] = [];
+    if (task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0) {
+      parts.push(mcEvaluationMarkdown);
+    }
+    if (task.solution && task.solution.trim()) {
+      const heading = store.settings.language === 'Deutsch' ? '### Musterlösung' : '### Sample Solution';
+      parts.push(`${heading}\n\n${task.solution}`);
+    }
+    return parts.join('\n\n---\n\n');
+  });
+
   let activeLeftPanels = $derived([
     showTask && { id: 'task', title: `${task.category && task.category !== 'Basics' ? task.category + ' - ' : ''}${task.name}`, content: task.instructions },
-    showSolution && { id: 'solution', title: t('practice.evaluationGoal'), content: task.solution },
+    showSolution && { id: 'solution', title: t('practice.evaluationGoal'), content: combinedSolutionContent },
     showFeedback && hasCheckedWork && { 
       id: 'feedback', 
       title: isOnlyMcCorrected ? 'Feedback' : t('practice.aiCritiqueFeedback'), 
@@ -1261,7 +1279,7 @@
             feedbackScore = textCritique.feedbackScore ?? null;
             feedbackMarkers = [];
             hasCheckedWork = true;
-            showFeedback = true;
+            showFeedback = isInitializingTask ? (store.settings.showCritiqueByDefault ?? true) : showFeedback;
           } else {
             feedbackText = '';
             feedbackScore = null;
@@ -1275,7 +1293,7 @@
           feedbackScore = canvasCritique.feedbackScore ?? null;
           feedbackMarkers = canvasCritique.feedbackMarkers || [];
           hasCheckedWork = !!canvasCritique.feedbackText;
-          showFeedback = isInitializingTask ? (hasCheckedWork && (store.settings.showCritiqueByDefault ?? true)) : hasCheckedWork;
+          showFeedback = isInitializingTask ? (hasCheckedWork && (store.settings.showCritiqueByDefault ?? true)) : (hasCheckedWork && showFeedback);
         }
       } else {
         // Unified critique mode (both active, or legacy format without split critiques)
@@ -1287,7 +1305,7 @@
           feedbackMarkers = critique.feedbackMarkers || [];
         }
         hasCheckedWork = !!critique.feedbackText;
-        showFeedback = isInitializingTask ? (hasCheckedWork && (store.settings.showCritiqueByDefault ?? true)) : hasCheckedWork;
+        showFeedback = isInitializingTask ? (hasCheckedWork && (store.settings.showCritiqueByDefault ?? true)) : (hasCheckedWork && showFeedback);
       }
       showCritiqueBanner = false;
     } else {
@@ -1419,7 +1437,19 @@
       isInitializingTask = true;
       lastTaskId = task.id;
       loadCritiqueForActiveMode();
-      showSolution = false;
+      
+      const hasMc = task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0;
+      const hasSavedCritique = !!(task.critique && (
+        task.critique.feedbackText || 
+        (task.critique.canvasCritique && task.critique.canvasCritique.feedbackText) || 
+        (task.critique.textCritique && task.critique.textCritique.feedbackText)
+      ));
+      if (hasMc && hasSavedCritique) {
+        showSolution = true;
+      } else {
+        showSolution = false;
+      }
+
       lastCritiqueScore = task?.critique?.feedbackScore;
       
       const hasInstructions = task.instructions && task.instructions.trim() !== '';
@@ -4099,6 +4129,9 @@
     showFeedback = true;
     showCritiqueBanner = true;
     hasCheckedWork = true;
+    if (task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0) {
+      showSolution = true;
+    }
     feedbackText = t('practice.canvas.analyzing') || "Analyzing stroke geometries and guidelines alignment...";
     feedbackScore = null;
 
