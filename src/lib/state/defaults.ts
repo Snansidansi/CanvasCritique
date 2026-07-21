@@ -72,6 +72,7 @@ export const defaultSettings: Settings = {
   autoNumberTasks: false,
   taskNumberingTemplate: getSystemLanguage() === 'Deutsch' ? 'Aufgabe {n}' : 'Task {n}',
   hideCompletedSections: false,
+  showCritiqueByDefault: true,
   stylusButtons: [],
   stylusMode: false,
   recentColors: ['#000000', '#e03131', '#2f9e44', '#1971c2', '#f08c00', '#9c36b5'],

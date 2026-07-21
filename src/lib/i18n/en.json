@@ -452,7 +452,9 @@
       "title": "General",
       "desc": "Configure general text settings for tasks.",
       "fontSizeLabel": "Text Font Size (Task & Solution)",
-      "fontSizeDesc": "Sets the font size for the task description and solution in the practice area (also applies to text and markdown file previews)."
+      "fontSizeDesc": "Sets the font size for the task description and solution in the practice area (also applies to text and markdown file previews).",
+      "showCritiqueByDefault": "Show AI Critique by default",
+      "showCritiqueByDefaultDesc": "Automatically opens the AI critique panel when loading a task that contains a critique."
     },
     "workspaceTextEditor": {
       "title": "Text Editor",

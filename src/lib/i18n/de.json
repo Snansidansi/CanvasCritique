@@ -451,7 +451,9 @@
       "title": "Allgemein",
       "desc": "Konfiguriere allgemeine Texteinstellungen für Übungen.",
       "fontSizeLabel": "Text-Schriftgröße (Aufgabenstellung & Lösung)",
-      "fontSizeDesc": "Legt die Schriftgröße für die Aufgabenstellung und die Lösung im Übungsbereich fest (gilt auch für die Text- und Markdown-Dateivorschau)."
+      "fontSizeDesc": "Legt die Schriftgröße für die Aufgabenstellung und die Lösung im Übungsbereich fest (gilt auch für die Text- und Markdown-Dateivorschau).",
+      "showCritiqueByDefault": "KI-Kritik standardmäßig anzeigen",
+      "showCritiqueByDefaultDesc": "Öffnet das KI-Kritik-Bedienfeld automatisch beim Laden einer Aufgabe, sofern eine Kritik vorhanden ist."
     },
     "workspaceTextEditor": {
       "title": "Texteditor",

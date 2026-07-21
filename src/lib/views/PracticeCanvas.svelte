@@ -1263,7 +1263,7 @@
           feedbackScore = canvasCritique.feedbackScore ?? null;
           feedbackMarkers = canvasCritique.feedbackMarkers || [];
           hasCheckedWork = !!canvasCritique.feedbackText;
-          showFeedback = hasCheckedWork;
+          showFeedback = isInitializingTask ? (hasCheckedWork && (store.settings.showCritiqueByDefault ?? true)) : hasCheckedWork;
         }
       } else {
         // Unified critique mode (both active, or legacy format without split critiques)
@@ -1275,7 +1275,7 @@
           feedbackMarkers = critique.feedbackMarkers || [];
         }
         hasCheckedWork = !!critique.feedbackText;
-        showFeedback = hasCheckedWork;
+        showFeedback = isInitializingTask ? (hasCheckedWork && (store.settings.showCritiqueByDefault ?? true)) : hasCheckedWork;
       }
       showCritiqueBanner = false;
     } else {

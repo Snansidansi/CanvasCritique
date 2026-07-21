@@ -182,6 +182,7 @@ export interface Settings {
   autoNumberTasks: boolean;
   taskNumberingTemplate: string;
   hideCompletedSections?: boolean;
+  showCritiqueByDefault?: boolean;
   stylusButtons: StylusButton[];
   stylusMode: boolean;
   autoCompleteOnSuccess: boolean;

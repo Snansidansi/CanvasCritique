@@ -36,6 +36,23 @@
     </label>
   </div>
 
+  <!-- Show AI Critique by Default -->
+  <div class="mt-6 border-t border-outline-variant/40 pt-5 flex items-center justify-between gap-4">
+    <div>
+      <h4 class="font-bold text-sm text-on-surface mb-0.5">{t('settings.workspaceGeneralText.showCritiqueByDefault')}</h4>
+      <p class="text-xs text-on-surface-variant">{t('settings.workspaceGeneralText.showCritiqueByDefaultDesc')}</p>
+    </div>
+    <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
+      <input 
+        type="checkbox" 
+        bind:checked={store.settings.showCritiqueByDefault}
+        onchange={() => store.saveSettings()}
+        class="sr-only peer" 
+      />
+      <div class="w-11 h-6 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+    </label>
+  </div>
+
   <!-- Reset Canvas Layout -->
   <div class="mt-6 border-t border-outline-variant/40 pt-5 flex items-center justify-between gap-4">
     <div>
