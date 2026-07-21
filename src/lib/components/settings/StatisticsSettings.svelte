@@ -52,6 +52,18 @@
     return `${year}-${month}-${day}`;
   }
 
+  function formatDisplayDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const clean = dateStr.split('T')[0];
+    const parts = clean.split('-');
+    if (parts.length === 3) {
+      return store.settings.language === 'Deutsch' 
+        ? `${parts[2]}.${parts[1]}.${parts[0]}` 
+        : `${parts[1]}/${parts[2]}/${parts[0]}`;
+    }
+    return clean;
+  }
+
   let customStartDate = $state(getLocalDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
   let customEndDate = $state(getLocalDateStr(new Date()));
 
@@ -993,46 +1005,25 @@
         </div>
 
         {#if requestHistoryMode === 'selection'}
-          <div class="flex items-center gap-1.5 animate-fade-in">
-            <div class="relative flex items-center">
-              <input
-                id="tableStartDate"
-                type="date"
-                value={displayStartDate}
-                onchange={(e) => {
-                  tableStartDate = e.currentTarget.value;
-                  tablePage = 1;
-                }}
-                class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-3 pr-9 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-38 transition-colors"
-              />
-              <span class="material-symbols-outlined absolute right-2.5 text-primary pointer-events-none text-[16px] select-none">
-                calendar_today
-              </span>
-            </div>
-            <span class="text-outline text-xs">-</span>
-            <div class="relative flex items-center">
-              <input
-                id="tableEndDate"
-                type="date"
-                value={displayEndDate}
-                onchange={(e) => {
-                  tableEndDate = e.currentTarget.value;
-                  tablePage = 1;
-                }}
-                class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-3 pr-9 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-38 transition-colors"
-              />
-              <span class="material-symbols-outlined absolute right-2.5 text-primary pointer-events-none text-[16px] select-none">
-                calendar_today
-              </span>
-            </div>
-          </div>
           {#if tableStartDate || tableEndDate}
-            <button
-              onclick={resetTableFilter}
-              class="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-[11px] font-semibold rounded-lg text-on-surface cursor-pointer focus:outline-none transition-colors"
-            >
-              {store.settings.language === 'Deutsch' ? 'Zurücksetzen' : 'Reset'}
-            </button>
+            <div class="flex items-center gap-2 text-xs text-on-surface-variant font-medium select-none animate-fade-in">
+              <span>
+                {store.settings.language === 'Deutsch' ? 'Auswahl:' : 'Selection:'} 
+                {formatDisplayDate(tableStartDate)} - {formatDisplayDate(tableEndDate)}
+              </span>
+              <button
+                onclick={resetTableFilter}
+                class="px-2 py-0.5 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-[10px] font-semibold rounded-md text-on-surface cursor-pointer focus:outline-none transition-colors"
+              >
+                {store.settings.language === 'Deutsch' ? 'Aufheben' : 'Clear'}
+              </button>
+            </div>
+          {:else}
+            <span class="text-xs text-on-surface-variant italic select-none animate-fade-in">
+              {store.settings.language === 'Deutsch' 
+                ? 'Bereich im Diagramm ziehen...' 
+                : 'Drag range in chart...'}
+            </span>
           {/if}
         {/if}
       </div>
