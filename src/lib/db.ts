@@ -571,9 +571,6 @@ export async function saveTaskSolutionToDisk(taskId: string, solutionData: { can
     const text = JSON.stringify(currentData, null, 2);
     const bytes = new TextEncoder().encode(text);
     await writeFile(filePath, bytes);
-
-    // Update the local canvas metadata file
-    await updateLocalCanvasMetadata(taskId, currentData.updatedAt);
   } catch (err) {
     console.error(`Failed to save task solution to disk for task ${taskId}:`, err);
   }
@@ -601,19 +598,27 @@ export async function loadTaskSolutionFromDisk(taskId: string): Promise<{ canvas
   return { canvasData: null, editorText: '' };
 }
 
-export async function saveAttemptToDisk(attemptId: string, updates: Partial<TaskAttempt>): Promise<void> {
+export async function saveAttemptToDisk(attemptId: string, updates: Partial<TaskAttempt & { updatedAt?: string }>): Promise<void> {
   try {
     const canvasDataDir = await getCanvasDataDir();
     const { join } = await import('@tauri-apps/api/path');
-    const { writeFile, exists, mkdir, readFile } = await import('@tauri-apps/plugin-fs');
+    const { writeFile, exists, mkdir, readFile, remove } = await import('@tauri-apps/plugin-fs');
     
     if (!(await exists(canvasDataDir))) {
       await mkdir(canvasDataDir, { recursive: true });
     }
     
-    const filePath = await join(canvasDataDir, `attempt_${attemptId}.json`);
+    const filePath = await join(canvasDataDir, `${attemptId}.json`);
+    const legacyPath = await join(canvasDataDir, `attempt_${attemptId}.json`);
+    
     let currentContent: any = {};
-    if (await exists(filePath)) {
+    if (await exists(legacyPath)) {
+      try {
+        const raw = await readFile(legacyPath);
+        currentContent = JSON.parse(new TextDecoder().decode(raw));
+        await remove(legacyPath);
+      } catch (_) {}
+    } else if (await exists(filePath)) {
       try {
         const raw = await readFile(filePath);
         currentContent = JSON.parse(new TextDecoder().decode(raw));
@@ -630,7 +635,11 @@ export async function saveAttemptToDisk(attemptId: string, updates: Partial<Task
     if (updates.multipleChoiceAnswers !== undefined) currentContent.multipleChoiceAnswers = updates.multipleChoiceAnswers;
     if (updates.canvasData !== undefined) currentContent.canvasData = updates.canvasData;
 
-    currentContent.updatedAt = new Date().toISOString();
+    if (updates.updatedAt !== undefined) {
+      currentContent.updatedAt = updates.updatedAt;
+    } else {
+      currentContent.updatedAt = new Date().toISOString();
+    }
 
     const text = JSON.stringify(currentContent, null, 2);
     const bytes = new TextEncoder().encode(text);
@@ -644,8 +653,18 @@ export async function loadAttemptFromDisk(attemptId: string): Promise<TaskAttemp
   try {
     const canvasDataDir = await getCanvasDataDir();
     const { join } = await import('@tauri-apps/api/path');
-    const { exists, readFile } = await import('@tauri-apps/plugin-fs');
-    const filePath = await join(canvasDataDir, `attempt_${attemptId}.json`);
+    const { exists, readFile, rename } = await import('@tauri-apps/plugin-fs');
+    const filePath = await join(canvasDataDir, `${attemptId}.json`);
+    const legacyPath = await join(canvasDataDir, `attempt_${attemptId}.json`);
+
+    if (await exists(legacyPath)) {
+      try {
+        await rename(legacyPath, filePath);
+      } catch (err) {
+        console.warn(`Failed to rename legacy attempt file ${legacyPath} to ${filePath}:`, err);
+      }
+    }
+
     if (await exists(filePath)) {
       const raw = await readFile(filePath);
       const text = new TextDecoder().decode(raw);
@@ -659,7 +678,7 @@ export async function loadAttemptFromDisk(attemptId: string): Promise<TaskAttemp
         canvasData: parsed.canvasData || null,
         editorText: parsed.editorText || '',
         multipleChoiceAnswers: parsed.multipleChoiceAnswers || {},
-        updatedAt: parsed.updatedAt
+        updatedAt: parsed.updatedAt || parsed.timestamp
       };
     }
   } catch (err) {
@@ -682,9 +701,13 @@ export async function deleteAttemptCanvasDataFile(attemptId: string): Promise<vo
     const canvasDataDir = await getCanvasDataDir();
     const { join } = await import('@tauri-apps/api/path');
     const { exists, remove } = await import('@tauri-apps/plugin-fs');
-    const filePath = await join(canvasDataDir, `attempt_${attemptId}.json`);
+    const filePath = await join(canvasDataDir, `${attemptId}.json`);
     if (await exists(filePath)) {
       await remove(filePath);
+    }
+    const legacyPath = await join(canvasDataDir, `attempt_${attemptId}.json`);
+    if (await exists(legacyPath)) {
+      await remove(legacyPath);
     }
   } catch (err) {
     console.error(`Failed to delete canvas file for attempt ${attemptId}:`, err);
@@ -813,19 +836,23 @@ export async function getTasks(db: Database): Promise<Task[]> {
   });
 
   await Promise.all(tasks.map(async (task) => {
-    const solution = await loadTaskSolutionFromDisk(task.id);
-    (task as any).canvasData = solution.canvasData;
-    task.editorText = solution.editorText;
-
-    // Load attempts or migrate
+    // Load attempts first
     const attempts = await getAttemptsForTask(db, task.id);
+    let activeAttempt: TaskAttempt | undefined;
+
     if (attempts.length > 0) {
       task.attempts = attempts;
       if (!task.activeAttemptId) {
         task.activeAttemptId = attempts[0].id;
         await db.execute('UPDATE tasks SET active_attempt_id = ? WHERE id = ?', [attempts[0].id, task.id]);
       }
-    } else {
+      activeAttempt = attempts.find(a => a.id === task.activeAttemptId) || attempts[0];
+    }
+
+    // Check if we have a legacy solution file to migrate
+    const solution = await loadTaskSolutionFromDisk(task.id);
+
+    if (!activeAttempt) {
       // Migrate existing single solution to attempt 1
       const attemptId = 'attempt_default_' + task.id;
       const defaultAttempt: TaskAttempt = {
@@ -840,11 +867,48 @@ export async function getTasks(db: Database): Promise<Task[]> {
         critique: task.critique
       };
       
-      // Save it to database
+      // Save it to database and disk (this creates the attempt file)
       await insertAttempt(db, defaultAttempt);
       task.attempts = [defaultAttempt];
       task.activeAttemptId = attemptId;
       await db.execute('UPDATE tasks SET active_attempt_id = ? WHERE id = ?', [attemptId, task.id]);
+      activeAttempt = defaultAttempt;
+
+      // Delete the legacy task solution file since we successfully migrated it
+      try {
+        const { join } = await import('@tauri-apps/api/path');
+        const { remove, exists } = await import('@tauri-apps/plugin-fs');
+        const filePath = await join(await getCanvasDataDir(), `${task.id}.json`);
+        if (await exists(filePath)) {
+          await remove(filePath);
+        }
+      } catch (err) {
+        console.error(`Failed to delete legacy task solution file ${task.id}.json:`, err);
+      }
+    } else {
+      // If we already have attempts but there's still a legacy file, clean it up!
+      if (solution.canvasData || solution.editorText) {
+        try {
+          const { join } = await import('@tauri-apps/api/path');
+          const { remove, exists } = await import('@tauri-apps/plugin-fs');
+          const filePath = await join(await getCanvasDataDir(), `${task.id}.json`);
+          if (await exists(filePath)) {
+            await remove(filePath);
+          }
+        } catch (err) {
+          console.error(`Failed to delete redundant legacy task solution file ${task.id}.json:`, err);
+        }
+      }
+    }
+
+    // Now, load the active attempt's canvas data from disk
+    if (activeAttempt) {
+      const activeCanvas = await loadAttemptCanvasDataFromDisk(activeAttempt.id);
+      (task as any).canvasData = activeCanvas;
+      task.editorText = activeAttempt.editorText;
+    } else {
+      (task as any).canvasData = null;
+      task.editorText = '';
     }
   }));
 
@@ -852,10 +916,6 @@ export async function getTasks(db: Database): Promise<Task[]> {
 }
 
 export async function insertTask(db: Database, task: Task, projectId: string): Promise<void> {
-  const canvasData = (task as any).canvasData;
-  if (canvasData || task.editorText) {
-    await saveTaskSolutionToDisk(task.id, { canvasData, editorText: task.editorText });
-  }
   await db.execute(
     `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data, provided_files_json, multiple_choice_tasks_json)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -882,6 +942,30 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
       JSON.stringify(task.multipleChoiceTasks || [])
     ]
   );
+
+  const canvasData = (task as any).canvasData;
+  if (canvasData || task.editorText || (task.attempts && task.attempts.length > 0)) {
+    if (task.attempts && task.attempts.length > 0) {
+      for (const attempt of task.attempts) {
+        await insertAttempt(db, attempt);
+      }
+    } else {
+      const attemptId = 'attempt_default_' + task.id;
+      const defaultAttempt: TaskAttempt = {
+        id: attemptId,
+        taskId: task.id,
+        name: defaultSettings.language === 'Deutsch' ? 'Versuch 1' : 'Try 1',
+        timestamp: new Date().toISOString(),
+        canvasData: canvasData || null,
+        editorText: task.editorText || '',
+        critique: task.critique || null
+      };
+      await insertAttempt(db, defaultAttempt);
+      await db.execute('UPDATE tasks SET active_attempt_id = ? WHERE id = ?', [attemptId, task.id]);
+      task.attempts = [defaultAttempt];
+      task.activeAttemptId = attemptId;
+    }
+  }
 }
 
 export async function updateTask(db: Database, id: string, updates: Partial<any>): Promise<void> {
@@ -906,10 +990,6 @@ export async function updateTask(db: Database, id: string, updates: Partial<any>
   if (updates.activeAttemptId !== undefined) { fields.push('active_attempt_id = ?'); values.push(updates.activeAttemptId); }
   if (updates.multipleChoiceTasks !== undefined) { fields.push('multiple_choice_tasks_json = ?'); values.push(JSON.stringify(updates.multipleChoiceTasks)); }
 
-  if (updates.canvasData !== undefined || updates.editorText !== undefined) {
-    await saveTaskSolutionToDisk(id, { canvasData: updates.canvasData, editorText: updates.editorText });
-  }
-
   if (fields.length === 0) return;
   values.push(id);
   await db.execute(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ?`, values);
@@ -930,13 +1010,14 @@ export async function deleteTasks(db: Database, ids: string[]): Promise<void> {
 // ── Canvas State ──
 
 export async function getCanvasState(db: Database, taskId: string): Promise<any> {
-  const solution = await loadTaskSolutionFromDisk(taskId);
-  return solution.canvasData;
+  const tasks = await db.select('SELECT active_attempt_id FROM tasks WHERE id = ?', [taskId]) as Array<{ active_attempt_id: string | null }>;
+  if (tasks.length > 0 && tasks[0].active_attempt_id) {
+    return await loadAttemptCanvasDataFromDisk(tasks[0].active_attempt_id);
+  }
+  return null;
 }
 
 export async function setCanvasState(db: Database, taskId: string, data: any): Promise<void> {
-  await saveTaskSolutionToDisk(taskId, { canvasData: data });
-  
   try {
     await db.execute('DELETE FROM task_canvas_media WHERE task_id = ?', [taskId]);
     if (data && data.canvasImages && Array.isArray(data.canvasImages)) {
@@ -1253,17 +1334,39 @@ export async function syncAttemptsTableWithFiles(db: Database): Promise<void> {
   try {
     const canvasDataDir = await getCanvasDataDir();
     const { join } = await import('@tauri-apps/api/path');
-    const { exists, readDir } = await import('@tauri-apps/plugin-fs');
+    const { exists, readDir, rename, remove } = await import('@tauri-apps/plugin-fs');
 
     if (!(await exists(canvasDataDir))) {
       return;
     }
 
     const entries = await readDir(canvasDataDir);
-    const attemptFiles = entries.filter(e => e.isFile && e.name.startsWith('attempt_') && e.name.endsWith('.json'));
+    
+    // First, run a quick pass to rename any double-prefixed legacy files
+    for (const entry of entries) {
+      if (entry.isFile && entry.name && entry.name.startsWith('attempt_attempt_') && entry.name.endsWith('.json')) {
+        try {
+          const oldPath = await join(canvasDataDir, entry.name);
+          const newName = entry.name.substring(8); // remove first 'attempt_'
+          const newPath = await join(canvasDataDir, newName);
+          if (!(await exists(newPath))) {
+            await rename(oldPath, newPath);
+            console.log(`Migrated double-prefixed file: ${entry.name} -> ${newName}`);
+          } else {
+            await remove(oldPath);
+          }
+        } catch (err) {
+          console.error(`Failed to migrate double-prefixed file ${entry.name}:`, err);
+        }
+      }
+    }
+
+    // Refresh entries list after renaming
+    const updatedEntries = await readDir(canvasDataDir);
+    const attemptFiles = updatedEntries.filter(e => e.isFile && e.name.startsWith('attempt_') && e.name.endsWith('.json'));
 
     for (const file of attemptFiles) {
-      const attemptId = file.name.substring(8, file.name.length - 5); // strip 'attempt_' and '.json'
+      const attemptId = file.name.substring(0, file.name.length - 5); // strip '.json'
       try {
         const attempt = await loadAttemptFromDisk(attemptId);
         if (!attempt) continue;
@@ -1324,7 +1427,8 @@ export async function syncAttemptsTableWithFiles(db: Database): Promise<void> {
                 timestamp: r.timestamp,
                 critique: r.critique_json ? JSON.parse(r.critique_json) : null,
                 editorText: r.editor_text || '',
-                multipleChoiceAnswers: r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {}
+                multipleChoiceAnswers: r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {},
+                updatedAt: r.timestamp // Preserve database timestamp in the file
               });
             }
           }
