@@ -59,7 +59,7 @@
   let hasCustomSystemPrompt = $state(false);
 
   // Tab navigation state
-  type TabId = 'model' | 'canvas' | 'editorFontSize' | 'eraser' | 'evaluation' | 'prompt' | 'numbering' | 'mediaFilter';
+  type TabId = 'model' | 'canvas' | 'eraser' | 'evaluation' | 'prompt' | 'numbering' | 'mediaFilter';
   let activeTab = $state<TabId>('model');
 
   const tabs = [
@@ -67,7 +67,6 @@
     { id: 'evaluation', labelKey: 'lessonSettings.evaluationDetailsTitle', icon: 'fact_check' },
     { id: 'mediaFilter', labelKey: 'settings.api.mediaFilterMode', icon: 'filter_alt' },
     { id: 'canvas', labelKey: 'lessonSettings.canvasLayoutTitle', icon: 'aspect_ratio' },
-    { id: 'editorFontSize', labelKey: 'lessonSettings.editorFontSizeTitle', icon: 'format_size' },
     { id: 'eraser', labelKey: 'lessonSettings.eraserTitle', icon: 'ink_eraser' },
     { id: 'prompt', labelKey: 'lessonSettings.systemPromptTitle', icon: 'terminal' },
     { id: 'numbering', labelKey: 'lessonSettings.taskCreationTitle', icon: 'edit_square' }
@@ -317,56 +316,6 @@
                 <p class="text-xs text-on-surface font-bold">{t('lessonSettings.usingGlobalTitle')}</p>
                 <p class="text-[11px] text-on-surface-variant leading-normal max-w-sm mx-auto">
                   {t('lessonSettings.canvasLayoutTitle')}: {store.settings.canvasMode === 'side-by-side' ? 'Side by Side' : 'Split Screen'}
-                </p>
-              </div>
-            {/if}
-
-          {:else if activeTab === 'editorFontSize'}
-            <!-- Editor Font Size Override Toggle -->
-            <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
-              <div class="flex flex-col gap-0.5">
-                <span class="text-xs font-bold text-on-surface">{t('lessonSettings.overrideEditorFontSizeLabel')}</span>
-                <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.overrideEditorFontSizeDesc')}</span>
-              </div>
-              <label class="relative inline-flex items-center cursor-pointer select-none">
-                <input 
-                  type="checkbox" 
-                  checked={project.settingsOverride?.overrideEditorFontSize || false} 
-                  onchange={(e) => handleToggleOverride('overrideEditorFontSize', e)}
-                  class="sr-only peer"
-                />
-                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-              </label>
-            </div>
-
-            {#if project.settingsOverride?.overrideEditorFontSize}
-              <div class="border-t border-outline-variant/30 pt-4 animate-fade-in flex flex-col gap-4">
-                <div class="flex flex-col gap-2 mt-2">
-                  <div class="flex justify-between items-center">
-                    <span class="text-xs font-semibold text-on-surface">{t('lessonSettings.editorFontSizeTitle')}</span>
-                    <span class="text-xs font-bold text-on-surface w-10 text-right">{project.settingsOverride.editorFontSize || 16}px</span>
-                  </div>
-                  <div class="flex items-center gap-4">
-                    <span class="text-xs text-outline font-medium shrink-0">10px</span>
-                    <input
-                      type="range"
-                      min="10"
-                      max="40"
-                      step="1"
-                      bind:value={project.settingsOverride.editorFontSize}
-                      onchange={() => store.saveProjects()}
-                      class="grow h-1.5 bg-surface-container-high rounded-lg appearance-none cursor-pointer accent-primary"
-                    />
-                    <span class="text-xs text-outline font-medium shrink-0">40px</span>
-                  </div>
-                </div>
-              </div>
-            {:else}
-              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in flex flex-col gap-1 items-center">
-                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-1">format_size</span>
-                <p class="text-xs text-on-surface font-bold">{t('lessonSettings.usingGlobalTitle')}</p>
-                <p class="text-[11px] text-on-surface-variant leading-normal max-w-sm mx-auto">
-                  {t('lessonSettings.usingGlobalEditorFontSizeDesc')}: {store.settings.editorFontSize || 16}px
                 </p>
               </div>
             {/if}
