@@ -20,6 +20,7 @@
     showFeedback = $bindable(),
     hasCheckedWork,
     activeTooltipMarker = $bindable(),
+    isOnlyMcCorrected = false,
     handleBack,
     handleUndo,
     handleRedo,
@@ -437,7 +438,7 @@
           title={t('practice.toggleCritique')}
         >
           <span class="material-symbols-outlined text-base">neurology</span>
-          <span>{t('practice.critiqueLabel')}</span>
+          <span>{isOnlyMcCorrected ? 'Feedback' : t('practice.critiqueLabel')}</span>
         </button>
       {/if}
     </div>

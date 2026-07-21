@@ -1130,10 +1130,22 @@
     };
   }
 
+  let isOnlyMcCorrected = $derived(
+    task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0 &&
+    !(pages && pages.some((p: any) => p.strokeHistory && p.strokeHistory.length > 0)) &&
+    !(infiniteStrokes && infiniteStrokes.length > 0) &&
+    !(canvasImages && canvasImages.length > 0) &&
+    !(editorText && editorText.trim() !== '')
+  );
+
   let activeLeftPanels = $derived([
     showTask && { id: 'task', title: `${task.category && task.category !== 'Basics' ? task.category + ' - ' : ''}${task.name}`, content: task.instructions },
     showSolution && { id: 'solution', title: t('practice.evaluationGoal'), content: task.solution },
-    showFeedback && hasCheckedWork && { id: 'feedback', title: t('practice.aiCritiqueFeedback'), isFeedback: true }
+    showFeedback && hasCheckedWork && { 
+      id: 'feedback', 
+      title: isOnlyMcCorrected ? 'Feedback' : t('practice.aiCritiqueFeedback'), 
+      isFeedback: true 
+    }
   ].filter(Boolean));
 
   // Initialize context when canvas mounts or switches
@@ -4176,6 +4188,7 @@
     bind:showFeedback
     {hasCheckedWork}
     bind:activeTooltipMarker
+    {isOnlyMcCorrected}
     {handleBack}
     {handleUndo}
     {handleRedo}
