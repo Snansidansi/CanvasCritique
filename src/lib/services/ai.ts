@@ -1153,6 +1153,15 @@ Return a SINGLE JSON object with the following schema:
     };
   });
 
+  let finalFeedbackText = feedbackText;
+  let finalFeedbackScore = feedbackScore;
+
+  if (task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0) {
+    const mcResult = gradeMultipleChoiceLocally(task.multipleChoiceTasks, multipleChoiceAnswers, settings?.language || 'English');
+    finalFeedbackText = mcResult.feedbackText + '\n\n---\n\n' + feedbackText;
+    finalFeedbackScore = Math.round((mcResult.feedbackScore + feedbackScore) / 2);
+  }
+
   let canvasCritique = null;
   let textCritique = null;
 
@@ -1165,21 +1174,21 @@ Return a SINGLE JSON object with the following schema:
     };
   } else if (sendText) {
     textCritique = {
-      feedbackText,
-      feedbackScore,
+      feedbackText: finalFeedbackText,
+      feedbackScore: finalFeedbackScore,
       feedbackMarkers: textMarkers
     };
   } else if (sendCanvas) {
     canvasCritique = {
-      feedbackText,
-      feedbackScore,
+      feedbackText: finalFeedbackText,
+      feedbackScore: finalFeedbackScore,
       feedbackMarkers: canvasMarkers
     };
   }
 
   return {
-    feedbackText,
-    feedbackScore,
+    feedbackText: finalFeedbackText,
+    feedbackScore: finalFeedbackScore,
     feedbackMarkers: canvasMarkers,
     canvasCritique,
     textCritique
@@ -1222,5 +1231,53 @@ function getPageBoundingBox(history: Stroke[], pageImages: any[], canvasMode: 'i
     y: Math.round(minY), 
     width: Math.round(maxX - minX), 
     height: Math.round(maxY - minY) 
+  };
+}
+
+function gradeMultipleChoiceLocally(questions: any[], answers: Record<string, string[]>, language: string): { feedbackText: string; feedbackScore: number } {
+  let correctCount = 0;
+  const totalQuestions = questions.length;
+  let feedbackLines: string[] = [];
+
+  const isDe = language === 'Deutsch';
+
+  if (isDe) {
+    feedbackLines.push(`### Multiple-Choice-Auswertung`);
+  } else {
+    feedbackLines.push(`### Multiple Choice Evaluation`);
+  }
+
+  for (let i = 0; i < totalQuestions; i++) {
+    const q = questions[i];
+    const selected = answers[q.id] || [];
+    const correctOptionIds = q.options.filter((o: any) => o.isCorrect).map((o: any) => o.id);
+    
+    const selectedSet = new Set(selected);
+    const correctSet = new Set(correctOptionIds);
+    const isCorrect = selectedSet.size === correctSet.size && [...selectedSet].every(id => correctSet.has(id));
+
+    const questionText = q.question.replace(/\r?\n/g, ' ');
+    const displayQuestion = questionText.substring(0, 50) + (questionText.length > 50 ? '...' : '');
+
+    if (isCorrect) {
+      correctCount++;
+      feedbackLines.push(`- **Frage ${i + 1}:** ${displayQuestion} → ✅ ${isDe ? 'Richtig' : 'Correct'}`);
+    } else {
+      const correctNames = q.options.filter((o: any) => o.isCorrect).map((o: any) => o.text || '...').join(', ');
+      feedbackLines.push(`- **Frage ${i + 1}:** ${displayQuestion} → ❌ ${isDe ? 'Falsch' : 'Incorrect'} (${isDe ? 'Richtige Antwort' : 'Correct answer'}: *${correctNames}*)`);
+    }
+  }
+
+  const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 100;
+  
+  if (isDe) {
+    feedbackLines.push(`\n**Gesamtergebnis:** ${correctCount} von ${totalQuestions} richtig (${score}%)`);
+  } else {
+    feedbackLines.push(`\n**Overall Result:** ${correctCount} of ${totalQuestions} correct (${score}%)`);
+  }
+
+  return {
+    feedbackText: feedbackLines.join('\n'),
+    feedbackScore: score
   };
 }
