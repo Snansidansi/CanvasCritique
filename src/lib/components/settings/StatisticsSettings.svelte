@@ -10,6 +10,7 @@
   let showTokens = $state(false);
   let hoverIndex = $state<number | null>(null);
   let modelStatsMode = $state<'chart' | 'selection' | 'total'>('chart');
+  let requestHistoryMode = $state<'chart' | 'selection' | 'total'>('chart');
 
   // statsDaily fallback is no longer used since statistics are in own table
 
@@ -504,33 +505,24 @@
     const history = store.statsHistory;
     let list = [...history];
 
-    if (tableStartDate) {
-      let start: Date;
-      if (tableStartDate.includes('T')) {
-        start = new Date(tableStartDate);
-      } else {
-        start = new Date(tableStartDate + 'T00:00:00.000');
-      }
-      if (!isNaN(start.getTime())) {
-        list = list.filter(log => new Date(log.timestamp) >= start);
-      }
-    }
-    if (tableEndDate) {
-      let end: Date;
-      if (tableEndDate.includes('T')) {
-        const d = new Date(tableEndDate);
-        if (!isNaN(d.getTime())) {
-          // If we drag-selected on Today view, include the full end hour block
-          d.setMinutes(59, 59, 999);
-          end = d;
-        } else {
-          end = new Date(tableEndDate);
+    if (requestHistoryMode === 'chart') {
+      const { start, end } = activeRangeDates;
+      list = list.filter(log => {
+        const logDate = new Date(log.timestamp);
+        return logDate >= start && logDate <= end;
+      });
+    } else if (requestHistoryMode === 'selection') {
+      if (tableStartDate) {
+        let start: Date = tableStartDate.includes('T') ? new Date(tableStartDate) : new Date(tableStartDate + 'T00:00:00.000');
+        if (!isNaN(start.getTime())) {
+          list = list.filter(log => new Date(log.timestamp) >= start);
         }
-      } else {
-        end = new Date(tableEndDate + 'T23:59:59.999');
       }
-      if (!isNaN(end.getTime())) {
-        list = list.filter(log => new Date(log.timestamp) <= end);
+      if (tableEndDate) {
+        let end: Date = tableEndDate.includes('T') ? new Date(tableEndDate) : new Date(tableEndDate + 'T23:59:59.999');
+        if (!isNaN(end.getTime())) {
+          list = list.filter(log => new Date(log.timestamp) <= end);
+        }
       }
     }
 
@@ -974,48 +966,74 @@
         </p>
       </div>
 
-      <!-- Time Range Selectors + Reset -->
+      <!-- Timeframe Capsules for Request History -->
       <div class="flex flex-wrap items-center gap-3">
-        <div class="flex items-center gap-1.5">
-          <div class="relative flex items-center">
-            <input
-              id="tableStartDate"
-              type="date"
-              value={displayStartDate}
-              onchange={(e) => {
-                tableStartDate = e.currentTarget.value;
-                tablePage = 1;
-              }}
-              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-3 pr-9 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-38 transition-colors"
-            />
-            <span class="material-symbols-outlined absolute right-2.5 text-primary pointer-events-none text-[16px] select-none">
-              calendar_today
-            </span>
-          </div>
-          <span class="text-outline text-xs">-</span>
-          <div class="relative flex items-center">
-            <input
-              id="tableEndDate"
-              type="date"
-              value={displayEndDate}
-              onchange={(e) => {
-                tableEndDate = e.currentTarget.value;
-                tablePage = 1;
-              }}
-              class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-3 pr-9 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-38 transition-colors"
-            />
-            <span class="material-symbols-outlined absolute right-2.5 text-primary pointer-events-none text-[16px] select-none">
-              calendar_today
-            </span>
-          </div>
-        </div>
-        {#if tableStartDate || tableEndDate}
+        <div class="bg-surface-container-low border border-outline-variant/60 rounded-lg p-0.5 flex">
           <button
-            onclick={resetTableFilter}
-            class="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-[11px] font-semibold rounded-lg text-on-surface cursor-pointer focus:outline-none transition-colors"
+            onclick={() => { requestHistoryMode = 'chart'; tablePage = 1; }}
+            class="px-2.5 py-1 text-[11px] rounded-md font-semibold transition-all cursor-pointer
+                   {requestHistoryMode === 'chart' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
           >
-            {store.settings.language === 'Deutsch' ? 'Zurücksetzen' : 'Reset'}
+            {t('settings.stats.modelStatsChart')}
           </button>
+          <button
+            onclick={() => { requestHistoryMode = 'selection'; tablePage = 1; }}
+            class="px-2.5 py-1 text-[11px] rounded-md font-semibold transition-all cursor-pointer
+                   {requestHistoryMode === 'selection' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
+          >
+            {t('settings.stats.modelStatsSelection')}
+          </button>
+          <button
+            onclick={() => { requestHistoryMode = 'total'; tablePage = 1; }}
+            class="px-2.5 py-1 text-[11px] rounded-md font-semibold transition-all cursor-pointer
+                   {requestHistoryMode === 'total' ? 'bg-surface text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'}"
+          >
+            {t('settings.stats.modelStatsTotal')}
+          </button>
+        </div>
+
+        {#if requestHistoryMode === 'selection'}
+          <div class="flex items-center gap-1.5 animate-fade-in">
+            <div class="relative flex items-center">
+              <input
+                id="tableStartDate"
+                type="date"
+                value={displayStartDate}
+                onchange={(e) => {
+                  tableStartDate = e.currentTarget.value;
+                  tablePage = 1;
+                }}
+                class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-3 pr-9 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-38 transition-colors"
+              />
+              <span class="material-symbols-outlined absolute right-2.5 text-primary pointer-events-none text-[16px] select-none">
+                calendar_today
+              </span>
+            </div>
+            <span class="text-outline text-xs">-</span>
+            <div class="relative flex items-center">
+              <input
+                id="tableEndDate"
+                type="date"
+                value={displayEndDate}
+                onchange={(e) => {
+                  tableEndDate = e.currentTarget.value;
+                  tablePage = 1;
+                }}
+                class="bg-surface-container-high border border-outline-variant/60 hover:border-outline rounded-lg pl-3 pr-9 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary cursor-pointer w-38 transition-colors"
+              />
+              <span class="material-symbols-outlined absolute right-2.5 text-primary pointer-events-none text-[16px] select-none">
+                calendar_today
+              </span>
+            </div>
+          </div>
+          {#if tableStartDate || tableEndDate}
+            <button
+              onclick={resetTableFilter}
+              class="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-[11px] font-semibold rounded-lg text-on-surface cursor-pointer focus:outline-none transition-colors"
+            >
+              {store.settings.language === 'Deutsch' ? 'Zurücksetzen' : 'Reset'}
+            </button>
+          {/if}
         {/if}
       </div>
     </div>
