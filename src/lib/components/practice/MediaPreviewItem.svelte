@@ -68,6 +68,14 @@
     }
   });
 
+  // Reset states when the file prop changes, so it refreshes task switch
+  $effect(() => {
+    const _ = file;
+    fileUrl = '';
+    error = false;
+    loading = false;
+  });
+
   // Lazy load media URL ONLY when accordion is expanded!
   $effect(() => {
     if (open && !fileUrl) {
