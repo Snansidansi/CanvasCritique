@@ -291,6 +291,7 @@ export async function initDb(): Promise<Database> {
 
   await migrateSolutionsFromDbToFs(db);
   await migrateAttemptCanvasDataToFiles(db);
+  await syncAttemptsTableWithFiles(db);
 
   return db;
 }
@@ -600,26 +601,46 @@ export async function loadTaskSolutionFromDisk(taskId: string): Promise<{ canvas
   return { canvasData: null, editorText: '' };
 }
 
-export async function saveAttemptCanvasDataToDisk(attemptId: string, canvasData: any): Promise<void> {
-  if (!canvasData) return;
+export async function saveAttemptToDisk(attemptId: string, updates: Partial<TaskAttempt>): Promise<void> {
   try {
     const canvasDataDir = await getCanvasDataDir();
     const { join } = await import('@tauri-apps/api/path');
-    const { writeFile, exists, mkdir } = await import('@tauri-apps/plugin-fs');
+    const { writeFile, exists, mkdir, readFile } = await import('@tauri-apps/plugin-fs');
     
     if (!(await exists(canvasDataDir))) {
       await mkdir(canvasDataDir, { recursive: true });
     }
     
     const filePath = await join(canvasDataDir, `attempt_${attemptId}.json`);
-    const content = JSON.stringify({ canvasData, updatedAt: new Date().toISOString() });
-    await writeFile(filePath, new TextEncoder().encode(content));
+    let currentContent: any = {};
+    if (await exists(filePath)) {
+      try {
+        const raw = await readFile(filePath);
+        currentContent = JSON.parse(new TextDecoder().decode(raw));
+      } catch (_) {}
+    }
+
+    // Merge updates
+    if (updates.id !== undefined) currentContent.id = updates.id;
+    if (updates.taskId !== undefined) currentContent.taskId = updates.taskId;
+    if (updates.name !== undefined) currentContent.name = updates.name;
+    if (updates.timestamp !== undefined) currentContent.timestamp = updates.timestamp;
+    if (updates.critique !== undefined) currentContent.critique = updates.critique;
+    if (updates.editorText !== undefined) currentContent.editorText = updates.editorText;
+    if (updates.multipleChoiceAnswers !== undefined) currentContent.multipleChoiceAnswers = updates.multipleChoiceAnswers;
+    if (updates.canvasData !== undefined) currentContent.canvasData = updates.canvasData;
+
+    currentContent.updatedAt = new Date().toISOString();
+
+    const text = JSON.stringify(currentContent, null, 2);
+    const bytes = new TextEncoder().encode(text);
+    await writeFile(filePath, bytes);
   } catch (err) {
-    console.error(`Failed to save canvas data to disk for attempt ${attemptId}:`, err);
+    console.error(`Failed to save attempt to disk for attempt ${attemptId}:`, err);
   }
 }
 
-export async function loadAttemptCanvasDataFromDisk(attemptId: string): Promise<any> {
+export async function loadAttemptFromDisk(attemptId: string): Promise<TaskAttempt & { updatedAt?: string } | null> {
   try {
     const canvasDataDir = await getCanvasDataDir();
     const { join } = await import('@tauri-apps/api/path');
@@ -629,12 +650,31 @@ export async function loadAttemptCanvasDataFromDisk(attemptId: string): Promise<
       const raw = await readFile(filePath);
       const text = new TextDecoder().decode(raw);
       const parsed = JSON.parse(text);
-      return parsed.canvasData || null;
+      return {
+        id: parsed.id || attemptId,
+        taskId: parsed.taskId || parsed.task_id || '',
+        name: parsed.name || '',
+        timestamp: parsed.timestamp || new Date().toISOString(),
+        critique: parsed.critique || null,
+        canvasData: parsed.canvasData || null,
+        editorText: parsed.editorText || '',
+        multipleChoiceAnswers: parsed.multipleChoiceAnswers || {},
+        updatedAt: parsed.updatedAt
+      };
     }
   } catch (err) {
-    console.error(`Failed to load canvas data from disk for attempt ${attemptId}:`, err);
+    console.error(`Failed to load attempt from disk for attempt ${attemptId}:`, err);
   }
   return null;
+}
+
+export async function saveAttemptCanvasDataToDisk(attemptId: string, canvasData: any): Promise<void> {
+  await saveAttemptToDisk(attemptId, { canvasData });
+}
+
+export async function loadAttemptCanvasDataFromDisk(attemptId: string): Promise<any> {
+  const attempt = await loadAttemptFromDisk(attemptId);
+  return attempt ? attempt.canvasData : null;
 }
 
 export async function deleteAttemptCanvasDataFile(attemptId: string): Promise<void> {
@@ -654,17 +694,24 @@ export async function deleteAttemptCanvasDataFile(attemptId: string): Promise<vo
 export async function migrateAttemptCanvasDataToFiles(db: Database): Promise<void> {
   try {
     const rows = await db.select(
-      'SELECT id, canvas_data_json FROM task_attempts WHERE canvas_data_json IS NOT NULL'
-    ) as Array<{ id: string; canvas_data_json: string }>;
+      'SELECT id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE canvas_data_json IS NOT NULL'
+    ) as any[];
     
     if (rows.length > 0) {
       console.log(`Migrating ${rows.length} attempts canvas data to separate files...`);
       for (const row of rows) {
         try {
           const canvasData = JSON.parse(row.canvas_data_json);
-          if (canvasData) {
-            await saveAttemptCanvasDataToDisk(row.id, canvasData);
-          }
+          await saveAttemptToDisk(row.id, {
+            id: row.id,
+            taskId: row.task_id,
+            name: row.name,
+            timestamp: row.timestamp,
+            critique: row.critique_json ? JSON.parse(row.critique_json) : null,
+            editorText: row.editor_text || '',
+            multipleChoiceAnswers: row.multiple_choice_answers_json ? JSON.parse(row.multiple_choice_answers_json) : {},
+            canvasData
+          });
           // Clear the column in the database so we don't migrate it again
           await db.execute('UPDATE task_attempts SET canvas_data_json = NULL WHERE id = ?', [row.id]);
         } catch (err) {
@@ -1064,9 +1111,7 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
 }
 
 export async function insertAttempt(db: Database, attempt: TaskAttempt): Promise<void> {
-  if (attempt.canvasData) {
-    await saveAttemptCanvasDataToDisk(attempt.id, attempt.canvasData);
-  }
+  await saveAttemptToDisk(attempt.id, attempt);
   await db.execute(
     'INSERT INTO task_attempts (id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [
@@ -1090,16 +1135,18 @@ export async function updateAttempt(db: Database, id: string, updates: Partial<T
   if (updates.timestamp !== undefined) { fields.push('timestamp = ?'); values.push(updates.timestamp); }
   if (updates.critique !== undefined) { fields.push('critique_json = ?'); values.push(updates.critique ? JSON.stringify(updates.critique) : null); }
   if (updates.canvasData !== undefined) {
-    await saveAttemptCanvasDataToDisk(id, updates.canvasData);
     fields.push('canvas_data_json = ?');
     values.push(null);
   }
   if (updates.editorText !== undefined) { fields.push('editor_text = ?'); values.push(updates.editorText); }
   if (updates.multipleChoiceAnswers !== undefined) { fields.push('multiple_choice_answers_json = ?'); values.push(JSON.stringify(updates.multipleChoiceAnswers)); }
 
-  if (fields.length === 0) return;
-  values.push(id);
-  await db.execute(`UPDATE task_attempts SET ${fields.join(', ')} WHERE id = ?`, values);
+  if (fields.length > 0) {
+    values.push(id);
+    await db.execute(`UPDATE task_attempts SET ${fields.join(', ')} WHERE id = ?`, values);
+  }
+
+  await saveAttemptToDisk(id, updates);
 }
 
 export async function deleteAttempt(db: Database, id: string): Promise<void> {
@@ -1198,5 +1245,111 @@ export async function removeLocalCanvasMetadata(taskId: string): Promise<void> {
     }
   } catch (err) {
     console.error('Failed to remove canvas metadata:', err);
+  }
+}
+
+export async function syncAttemptsTableWithFiles(db: Database): Promise<void> {
+  console.log('Self-healing task_attempts table from local disk files...');
+  try {
+    const canvasDataDir = await getCanvasDataDir();
+    const { join } = await import('@tauri-apps/api/path');
+    const { exists, readDir } = await import('@tauri-apps/plugin-fs');
+
+    if (!(await exists(canvasDataDir))) {
+      return;
+    }
+
+    const entries = await readDir(canvasDataDir);
+    const attemptFiles = entries.filter(e => e.isFile && e.name.startsWith('attempt_') && e.name.endsWith('.json'));
+
+    for (const file of attemptFiles) {
+      const attemptId = file.name.substring(8, file.name.length - 5); // strip 'attempt_' and '.json'
+      try {
+        const attempt = await loadAttemptFromDisk(attemptId);
+        if (!attempt) continue;
+
+        // Check if task exists first (foreign key constraint)
+        const tasks = await db.select('SELECT id FROM tasks WHERE id = ?', [attempt.taskId]) as any[];
+        if (tasks.length === 0) {
+          console.warn(`Attempt ${attemptId} has task_id ${attempt.taskId} but task does not exist. Skipping database sync for it.`);
+          continue;
+        }
+
+        // Check if attempt exists in DB
+        const dbAttempts = await db.select('SELECT id, timestamp FROM task_attempts WHERE id = ?', [attemptId]) as Array<{ id: string; timestamp: string }>;
+        
+        if (dbAttempts.length === 0) {
+          console.log(`Self-healing: Inserting missing attempt ${attemptId} into DB.`);
+          await db.execute(
+            'INSERT INTO task_attempts (id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              attempt.id,
+              attempt.taskId,
+              attempt.name,
+              attempt.timestamp,
+              attempt.critique ? JSON.stringify(attempt.critique) : null,
+              null,
+              attempt.editorText,
+              attempt.multipleChoiceAnswers ? JSON.stringify(attempt.multipleChoiceAnswers) : '{}'
+            ]
+          );
+        } else {
+          // Compare timestamps
+          const dbTime = new Date(dbAttempts[0].timestamp).getTime();
+          const fileTime = new Date(attempt.timestamp).getTime();
+
+          if (fileTime > dbTime) {
+            console.log(`Self-healing: Updating attempt ${attemptId} in DB (file is newer: ${attempt.timestamp} > ${dbAttempts[0].timestamp}).`);
+            await db.execute(
+              'UPDATE task_attempts SET name = ?, timestamp = ?, critique_json = ?, editor_text = ?, multiple_choice_answers_json = ? WHERE id = ?',
+              [
+                attempt.name,
+                attempt.timestamp,
+                attempt.critique ? JSON.stringify(attempt.critique) : null,
+                attempt.editorText,
+                attempt.multipleChoiceAnswers ? JSON.stringify(attempt.multipleChoiceAnswers) : '{}',
+                attemptId
+              ]
+            );
+          } else if (dbTime > fileTime) {
+            console.log(`Self-healing: Updating attempt file ${attemptId} on disk (DB is newer: ${dbAttempts[0].timestamp} > ${attempt.timestamp}).`);
+            // Query full attempt from DB to write it back
+            const fullDbRow = await db.select('SELECT id, task_id, name, timestamp, critique_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE id = ?', [attemptId]) as any[];
+            if (fullDbRow.length > 0) {
+              const r = fullDbRow[0];
+              await saveAttemptToDisk(attemptId, {
+                id: r.id,
+                taskId: r.task_id,
+                name: r.name,
+                timestamp: r.timestamp,
+                critique: r.critique_json ? JSON.parse(r.critique_json) : null,
+                editorText: r.editor_text || '',
+                multipleChoiceAnswers: r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {}
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`Failed to self-heal attempt ${attemptId}:`, err);
+      }
+    }
+
+    // Now, clean up task.active_attempt_id if it's pointing to a non-existent attempt or is null when attempts exist
+    const allTasks = await db.select('SELECT id, active_attempt_id FROM tasks') as Array<{ id: string; active_attempt_id: string | null }>;
+    for (const t of allTasks) {
+      const dbAttempts = await db.select('SELECT id FROM task_attempts WHERE task_id = ? ORDER BY timestamp DESC', [t.id]) as Array<{ id: string }>;
+      if (dbAttempts.length > 0) {
+        const attemptIds = dbAttempts.map(a => a.id);
+        if (!t.active_attempt_id || !attemptIds.includes(t.active_attempt_id)) {
+          // Set to the latest attempt
+          const latestAttemptId = attemptIds[0];
+          console.log(`Self-healing: Setting active_attempt_id for task ${t.id} to latest attempt ${latestAttemptId}`);
+          await db.execute('UPDATE tasks SET active_attempt_id = ? WHERE id = ?', [latestAttemptId, t.id]);
+        }
+      }
+    }
+
+  } catch (err) {
+    console.error('Failed in syncAttemptsTableWithFiles:', err);
   }
 }
