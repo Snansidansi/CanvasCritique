@@ -1660,6 +1660,16 @@
           }, true, lastInitializedAttemptId);
         }
 
+        // Auto-create a default attempt if none exists, to enable state saving
+        if (!attemptId || !task.attempts || task.attempts.length === 0) {
+          if (store.activeProject) {
+            store.createAttempt(store.activeProject.id, taskId).catch(err => {
+              console.error('[PracticeCanvas] Failed to auto-create attempt:', err);
+            });
+            return;
+          }
+        }
+
         lastInitializedTaskId = taskId;
         lastInitializedAttemptId = attemptId;
         
