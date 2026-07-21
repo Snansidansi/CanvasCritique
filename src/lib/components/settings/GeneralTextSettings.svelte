@@ -6,6 +6,7 @@
     localStorage.removeItem('info_panels_layout');
     localStorage.removeItem('workspace_layout');
     localStorage.removeItem('sidebar_position');
+    localStorage.removeItem('sidebar_panel_ratios');
     store.showNotification(t('settings.canvas.layoutResetSuccess'), 'success');
   }
 </script>

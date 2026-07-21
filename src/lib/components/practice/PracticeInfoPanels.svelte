@@ -83,6 +83,18 @@
   });
   let panelSizes = $state<Record<string, number>>({});
   let lastContainerSize = 0;
+  let savedRatios = $state<Record<string, number>>({});
+
+  $effect(() => {
+    try {
+      const saved = localStorage.getItem('sidebar_panel_ratios');
+      if (saved) {
+        savedRatios = JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('[PracticeInfoPanels] Failed to load saved ratios:', e);
+    }
+  });
 
   let expectedFlowSize = $derived.by(() => {
     // Round to nearest 8px to completely eliminate sub-pixel ResizeObserver layout loops
@@ -123,19 +135,45 @@
       const availableSize = Math.max(0, flowSize - dividerSize);
 
       if (isMismatch) {
-        const share = availableSize / panels.length;
         const newSizes: Record<string, number> = {};
-        for (const p of panels) {
-          newSizes[p.id] = panelSizes[p.id] || share;
-        }
-        // Normalize to sum up to availableSize
-        let sum = 0;
-        for (const id in newSizes) sum += newSizes[id];
-        if (Math.abs(sum - availableSize) > 1 && sum > 0) {
-          for (const id in newSizes) {
-            newSizes[id] = (newSizes[id] / sum) * availableSize;
+        
+        // Task 8 check: if 'solution' is newly added and has no ratio saved, it gets 50%
+        const isSolutionNew = panels.some(p => p.id === 'solution') && !savedRatios['solution'];
+
+        if (isSolutionNew) {
+          const solutionSize = availableSize * 0.5;
+          newSizes['solution'] = solutionSize;
+          savedRatios['solution'] = 0.5;
+
+          const remainingPanels = panels.filter(p => p.id !== 'solution');
+          const remainingSize = availableSize - solutionSize;
+
+          let remainingRatioSum = 0;
+          for (const p of remainingPanels) {
+            remainingRatioSum += savedRatios[p.id] || 1;
+          }
+
+          for (const p of remainingPanels) {
+            const ratio = (savedRatios[p.id] || 1) / (remainingRatioSum || 1);
+            newSizes[p.id] = ratio * remainingSize;
+            savedRatios[p.id] = ratio * 0.5;
+          }
+          
+          try {
+            localStorage.setItem('sidebar_panel_ratios', JSON.stringify(savedRatios));
+          } catch (_) {}
+        } else {
+          let ratioSum = 0;
+          for (const p of panels) {
+            ratioSum += savedRatios[p.id] || 1;
+          }
+
+          for (const p of panels) {
+            const ratio = (savedRatios[p.id] || 1) / (ratioSum || 1);
+            newSizes[p.id] = ratio * availableSize;
           }
         }
+        
         panelSizes = newSizes;
         lastContainerSize = flowSize;
       }
@@ -150,14 +188,20 @@
         if (Math.abs(currentFlowSize - lastContainerSize) >= 8) {
           const panels = activeLeftPanels;
           const dividerSize = (panels.length - 1) * 6;
-          const prevAvailableSize = Math.max(0, lastContainerSize - dividerSize);
           const currentAvailableSize = Math.max(0, currentFlowSize - dividerSize);
 
-          const ratio = prevAvailableSize > 0 ? (currentAvailableSize / prevAvailableSize) : 1;
           const newSizes = { ...panelSizes };
-          for (const id in newSizes) {
-            newSizes[id] = (newSizes[id] || 0) * ratio;
+          
+          let ratioSum = 0;
+          for (const p of panels) {
+            ratioSum += savedRatios[p.id] || 1;
           }
+
+          for (const p of panels) {
+            const ratio = (savedRatios[p.id] || 1) / (ratioSum || 1);
+            newSizes[p.id] = ratio * currentAvailableSize;
+          }
+          
           panelSizes = newSizes;
           lastContainerSize = currentFlowSize;
         }
@@ -198,6 +242,16 @@
     
     panelSizes[topPanelId] = origTopHeight + constrainedDelta;
     panelSizes[bottomPanelId] = origBottomHeight - constrainedDelta;
+
+    const dividerSize = (activeLeftPanels.length - 1) * 6;
+    const availableSize = Math.max(1, flowSize - dividerSize);
+    
+    for (const p of activeLeftPanels) {
+      savedRatios[p.id] = (panelSizes[p.id] || 0) / availableSize;
+    }
+    try {
+      localStorage.setItem('sidebar_panel_ratios', JSON.stringify(savedRatios));
+    } catch (_) {}
   }
 
   function stopPanelResizeDrag(e: PointerEvent) {
