@@ -494,6 +494,15 @@ export async function updateProject(db: Database, id: string, updates: {
 }
 
 export async function deleteProject(db: Database, id: string): Promise<void> {
+  // Delete task canvas files for all tasks belonging to this project
+  try {
+    const tasks = await db.select('SELECT id FROM tasks WHERE project_id = ?', [id]) as Array<{ id: string }>;
+    for (const task of tasks) {
+      await deleteTaskSolutionFile(db, task.id);
+    }
+  } catch (err) {
+    console.error('Failed to cleanup task solution files during project deletion:', err);
+  }
   await db.execute('DELETE FROM projects WHERE id = ?', [id]);
 }
 
@@ -543,6 +552,9 @@ export async function saveTaskSolutionToDisk(taskId: string, solutionData: { can
     const text = JSON.stringify(currentData, null, 2);
     const bytes = new TextEncoder().encode(text);
     await writeFile(filePath, bytes);
+
+    // Update the local canvas metadata file
+    await updateLocalCanvasMetadata(taskId, currentData.updatedAt);
   } catch (err) {
     console.error(`Failed to save task solution to disk for task ${taskId}:`, err);
   }
@@ -581,6 +593,9 @@ export async function deleteTaskSolutionFile(db: Database, taskId: string): Prom
     }
     // Also remove references from task_canvas_media
     await db.execute('DELETE FROM task_canvas_media WHERE task_id = ?', [taskId]);
+    
+    // Also remove from metadata
+    await removeLocalCanvasMetadata(taskId);
   } catch (err) {
     console.error(`Failed to delete solution file for task ${taskId}:`, err);
   }
@@ -980,4 +995,98 @@ export async function updateAttempt(db: Database, id: string, updates: Partial<T
 
 export async function deleteAttempt(db: Database, id: string): Promise<void> {
   await db.execute('DELETE FROM task_attempts WHERE id = ?', [id]);
+}
+
+export async function loadAllCanvasMetadata(): Promise<Record<string, string>> {
+  try {
+    const canvasDataDir = await getCanvasDataDir();
+    const { join } = await import('@tauri-apps/api/path');
+    const { exists, readFile, readDir, stat, writeFile } = await import('@tauri-apps/plugin-fs');
+    const metadataPath = await join(canvasDataDir, 'canvas_metadata.json');
+    
+    if (await exists(metadataPath)) {
+      try {
+        const raw = await readFile(metadataPath);
+        return JSON.parse(new TextDecoder().decode(raw));
+      } catch (_) {}
+    }
+    
+    // Lazy migration: scan existing task canvas files
+    console.log('Building canvas_metadata.json by scanning local files...');
+    const metadata: Record<string, string> = {};
+    if (await exists(canvasDataDir)) {
+      const entries = await readDir(canvasDataDir);
+      for (const entry of entries) {
+        if (entry.isFile && entry.name.endsWith('.json') && entry.name !== 'canvas_metadata.json') {
+          const taskId = entry.name.substring(0, entry.name.length - 5);
+          const filePath = await join(canvasDataDir, entry.name);
+          
+          let updatedAt: string | null = null;
+          try {
+            const raw = await readFile(filePath);
+            const parsed = JSON.parse(new TextDecoder().decode(raw));
+            updatedAt = parsed.updatedAt || null;
+          } catch (_) {}
+          
+          if (!updatedAt) {
+            try {
+              const info = await stat(filePath);
+              updatedAt = info.mtime ? new Date(info.mtime).toISOString() : new Date().toISOString();
+            } catch (_) {
+              updatedAt = new Date().toISOString();
+            }
+          }
+          metadata[taskId] = updatedAt;
+        }
+      }
+      
+      await writeFile(metadataPath, new TextEncoder().encode(JSON.stringify(metadata, null, 2)));
+    }
+    return metadata;
+  } catch (err) {
+    console.error('Failed to load canvas metadata:', err);
+    return {};
+  }
+}
+
+export async function updateLocalCanvasMetadata(taskId: string, updatedAt: string): Promise<void> {
+  try {
+    const canvasDataDir = await getCanvasDataDir();
+    const { join } = await import('@tauri-apps/api/path');
+    const { exists, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
+    const metadataPath = await join(canvasDataDir, 'canvas_metadata.json');
+    let metadata: Record<string, string> = {};
+    if (await exists(metadataPath)) {
+      try {
+        const raw = await readFile(metadataPath);
+        metadata = JSON.parse(new TextDecoder().decode(raw));
+      } catch (_) {}
+    }
+    metadata[taskId] = updatedAt;
+    await writeFile(metadataPath, new TextEncoder().encode(JSON.stringify(metadata, null, 2)));
+  } catch (err) {
+    console.error('Failed to update canvas metadata:', err);
+  }
+}
+
+export async function removeLocalCanvasMetadata(taskId: string): Promise<void> {
+  try {
+    const canvasDataDir = await getCanvasDataDir();
+    const { join } = await import('@tauri-apps/api/path');
+    const { exists, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
+    const metadataPath = await join(canvasDataDir, 'canvas_metadata.json');
+    if (await exists(metadataPath)) {
+      let metadata: Record<string, string> = {};
+      try {
+        const raw = await readFile(metadataPath);
+        metadata = JSON.parse(new TextDecoder().decode(raw));
+      } catch (_) {}
+      if (metadata[taskId]) {
+        delete metadata[taskId];
+        await writeFile(metadataPath, new TextEncoder().encode(JSON.stringify(metadata, null, 2)));
+      }
+    }
+  } catch (err) {
+    console.error('Failed to remove canvas metadata:', err);
+  }
 }
