@@ -1158,7 +1158,7 @@ Return a SINGLE JSON object with the following schema:
 
   if (task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0) {
     const mcResult = gradeMultipleChoiceLocally(task.multipleChoiceTasks, multipleChoiceAnswers, settings?.language || 'English');
-    finalFeedbackText = mcResult.feedbackText + '\n\n---\n\n' + feedbackText;
+    finalFeedbackText = feedbackText;
     finalFeedbackScore = Math.round((mcResult.feedbackScore + feedbackScore) / 2);
   }
 
