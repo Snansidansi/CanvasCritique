@@ -136,6 +136,12 @@ export function parseMarkdown(md: string | null | undefined): string {
   processedHtml = processedHtml.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   processedHtml = processedHtml.replace(/\*(.*?)\*/g, '<em>$1</em>');
   processedHtml = processedHtml.replace(/\[(.*?)\]\(#(.*?)\)/g, '<a href="#$2" class="text-primary hover:underline font-bold cursor-pointer inline-flex items-center gap-0.5"><span class="material-symbols-outlined text-[12px] inline">ads_click</span>$1</a>');
+  
+  // Parse external or file links
+  processedHtml = processedHtml.replace(/\[(.*?)\]\((?!#)(.*?)\)/g, (match, label, url) => {
+    const escapedUrl = url.replace(/'/g, "\\'");
+    return `<a href="javascript:void(0)" onclick="if(window.__open_file){window.__open_file('${escapedUrl}')}else{window.open('${escapedUrl}','_blank')}" class="text-primary hover:underline font-bold cursor-pointer inline-flex items-center gap-0.5"><span class="material-symbols-outlined text-[12px] inline">open_in_new</span>${label}</a>`;
+  });
 
   // Replace remaining newlines with <br>, but protect structural HTML tags from getting <br> breaks next to them
   processedHtml = processedHtml.replace(/\n/g, '<br>');

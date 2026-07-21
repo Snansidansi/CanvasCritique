@@ -1,10 +1,19 @@
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+import { invoke } from '@tauri-apps/api/core';
 
 // Intercept global window.fetch at the very entry point of the application.
 // This is required to bypass CORS and mixed-content restrictions in the WebView by routing HTTP/HTTPS requests
 // through Tauri's Rust-backed HTTP plugin. It also resolves a race condition where libraries (like @buttercup/fetch used by webdav)
 // capture the global fetch function at module-load time before other modules can overwrite it.
 if (typeof window !== 'undefined') {
+  (window as any).__open_file = async (path: string) => {
+    try {
+      await invoke('open_file', { path });
+    } catch (e) {
+      console.error('Failed to open file via Tauri:', e);
+    }
+  };
+
   const originalFetch = window.fetch;
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     let url = '';
