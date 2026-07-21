@@ -232,3 +232,8 @@ input[type="date"]::-webkit-datetime-edit-fields-wrapper {
   font-size: inherit !important;
 }
 
+/* Allow KaTeX inline math to wrap naturally to the next line */
+.katex, .katex-html {
+  white-space: normal !important;
+}
+
