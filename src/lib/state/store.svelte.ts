@@ -1505,7 +1505,6 @@ class CanvasCritiqueStore {
       const attempt = task.attempts?.find(a => a.id === task.activeAttemptId);
       if (attempt) {
         attempt.canvasData = data;
-        attempt.timestamp = new Date().toISOString();
         await dbUpdateAttempt(db, attempt.id, { canvasData: data, timestamp: attempt.timestamp });
       }
     }
