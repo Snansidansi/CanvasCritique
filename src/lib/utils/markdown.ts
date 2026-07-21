@@ -288,8 +288,8 @@ function renderCodeBlock(lang: string, code: string): string {
   const displayLang = lang ? lang.toUpperCase() : 'CODE';
 
   return `
-    <div class="code-block-wrapper my-4 rounded-xl border border-outline-variant/30 overflow-hidden bg-surface-container-lowest shadow-sm flex flex-col font-mono text-[11px] text-on-surface">
-      <div class="flex justify-between items-center px-4 py-2 bg-surface-container-low border-b border-outline-variant/30 text-[9px] font-bold text-on-surface-variant select-none">
+    <div class="code-block-wrapper my-4 rounded-xl border border-outline-variant/30 overflow-hidden bg-surface-container-lowest shadow-sm flex flex-col font-mono text-[0.9em] text-on-surface">
+      <div class="flex justify-between items-center px-4 py-2 bg-surface-container-low border-b border-outline-variant/30 text-[0.75em] font-bold text-on-surface-variant select-none">
         <span>${displayLang}</span>
         <button 
           onclick="navigator.clipboard.writeText(this.closest('.code-block-wrapper').querySelector('code').innerText)" 
@@ -309,7 +309,7 @@ function renderInlineCode(code: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
-  return `<code class="px-1.5 py-0.5 rounded bg-surface-container-low text-primary font-mono text-[11px] border border-outline-variant/20">${escaped}</code>`;
+  return `<code class="px-1.5 py-0.5 rounded bg-surface-container-low text-primary font-mono text-[0.9em] border border-outline-variant/20">${escaped}</code>`;
 }
 
 function parseTables(lines: string[]): string[] {
