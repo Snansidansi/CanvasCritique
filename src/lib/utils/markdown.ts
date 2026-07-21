@@ -172,7 +172,7 @@ export function parseMarkdown(md: string | null | undefined): string {
     displayMath.forEach((formula, idx) => {
       const placeholder = `__LATEX_DISPLAY_${idx}__`;
       try {
-        const rendered = `<div class="my-3 flex justify-center overflow-x-auto select-text">${katex.renderToString(formula, { displayMode: true, throwOnError: false })}</div>`;
+        const rendered = `<div class="my-3 overflow-x-auto select-text text-center"><div class="inline-block min-w-full text-center">${katex.renderToString(formula, { displayMode: true, throwOnError: false })}</div></div>`;
         processedHtml = processedHtml.replace(placeholder, rendered);
       } catch (e) {
         processedHtml = processedHtml.replace(placeholder, formula);
