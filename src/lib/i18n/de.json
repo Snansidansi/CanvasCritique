@@ -271,9 +271,10 @@
     "usingGlobalHint": "Aktiviere Überschreiben, um Einstellungen für diese Lektion anzupassen.",
     "saveSettings": "Einstellungen speichern",
     "saveSuccess": "Lektionseinstellungen erfolgreich gespeichert",
-    "overrideTaskNumberingLabel": "Aufgabennummerierung überschreiben",
-    "overrideTaskNumberingDesc": "Verwende für diese Lektion eigene Einstellungen zur Aufgabennummerierung statt der globalen Einstellungen",
+    "overrideTaskNumberingLabel": "Aufgabenerstellung überschreiben",
+    "overrideTaskNumberingDesc": "Verwende für diese Lektion eigene Einstellungen zur Aufgabenerstellung statt der globalen Einstellungen",
     "taskNumberingTitle": "Aufgabennummerierung",
+    "taskCreationTitle": "Aufgabenerstellung",
     "overrideEraserLabel": "Radiergummi-Einstellungen überschreiben",
     "overrideEraserDesc": "Verwende für diese Lektion eigene Radiergummi-Einstellungen statt der globalen Einstellungen",
     "eraserTitle": "Radiergummi-Einstellungen",
@@ -497,7 +498,9 @@
       "templateDesc": "Verwende {n} als Platzhalter für die aufsteigende Nummer.",
       "templatePlaceholder": "z.B. Aufgabe {n}",
       "hideCompletedSections": "Abgeschlossene Abschnitte ausblenden",
-      "hideCompletedSectionsDesc": "Blendet Abschnitte aus, wenn alle Aufgaben darin abgeschlossen sind und ausgeblendet werden."
+      "hideCompletedSectionsDesc": "Blendet Abschnitte aus, wenn alle Aufgaben darin abgeschlossen sind und ausgeblendet werden.",
+      "defaultEditModeLabel": "Standard-Editor für neue Aufgaben",
+      "defaultEditModeDesc": "Wähle, welche Editoren standardmäßig vorausgewählt sind, wenn eine neue Aufgabe erstellt wird."
     },
     "api": {
       "title": "API",

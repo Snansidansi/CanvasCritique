@@ -232,6 +232,7 @@ class CanvasCritiqueStore {
       autoNumberTasks: useTaskTaskNumbering ? (taskOverride.autoNumberTasks ?? globalSettings.autoNumberTasks) : (useProjTaskNumbering ? (projOverride.autoNumberTasks ?? globalSettings.autoNumberTasks) : globalSettings.autoNumberTasks),
       taskNumberingTemplate: useTaskTaskNumbering ? (taskOverride.taskNumberingTemplate ?? globalSettings.taskNumberingTemplate) : (useProjTaskNumbering ? (projOverride.taskNumberingTemplate ?? globalSettings.taskNumberingTemplate) : globalSettings.taskNumberingTemplate),
       hideCompletedSections: useTaskTaskNumbering ? (taskOverride.hideCompletedSections ?? globalSettings.hideCompletedSections) : (useProjTaskNumbering ? (projOverride.hideCompletedSections ?? globalSettings.hideCompletedSections) : globalSettings.hideCompletedSections),
+      defaultEditMode: useTaskTaskNumbering ? (taskOverride.defaultEditMode ?? globalSettings.defaultEditMode) : (useProjTaskNumbering ? (projOverride.defaultEditMode ?? globalSettings.defaultEditMode) : globalSettings.defaultEditMode),
       taskMediaFilterMode: useTaskMediaFilter ? (taskOverride.taskMediaFilterMode ?? globalSettings.taskMediaFilterMode) : (useProjMediaFilter ? (projOverride.taskMediaFilterMode ?? globalSettings.taskMediaFilterMode) : globalSettings.taskMediaFilterMode),
       taskMediaFilterExtensions: useTaskMediaFilter ? (taskOverride.taskMediaFilterExtensions ?? globalSettings.taskMediaFilterExtensions) : (useProjMediaFilter ? (projOverride.taskMediaFilterExtensions ?? globalSettings.taskMediaFilterExtensions) : globalSettings.taskMediaFilterExtensions),
       solutionMediaFilterMode: useTaskMediaFilter ? (taskOverride.solutionMediaFilterMode ?? globalSettings.solutionMediaFilterMode) : (useProjMediaFilter ? (projOverride.solutionMediaFilterMode ?? globalSettings.solutionMediaFilterMode) : globalSettings.solutionMediaFilterMode),
@@ -1070,6 +1071,8 @@ class CanvasCritiqueStore {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
 
+    const effectiveEditMode = defaultEditMode || this.getEffectiveSettings(projectId).defaultEditMode || 'canvas';
+
     const newTask: Task = {
       id: 'task-' + Date.now(),
       name,
@@ -1081,7 +1084,7 @@ class CanvasCritiqueStore {
       instructionFiles: this.stripDataUrls(instructionFiles),
       solutionFiles: this.stripDataUrls(solutionFiles),
       settingsOverride,
-      defaultEditMode,
+      defaultEditMode: effectiveEditMode,
       contextFiles: this.stripDataUrls(contextFiles),
       background,
       providedFiles: this.stripDataUrls(providedFiles),

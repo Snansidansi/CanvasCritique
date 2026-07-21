@@ -22,6 +22,24 @@
     settings.hideCompletedSections = e.currentTarget.checked;
     if (onchange) onchange();
   }
+
+  function isModeActive(mode: string) {
+    const activeModes = (settings.defaultEditMode || 'canvas').split(',').map(m => m.trim());
+    return activeModes.includes(mode);
+  }
+
+  function toggleMode(mode: string) {
+    let activeModes = (settings.defaultEditMode || 'canvas').split(',').map(m => m.trim()).filter(Boolean);
+    if (activeModes.includes(mode)) {
+      if (activeModes.length > 1) {
+        activeModes = activeModes.filter(m => m !== mode);
+      }
+    } else {
+      activeModes.push(mode);
+    }
+    settings.defaultEditMode = activeModes.join(',');
+    if (onchange) onchange();
+  }
 </script>
 
 <div class="flex flex-col gap-4">
@@ -57,6 +75,48 @@
       />
     </div>
   {/if}
+
+  <!-- Default Editor Selector for new tasks -->
+  <div class="flex flex-col gap-2.5 border-t border-outline-variant/20 pt-4 mt-1 font-sans text-left">
+    <div class="flex flex-col gap-0.5">
+      <span class="text-xs font-bold text-on-surface">{t('settings.taskNumbering.defaultEditModeLabel')}</span>
+      <span class="text-[10.5px] text-on-surface-variant">{t('settings.taskNumbering.defaultEditModeDesc')}</span>
+    </div>
+    <div class="flex flex-wrap gap-2 mt-1 select-none">
+      <!-- Canvas Toggle Button -->
+      <button
+        type="button"
+        onclick={() => toggleMode('canvas')}
+        class="px-4 py-2 text-xs font-semibold rounded-xl border border-outline-variant cursor-pointer transition-all flex items-center gap-1.5 focus:outline-none
+               {isModeActive('canvas') ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'}"
+      >
+        <span class="material-symbols-outlined text-[16px]">brush</span>
+        <span>{t('taskEditor.defaultEditModeCanvas')}</span>
+      </button>
+      
+      <!-- Text Editor Toggle Button -->
+      <button
+        type="button"
+        onclick={() => toggleMode('text')}
+        class="px-4 py-2 text-xs font-semibold rounded-xl border border-outline-variant cursor-pointer transition-all flex items-center gap-1.5 focus:outline-none
+               {isModeActive('text') ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'}"
+      >
+        <span class="material-symbols-outlined text-[16px]">edit_note</span>
+        <span>{t('taskEditor.defaultEditModeText')}</span>
+      </button>
+      
+      <!-- Multiple Choice Toggle Button -->
+      <button
+        type="button"
+        onclick={() => toggleMode('multiple_choice')}
+        class="px-4 py-2 text-xs font-semibold rounded-xl border border-outline-variant cursor-pointer transition-all flex items-center gap-1.5 focus:outline-none
+               {isModeActive('multiple_choice') ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'}"
+      >
+        <span class="material-symbols-outlined text-[16px]">rule</span>
+        <span>{t('taskEditor.mc.title') || 'Multiple-Choice-Aufgaben'}</span>
+      </button>
+    </div>
+  </div>
 
   <!-- Toggle to Hide Completed Sections -->
   <div class="flex items-center justify-between gap-4 border-t border-outline-variant/20 pt-4 mt-1">

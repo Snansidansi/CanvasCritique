@@ -352,6 +352,7 @@
       store.quickAddTaskData = null; // Clear it out
       
       const parentSettings = store.getEffectiveSettings(targetProjectId);
+      defaultEditMode = parentSettings.defaultEditMode || 'canvas';
       settingsOverride = {
         overrideSettings: false,
         overrideModel: false,
@@ -394,6 +395,7 @@
       targetProjectId = store.activeProject?.id || (store.projects.find(p => p.profileId === store.activeProfileId)?.id || '');
       
       const parentSettings = store.getEffectiveSettings(targetProjectId);
+      defaultEditMode = parentSettings.defaultEditMode || 'canvas';
       settingsOverride = {
         overrideSettings: false,
         overrideModel: false,

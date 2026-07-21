@@ -272,9 +272,10 @@
     "usingGlobalHint": "Enable override to customize settings for this lesson.",
     "saveSettings": "Save Settings",
     "saveSuccess": "Lesson settings saved successfully",
-    "overrideTaskNumberingLabel": "Override Task Numbering",
-    "overrideTaskNumberingDesc": "Use custom task numbering settings for this lesson instead of global settings",
+    "overrideTaskNumberingLabel": "Override Task Creation Settings",
+    "overrideTaskNumberingDesc": "Use custom task creation settings for this lesson instead of global settings",
     "taskNumberingTitle": "Task Numbering",
+    "taskCreationTitle": "Task Creation",
     "overrideEraserLabel": "Override Eraser Settings",
     "overrideEraserDesc": "Use custom eraser mode and size settings for this lesson instead of global settings",
     "eraserTitle": "Eraser Settings",
@@ -498,7 +499,9 @@
       "templateDesc": "Use {n} as a placeholder for the ascending number.",
       "templatePlaceholder": "e.g. Task {n}",
       "hideCompletedSections": "Hide completed sections",
-      "hideCompletedSectionsDesc": "Hides sections when all tasks within them are completed and hidden."
+      "hideCompletedSectionsDesc": "Hides sections when all tasks within them are completed and hidden.",
+      "defaultEditModeLabel": "Default Editor for New Tasks",
+      "defaultEditModeDesc": "Choose which editors are selected by default when creating a new task."
     },
     "api": {
       "title": "API",

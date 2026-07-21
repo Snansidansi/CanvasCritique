@@ -70,7 +70,7 @@
     { id: 'editorFontSize', labelKey: 'lessonSettings.editorFontSizeTitle', icon: 'format_size' },
     { id: 'eraser', labelKey: 'lessonSettings.eraserTitle', icon: 'ink_eraser' },
     { id: 'prompt', labelKey: 'lessonSettings.systemPromptTitle', icon: 'terminal' },
-    { id: 'numbering', labelKey: 'lessonSettings.taskNumberingTitle', icon: 'format_list_numbered' }
+    { id: 'numbering', labelKey: 'lessonSettings.taskCreationTitle', icon: 'edit_square' }
   ];
 
   $effect(() => {
