@@ -642,6 +642,7 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
           const rawBytes = await readFile(filePath);
           const compressed = await compressGzip(rawBytes);
           await client.putFileContents(`${REMOTE_CANVAS_DIR}/${item.remoteName}`, compressed, { overwrite: true });
+          await updateLocalCanvasMetadata(id, item.dbTimestamp || new Date().toISOString());
           if (item.isTask) {
             dbModified = true;
           }
@@ -667,16 +668,14 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
         }
       }
     } else if (hasLocal && hasRemote) {
-      const dbTimestamp = item.dbTimestamp;
-      const localUpdatedAt = localMetadata[id] || (localInfo ? localInfo.mtime.toISOString() : null);
+      const dbTimestampStr = item.dbTimestamp;
+      const lastSyncedTimestampStr = localMetadata[id] || '0';
 
-      if (dbTimestamp && localUpdatedAt) {
-        const localTime = new Date(localUpdatedAt).getTime();
-        const remoteTime = new Date(dbTimestamp).getTime();
-
-        if (remoteTime > localTime + 1000) {
+      if (dbTimestampStr && dbTimestampStr > lastSyncedTimestampStr) {
+        if (didDownloadDB) {
+          // The database was replaced with the remote one, so dbTimestamp is the REMOTE time
           if (syncMode === 'bidirectional' || syncMode === 'download') {
-            console.log(`Downloading newer canvas ${id} (remote: ${dbTimestamp}, local: ${localUpdatedAt})...`);
+            console.log(`Downloading newer canvas ${id} (remote db: ${dbTimestampStr} > synced: ${lastSyncedTimestampStr})...`);
             try {
               const compressed = await client.getFileContents(`${REMOTE_CANVAS_DIR}/${item.remoteName}`, { format: 'binary' }) as Uint8Array;
               const decompressed = await decompressGzip(compressed);
@@ -685,37 +684,22 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
               await writeFile(filePath, decompressed);
 
               // Update local metadata
-              await updateLocalCanvasMetadata(id, dbTimestamp);
+              await updateLocalCanvasMetadata(id, dbTimestampStr);
             } catch (err) {
               console.error(`Failed to download canvas ${id}:`, err);
             }
           }
-        } else if (localTime > remoteTime + 1000) {
+        } else {
+          // The database was NOT replaced, so dbTimestamp is our LOCAL time
           if (syncMode === 'bidirectional' || syncMode === 'upload') {
-            console.log(`Uploading newer canvas ${id} (local: ${localUpdatedAt}, remote: ${dbTimestamp})...`);
+            console.log(`Uploading newer canvas ${id} (local db: ${dbTimestampStr} > synced: ${lastSyncedTimestampStr})...`);
             try {
               const filePath = await join(localCanvasDir, item.localName);
               const rawBytes = await readFile(filePath);
               const compressed = await compressGzip(rawBytes);
               await client.putFileContents(`${REMOTE_CANVAS_DIR}/${item.remoteName}`, compressed, { overwrite: true });
-
-              if (item.isTask) {
-                if (item.activeAttemptId) {
-                  await db.execute(
-                    'UPDATE task_attempts SET timestamp = ? WHERE id = ?',
-                    [localUpdatedAt, item.activeAttemptId]
-                  );
-                  dbModified = true;
-                  console.log(`Updated database attempt timestamp to ${localUpdatedAt} for task ${item.dbId}`);
-                }
-              } else {
-                await db.execute(
-                  'UPDATE task_attempts SET timestamp = ? WHERE id = ?',
-                  [localUpdatedAt, item.dbId]
-                );
-                dbModified = true;
-                console.log(`Updated database timestamp to ${localUpdatedAt} for attempt ${item.dbId}`);
-              }
+              // Update local metadata so we don't upload it again
+              await updateLocalCanvasMetadata(id, dbTimestampStr);
             } catch (err) {
               console.error(`Failed to upload canvas ${id}:`, err);
             }
