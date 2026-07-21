@@ -320,10 +320,27 @@ export async function replaceDatabase(sourceAbsolutePath: string): Promise<void>
   await closeDb();
   
   const { appDataDir, join } = await import('@tauri-apps/api/path');
-  const { copyFile } = await import('@tauri-apps/plugin-fs');
+  const { copyFile, exists, remove } = await import('@tauri-apps/plugin-fs');
   
   const dir = await appDataDir();
   const dbPath = await join(dir, 'canvascritique.db');
+  const walPath = dbPath + '-wal';
+  const shmPath = dbPath + '-shm';
+  
+  try {
+    if (await exists(walPath)) {
+      await remove(walPath);
+    }
+  } catch (err) {
+    console.warn('Failed to delete WAL file:', err);
+  }
+  try {
+    if (await exists(shmPath)) {
+      await remove(shmPath);
+    }
+  } catch (err) {
+    console.warn('Failed to delete SHM file:', err);
+  }
   
   await copyFile(sourceAbsolutePath, dbPath);
   
