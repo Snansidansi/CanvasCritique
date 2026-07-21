@@ -493,7 +493,9 @@
       "autoNumberDesc": "Wenn aktiv, werden neue Aufgaben automatisch nach der Vorlage benannt.",
       "templateLabel": "Vorlage für Aufgabennamen",
       "templateDesc": "Verwende {n} als Platzhalter für die aufsteigende Nummer.",
-      "templatePlaceholder": "z.B. Aufgabe {n}"
+      "templatePlaceholder": "z.B. Aufgabe {n}",
+      "hideCompletedSections": "Abgeschlossene Abschnitte ausblenden",
+      "hideCompletedSectionsDesc": "Blendet Abschnitte aus, wenn alle Aufgaben darin abgeschlossen sind und ausgeblendet werden."
     },
     "api": {
       "title": "API",

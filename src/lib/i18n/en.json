@@ -494,7 +494,9 @@
       "autoNumberDesc": "When active, new tasks are automatically named using the template.",
       "templateLabel": "Task Naming Template",
       "templateDesc": "Use {n} as a placeholder for the ascending number.",
-      "templatePlaceholder": "e.g. Task {n}"
+      "templatePlaceholder": "e.g. Task {n}",
+      "hideCompletedSections": "Hide completed sections",
+      "hideCompletedSectionsDesc": "Hides sections when all tasks within them are completed and hidden."
     },
     "api": {
       "title": "API",

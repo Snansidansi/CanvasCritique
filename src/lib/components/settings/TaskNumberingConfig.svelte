@@ -18,6 +18,10 @@
     settings.taskNumberingTemplate = e.currentTarget.value;
     if (onchange) onchange();
   }
+  function handleHideCompletedSectionsChange(e: Event & { currentTarget: HTMLInputElement }) {
+    settings.hideCompletedSections = e.currentTarget.checked;
+    if (onchange) onchange();
+  }
 </script>
 
 <div class="flex flex-col gap-4">
@@ -53,4 +57,21 @@
       />
     </div>
   {/if}
+
+  <!-- Toggle to Hide Completed Sections -->
+  <div class="flex items-center justify-between gap-4 border-t border-outline-variant/20 pt-4 mt-1">
+    <div>
+      <h4 class="font-bold text-sm text-on-surface mb-0.5">{t('settings.taskNumbering.hideCompletedSections')}</h4>
+      <p class="text-xs text-on-surface-variant">{t('settings.taskNumbering.hideCompletedSectionsDesc')}</p>
+    </div>
+    <label class="relative inline-flex items-center cursor-pointer select-none shrink-0">
+      <input 
+        type="checkbox" 
+        checked={settings.hideCompletedSections ?? false}
+        onchange={handleHideCompletedSectionsChange}
+        class="sr-only peer" 
+      />
+      <div class="w-11 h-6 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+    </label>
+  </div>
 </div>

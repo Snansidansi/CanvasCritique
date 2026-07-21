@@ -100,6 +100,7 @@ export interface ProjectSettingsOverride {
   editorFontSize?: number;
   autoNumberTasks?: boolean;
   taskNumberingTemplate?: string;
+  hideCompletedSections?: boolean;
   eraserMode?: 'normal' | 'stroke';
   eraserRadiusNormal?: number;
   eraserRadiusStroke?: number;
@@ -180,6 +181,7 @@ export interface Settings {
   language: string;
   autoNumberTasks: boolean;
   taskNumberingTemplate: string;
+  hideCompletedSections?: boolean;
   stylusButtons: StylusButton[];
   stylusMode: boolean;
   autoCompleteOnSuccess: boolean;

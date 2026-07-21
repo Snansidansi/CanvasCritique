@@ -352,6 +352,17 @@
     return project.hideCompleted ? tasks.filter(t => !t.completed) : tasks;
   }
 
+  function isCategoryHidden(cat: string): boolean {
+    if (!project.hideCompleted) return false;
+    const hideSec = project?.settingsOverride?.overrideTaskNumbering
+      ? (project.settingsOverride.hideCompletedSections ?? store.settings.hideCompletedSections)
+      : store.settings.hideCompletedSections;
+    if (!hideSec) return false;
+
+    const allTasks = (project.tasks || []).filter(t => (t.category || 'Basics') === cat);
+    return allTasks.length > 0 && allTasks.every(t => t.completed);
+  }
+
   function getProjectProgress() {
     if (!project.tasks || project.tasks.length === 0) return 0;
     const completed = project.tasks.filter(t => t.completed).length;
@@ -898,6 +909,7 @@
       {/if}
 
       {#each categories as category, secIdx}
+        {#if !isCategoryHidden(category)}
         {#if isSectionDragActive && sectionDropTargetIndex === secIdx && draggedSectionCategory && draggedSectionCategory !== category}
           <div class="h-1 bg-primary rounded-full mx-2 animate-pulse"></div>
         {/if}
@@ -1132,6 +1144,7 @@
           </div>
           </div>
         </details>
+        {/if}
       {/each}
     </div>
   </section>
