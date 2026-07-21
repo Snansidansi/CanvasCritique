@@ -1518,6 +1518,125 @@
   let lastInitializedTaskId = '';
   let lastInitializedAttemptId = '';
 
+  function performLoadState(taskId: string) {
+    // Clear selections since we switched task/reloaded
+    selectedStrokes = [];
+    selectedImage = null;
+    selectionBox = null;
+    isMovingSelection = false;
+
+    const saved = store.getCanvasState(taskId);
+    const text = store.getEditorText(taskId) || '';
+    
+    const hasDrawing = saved && (
+      (saved.infiniteStrokes && saved.infiniteStrokes.length > 0) || 
+      (saved.pages && saved.pages.some((p: any) => p.strokeHistory && p.strokeHistory.length > 0)) ||
+      (saved.canvasImages && saved.canvasImages.length > 0)
+    );
+    const hasText = text.trim() !== '';
+    
+    // Union logic: start with default edit mode, then additionally show any editor with existing data
+    const defaultMode = task.defaultEditMode || 'both';
+    const activeModes = defaultMode.split(',').map(m => m.trim());
+    
+    if (activeModes.includes('both')) {
+      showCanvas = true;
+      showText = true;
+      showMultipleChoice = false;
+    } else {
+      showCanvas = activeModes.includes('canvas');
+      showText = activeModes.includes('text');
+      showMultipleChoice = activeModes.includes('multiple_choice');
+    }
+
+    // Check if MC tasks are defined
+    const hasMc = task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0;
+    if (!hasMc) {
+      showMultipleChoice = false;
+    }
+
+    // Union logic: Additionally open editors that contain data
+    if (hasDrawing) showCanvas = true;
+    if (hasText) showText = true;
+    
+    // If none are open but we have MC, default to MC. Else default to Canvas.
+    if (!showCanvas && !showText && !showMultipleChoice) {
+      if (hasMc) {
+        showMultipleChoice = true;
+      } else {
+        showCanvas = true;
+      }
+    }
+
+    const activeAttempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+    selectedAnswers = activeAttempt?.multipleChoiceAnswers || {};
+
+    if (saved && hasDrawing) {
+      pages = saved.pages || [
+        {
+          id: 'page-' + Date.now(),
+          strokeHistory: [],
+          redoStack: [],
+          eraserUndoStack: []
+        }
+      ];
+      for (const page of pages) {
+        if (!page.eraserUndoStack) page.eraserUndoStack = [];
+        for (const stroke of page.strokeHistory || []) {
+          ensureStrokeBounds(stroke);
+        }
+        for (const stroke of page.redoStack || []) {
+          ensureStrokeBounds(stroke);
+        }
+        for (const action of page.eraserUndoStack || []) {
+          if (action && action.points) {
+            ensureStrokeBounds(action);
+          } else if (action && action.removedStrokes) {
+            for (const s of action.removedStrokes || []) ensureStrokeBounds(s);
+            for (const s of action.addedStrokes || []) ensureStrokeBounds(s);
+          }
+        }
+      }
+      infiniteStrokes = saved.infiniteStrokes || [];
+      for (const stroke of infiniteStrokes) {
+        ensureStrokeBounds(stroke);
+      }
+      infiniteRedo = saved.infiniteRedo || [];
+      for (const stroke of infiniteRedo) {
+        ensureStrokeBounds(stroke);
+      }
+      infiniteEraserUndo = saved.infiniteEraserUndo || [];
+      for (const action of infiniteEraserUndo) {
+        if (action && action.points) {
+          ensureStrokeBounds(action);
+        } else if (action && action.removedStrokes) {
+          for (const s of action.removedStrokes || []) ensureStrokeBounds(s);
+          for (const s of action.addedStrokes || []) ensureStrokeBounds(s);
+        }
+      }
+      panOffset = saved.panOffset || { x: 0, y: 0 };
+      zoomScale = saved.zoomScale || 1;
+      activePageIndex = saved.activePageIndex || 0;
+      canvasImages = saved.canvasImages || [];
+    } else {
+      pages = [
+        {
+          id: 'page-' + Date.now(),
+          strokeHistory: [],
+          redoStack: [],
+          eraserUndoStack: []
+        }
+      ];
+      infiniteStrokes = [];
+      canvasImages = [];
+      infiniteRedo = [];
+      infiniteEraserUndo = [];
+      panOffset = { x: 0, y: 0 };
+      zoomScale = 1;
+      activePageIndex = 0;
+    }
+  }
+
   // Load saved drawing state when active task shifts
   $effect(() => {
     const taskId = task.id;
@@ -1544,122 +1663,18 @@
         lastInitializedTaskId = taskId;
         lastInitializedAttemptId = attemptId;
         
-        // Clear selections since we switched task
-        selectedStrokes = [];
-        selectedImage = null;
-        selectionBox = null;
-        isMovingSelection = false;
+        performLoadState(taskId);
+      });
+    }
+  });
 
-        const saved = store.getCanvasState(taskId);
-        const text = store.getEditorText(taskId) || '';
-        
-        const hasDrawing = saved && (
-          (saved.infiniteStrokes && saved.infiniteStrokes.length > 0) || 
-          (saved.pages && saved.pages.some((p: any) => p.strokeHistory && p.strokeHistory.length > 0)) ||
-          (saved.canvasImages && saved.canvasImages.length > 0)
-        );
-        const hasText = text.trim() !== '';
-        
-        // Union logic: start with default edit mode, then additionally show any editor with existing data
-        const defaultMode = task.defaultEditMode || 'both';
-        const activeModes = defaultMode.split(',').map(m => m.trim());
-        
-        if (activeModes.includes('both')) {
-          showCanvas = true;
-          showText = true;
-          showMultipleChoice = false;
-        } else {
-          showCanvas = activeModes.includes('canvas');
-          showText = activeModes.includes('text');
-          showMultipleChoice = activeModes.includes('multiple_choice');
-        }
-
-        // Check if MC tasks are defined
-        const hasMc = task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0;
-        if (!hasMc) {
-          showMultipleChoice = false;
-        }
-
-        // Union logic: Additionally open editors that contain data
-        if (hasDrawing) showCanvas = true;
-        if (hasText) showText = true;
-        
-        // If none are open but we have MC, default to MC. Else default to Canvas.
-        if (!showCanvas && !showText && !showMultipleChoice) {
-          if (hasMc) {
-            showMultipleChoice = true;
-          } else {
-            showCanvas = true;
-          }
-        }
-
-        const activeAttempt = task.attempts?.find(a => a.id === task.activeAttemptId);
-        selectedAnswers = activeAttempt?.multipleChoiceAnswers || {};
-
-        if (saved && hasDrawing) {
-          pages = saved.pages || [
-            {
-              id: 'page-' + Date.now(),
-              strokeHistory: [],
-              redoStack: [],
-              eraserUndoStack: []
-            }
-          ];
-          for (const page of pages) {
-            if (!page.eraserUndoStack) page.eraserUndoStack = [];
-            for (const stroke of page.strokeHistory || []) {
-              ensureStrokeBounds(stroke);
-            }
-            for (const stroke of page.redoStack || []) {
-              ensureStrokeBounds(stroke);
-            }
-            for (const action of page.eraserUndoStack || []) {
-              if (action && action.points) {
-                ensureStrokeBounds(action);
-              } else if (action && action.removedStrokes) {
-                for (const s of action.removedStrokes || []) ensureStrokeBounds(s);
-                for (const s of action.addedStrokes || []) ensureStrokeBounds(s);
-              }
-            }
-          }
-          infiniteStrokes = saved.infiniteStrokes || [];
-          for (const stroke of infiniteStrokes) {
-            ensureStrokeBounds(stroke);
-          }
-          infiniteRedo = saved.infiniteRedo || [];
-          for (const stroke of infiniteRedo) {
-            ensureStrokeBounds(stroke);
-          }
-          infiniteEraserUndo = saved.infiniteEraserUndo || [];
-          for (const action of infiniteEraserUndo) {
-            if (action && action.points) {
-              ensureStrokeBounds(action);
-            } else if (action && action.removedStrokes) {
-              for (const s of action.removedStrokes || []) ensureStrokeBounds(s);
-              for (const s of action.addedStrokes || []) ensureStrokeBounds(s);
-            }
-          }
-          panOffset = saved.panOffset || { x: 0, y: 0 };
-          zoomScale = saved.zoomScale || 1;
-          activePageIndex = saved.activePageIndex || 0;
-          canvasImages = saved.canvasImages || [];
-        } else {
-          pages = [
-            {
-              id: 'page-' + Date.now(),
-              strokeHistory: [],
-              redoStack: [],
-              eraserUndoStack: []
-            }
-          ];
-          infiniteStrokes = [];
-          canvasImages = [];
-          infiniteRedo = [];
-          infiniteEraserUndo = [];
-          panOffset = { x: 0, y: 0 };
-          zoomScale = 1;
-          activePageIndex = 0;
-        }
+  $effect(() => {
+    // Watch for external sync triggers to reload the canvas
+    const trigger = store.externalSyncTrigger;
+    if (trigger > 0 && task.id) {
+      untrack(() => {
+        console.log(`[PracticeCanvas] External sync triggered reload for task ${task.id}`);
+        performLoadState(task.id);
       });
     }
   });

@@ -74,6 +74,7 @@ class CanvasCritiqueStore {
   isLoading = $state(false);
   loadingText = $state("");
   isSyncing = $state(false);
+  externalSyncTrigger = $state(0);
   deletingProjectIds = $state<string[]>([]);
   canvasSaves = $state<Record<string, any>>({});
   editorTexts = $state<Record<string, string>>({});
@@ -444,6 +445,7 @@ class CanvasCritiqueStore {
       } else {
         this.editingTask = null;
       }
+    this.externalSyncTrigger++;
     } catch (e) {
       console.error('Error loading state from DB', e);
       this.profiles = [{ id: 'default-profile', name: 'General', icon: null, color: '#3b82f6' }];
