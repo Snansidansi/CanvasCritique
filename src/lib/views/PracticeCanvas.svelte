@@ -1657,7 +1657,7 @@
             zoomScale,
             activePageIndex,
             canvasImages: JSON.parse(JSON.stringify(canvasImages))
-          }, true);
+          }, true, lastInitializedAttemptId);
         }
 
         lastInitializedTaskId = taskId;
@@ -1690,7 +1690,7 @@
         zoomScale,
         activePageIndex,
         canvasImages: JSON.parse(JSON.stringify(canvasImages))
-      }, true);
+      }, true, lastInitializedAttemptId);
     }
   });
 

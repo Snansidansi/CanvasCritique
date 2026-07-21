@@ -41,7 +41,8 @@ import {
   insertAttempt as dbInsertAttempt,
   updateAttempt as dbUpdateAttempt,
   deleteAttempt as dbDeleteAttempt,
-  loadAttemptCanvasDataFromDisk
+  loadAttemptCanvasDataFromDisk,
+  saveAttemptCanvasDataToDisk
 } from '../db';
 
 import { tick } from 'svelte';
@@ -1466,30 +1467,38 @@ class CanvasCritiqueStore {
     return null;
   }
 
-  async saveCanvasState(taskId: string, data: any, writeToDisk = false): Promise<void> {
-    this.canvasSaves[taskId] = data;
-
+  async saveCanvasState(taskId: string, data: any, writeToDisk = false, attemptId?: string): Promise<void> {
     const task = this.findTaskById(taskId);
-    if (task) {
+    const targetAttemptId = attemptId || (task ? task.activeAttemptId : null);
+
+    // If it is the active attempt, cache it in this.canvasSaves[taskId]
+    if (task && targetAttemptId === task.activeAttemptId) {
+      this.canvasSaves[taskId] = data;
       (task as any).canvasData = data;
-      if (task.activeAttemptId) {
-        const attempt = task.attempts?.find(a => a.id === task.activeAttemptId);
-        if (attempt) {
-          attempt.canvasData = data;
-          attempt.timestamp = new Date().toISOString();
-        }
+    }
+
+    if (task && targetAttemptId) {
+      const attempt = task.attempts?.find(a => a.id === targetAttemptId);
+      if (attempt) {
+        attempt.canvasData = data;
+        attempt.timestamp = new Date().toISOString();
       }
     }
 
     if (writeToDisk) {
       const db = this.getDb();
-      await setCanvasState(db, taskId, data);
-
-      if (task && task.activeAttemptId) {
-        const attempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+      if (task && targetAttemptId) {
+        // Save directly to the attempt's disk file and database row
+        await saveAttemptCanvasDataToDisk(targetAttemptId, data);
+        const attempt = task.attempts?.find(a => a.id === targetAttemptId);
         if (attempt) {
           await dbUpdateAttempt(db, attempt.id, { canvasData: data, timestamp: attempt.timestamp });
         }
+      }
+
+      // If it's the active task/attempt, also update the main task solution file
+      if (task && targetAttemptId === task.activeAttemptId) {
+        await setCanvasState(db, taskId, data);
       }
     }
   }
