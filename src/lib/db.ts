@@ -183,6 +183,24 @@ export async function initDb(): Promise<Database> {
     await db.execute('ALTER TABLE task_attempts ADD COLUMN multiple_choice_answers_json TEXT DEFAULT "{}"');
   } catch (_) {}
 
+  // Check if task_canvas_media table exists before creating it, to see if we need to migrate existing references
+  const tableCheck = await db.select("SELECT name FROM sqlite_master WHERE type='table' AND name='task_canvas_media'") as any[];
+  const needsMigration = tableCheck.length === 0;
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS task_canvas_media (
+      task_id TEXT NOT NULL,
+      media_id TEXT NOT NULL,
+      PRIMARY KEY (task_id, media_id),
+      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+      FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE
+    )
+  `);
+
+  if (needsMigration) {
+    await migrateCanvasMediaReferences(db);
+  }
+
   // Seed defaults if database is fresh (no profiles)
   const profileCount = await db.select('SELECT COUNT(*) as count FROM profiles');
   if ((profileCount[0] as any).count === 0) {
@@ -552,7 +570,7 @@ export async function loadTaskSolutionFromDisk(taskId: string): Promise<{ canvas
   return { canvasData: null, editorText: '' };
 }
 
-export async function deleteTaskSolutionFile(taskId: string): Promise<void> {
+export async function deleteTaskSolutionFile(db: Database, taskId: string): Promise<void> {
   try {
     const canvasDataDir = await getCanvasDataDir();
     const { join } = await import('@tauri-apps/api/path');
@@ -561,6 +579,8 @@ export async function deleteTaskSolutionFile(taskId: string): Promise<void> {
     if (await exists(filePath)) {
       await remove(filePath);
     }
+    // Also remove references from task_canvas_media
+    await db.execute('DELETE FROM task_canvas_media WHERE task_id = ?', [taskId]);
   } catch (err) {
     console.error(`Failed to delete solution file for task ${taskId}:`, err);
   }
@@ -732,13 +752,13 @@ export async function updateTask(db: Database, id: string, updates: Partial<any>
 }
 
 export async function deleteTask(db: Database, id: string): Promise<void> {
-  await deleteTaskSolutionFile(id);
+  await deleteTaskSolutionFile(db, id);
   await db.execute('DELETE FROM tasks WHERE id = ?', [id]);
 }
 
 export async function deleteTasks(db: Database, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
-  await Promise.all(ids.map(id => deleteTaskSolutionFile(id)));
+  await Promise.all(ids.map(id => deleteTaskSolutionFile(db, id)));
   const placeholders = ids.map(() => '?').join(',');
   await db.execute(`DELETE FROM tasks WHERE id IN (${placeholders})`, ids);
 }
@@ -752,6 +772,56 @@ export async function getCanvasState(db: Database, taskId: string): Promise<any>
 
 export async function setCanvasState(db: Database, taskId: string, data: any): Promise<void> {
   await saveTaskSolutionToDisk(taskId, { canvasData: data });
+  
+  try {
+    await db.execute('DELETE FROM task_canvas_media WHERE task_id = ?', [taskId]);
+    if (data && data.canvasImages && Array.isArray(data.canvasImages)) {
+      const mediaIds = new Set<string>();
+      for (const img of data.canvasImages) {
+        if (img && typeof img.mediaId === 'string') {
+          mediaIds.add(img.mediaId);
+        }
+      }
+      for (const mediaId of mediaIds) {
+        await db.execute(
+          'INSERT OR IGNORE INTO task_canvas_media (task_id, media_id) VALUES (?, ?)',
+          [taskId, mediaId]
+        );
+      }
+    }
+  } catch (err) {
+    console.error(`Failed to update task_canvas_media for task ${taskId}:`, err);
+  }
+}
+
+export async function migrateCanvasMediaReferences(db: Database): Promise<void> {
+  try {
+    console.log('Migrating canvas media references to task_canvas_media table...');
+    const tasks = await db.select('SELECT id FROM tasks') as Array<{ id: string }>;
+    for (const task of tasks) {
+      const solution = await loadTaskSolutionFromDisk(task.id);
+      if (solution.canvasData && solution.canvasData.canvasImages) {
+        const images = solution.canvasData.canvasImages;
+        if (Array.isArray(images)) {
+          const mediaIds = new Set<string>();
+          for (const img of images) {
+            if (img && typeof img.mediaId === 'string') {
+              mediaIds.add(img.mediaId);
+            }
+          }
+          for (const mediaId of mediaIds) {
+            await db.execute(
+              'INSERT OR IGNORE INTO task_canvas_media (task_id, media_id) VALUES (?, ?)',
+              [task.id, mediaId]
+            );
+          }
+        }
+      }
+    }
+    console.log('Canvas media references migration completed.');
+  } catch (err) {
+    console.error('Failed to migrate canvas media references:', err);
+  }
 }
 
 // ── Custom Backgrounds ──

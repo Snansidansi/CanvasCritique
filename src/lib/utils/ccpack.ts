@@ -1,7 +1,7 @@
 import { getMediaBytesAndMime } from '../db/media';
 
 async function compressData(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Response(data).body
+  const stream = new Response(data as any).body
     ?.pipeThrough(new CompressionStream('gzip'));
   if (!stream) throw new Error('Failed to create compression stream');
   const buffer = await new Response(stream).arrayBuffer();
@@ -9,7 +9,7 @@ async function compressData(data: Uint8Array): Promise<Uint8Array> {
 }
 
 async function decompressData(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Response(data).body
+  const stream = new Response(data as any).body
     ?.pipeThrough(new DecompressionStream('gzip'));
   if (!stream) throw new Error('Failed to create decompression stream');
   const buffer = await new Response(stream).arrayBuffer();

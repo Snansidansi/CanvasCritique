@@ -728,6 +728,11 @@ class CanvasCritiqueStore {
     try {
       const rows: any[] = await db.select('SELECT id FROM media');
       const allMediaIds = rows.map(r => r.id);
+      
+      // Get all media IDs referenced by canvas saves
+      const canvasMediaRows: any[] = await db.select('SELECT DISTINCT media_id FROM task_canvas_media');
+      const canvasMediaIds = new Set(canvasMediaRows.map(r => r.media_id));
+      
       let deleteCount = 0;
 
       for (const mediaId of allMediaIds) {
@@ -782,14 +787,8 @@ class CanvasCritiqueStore {
         }
 
         if (!isReferenced) {
-          for (const taskId in this.canvasSaves) {
-            const save = this.canvasSaves[taskId];
-            if (save && save.canvasImages && Array.isArray(save.canvasImages)) {
-              if (save.canvasImages.some((img: any) => img.mediaId === mediaId)) {
-                isReferenced = true;
-                break;
-              }
-            }
+          if (canvasMediaIds.has(mediaId)) {
+            isReferenced = true;
           }
         }
 
@@ -1511,8 +1510,12 @@ class CanvasCritiqueStore {
   }
 
   async persistAllCanvasStates(): Promise<void> {
-    for (const taskId of Object.keys(this.canvasSaves)) {
-      await this.persistCanvasState(taskId);
+    // Only persist the active task and editing task, as they are the only ones that can have unsaved changes in memory.
+    if (this.activeTask) {
+      await this.persistCanvasState(this.activeTask.id);
+    }
+    if (this.editingTask && this.editingTask.id !== this.activeTask?.id) {
+      await this.persistCanvasState(this.editingTask.id);
     }
   }
 
