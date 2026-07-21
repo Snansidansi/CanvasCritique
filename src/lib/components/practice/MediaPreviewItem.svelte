@@ -337,7 +337,7 @@
           <pre class="w-full h-64 p-4 overflow-auto bg-surface-container-high rounded-lg font-mono text-on-surface whitespace-pre-wrap select-text leading-relaxed border border-outline-variant/30 text-left">{decodeBase64Text(fileUrl)}</pre>
         {:else}
           <div 
-            class="w-full max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/10"
+            class="w-full max-h-[70vh] relative flex items-center justify-center bg-surface-container-lowest overflow-hidden border border-outline-variant/10"
             style="aspect-ratio: {imageRatio || '4/3'}; {naturalWidth ? `max-width: ${naturalWidth}px; max-height: min(70vh, ${naturalHeight}px);` : ''}"
           >
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -360,7 +360,7 @@
               onpointermove={handleInlinePointerMove}
               onpointerup={handleInlinePointerUp}
               onpointercancel={handleInlinePointerCancel}
-              class="w-full h-full object-contain rounded-lg shadow-sm hover:opacity-95 transition-opacity select-none"
+              class="w-full h-full object-contain shadow-sm hover:opacity-95 transition-opacity select-none"
               style="transform: translate({panX}px, {panY}px) scale({zoom}); transform-origin: center center; cursor: {zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in'}; touch-action: none;"
               draggable="false"
             />

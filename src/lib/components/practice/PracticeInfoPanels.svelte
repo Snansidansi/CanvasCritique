@@ -960,7 +960,7 @@
           <img 
             src={previewFile.dataUrl} 
             alt={previewFile.name} 
-            class="max-w-full max-h-full object-contain rounded-lg shadow-md select-none transition-transform duration-75 ease-out"
+            class="max-w-full max-h-full object-contain shadow-md select-none transition-transform duration-75 ease-out"
             style="transform: translate({modalPan.x}px, {modalPan.y}px) scale({modalZoom}); transform-origin: center center;"
             draggable="false"
           />
