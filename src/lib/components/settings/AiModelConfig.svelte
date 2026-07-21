@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { t } from '../../services/i18n';
   import { getModelSupportedModalities } from '../../utils/modality';
+  import HelpTooltip from '../common/HelpTooltip.svelte';
 
   // Props
   let { 
@@ -372,12 +373,7 @@
             {t('settings.api.maxOutputTokens')}
             <span class="text-[10px] text-on-surface-variant font-normal">({t('settings.api.maxOutputTokensDesc')})</span>
           </label>
-          <div class="group relative flex items-center">
-            <span class="material-symbols-outlined text-[15px] text-outline cursor-help select-none">help</span>
-            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-64 bg-surface-container-high text-on-surface border border-outline-variant text-[10.5px] p-2.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 leading-relaxed normal-case select-text font-normal">
-              {t('settings.api.maxOutputTokensTooltip')}
-            </div>
-          </div>
+          <HelpTooltip icon="help" text={t('settings.api.maxOutputTokensTooltip')} />
         </div>
         <input 
           type="number" 
@@ -397,12 +393,7 @@
             <span class="material-symbols-outlined text-[18px] text-primary">draw</span>
             {t('settings.api.showCanvasAnnotations') || 'Fehler auf Zeichenfläche markieren'}
           </span>
-          <div class="group relative flex items-center">
-            <span class="material-symbols-outlined text-[15px] text-outline cursor-help select-none">info</span>
-            <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-64 bg-surface-container-high text-on-surface border border-outline-variant text-[10.5px] p-2.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 leading-relaxed normal-case select-text font-normal text-left">
-              {t('settings.api.showCanvasAnnotationsTooltip') || 'Zeigt visuelle Markierungen für Fehler/Korrekturen direkt auf der Zeichenfläche an. Da manche Modelle ungenaue Positionsdaten zurückgeben, kann dies deaktiviert werden, um nur Text-Rückmeldungen zu erhalten.'}
-            </div>
-          </div>
+          <HelpTooltip icon="info" text={t('settings.api.showCanvasAnnotationsTooltip') || 'Zeigt visuelle Markierungen für Fehler/Korrekturen direkt auf der Zeichenfläche an. Da manche Modelle ungenaue Positionsdaten zurückgeben, kann dies deaktiviert werden, um nur Text-Rückmeldungen zu erhalten.'} />
         </div>
         <label class="relative inline-flex items-center cursor-pointer select-none">
           <input 
