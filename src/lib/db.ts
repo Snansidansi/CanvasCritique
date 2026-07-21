@@ -290,6 +290,7 @@ export async function initDb(): Promise<Database> {
   }
 
   await migrateSolutionsFromDbToFs(db);
+  await migrateAttemptCanvasDataToFiles(db);
 
   return db;
 }
@@ -599,8 +600,92 @@ export async function loadTaskSolutionFromDisk(taskId: string): Promise<{ canvas
   return { canvasData: null, editorText: '' };
 }
 
+export async function saveAttemptCanvasDataToDisk(attemptId: string, canvasData: any): Promise<void> {
+  if (!canvasData) return;
+  try {
+    const canvasDataDir = await getCanvasDataDir();
+    const { join } = await import('@tauri-apps/api/path');
+    const { writeFile, exists, mkdir } = await import('@tauri-apps/plugin-fs');
+    
+    if (!(await exists(canvasDataDir))) {
+      await mkdir(canvasDataDir, { recursive: true });
+    }
+    
+    const filePath = await join(canvasDataDir, `attempt_${attemptId}.json`);
+    const content = JSON.stringify({ canvasData, updatedAt: new Date().toISOString() });
+    await writeFile(filePath, new TextEncoder().encode(content));
+  } catch (err) {
+    console.error(`Failed to save canvas data to disk for attempt ${attemptId}:`, err);
+  }
+}
+
+export async function loadAttemptCanvasDataFromDisk(attemptId: string): Promise<any> {
+  try {
+    const canvasDataDir = await getCanvasDataDir();
+    const { join } = await import('@tauri-apps/api/path');
+    const { exists, readFile } = await import('@tauri-apps/plugin-fs');
+    const filePath = await join(canvasDataDir, `attempt_${attemptId}.json`);
+    if (await exists(filePath)) {
+      const raw = await readFile(filePath);
+      const text = new TextDecoder().decode(raw);
+      const parsed = JSON.parse(text);
+      return parsed.canvasData || null;
+    }
+  } catch (err) {
+    console.error(`Failed to load canvas data from disk for attempt ${attemptId}:`, err);
+  }
+  return null;
+}
+
+export async function deleteAttemptCanvasDataFile(attemptId: string): Promise<void> {
+  try {
+    const canvasDataDir = await getCanvasDataDir();
+    const { join } = await import('@tauri-apps/api/path');
+    const { exists, remove } = await import('@tauri-apps/plugin-fs');
+    const filePath = await join(canvasDataDir, `attempt_${attemptId}.json`);
+    if (await exists(filePath)) {
+      await remove(filePath);
+    }
+  } catch (err) {
+    console.error(`Failed to delete canvas file for attempt ${attemptId}:`, err);
+  }
+}
+
+export async function migrateAttemptCanvasDataToFiles(db: Database): Promise<void> {
+  try {
+    const rows = await db.select(
+      'SELECT id, canvas_data_json FROM task_attempts WHERE canvas_data_json IS NOT NULL'
+    ) as Array<{ id: string; canvas_data_json: string }>;
+    
+    if (rows.length > 0) {
+      console.log(`Migrating ${rows.length} attempts canvas data to separate files...`);
+      for (const row of rows) {
+        try {
+          const canvasData = JSON.parse(row.canvas_data_json);
+          if (canvasData) {
+            await saveAttemptCanvasDataToDisk(row.id, canvasData);
+          }
+          // Clear the column in the database so we don't migrate it again
+          await db.execute('UPDATE task_attempts SET canvas_data_json = NULL WHERE id = ?', [row.id]);
+        } catch (err) {
+          console.error(`Failed to migrate attempt ${row.id}:`, err);
+        }
+      }
+      console.log('Migration of attempt canvas data completed.');
+    }
+  } catch (err) {
+    console.error('Failed to run attempt canvas data migration:', err);
+  }
+}
+
 export async function deleteTaskSolutionFile(db: Database, taskId: string): Promise<void> {
   try {
+    // Delete all attempt canvas files first!
+    const attempts = await db.select('SELECT id FROM task_attempts WHERE task_id = ?', [taskId]) as Array<{ id: string }>;
+    for (const attempt of attempts) {
+      await deleteAttemptCanvasDataFile(attempt.id);
+    }
+
     const canvasDataDir = await getCanvasDataDir();
     const { join } = await import('@tauri-apps/api/path');
     const { exists, remove } = await import('@tauri-apps/plugin-fs');
@@ -959,7 +1044,7 @@ export async function loadAllData(db: Database): Promise<AllData> {
 export async function getAttemptsForTask(db: Database, taskId: string): Promise<TaskAttempt[]> {
   try {
     const rows: any[] = await db.select(
-      'SELECT id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE task_id = ? ORDER BY timestamp ASC',
+      'SELECT id, task_id, name, timestamp, critique_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE task_id = ? ORDER BY timestamp ASC',
       [taskId]
     );
     return rows.map(r => ({
@@ -967,7 +1052,7 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
       taskId: r.task_id,
       name: r.name,
       timestamp: r.timestamp,
-      canvasData: r.canvas_data_json ? JSON.parse(r.canvas_data_json) : null,
+      canvasData: null, // Loaded on-demand
       editorText: r.editor_text || '',
       critique: r.critique_json ? JSON.parse(r.critique_json) : null,
       multipleChoiceAnswers: r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {}
@@ -979,6 +1064,9 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
 }
 
 export async function insertAttempt(db: Database, attempt: TaskAttempt): Promise<void> {
+  if (attempt.canvasData) {
+    await saveAttemptCanvasDataToDisk(attempt.id, attempt.canvasData);
+  }
   await db.execute(
     'INSERT INTO task_attempts (id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [
@@ -987,7 +1075,7 @@ export async function insertAttempt(db: Database, attempt: TaskAttempt): Promise
       attempt.name,
       attempt.timestamp,
       attempt.critique ? JSON.stringify(attempt.critique) : null,
-      attempt.canvasData ? JSON.stringify(attempt.canvasData) : null,
+      null, // canvas_data_json column is kept NULL in database
       attempt.editorText,
       attempt.multipleChoiceAnswers ? JSON.stringify(attempt.multipleChoiceAnswers) : '{}'
     ]
@@ -1001,7 +1089,11 @@ export async function updateAttempt(db: Database, id: string, updates: Partial<T
   if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
   if (updates.timestamp !== undefined) { fields.push('timestamp = ?'); values.push(updates.timestamp); }
   if (updates.critique !== undefined) { fields.push('critique_json = ?'); values.push(updates.critique ? JSON.stringify(updates.critique) : null); }
-  if (updates.canvasData !== undefined) { fields.push('canvas_data_json = ?'); values.push(updates.canvasData ? JSON.stringify(updates.canvasData) : null); }
+  if (updates.canvasData !== undefined) {
+    await saveAttemptCanvasDataToDisk(id, updates.canvasData);
+    fields.push('canvas_data_json = ?');
+    values.push(null);
+  }
   if (updates.editorText !== undefined) { fields.push('editor_text = ?'); values.push(updates.editorText); }
   if (updates.multipleChoiceAnswers !== undefined) { fields.push('multiple_choice_answers_json = ?'); values.push(JSON.stringify(updates.multipleChoiceAnswers)); }
 
@@ -1012,6 +1104,7 @@ export async function updateAttempt(db: Database, id: string, updates: Partial<T
 
 export async function deleteAttempt(db: Database, id: string): Promise<void> {
   await db.execute('DELETE FROM task_attempts WHERE id = ?', [id]);
+  await deleteAttemptCanvasDataFile(id);
 }
 
 export async function loadAllCanvasMetadata(): Promise<Record<string, string>> {

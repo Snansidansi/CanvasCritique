@@ -40,7 +40,8 @@ import {
   clearRequestLogs,
   insertAttempt as dbInsertAttempt,
   updateAttempt as dbUpdateAttempt,
-  deleteAttempt as dbDeleteAttempt
+  deleteAttempt as dbDeleteAttempt,
+  loadAttemptCanvasDataFromDisk
 } from '../db';
 
 import { tick } from 'svelte';
@@ -1579,16 +1580,24 @@ class CanvasCritiqueStore {
 
     const attempt = task.attempts?.find(a => a.id === attemptId);
     if (attempt) {
-      const canvasState = attempt.canvasData || {
-        pages: [{ id: 'page-' + Date.now(), strokeHistory: [], redoStack: [], eraserUndoStack: [] }],
-        infiniteStrokes: [],
-        infiniteRedo: [],
-        infiniteEraserUndo: [],
-        panOffset: { x: 0, y: 0 },
-        zoomScale: 1,
-        activePageIndex: 0,
-        canvasImages: []
-      };
+      let canvasState = attempt.canvasData;
+      if (!canvasState) {
+        canvasState = await loadAttemptCanvasDataFromDisk(attemptId);
+        attempt.canvasData = canvasState;
+      }
+      if (!canvasState) {
+        canvasState = {
+          pages: [{ id: 'page-' + Date.now(), strokeHistory: [], redoStack: [], eraserUndoStack: [] }],
+          infiniteStrokes: [],
+          infiniteRedo: [],
+          infiniteEraserUndo: [],
+          panOffset: { x: 0, y: 0 },
+          zoomScale: 1,
+          activePageIndex: 0,
+          canvasImages: []
+        };
+        attempt.canvasData = canvasState;
+      }
       this.canvasSaves[taskId] = canvasState;
       await setCanvasState(this.getDb(), taskId, canvasState);
 

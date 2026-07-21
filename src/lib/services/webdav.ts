@@ -538,23 +538,47 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
     await client.createDirectory(REMOTE_CANVAS_DIR);
   }
 
-  // Get attempt timestamps for all tasks in database
+  // 1. Get all task sync items from the database
   const dbTaskRows = await db.select(`
     SELECT t.id, t.active_attempt_id, a.timestamp as attempt_timestamp
     FROM tasks t
     LEFT JOIN task_attempts a ON t.active_attempt_id = a.id
   `) as Array<{ id: string; active_attempt_id: string | null; attempt_timestamp: string | null }>;
 
-  const dbIds = new Set(dbTaskRows.map(r => r.id));
-  const dbTimestamps = new Map<string, string>();
-  const activeAttemptIds = new Map<string, string>();
+  // 2. Get all attempt sync items from the database
+  const dbAttemptRows = await db.select(`
+    SELECT id, timestamp FROM task_attempts
+  `) as Array<{ id: string; timestamp: string }>;
+
+  // 3. Build a map of all expected sync items
+  const syncItems = new Map<string, {
+    dbId: string;
+    isTask: boolean;
+    localName: string;
+    remoteName: string;
+    dbTimestamp: string | null;
+    activeAttemptId?: string | null;
+  }>();
+
   for (const row of dbTaskRows) {
-    if (row.attempt_timestamp) {
-      dbTimestamps.set(row.id, row.attempt_timestamp);
-    }
-    if (row.active_attempt_id) {
-      activeAttemptIds.set(row.id, row.active_attempt_id);
-    }
+    syncItems.set(row.id, {
+      dbId: row.id,
+      isTask: true,
+      localName: `${row.id}.json`,
+      remoteName: `${row.id}.json.gz`,
+      dbTimestamp: row.attempt_timestamp,
+      activeAttemptId: row.active_attempt_id
+    });
+  }
+
+  for (const row of dbAttemptRows) {
+    syncItems.set(`attempt_${row.id}`, {
+      dbId: row.id,
+      isTask: false,
+      localName: `attempt_${row.id}.json`,
+      remoteName: `attempt_${row.id}.json.gz`,
+      dbTimestamp: row.timestamp
+    });
   }
 
   // Get local canvas_data list from the filesystem
@@ -570,13 +594,14 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
   const localFiles = new Map<string, { name: string; mtime: Date }>();
   for (const entry of localEntries) {
     if (entry.isFile && entry.name && entry.name.endsWith('.json') && entry.name !== 'canvas_metadata.json') {
-      const taskId = entry.name.substring(0, entry.name.length - 5);
+      const isAttempt = entry.name.startsWith('attempt_');
+      const id = isAttempt ? entry.name.substring(0, entry.name.length - 5) : entry.name.substring(0, entry.name.length - 5);
       try {
         const info = await stat(await join(localCanvasDir, entry.name));
         const mtime = info.mtime ? new Date(info.mtime) : new Date();
-        localFiles.set(taskId, { name: entry.name, mtime });
+        localFiles.set(id, { name: entry.name, mtime });
       } catch (_) {
-        localFiles.set(taskId, { name: entry.name, mtime: new Date() });
+        localFiles.set(id, { name: entry.name, mtime: new Date() });
       }
     }
   }
@@ -587,8 +612,9 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
     const remoteItems = await client.getDirectoryContents(REMOTE_CANVAS_DIR);
     for (const item of remoteItems) {
       if (item.type === 'file' && item.basename.endsWith('.json.gz')) {
-        const taskId = item.basename.substring(0, item.basename.length - 8);
-        remoteMap.set(taskId, { basename: item.basename, lastmod: new Date(item.lastmod) });
+        const isAttempt = item.basename.startsWith('attempt_');
+        const id = isAttempt ? item.basename.substring(0, item.basename.length - 8) : item.basename.substring(0, item.basename.length - 8);
+        remoteMap.set(id, { basename: item.basename, lastmod: new Date(item.lastmod) });
       }
     }
   } catch (err) {
@@ -600,8 +626,8 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
 
   let dbModified = false;
 
-  // Sync active task files
-  for (const id of dbIds) {
+  // Sync all sync items
+  for (const [id, item] of syncItems.entries()) {
     const localInfo = localFiles.get(id);
     const remoteInfo = remoteMap.get(id);
 
@@ -612,11 +638,13 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
       if (syncMode === 'bidirectional' || syncMode === 'upload') {
         console.log(`Uploading canvas ${id}...`);
         try {
-          const filePath = await join(localCanvasDir, `${id}.json`);
+          const filePath = await join(localCanvasDir, item.localName);
           const rawBytes = await readFile(filePath);
           const compressed = await compressGzip(rawBytes);
-          await client.putFileContents(`${REMOTE_CANVAS_DIR}/${id}.json.gz`, compressed, { overwrite: true });
-          dbModified = true;
+          await client.putFileContents(`${REMOTE_CANVAS_DIR}/${item.remoteName}`, compressed, { overwrite: true });
+          if (item.isTask) {
+            dbModified = true;
+          }
         } catch (err) {
           console.error(`Failed to upload canvas ${id}:`, err);
         }
@@ -625,21 +653,21 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
       if (syncMode === 'bidirectional' || syncMode === 'download') {
         console.log(`Downloading canvas ${id}...`);
         try {
-          const compressed = await client.getFileContents(`${REMOTE_CANVAS_DIR}/${id}.json.gz`, { format: 'binary' }) as Uint8Array;
+          const compressed = await client.getFileContents(`${REMOTE_CANVAS_DIR}/${item.remoteName}`, { format: 'binary' }) as Uint8Array;
           const decompressed = await decompressGzip(compressed);
-          const filePath = await join(localCanvasDir, `${id}.json`);
+          const filePath = await join(localCanvasDir, item.localName);
           const { writeFile } = await import('@tauri-apps/plugin-fs');
           await writeFile(filePath, decompressed);
 
           // Update local metadata
-          const dbTimestamp = dbTimestamps.get(id) || new Date().toISOString();
+          const dbTimestamp = item.dbTimestamp || new Date().toISOString();
           await updateLocalCanvasMetadata(id, dbTimestamp);
         } catch (err) {
           console.error(`Failed to download canvas ${id}:`, err);
         }
       }
     } else if (hasLocal && hasRemote) {
-      const dbTimestamp = dbTimestamps.get(id);
+      const dbTimestamp = item.dbTimestamp;
       const localUpdatedAt = localMetadata[id] || (localInfo ? localInfo.mtime.toISOString() : null);
 
       if (dbTimestamp && localUpdatedAt) {
@@ -650,9 +678,9 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
           if (syncMode === 'bidirectional' || syncMode === 'download') {
             console.log(`Downloading newer canvas ${id} (remote: ${dbTimestamp}, local: ${localUpdatedAt})...`);
             try {
-              const compressed = await client.getFileContents(`${REMOTE_CANVAS_DIR}/${id}.json.gz`, { format: 'binary' }) as Uint8Array;
+              const compressed = await client.getFileContents(`${REMOTE_CANVAS_DIR}/${item.remoteName}`, { format: 'binary' }) as Uint8Array;
               const decompressed = await decompressGzip(compressed);
-              const filePath = await join(localCanvasDir, `${id}.json`);
+              const filePath = await join(localCanvasDir, item.localName);
               const { writeFile } = await import('@tauri-apps/plugin-fs');
               await writeFile(filePath, decompressed);
 
@@ -666,19 +694,27 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
           if (syncMode === 'bidirectional' || syncMode === 'upload') {
             console.log(`Uploading newer canvas ${id} (local: ${localUpdatedAt}, remote: ${dbTimestamp})...`);
             try {
-              const filePath = await join(localCanvasDir, `${id}.json`);
+              const filePath = await join(localCanvasDir, item.localName);
               const rawBytes = await readFile(filePath);
               const compressed = await compressGzip(rawBytes);
-              await client.putFileContents(`${REMOTE_CANVAS_DIR}/${id}.json.gz`, compressed, { overwrite: true });
+              await client.putFileContents(`${REMOTE_CANVAS_DIR}/${item.remoteName}`, compressed, { overwrite: true });
 
-              const activeAttemptId = activeAttemptIds.get(id);
-              if (activeAttemptId) {
+              if (item.isTask) {
+                if (item.activeAttemptId) {
+                  await db.execute(
+                    'UPDATE task_attempts SET timestamp = ? WHERE id = ?',
+                    [localUpdatedAt, item.activeAttemptId]
+                  );
+                  dbModified = true;
+                  console.log(`Updated database attempt timestamp to ${localUpdatedAt} for task ${item.dbId}`);
+                }
+              } else {
                 await db.execute(
                   'UPDATE task_attempts SET timestamp = ? WHERE id = ?',
-                  [localUpdatedAt, activeAttemptId]
+                  [localUpdatedAt, item.dbId]
                 );
                 dbModified = true;
-                console.log(`Updated database attempt timestamp to ${localUpdatedAt} for task ${id}`);
+                console.log(`Updated database timestamp to ${localUpdatedAt} for attempt ${item.dbId}`);
               }
             } catch (err) {
               console.error(`Failed to upload canvas ${id}:`, err);
@@ -691,7 +727,7 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
 
   // Cleanup local orphaned files
   for (const [id, localInfo] of localFiles.entries()) {
-    if (!dbIds.has(id)) {
+    if (!syncItems.has(id)) {
       console.log(`Deleting local orphaned canvas/editor data ${localInfo.name}...`);
       try {
         const filePath = await join(localCanvasDir, localInfo.name);
@@ -705,7 +741,7 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
   // Cleanup remote orphaned files
   if (syncMode === 'bidirectional' || syncMode === 'upload') {
     for (const [id, remoteInfo] of remoteMap.entries()) {
-      if (!dbIds.has(id)) {
+      if (!syncItems.has(id)) {
         console.log(`Deleting remote orphaned canvas/editor data ${remoteInfo.basename}...`);
         try {
           await client.deleteFile(`${REMOTE_CANVAS_DIR}/${remoteInfo.basename}`);
