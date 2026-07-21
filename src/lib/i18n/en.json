@@ -14,7 +14,8 @@
     "question": "Question",
     "addFile": "Add File",
     "collapse": "Collapse",
-    "expand": "Expand"
+    "expand": "Expand",
+    "processing": "Processing..."
   },
   "dashboard": {
     "title": "Dashboard",

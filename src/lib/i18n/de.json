@@ -14,7 +14,8 @@
     "question": "Frage",
     "addFile": "Datei hinzufügen",
     "collapse": "Zuklappen",
-    "expand": "Aufklappen"
+    "expand": "Aufklappen",
+    "processing": "Verarbeite..."
   },
   "dashboard": {
     "title": "Lektionsübersicht",
