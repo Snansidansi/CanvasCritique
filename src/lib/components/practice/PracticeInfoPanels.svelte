@@ -137,7 +137,8 @@
       if (isMismatch) {
         const newSizes: Record<string, number> = {};
         
-        // Task 8 check: if 'solution' is newly added and has no ratio saved, it gets 50%
+        // Task 8: If the solution panel is displayed for the first time in a session (no previous ratio),
+        // it must take up exactly 50% of the available space.
         const isSolutionNew = panels.some(p => p.id === 'solution') && !savedRatios['solution'];
 
         if (isSolutionNew) {
