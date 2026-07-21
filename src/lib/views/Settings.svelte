@@ -21,8 +21,8 @@
     { id: 'general',    labelKey: 'settings.tabs.general',   icon: 'tune'           },
     { id: 'workspace',  labelKey: 'settings.tabs.workspace', icon: 'edit_square'    },
     { id: 'stylus',     labelKey: 'settings.tabs.stylus',    icon: 'stylus_pen'     },
-    { id: 'ai',         labelKey: 'settings.tabs.ai',        icon: 'smart_toy'      },
     { id: 'data',       labelKey: 'settings.tabs.data',      icon: 'database'       },
+    { id: 'ai',         labelKey: 'settings.tabs.ai',        icon: 'smart_toy'      },
     { id: 'stats',      labelKey: 'settings.tabs.stats',     icon: 'bar_chart'      },
     { id: 'update',     labelKey: 'settings.tabs.update',    icon: 'update'         },
   ];
