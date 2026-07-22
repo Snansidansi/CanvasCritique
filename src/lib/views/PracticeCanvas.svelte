@@ -1062,7 +1062,7 @@
                 infiniteRedo = [];
               }
               canvasImages = [...canvasImages, newImage];
-              selectedImage = newImage;
+              selectedImage = canvasImages.find(img => img.id === newImage.id) || newImage;
               activeTool = 'select'; // Automatically select the selection tool!
               saveToStore();
             };
@@ -1159,7 +1159,7 @@
         infiniteRedo = [];
       }
       canvasImages = [...canvasImages, newImage];
-      selectedImage = newImage;
+      selectedImage = canvasImages.find(img => img.id === newImage.id) || newImage;
       activeTool = 'select';
       saveToStore();
     };
@@ -3812,9 +3812,9 @@
               pageIndex: canvasMode === 'a4' ? activePageIndex : 0
             };
             
-            canvasImages = [...canvasImages, newImage];
-            selectedImage = newImage;
-            saveToStore();
+             canvasImages = [...canvasImages, newImage];
+             selectedImage = canvasImages.find(img => img.id === newImage.id) || newImage;
+             saveToStore();
             redraw();
           };
         } catch (err) {
