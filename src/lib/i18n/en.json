@@ -99,6 +99,7 @@
     "importTasks": "Import Tasks",
     "importTasksTooltip": "Import tasks from a JSON file",
     "addTopicBtn": "Add Section",
+    "dropSectionHere": "Place here",
     "renameTopicPrompt": "Rename Section",
     "renameTopicTooltip": "Rename this section",
     "deleteTopicConfirmTitle": "Delete Section",

@@ -99,6 +99,7 @@
     "importTasks": "Aufgaben importieren",
     "importTasksTooltip": "Aufgaben aus einer JSON-Datei importieren",
     "addTopicBtn": "Bereich hinzufügen",
+    "dropSectionHere": "Hier platzieren",
     "renameTopicPrompt": "Bereich umbenennen",
     "renameTopicTooltip": "Diesen Bereich umbenennen",
     "deleteTopicConfirmTitle": "Bereich löschen",

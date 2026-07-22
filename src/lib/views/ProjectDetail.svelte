@@ -624,10 +624,12 @@
       const el = document.elementFromPoint(me.clientX, me.clientY);
       if (sectionDragGhostEl) sectionDragGhostEl.style.display = '';
       const sectionEl = el?.closest('[data-section-category]') as HTMLElement | null;
-      if (sectionEl && sectionEl.dataset.sectionCategory !== draggedSectionCategory) {
+      if (sectionEl) {
         const sections = Array.from(document.querySelectorAll('[data-section-category]'));
         const idx = sections.indexOf(sectionEl);
-        sectionDropTargetIndex = idx;
+        if (idx !== -1) {
+          sectionDropTargetIndex = idx;
+        }
       }
     }
 
@@ -1020,12 +1022,15 @@
       {#each categories as category, secIdx}
         {#if !isCategoryHidden(category)}
         {#if isSectionDragActive && sectionDropTargetIndex === secIdx && draggedSectionCategory && draggedSectionCategory !== category}
-          <div class="h-1 bg-primary rounded-full mx-2 animate-pulse"></div>
+          <div class="border-2 border-dashed border-primary/60 bg-primary/10 text-primary font-bold text-xs p-5 rounded-xl flex items-center justify-center gap-2 animate-pulse shadow-sm my-1 transition-all">
+            <span class="material-symbols-outlined text-[20px]">swap_vert</span>
+            <span>{draggedSectionCategory} — {t('projectDetail.dropSectionHere')}</span>
+          </div>
         {/if}
         {@const catTasks = getCategoryTasks(category)}
         {@const sectionKey = `section-collapsed-${project.id}-${category}`}
         <details 
-          class="group/section transition-all duration-200" 
+          class="group/section transition-all duration-200 {isSectionDragActive && draggedSectionCategory === category ? 'opacity-35 scale-[0.99] border-2 border-dashed border-primary/50 rounded-xl' : ''}" 
           open={getSectionOpenState(sectionKey)} 
           data-section-key={sectionKey} 
           data-section-category={category} 
