@@ -816,12 +816,10 @@
                     <button
                       type="button"
                       onclick={() => showOptionPreview[option.id] = !showOptionPreview[option.id]}
-                      class="text-on-surface-variant hover:text-primary p-1 hover:bg-surface-container rounded-lg cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
-                      title={showOptionPreview[option.id] ? (t('taskEditor.editMode') || 'Bearbeiten') : (t('taskEditor.previewMode') || 'Vorschau')}
+                      class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center gap-1 border border-outline-variant/30 cursor-pointer focus:outline-none transition-colors shrink-0"
                     >
-                      <span class="material-symbols-outlined text-[16px]">
-                        {showOptionPreview[option.id] ? 'visibility_off' : 'visibility'}
-                      </span>
+                      <span class="w-1.5 h-1.5 rounded-full {showOptionPreview[option.id] ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
+                      {showOptionPreview[option.id] ? (t('taskEditor.editMode') || 'Bearbeiten') : (t('taskEditor.previewMode') || 'Vorschau')}
                     </button>
 
                     <!-- Add Hint Button -->
@@ -857,16 +855,14 @@
                           <span class="material-symbols-outlined text-[14px]">info</span>
                           {t('taskEditor.mc.hintTitle') || 'Hinweis / Erklärung'}
                         </span>
-                        <div class="flex items-center gap-1">
+                        <div class="flex items-center gap-2">
                           <button
                             type="button"
                             onclick={() => showHintPreview[option.id] = !showHintPreview[option.id]}
-                            class="text-on-surface-variant hover:text-primary p-0.5 rounded hover:bg-surface-container cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
-                            title={showHintPreview[option.id] ? (t('taskEditor.editMode') || 'Bearbeiten') : (t('taskEditor.previewMode') || 'Vorschau')}
+                            class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center gap-1 border border-outline-variant/30 cursor-pointer focus:outline-none transition-colors shrink-0"
                           >
-                            <span class="material-symbols-outlined text-[14px]">
-                              {showHintPreview[option.id] ? 'visibility_off' : 'visibility'}
-                            </span>
+                            <span class="w-1.5 h-1.5 rounded-full {showHintPreview[option.id] ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
+                            {showHintPreview[option.id] ? (t('taskEditor.editMode') || 'Bearbeiten') : (t('taskEditor.previewMode') || 'Vorschau')}
                           </button>
                           <button
                             type="button"
