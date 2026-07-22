@@ -409,6 +409,7 @@ export async function getSettings(db: Database): Promise<Settings | null> {
   // Clean settings: only keep keys that exist in defaultSettings
   const cleaned: any = {};
   for (const key of Object.keys(defaultSettings)) {
+    if (key === 'stylusMode') continue; // Exclude stylusMode from DB loaded settings
     if (loadedSettings[key] !== undefined) {
       cleaned[key] = loadedSettings[key];
     } else {
@@ -422,6 +423,7 @@ export async function saveSettings(db: Database, settings: Settings): Promise<vo
   // Clean settings: only keep keys that exist in defaultSettings
   const cleaned: any = {};
   for (const key of Object.keys(defaultSettings)) {
+    if (key === 'stylusMode') continue; // Exclude stylusMode from DB saved settings
     if (settings[key] !== undefined) {
       cleaned[key] = settings[key];
     } else {

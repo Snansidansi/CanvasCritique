@@ -63,6 +63,12 @@
     invoke("set_sync_on_shutdown", { enabled: true }).catch(err => console.error("set_sync_on_shutdown failed:", err));
   });
 
+  $effect(() => {
+    if (store.settings && store.settings.stylusMode !== undefined) {
+      localStorage.setItem('canvascritique_stylus_mode', String(store.settings.stylusMode));
+    }
+  });
+
   onMount(() => {
     initTouchDragPolyfill();
 

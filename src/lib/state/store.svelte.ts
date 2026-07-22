@@ -299,6 +299,7 @@ class CanvasCritiqueStore {
         this.settings = defaultSettings;
         await dbSaveSettings(database, $state.snapshot(this.settings));
       }
+      this.settings.stylusMode = localStorage.getItem('canvascritique_stylus_mode') === 'true';
 
       this.statsHistory = data.requestLogs || [];
 
@@ -455,6 +456,7 @@ class CanvasCritiqueStore {
       this.profiles = [{ id: 'default-profile', name: 'General', icon: null, color: '#3b82f6' }];
       this.activeProfileId = 'default-profile';
       this.settings = defaultSettings;
+      this.settings.stylusMode = localStorage.getItem('canvascritique_stylus_mode') === 'true';
       this.projects = defaultProjects;
       this.customBackgrounds = [];
       this.canvasSaves = {};
@@ -535,7 +537,12 @@ class CanvasCritiqueStore {
     }
     this.settings = cleaned as Settings;
 
-    await dbSaveSettings(db, $state.snapshot(this.settings));
+    // Save stylusMode to localStorage
+    localStorage.setItem('canvascritique_stylus_mode', String(this.settings.stylusMode));
+
+    const dbSnapshot = $state.snapshot(this.settings);
+    delete (dbSnapshot as any).stylusMode;
+    await dbSaveSettings(db, dbSnapshot);
     this.applyTheme(this.settings.theme);
   }
 
