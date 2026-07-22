@@ -10,6 +10,7 @@
     shapeType = $bindable(),
     canvasMode,
     strokeHistory,
+    hasSelection = false,
     onInsertImage = null
   } = $props();
 
@@ -227,7 +228,7 @@
           <button 
             onclick={() => selectColor(color)}
             class="w-6 h-6 rounded-full cursor-pointer border-2 transition-all hover:scale-110 focus:outline-none" 
-            style="background-color: {color}; border-color: {strokeColor === color && activeTool === 'pen' ? 'var(--md-sys-color-primary, #1d4ed8)' : 'rgba(0, 0, 0, 0.15)'}; transform: {strokeColor === color && activeTool === 'pen' ? 'scale(1.15)' : 'none'}; box-shadow: {strokeColor === color && activeTool === 'pen' ? '0 0 0 2px var(--md-sys-color-primary-container, rgba(29,78,216,0.25))' : '0 1px 2px rgba(0,0,0,0.1)'};"
+            style="background-color: {color}; border-color: {strokeColor === color && (activeTool === 'pen' || hasSelection) ? 'var(--md-sys-color-primary, #1d4ed8)' : 'rgba(0, 0, 0, 0.15)'}; transform: {strokeColor === color && (activeTool === 'pen' || hasSelection) ? 'scale(1.15)' : 'none'}; box-shadow: {strokeColor === color && (activeTool === 'pen' || hasSelection) ? '0 0 0 2px var(--md-sys-color-primary-container, rgba(29,78,216,0.25))' : '0 1px 2px rgba(0,0,0,0.1)'};"
             title={t('practice.palette.clickToSelect')}
           ></button>
           {#if recentColors.length > 1}
@@ -241,7 +242,7 @@
       {/each}
       
       <!-- Save to palette button -->
-      {#if !isCustomColorInPalette && activeTool === 'pen'}
+      {#if !isCustomColorInPalette && (activeTool === 'pen' || hasSelection)}
         <button
           onclick={addColorToPalette}
           class="w-6 h-6 rounded-full cursor-pointer border-2 border-dashed border-primary/60 hover:border-primary hover:bg-primary/10 transition-all flex items-center justify-center text-primary hover:scale-110 focus:outline-none bg-transparent"

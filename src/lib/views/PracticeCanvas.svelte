@@ -677,6 +677,34 @@
   let contextMenu = $state(null); // { x, y, canvasX, canvasY }
   let longPressTimer = null;
 
+  // Load recent colors when selection is active
+  $effect(() => {
+    if (selectedStrokes.length > 0) {
+      const saved = localStorage.getItem('canvascritique_recent_colors') || localStorage.getItem('scribeflow_recent_colors');
+      if (saved) {
+        try {
+          canvasRecentColors = JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+  });
+
+  // Watch strokeColor to update selectedStrokes color
+  let lastAppliedColor = $state<string | null>(null);
+  $effect(() => {
+    const currentColor = strokeColor;
+    if (lastAppliedColor === null) {
+      lastAppliedColor = currentColor;
+      return;
+    }
+    if (currentColor !== lastAppliedColor) {
+      lastAppliedColor = currentColor;
+      if (selectedStrokes.length > 0) {
+        changeSelectedStrokesColor(currentColor);
+      }
+    }
+  });
+
   // Canvas Image states
   interface CanvasImage {
     id: string;
@@ -3246,6 +3274,23 @@
         img.height = action.from.height;
         canvasImages = [...canvasImages];
       }
+    } else if (action.type === 'change_color') {
+      const fromMap = new Map(action.from.map((s: any) => [s.id, s]));
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.map(s => {
+          const original = fromMap.get(s.id) as any;
+          return original ? { ...s, color: original.color } : s;
+        });
+      } else {
+        infiniteStrokes = infiniteStrokes.map(s => {
+          const original = fromMap.get(s.id) as any;
+          return original ? { ...s, color: original.color } : s;
+        });
+      }
+      selectedStrokes = selectedStrokes.map(s => {
+        const original = fromMap.get(s.id) as any;
+        return original ? { ...s, color: original.color } : s;
+      });
     }
     
     invalidateCache();
@@ -3302,6 +3347,23 @@
         img.height = action.to.height;
         canvasImages = [...canvasImages];
       }
+    } else if (action.type === 'change_color') {
+      const toMap = new Map(action.to.map((s: any) => [s.id, s]));
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.map(s => {
+          const updated = toMap.get(s.id) as any;
+          return updated ? { ...s, color: updated.color } : s;
+        });
+      } else {
+        infiniteStrokes = infiniteStrokes.map(s => {
+          const updated = toMap.get(s.id) as any;
+          return updated ? { ...s, color: updated.color } : s;
+        });
+      }
+      selectedStrokes = selectedStrokes.map(s => {
+        const updated = toMap.get(s.id) as any;
+        return updated ? { ...s, color: updated.color } : s;
+      });
     }
     
     invalidateCache();
@@ -3598,6 +3660,59 @@
     
     selectedStrokes = [];
     contextMenu = null;
+    saveToStore();
+    invalidateCache();
+    requestRedraw();
+  }
+
+  function changeSelectedStrokesColor(newColor: string) {
+    if (selectedStrokes.length === 0) return;
+    
+    // Ensure all selected strokes have IDs
+    for (const s of selectedStrokes) {
+      if (!s.id) {
+        s.id = Math.random().toString(36).substring(2, 9);
+      }
+    }
+
+    const originalStrokes = JSON.parse(JSON.stringify(selectedStrokes));
+    
+    selectedStrokes = selectedStrokes.map(s => ({
+      ...s,
+      color: newColor
+    }));
+    
+    const selectedIds = new Set(selectedStrokes.map(s => s.id));
+    
+    if (canvasMode === 'a4') {
+      pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.map(stroke => {
+        if (stroke.id && selectedIds.has(stroke.id)) {
+          return selectedStrokes.find(s => s.id === stroke.id)!;
+        }
+        return stroke;
+      });
+    } else {
+      infiniteStrokes = infiniteStrokes.map(stroke => {
+        if (stroke.id && selectedIds.has(stroke.id)) {
+          return selectedStrokes.find(s => s.id === stroke.id)!;
+        }
+        return stroke;
+      });
+    }
+    
+    const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+    undoStack.push({
+      type: 'change_color',
+      from: originalStrokes,
+      to: JSON.parse(JSON.stringify(selectedStrokes))
+    });
+    
+    if (canvasMode === 'a4') {
+      pages[activePageIndex].redoStack = [];
+    } else {
+      infiniteRedo = [];
+    }
+    
     saveToStore();
     invalidateCache();
     requestRedraw();
@@ -4501,7 +4616,7 @@
         {@const boxWidth = (bounds.maxX - bounds.minX) * scale}
         {@const boxHeight = (bounds.maxY - bounds.minY) * scale}
         
-        {@const toolbarWidth = 220}
+        {@const toolbarWidth = 440}
         {@const toolbarHeight = 40}
         {@const margin = 8}
         
@@ -4517,37 +4632,83 @@
           style="left: {constrainedX}px; top: {constrainedY}px; transform: {transformStyle};"
         >
           {#if !selectedImage}
+            <!-- Color presets -->
+            <div class="flex items-center gap-1 px-1 border-r border-outline-variant/50 mr-1 shrink-0">
+              {#each canvasRecentColors as color}
+                <button
+                  onclick={() => {
+                    strokeColor = color;
+                    changeSelectedStrokesColor(color);
+                  }}
+                  class="w-5.5 h-5.5 rounded-full cursor-pointer border transition-all hover:scale-110 focus:outline-none"
+                  style="background-color: {color}; border-color: {strokeColor === color ? 'var(--md-sys-color-primary, #1d4ed8)' : 'rgba(0, 0, 0, 0.15)'}; transform: {strokeColor === color ? 'scale(1.1)' : 'none'};"
+                  title={t('practice.palette.clickToSelect')}
+                ></button>
+              {/each}
+              
+              <!-- Custom color button -->
+              <button
+                onclick={() => toolbarColorInput?.click()}
+                class="w-5.5 h-5.5 rounded-full cursor-pointer border border-outline-variant/60 hover:scale-110 active:scale-[0.9] transition-all flex items-center justify-center relative overflow-hidden shrink-0"
+                style="background: conic-gradient(from 0deg, red, yellow, lime, aqua, blue, magenta, red);"
+                title={t('practice.palette.pickColor')}
+              >
+                <span class="material-symbols-outlined text-[11px] text-white font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">palette</span>
+              </button>
+              <input
+                type="color"
+                bind:this={toolbarColorInput}
+                value={strokeColor}
+                onchange={(e) => {
+                  const val = e.currentTarget.value;
+                  strokeColor = val;
+                  changeSelectedStrokesColor(val);
+                  
+                  // Add custom color to palette if not exists
+                  if (!canvasRecentColors.includes(val)) {
+                    if (canvasRecentColors.length >= 8) {
+                      canvasRecentColors = [...canvasRecentColors.slice(1), val];
+                    } else {
+                      canvasRecentColors = [...canvasRecentColors, val];
+                    }
+                    localStorage.setItem('canvascritique_recent_colors', JSON.stringify(canvasRecentColors));
+                  }
+                }}
+                class="hidden"
+              />
+            </div>
+            
             <button 
               onclick={copySelected}
-              class="px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent"
+              class="px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent shrink-0"
               title={t('practice.canvas.copy')}
             >
               <span class="material-symbols-outlined text-[14px]">content_copy</span>
               <span>{t('practice.canvas.copy')}</span>
             </button>
-            <div class="w-px h-3 bg-outline-variant/50"></div>
+            <div class="w-px h-3 bg-outline-variant/50 shrink-0"></div>
             <button 
               onclick={cutSelected}
-              class="px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent"
+              class="px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent shrink-0"
               title={t('practice.canvas.cut')}
             >
               <span class="material-symbols-outlined text-[14px]">content_cut</span>
               <span>{t('practice.canvas.cut')}</span>
             </button>
-            <div class="w-px h-3 bg-outline-variant/50"></div>
+            <div class="w-px h-3 bg-outline-variant/50 shrink-0"></div>
           {/if}
           <button 
             onclick={deleteSelected}
-            class="px-2.5 py-1 text-[10px] font-bold text-error hover:bg-error/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent"
+            class="px-2.5 py-1 text-[10px] font-bold text-error hover:bg-error/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent shrink-0"
             title={t('common.delete')}
           >
             <span class="material-symbols-outlined text-[14px]">delete</span>
             <span>{t('common.delete')}</span>
           </button>
-          <div class="w-px h-3 bg-outline-variant/50"></div>
+          <div class="w-px h-3 bg-outline-variant/50 shrink-0"></div>
           <button 
             onclick={() => { selectedStrokes = []; selectedImage = null; }}
-            class="px-2.5 py-1 text-[10px] font-bold text-outline hover:bg-surface-container rounded cursor-pointer transition-colors border-0 bg-transparent"
+            class="px-2.5 py-1 text-[10px] font-bold text-outline hover:bg-surface-container rounded cursor-pointer transition-colors border-0 bg-transparent shrink-0"
             title={t('project.cancelSelection')}
           >
             <span>{t('common.cancel')}</span>
@@ -4617,7 +4778,8 @@
         bind:eraserWidth
         bind:shapeType
         {canvasMode}
-        {strokeHistory}
+        strokeHistory={canvasMode === 'a4' ? (pages[activePageIndex]?.strokeHistory || []) : infiniteStrokes}
+        hasSelection={selectedStrokes.length > 0}
         onInsertImage={triggerImageUpload}
       />
 
