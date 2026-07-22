@@ -1822,6 +1822,23 @@
     });
   }
 
+  function getImageInMarquee(x1, y1, x2, y2) {
+    const minX = Math.min(x1, x2);
+    const maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2);
+    const maxY = Math.max(y1, y2);
+    
+    return canvasImages.find(img => {
+      if (canvasMode === 'a4' && img.pageIndex !== activePageIndex) return false;
+      const imgMinX = img.x;
+      const imgMaxX = img.x + img.width;
+      const imgMinY = img.y;
+      const imgMaxY = img.y + img.height;
+      
+      return !(imgMaxX < minX || imgMinX > maxX || imgMaxY < minY || imgMinY > maxY);
+    });
+  }
+
   function removeFullyErasedStrokes(eraserStroke) {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const p of eraserStroke.points) {
@@ -2258,7 +2275,7 @@
 
     // Check if clicked near the active selected image's resize handle
     const handleSize = 15 / (canvasMode === 'infinite' ? zoomScale : 1);
-    const isNearBottomRight = selectedImage &&
+    const isNearBottomRight = selectedImage && selectedStrokes.length === 0 &&
       Math.abs(coords.x - (selectedImage.x + selectedImage.width)) <= handleSize &&
       Math.abs(coords.y - (selectedImage.y + selectedImage.height)) <= handleSize;
       
@@ -2282,7 +2299,7 @@
       return;
     }
 
-    const shouldDragImage = clickedImage && (activeTool === 'select' || activeTool === 'pan' || selectedImage !== null);
+    const shouldDragImage = clickedImage && (activeTool === 'select' || isPointerSelect || activeTool === 'pan' || selectedImage !== null);
 
     if (shouldDragImage) {
       selectedImage = clickedImage;
@@ -2299,13 +2316,15 @@
     }
 
     if (isClickInSelection) {
-      if (selectedImage) {
+      if (selectedImage && selectedStrokes.length === 0) {
         isMovingImage = true;
         imageDragStart = { x: coords.x, y: coords.y };
         imageStartRect = { x: selectedImage.x, y: selectedImage.y, width: selectedImage.width, height: selectedImage.height };
       } else {
         isMovingSelection = true;
         selectionDragStart = { x: coords.x, y: coords.y };
+        selectionStartStrokes = JSON.parse(JSON.stringify(selectedStrokes));
+        selectionStartImageRect = selectedImage ? { x: selectedImage.x, y: selectedImage.y } : null;
       }
       selectionBox = null;
       if (longPressTimer) {
@@ -2496,52 +2515,65 @@
       return;
     }
 
-    if (isMovingSelection && selectedStrokes.length > 0) {
+    if (isMovingSelection) {
       const dx = coords.x - selectionDragStart.x;
       const dy = coords.y - selectionDragStart.y;
+      let movedAny = false;
       
-      // Ensure all selected strokes have IDs
-      for (const s of selectedStrokes) {
-        if (!s.id) {
-          s.id = Math.random().toString(36).substring(2, 9);
+      if (selectedStrokes.length > 0) {
+        // Ensure all selected strokes have IDs
+        for (const s of selectedStrokes) {
+          if (!s.id) {
+            s.id = Math.random().toString(36).substring(2, 9);
+          }
         }
+
+        const updatedSelectedStrokes = selectedStrokes.map(stroke => {
+          const newPoints = stroke.points.map(p => ({
+            x: p.x + dx,
+            y: p.y + dy
+          }));
+          const newStroke = {
+            ...stroke,
+            points: newPoints
+          };
+          newStroke.bounds = calculateStrokeBounds(newStroke);
+          return newStroke;
+        });
+        
+        selectedStrokes = updatedSelectedStrokes;
+        const selectedIds = new Set(updatedSelectedStrokes.map(s => s.id));
+        
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.map(stroke => {
+            if (stroke.id && selectedIds.has(stroke.id)) {
+              return updatedSelectedStrokes.find(s => s.id === stroke.id)!;
+            }
+            return stroke;
+          });
+        } else {
+          infiniteStrokes = infiniteStrokes.map(stroke => {
+            if (stroke.id && selectedIds.has(stroke.id)) {
+              return updatedSelectedStrokes.find(s => s.id === stroke.id)!;
+            }
+            return stroke;
+          });
+        }
+        movedAny = true;
       }
 
-      const updatedSelectedStrokes = selectedStrokes.map(stroke => {
-        const newPoints = stroke.points.map(p => ({
-          x: p.x + dx,
-          y: p.y + dy
-        }));
-        const newStroke = {
-          ...stroke,
-          points: newPoints
-        };
-        newStroke.bounds = calculateStrokeBounds(newStroke);
-        return newStroke;
-      });
-      
-      selectedStrokes = updatedSelectedStrokes;
-      const selectedIds = new Set(updatedSelectedStrokes.map(s => s.id));
-      
-      if (canvasMode === 'a4') {
-        pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.map(stroke => {
-          if (stroke.id && selectedIds.has(stroke.id)) {
-            return updatedSelectedStrokes.find(s => s.id === stroke.id)!;
-          }
-          return stroke;
-        });
-      } else {
-        infiniteStrokes = infiniteStrokes.map(stroke => {
-          if (stroke.id && selectedIds.has(stroke.id)) {
-            return updatedSelectedStrokes.find(s => s.id === stroke.id)!;
-          }
-          return stroke;
-        });
+      if (selectedImage) {
+        selectedImage.x += dx;
+        selectedImage.y += dy;
+        canvasImages = [...canvasImages];
+        movedAny = true;
       }
-      
-      selectionDragStart = { x: coords.x, y: coords.y };
-      invalidateCache();
-      requestRedraw();
+
+      if (movedAny) {
+        selectionDragStart = { x: coords.x, y: coords.y };
+        invalidateCache();
+        requestRedraw();
+      }
     } else if (activeTool === 'select' || isPointerSelect) {
       if (selectionBox) {
         selectionBox.x2 = coords.x;
@@ -2649,6 +2681,7 @@
     } else if (activeTool === 'select' || isPointerSelect) {
       if (selectionBox) {
         selectedStrokes = getStrokesInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2);
+        selectedImage = getImageInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2) || null;
         selectionBox = null;
       }
     } else if (isShapeDrawing) {
