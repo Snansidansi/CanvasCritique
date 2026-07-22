@@ -289,9 +289,24 @@
     const elapsed = Date.now() - pointerDownTime;
     const isTap = elapsed < 250;
 
-    // Tap detection: if released quickly (< 250ms), toggle collapse state
+    // Tap detection: if released quickly (< 250ms), toggle collapse state.
+    // After toggling, swallow the synthetic click event the browser fires after
+    // pointerup — otherwise it would land on the now-visible collapse button and
+    // immediately collapse the palette again.
     if (wasCollapsedOnDown && isTap) {
+      e.preventDefault();
       toggleCollapse();
+      // One-shot capture listener to absorb the follow-up click
+      const absorbClick = (ev: Event) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+        paletteElement?.removeEventListener('click', absorbClick, true);
+      };
+      paletteElement?.addEventListener('click', absorbClick, true);
+      // Safety cleanup in case click never fires
+      setTimeout(() => {
+        paletteElement?.removeEventListener('click', absorbClick, true);
+      }, 500);
     }
 
     if (!isTap && rightX !== null && bottomY !== null) {
