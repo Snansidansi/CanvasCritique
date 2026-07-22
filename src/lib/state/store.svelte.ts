@@ -340,10 +340,17 @@ class CanvasCritiqueStore {
         this.settings.openRouterProvider = [];
       }
 
-      if (!this.settings.canvasFontSize || typeof this.settings.canvasFontSize !== 'number') {
+      const localCanvasFontSize = localStorage.getItem('canvascritique_canvas_fontsize');
+      if (localCanvasFontSize) {
+        this.settings.canvasFontSize = parseInt(localCanvasFontSize, 10);
+      } else if (!this.settings.canvasFontSize || typeof this.settings.canvasFontSize !== 'number') {
         this.settings.canvasFontSize = 13;
       }
-      if (!this.settings.editorFontSize || typeof this.settings.editorFontSize !== 'number') {
+
+      const localEditorFontSize = localStorage.getItem('canvascritique_editor_fontsize');
+      if (localEditorFontSize) {
+        this.settings.editorFontSize = parseInt(localEditorFontSize, 10);
+      } else if (!this.settings.editorFontSize || typeof this.settings.editorFontSize !== 'number') {
         this.settings.editorFontSize = 16;
       }
       if (!this.settings.eraserMode || (this.settings.eraserMode !== 'normal' && this.settings.eraserMode !== 'stroke')) {
@@ -537,11 +544,19 @@ class CanvasCritiqueStore {
     }
     this.settings = cleaned as Settings;
 
-    // Save stylusMode to localStorage
+    // Save stylusMode, canvasFontSize, and editorFontSize to localStorage
     localStorage.setItem('canvascritique_stylus_mode', String(this.settings.stylusMode));
+    if (this.settings.canvasFontSize !== undefined) {
+      localStorage.setItem('canvascritique_canvas_fontsize', String(this.settings.canvasFontSize));
+    }
+    if (this.settings.editorFontSize !== undefined) {
+      localStorage.setItem('canvascritique_editor_fontsize', String(this.settings.editorFontSize));
+    }
 
     const dbSnapshot = $state.snapshot(this.settings);
     delete (dbSnapshot as any).stylusMode;
+    delete (dbSnapshot as any).canvasFontSize;
+    delete (dbSnapshot as any).editorFontSize;
     await dbSaveSettings(db, dbSnapshot);
     this.applyTheme(this.settings.theme);
   }
