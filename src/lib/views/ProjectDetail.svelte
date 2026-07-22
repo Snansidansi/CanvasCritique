@@ -370,34 +370,44 @@
   }
 
   // Edge auto-scrolling during drag
+  let mainScrollEl = $state<HTMLElement | null>(null);
   let autoScrollRafId: number | null = null;
-  function updateAutoScroll(pointerY: number, containerEl: HTMLElement | null = null) {
-    if (autoScrollRafId) cancelAnimationFrame(autoScrollRafId);
-    const scrollTarget = containerEl || document.scrollingElement || document.documentElement;
-    const threshold = 100;
-    const viewportHeight = window.innerHeight;
+  let autoScrollSpeed = 0;
+
+  function autoScrollLoop() {
+    if (autoScrollSpeed !== 0) {
+      const scrollTarget = mainScrollEl || document.querySelector('main') || document.documentElement;
+      if (scrollTarget) {
+        scrollTarget.scrollTop += autoScrollSpeed;
+      }
+      autoScrollRafId = requestAnimationFrame(autoScrollLoop);
+    } else {
+      autoScrollRafId = null;
+    }
+  }
+
+  function updateAutoScroll(pointerY: number) {
+    const scrollTarget = mainScrollEl || document.querySelector('main');
+    const rect = scrollTarget ? scrollTarget.getBoundingClientRect() : { top: 0, bottom: window.innerHeight, height: window.innerHeight };
+    const threshold = 120;
 
     let speed = 0;
-    if (pointerY < threshold) {
-      speed = -Math.max(4, Math.min(25, (threshold - pointerY) * 0.35));
-    } else if (pointerY > viewportHeight - threshold) {
-      speed = Math.max(4, Math.min(25, (pointerY - (viewportHeight - threshold)) * 0.35));
+    if (pointerY < rect.top + threshold) {
+      const dist = Math.max(0, (rect.top + threshold) - pointerY);
+      speed = -Math.max(5, Math.min(30, dist * 0.35));
+    } else if (pointerY > rect.bottom - threshold) {
+      const dist = Math.max(0, pointerY - (rect.bottom - threshold));
+      speed = Math.max(5, Math.min(30, dist * 0.35));
     }
 
-    if (speed !== 0) {
-      function step() {
-        if (scrollTarget === document.scrollingElement || scrollTarget === document.documentElement) {
-          window.scrollBy(0, speed);
-        } else if (scrollTarget instanceof HTMLElement) {
-          scrollTarget.scrollTop += speed;
-        }
-        autoScrollRafId = requestAnimationFrame(step);
-      }
-      autoScrollRafId = requestAnimationFrame(step);
+    autoScrollSpeed = speed;
+    if (speed !== 0 && !autoScrollRafId) {
+      autoScrollRafId = requestAnimationFrame(autoScrollLoop);
     }
   }
 
   function stopAutoScroll() {
+    autoScrollSpeed = 0;
     if (autoScrollRafId) {
       cancelAnimationFrame(autoScrollRafId);
       autoScrollRafId = null;
@@ -910,6 +920,7 @@
 
 <!-- Main details area -->
 <main 
+  bind:this={mainScrollEl}
   class="grow overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar h-full {(isDragging && !sectionDropTargetCat) ? 'bg-primary/5 ring-2 ring-primary/30 ring-inset' : ''}"
   ondragover={handleMainDragOver}
   ondragenter={handleMainDragEnter}
