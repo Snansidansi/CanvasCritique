@@ -2006,6 +2006,84 @@
     return distSq < maxDist * maxDist;
   }
 
+  function doSegmentsIntersect(
+    ax: number, ay: number, bx: number, by: number,
+    cx: number, cy: number, dx: number, dy: number
+  ): boolean {
+    function ccw(pX: number, pY: number, qX: number, qY: number, rX: number, rY: number) {
+      return (rY - pY) * (qX - pX) > (qY - pY) * (rX - pX);
+    }
+    return (
+      ccw(ax, ay, cx, cy, dx, dy) !== ccw(bx, by, cx, cy, dx, dy) &&
+      ccw(ax, ay, bx, by, cx, cy) !== ccw(ax, ay, bx, by, dx, dy)
+    );
+  }
+
+  function isStrokeHitBySegment(stroke: Stroke, p1: Point, p2: Point, hitRadius: number): boolean {
+    if (!stroke.points || stroke.points.length === 0) return false;
+
+    if (stroke.points.length === 1) {
+      const p = stroke.points[0];
+      return isPointNearSegment(p.x, p.y, p1.x, p1.y, p2.x, p2.y, hitRadius);
+    }
+
+    for (let i = 0; i < stroke.points.length - 1; i++) {
+      const a = stroke.points[i];
+      const b = stroke.points[i + 1];
+
+      if (
+        isPointNearSegment(a.x, a.y, p1.x, p1.y, p2.x, p2.y, hitRadius) ||
+        isPointNearSegment(b.x, b.y, p1.x, p1.y, p2.x, p2.y, hitRadius) ||
+        isPointNearSegment(p1.x, p1.y, a.x, a.y, b.x, b.y, hitRadius) ||
+        isPointNearSegment(p2.x, p2.y, a.x, a.y, b.x, b.y, hitRadius) ||
+        doSegmentsIntersect(a.x, a.y, b.x, b.y, p1.x, p1.y, p2.x, p2.y)
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function checkAndEraseStrokes(p1: Point, p2: Point) {
+    const hitRadius = eraserWidth;
+    const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+    if (!currentHistory || currentHistory.length === 0) return;
+
+    const toRemove = new Set<Stroke>();
+    const toRemoveIds = new Set<string>();
+
+    for (const stroke of currentHistory) {
+      if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
+      if (!stroke.id) stroke.id = Math.random().toString(36).substring(2, 9);
+      
+      if (isStrokeHitBySegment(stroke, p1, p2, hitRadius)) {
+        toRemove.add(stroke);
+        if (stroke.id) toRemoveIds.add(stroke.id);
+      }
+    }
+
+    if (toRemove.size > 0) {
+      const newHistory = currentHistory.filter(s => !toRemove.has(s) && (!s.id || !toRemoveIds.has(s.id)));
+      for (const stroke of toRemove) {
+        const alreadyInSession = erasedStrokesInSession.some(
+          s => s === stroke || (s.id && stroke.id && s.id === stroke.id)
+        );
+        if (!alreadyInSession) {
+          erasedStrokesInSession.push(stroke);
+        }
+      }
+
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = newHistory;
+      } else {
+        infiniteStrokes = newHistory;
+      }
+      invalidateCache();
+      requestRedraw();
+    }
+  }
+
   function isPointNearEraser(p: Point, eraserStroke: { points: Point[], width: number }): boolean {
     const hitRadius = eraserStroke.width / 2;
     if (eraserStroke.points.length === 1) {
@@ -2045,21 +2123,7 @@
   }
 
   function isStrokeHit(stroke: Stroke, coords: { x: number; y: number }, hitRadius: number): boolean {
-    if (stroke.points.length === 0) return false;
-    
-    if (stroke.points.length === 1) {
-      const p = stroke.points[0];
-      return Math.hypot(p.x - coords.x, p.y - coords.y) < hitRadius;
-    }
-    
-    for (let i = 0; i < stroke.points.length - 1; i++) {
-      const a = stroke.points[i];
-      const b = stroke.points[i + 1];
-      if (isPointNearSegment(coords.x, coords.y, a.x, a.y, b.x, b.y, hitRadius)) {
-        return true;
-      }
-    }
-    return false;
+    return isStrokeHitBySegment(stroke, coords, coords, hitRadius);
   }
 
   function generateShapePoints(shape: string, x1: number, y1: number, x2: number, y2: number): Point[] {
@@ -2303,45 +2367,13 @@
 
     // Stroke-erase mode: delete entire stroke under pointer (drag-support)
     if (!isClickInSelection && (activeTool === 'eraser' || isPointerEraser) && effectiveEraserSettings.eraserMode === 'stroke') {
-      const hitRadius = eraserWidth;
-      const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
-      let erased = false;
       erasedStrokesInSession = [];
-
-      // Ensure all strokes in history have unique IDs for robust proxy comparison
-      for (const stroke of currentHistory) {
-        if (!stroke.id) stroke.id = Math.random().toString(36).substring(2, 9);
-      }
-
-      let strokeToErase: Stroke | null = null;
-      for (let i = currentHistory.length - 1; i >= 0; i--) {
-        const stroke = currentHistory[i];
-        if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
-        if (isStrokeHit(stroke, coords, hitRadius)) {
-          strokeToErase = stroke;
-          break;
-        }
-      }
-      if (strokeToErase) {
-        erasedStrokesInSession.push(strokeToErase);
-        const eraseId = strokeToErase.id;
-        const newHistory = currentHistory.filter(s => s !== strokeToErase && (!eraseId || s.id !== eraseId));
-        if (canvasMode === 'a4') {
-          pages[activePageIndex].strokeHistory = newHistory;
-        } else {
-          infiniteStrokes = newHistory;
-        }
-        erased = true;
-      }
-      if (erased) {
-        invalidateCache();
-        requestRedraw();
-      }
       isStrokeErasing = true;
       lastStrokeEraserCoords = coords;
       try {
         canvasElement.setPointerCapture(e.pointerId);
       } catch (err) {}
+      checkAndEraseStrokes(coords, coords);
       e.preventDefault();
       return;
     }
@@ -2501,68 +2533,16 @@
     // Handle stroke-erasing BEFORE the e.buttons check — touch events always
     // report e.buttons === 0, so erasing during drag would be skipped otherwise.
     if (isStrokeErasing) {
+      if (e.pointerType === 'mouse' && e.buttons === 0) {
+        endStrokeErasing();
+        return;
+      }
       e.preventDefault();
-      const hitRadius = eraserWidth;
-      const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
       const coords = getCoords(e);
-      let erased = false;
-      
       const p1 = lastStrokeEraserCoords || coords;
       const p2 = coords;
       lastStrokeEraserCoords = coords;
-      
-      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-      const stepDist = Math.max(2, hitRadius / 3);
-      const steps = Math.max(1, Math.ceil(dist / stepDist));
-      
-      const strokesToEraseSet = new Set<Stroke>();
-      const strokeIdsToEraseSet = new Set<string>();
-
-      for (let step = 0; step <= steps; step++) {
-        const t = step / steps;
-        const pt = {
-          x: p1.x + (p2.x - p1.x) * t,
-          y: p1.y + (p2.y - p1.y) * t
-        };
-        
-        for (const stroke of currentHistory) {
-          if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
-          if (!stroke.id) stroke.id = Math.random().toString(36).substring(2, 9);
-          if (isStrokeHit(stroke, pt, hitRadius)) {
-            strokesToEraseSet.add(stroke);
-            if (stroke.id) strokeIdsToEraseSet.add(stroke.id);
-          }
-        }
-      }
-
-      if (strokesToEraseSet.size > 0) {
-        const newHistory = currentHistory.filter(s => {
-          if (strokesToEraseSet.has(s)) return false;
-          if (s.id && strokeIdsToEraseSet.has(s.id)) return false;
-          return true;
-        });
-
-        for (const stroke of strokesToEraseSet) {
-          const alreadyAdded = erasedStrokesInSession.some(
-            s => s === stroke || (s.id && stroke.id && s.id === stroke.id)
-          );
-          if (!alreadyAdded) {
-            erasedStrokesInSession.push(stroke);
-          }
-        }
-
-        if (canvasMode === 'a4') {
-          pages[activePageIndex].strokeHistory = newHistory;
-        } else {
-          infiniteStrokes = newHistory;
-        }
-        erased = true;
-      }
-
-      if (erased) {
-        invalidateCache();
-        requestRedraw();
-      }
+      checkAndEraseStrokes(p1, p2);
       return;
     }
 
