@@ -1258,12 +1258,15 @@
     return parts.join('\n\n---\n\n');
   });
 
-  const hasTaskData = (task.instructions && task.instructions.trim() !== '') || (task.instructionFiles && task.instructionFiles.length > 0) || task.instructionFile;
-  const hasSolutionData = (combinedSolutionContent && combinedSolutionContent.trim() !== '') || (task.solutionFiles && task.solutionFiles.length > 0) || task.solutionFile;
-
   let activeLeftPanels = $derived([
-    showTask && hasTaskData && { id: 'task', title: `${task.category && task.category !== 'Basics' ? task.category + ' - ' : ''}${task.name}`, content: task.instructions },
-    showSolution && hasSolutionData && { id: 'solution', title: t('practice.evaluationGoal'), content: combinedSolutionContent },
+    (() => {
+      const hasTaskData = (task.instructions && task.instructions.trim() !== '') || (task.instructionFiles && task.instructionFiles.length > 0) || task.instructionFile;
+      return showTask && hasTaskData && { id: 'task', title: `${task.category && task.category !== 'Basics' ? task.category + ' - ' : ''}${task.name}`, content: task.instructions };
+    })(),
+    (() => {
+      const hasSolutionData = (combinedSolutionContent && combinedSolutionContent.trim() !== '') || (task.solutionFiles && task.solutionFiles.length > 0) || task.solutionFile;
+      return showSolution && hasSolutionData && { id: 'solution', title: t('practice.evaluationGoal'), content: combinedSolutionContent };
+    })(),
     showFeedback && hasCheckedWork && { 
       id: 'feedback', 
       title: isOnlyMcCorrected ? 'Feedback' : t('practice.aiCritiqueFeedback'), 
