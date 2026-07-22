@@ -373,40 +373,7 @@
                         </div>
                         <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">{t('settings.canvas.eraser.strokeDesc')}</p>
                       </div>
-                    </button>
                   </div>
-
-                  {#if project.settingsOverride.eraserMode === 'normal'}
-                    <div class="flex flex-col gap-2 mt-3">
-                      <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.eraser.normalSize')}</span>
-                        <span class="text-[10px] font-bold text-primary">{project.settingsOverride.eraserRadiusNormal ?? 24}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="4"
-                        max="80"
-                        value={project.settingsOverride.eraserRadiusNormal ?? 24}
-                        oninput={(e) => { if (project.settingsOverride) { project.settingsOverride.eraserRadiusNormal = parseInt(e.currentTarget.value); store.saveProjects(); } }}
-                        class="w-full h-1 accent-primary cursor-pointer border-0"
-                      />
-                    </div>
-                  {:else}
-                    <div class="flex flex-col gap-2 mt-3">
-                      <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.eraser.strokeRadius')}</span>
-                        <span class="text-[10px] font-bold text-primary">{project.settingsOverride.eraserRadiusStroke ?? 24}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="4"
-                        max="80"
-                        value={project.settingsOverride.eraserRadiusStroke ?? 24}
-                        oninput={(e) => { if (project.settingsOverride) { project.settingsOverride.eraserRadiusStroke = parseInt(e.currentTarget.value); store.saveProjects(); } }}
-                        class="w-full h-1 accent-primary cursor-pointer border-0"
-                      />
-                    </div>
-                  {/if}
                 </div>
               </div>
             {:else}

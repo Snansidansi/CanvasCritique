@@ -55,42 +55,6 @@
         </div>
       </button>
     </div>
-
-    {#if store.settings.eraserMode === 'normal'}
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.eraser.normalSize')}</span>
-          <span class="text-xs font-bold text-primary">{store.settings.eraserRadiusNormal ?? 24}px</span>
-        </div>
-        <div class="flex items-center gap-4">
-          <input
-            type="range"
-            min="4"
-            max="80"
-            bind:value={store.settings.eraserRadiusNormal}
-            onchange={() => store.saveSettings()}
-            class="flex-1 h-1 accent-primary cursor-pointer"
-          />
-        </div>
-      </div>
-    {:else}
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.eraser.strokeRadius')}</span>
-          <span class="text-xs font-bold text-primary">{store.settings.eraserRadiusStroke ?? 24}px</span>
-        </div>
-        <div class="flex items-center gap-4">
-          <input
-            type="range"
-            min="4"
-            max="80"
-            bind:value={store.settings.eraserRadiusStroke}
-            onchange={() => store.saveSettings()}
-            class="flex-1 h-1 accent-primary cursor-pointer"
-          />
-        </div>
-      </div>
-    {/if}
   </div>
 
 

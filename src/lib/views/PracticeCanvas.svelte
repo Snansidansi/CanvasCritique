@@ -2287,7 +2287,7 @@
 
     // Stroke-erase mode: delete entire stroke under pointer (drag-support)
     if (!isClickInSelection && (activeTool === 'eraser' || isPointerEraser) && effectiveEraserSettings.eraserMode === 'stroke') {
-      const hitRadius = effectiveEraserSettings.eraserRadiusStroke ?? 24;
+      const hitRadius = eraserWidth;
       const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
       let erased = false;
       erasedStrokesInSession = [];
@@ -2311,6 +2311,9 @@
         requestRedraw();
       }
       isStrokeErasing = true;
+      try {
+        canvasElement.setPointerCapture(e.pointerId);
+      } catch (err) {}
       saveToStore();
       e.preventDefault();
       return;
@@ -2530,7 +2533,7 @@
 
     if (isStrokeErasing) {
       e.preventDefault();
-      const hitRadius = effectiveEraserSettings.eraserRadiusStroke ?? 24;
+      const hitRadius = eraserWidth;
       const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
       const coords = getCoords(e);
       let erased = false;
@@ -2543,7 +2546,6 @@
           }
           currentHistory.splice(i, 1);
           erased = true;
-          break;
         }
       }
       if (erased) {

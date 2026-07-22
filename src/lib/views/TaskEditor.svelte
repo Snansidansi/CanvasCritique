@@ -2111,37 +2111,7 @@
                         <option value="stroke">Strich radieren</option>
                       </select>
                     </div>
-
-                    <!-- Eraser Normal Radius -->
-                    <div class="flex flex-col gap-1.5 bg-surface-container-low px-3 py-2.5 rounded-lg border border-outline-variant">
-                      <div class="flex justify-between items-center text-xs font-semibold text-on-surface">
-                        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px] text-primary">blur_on</span>Pixel Radius</span>
-                        <span class="font-mono text-primary">{settingsOverride.eraserRadiusNormal}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="5"
-                        max="100"
-                        bind:value={settingsOverride.eraserRadiusNormal}
-                        class="w-full h-1.5 bg-outline-variant/30 rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
-                      />
                     </div>
-
-                    <!-- Eraser Stroke Radius -->
-                    <div class="flex flex-col gap-1.5 bg-surface-container-low px-3 py-2.5 rounded-lg border border-outline-variant">
-                      <div class="flex justify-between items-center text-xs font-semibold text-on-surface">
-                        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px] text-primary">gesture</span>Strich-Erkennungsradius</span>
-                        <span class="font-mono text-primary">{settingsOverride.eraserRadiusStroke}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="5"
-                        max="100"
-                        bind:value={settingsOverride.eraserRadiusStroke}
-                        class="w-full h-1.5 bg-outline-variant/30 rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
-                      />
-                    </div>
-                  </div>
                 {:else}
                   <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
                     <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">ink_eraser</span>
