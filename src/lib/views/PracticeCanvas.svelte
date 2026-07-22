@@ -1991,7 +1991,7 @@
         const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
         const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
         const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-        const radius = Math.min(maxX - minX, maxY - minY) / 2;
+        const radius = Math.min(maxX - minX, maxY - minY) / Math.SQRT2;
         const steps = 64;
         const pts: Point[] = [];
         for (let i = 0; i <= steps; i++) {
@@ -2004,7 +2004,7 @@
         const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
         const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
         const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-        const rx = (maxX - minX) / 2, ry = (maxY - minY) / 2;
+        const rx = (maxX - minX) / Math.SQRT2, ry = (maxY - minY) / Math.SQRT2;
         const steps = 64;
         const pts: Point[] = [];
         for (let i = 0; i <= steps; i++) {
