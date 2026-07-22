@@ -30,7 +30,7 @@
   let dragStartBottom = 0;
   let wasCollapsedOnDown = false;
   let hasDragged = $state(false);
-
+  let pointerDownTime = 0;
   let paletteElement = $state<HTMLElement | null>(null);
 
   // Shape popup state
@@ -211,6 +211,7 @@
 
     isDragging = true;
     hasDragged = false;
+    pointerDownTime = Date.now();
     dragStartMouseX = e.clientX;
     dragStartMouseY = e.clientY;
 
@@ -285,12 +286,15 @@
       paletteElement?.releasePointerCapture(e.pointerId);
     } catch (err) {}
 
-    // Tap detection: only toggle collapse if user did not drag beyond threshold
-    if (wasCollapsedOnDown && !hasDragged) {
+    const elapsed = Date.now() - pointerDownTime;
+    const isTap = elapsed < 250;
+
+    // Tap detection: if released quickly (< 250ms), toggle collapse state
+    if (wasCollapsedOnDown && isTap) {
       toggleCollapse();
     }
 
-    if (hasDragged && rightX !== null && bottomY !== null) {
+    if (!isTap && rightX !== null && bottomY !== null) {
       localStorage.setItem('canvascritique_palette_pos', JSON.stringify({ right: rightX, bottom: bottomY }));
     }
     hasDragged = false;

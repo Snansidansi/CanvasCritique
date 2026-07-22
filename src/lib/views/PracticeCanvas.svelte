@@ -2492,6 +2492,70 @@
       };
     }
 
+    // Handle stroke-erasing BEFORE the e.buttons check — touch events always
+    // report e.buttons === 0, so erasing during drag would be skipped otherwise.
+    if (isStrokeErasing) {
+      e.preventDefault();
+      const hitRadius = eraserWidth;
+      const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+      const coords = getCoords(e);
+      let erased = false;
+      
+      const p1 = lastStrokeEraserCoords || coords;
+      const p2 = coords;
+      lastStrokeEraserCoords = coords;
+      
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const stepDist = Math.max(2, hitRadius / 3);
+      const steps = Math.max(1, Math.ceil(dist / stepDist));
+      
+      const strokesToErase: Stroke[] = [];
+      for (let step = 0; step <= steps; step++) {
+        const t = step / steps;
+        const pt = {
+          x: p1.x + (p2.x - p1.x) * t,
+          y: p1.y + (p2.y - p1.y) * t
+        };
+        
+        for (const stroke of currentHistory) {
+          if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
+          if (!stroke.id) stroke.id = Math.random().toString(36).substring(2, 9);
+          if (isStrokeHit(stroke, pt, hitRadius)) {
+            if (!strokesToErase.includes(stroke)) {
+              strokesToErase.push(stroke);
+            }
+          }
+        }
+      }
+
+      if (strokesToErase.length > 0) {
+        const newHistory = currentHistory.filter(s => {
+          if (strokesToErase.includes(s)) return false;
+          if (s.id && strokesToErase.some(se => se.id === s.id)) return false;
+          return true;
+        });
+
+        for (const stroke of strokesToErase) {
+          if (!erasedStrokesInSession.some(s => s === stroke || (s.id && s.id === stroke.id))) {
+            erasedStrokesInSession.push(stroke);
+          }
+        }
+
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].strokeHistory = newHistory;
+        } else {
+          infiniteStrokes = newHistory;
+        }
+        erased = true;
+      }
+
+      if (erased) {
+        invalidateCache();
+        requestRedraw();
+      }
+      return;
+    }
+
     if (e.buttons === 0) {
       activePointers.clear();
       isDrawing = false;
@@ -2553,68 +2617,6 @@
       if (longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
-      }
-      return;
-    }
-
-    if (isStrokeErasing) {
-      e.preventDefault();
-      const hitRadius = eraserWidth;
-      const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
-      const coords = getCoords(e);
-      let erased = false;
-      
-      const p1 = lastStrokeEraserCoords || coords;
-      const p2 = coords;
-      lastStrokeEraserCoords = coords;
-      
-      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-      const stepDist = Math.max(2, hitRadius / 3);
-      const steps = Math.max(1, Math.ceil(dist / stepDist));
-      
-      const strokesToErase: Stroke[] = [];
-      for (let step = 0; step <= steps; step++) {
-        const t = step / steps;
-        const pt = {
-          x: p1.x + (p2.x - p1.x) * t,
-          y: p1.y + (p2.y - p1.y) * t
-        };
-        
-        for (const stroke of currentHistory) {
-          if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
-          if (!stroke.id) stroke.id = Math.random().toString(36).substring(2, 9);
-          if (isStrokeHit(stroke, pt, hitRadius)) {
-            if (!strokesToErase.includes(stroke)) {
-              strokesToErase.push(stroke);
-            }
-          }
-        }
-      }
-
-      if (strokesToErase.length > 0) {
-        const newHistory = currentHistory.filter(s => {
-          if (strokesToErase.includes(s)) return false;
-          if (s.id && strokesToErase.some(se => se.id === s.id)) return false;
-          return true;
-        });
-
-        for (const stroke of strokesToErase) {
-          if (!erasedStrokesInSession.some(s => s === stroke || (s.id && s.id === stroke.id))) {
-            erasedStrokesInSession.push(stroke);
-          }
-        }
-
-        if (canvasMode === 'a4') {
-          pages[activePageIndex].strokeHistory = newHistory;
-        } else {
-          infiniteStrokes = newHistory;
-        }
-        erased = true;
-      }
-
-      if (erased) {
-        invalidateCache();
-        requestRedraw();
       }
       return;
     }
