@@ -2335,7 +2335,6 @@
       try {
         canvasElement.setPointerCapture(e.pointerId);
       } catch (err) {}
-      saveToStore();
       e.preventDefault();
       return;
     }
@@ -3126,6 +3125,10 @@
       saveToStore();
       return;
     }
+
+    // During stroke-erasing with pointer capture, pointerleave fires but we must NOT
+    // end the session — the pointer is still captured and the user is still dragging.
+    if (isStrokeErasing) return;
 
     if (longPressTimer) {
       clearTimeout(longPressTimer);
