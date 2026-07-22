@@ -775,6 +775,7 @@
     width: number;
     height: number;
     pageIndex: number;
+    zIndex?: number;
   }
   let canvasImages = $state<CanvasImage[]>([]);
   let selectedImages = $state<CanvasImage[]>([]);
@@ -1127,7 +1128,8 @@
                 y: dropY - height / 2,
                 width,
                 height,
-                pageIndex: canvasMode === 'a4' ? activePageIndex : 0
+                pageIndex: canvasMode === 'a4' ? activePageIndex : 0,
+                zIndex: Date.now()
               };
 
               const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
@@ -1224,7 +1226,8 @@
         y: placeY - height / 2,
         width,
         height,
-        pageIndex: canvasMode === 'a4' ? activePageIndex : 0
+        pageIndex: canvasMode === 'a4' ? activePageIndex : 0,
+        zIndex: Date.now()
       };
 
       const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
@@ -2386,8 +2389,9 @@
       Math.abs(coords.x - (selectedImage.x + selectedImage.width)) <= handleSize &&
       Math.abs(coords.y - (selectedImage.y + selectedImage.height)) <= handleSize;
       
-    // Check if clicked inside any image body (top-most first)
-    const clickedImage = [...canvasImages].reverse().find(img => {
+    // Check if clicked inside any image body (top-most first based on zIndex)
+    const sortedImagesDesc = [...canvasImages].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
+    const clickedImage = sortedImagesDesc.find(img => {
       if (canvasMode === 'a4' && img.pageIndex !== activePageIndex) return false;
       return coords.x >= img.x && coords.x <= img.x + img.width &&
              coords.y >= img.y && coords.y <= img.y + img.height;
@@ -2409,6 +2413,8 @@
     const shouldDragImage = clickedImage && (activeTool === 'select' || isPointerSelect || activeTool === 'pan' || selectedImages.length > 0);
 
     if (shouldDragImage) {
+      clickedImage.zIndex = Date.now();
+      canvasImages = [...canvasImages];
       selectedImages = [clickedImage];
       selectedStrokes = []; // Clear stroke selection
       isMovingImage = true;
@@ -2843,7 +2849,15 @@
     } else if (activeTool === 'select' || isPointerSelect) {
       if (selectionBox) {
         selectedStrokes = getStrokesInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2);
-        selectedImages = getImagesInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2);
+        const marqueeImages = getImagesInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2);
+        const now = Date.now();
+        for (const img of marqueeImages) {
+          img.zIndex = now;
+        }
+        selectedImages = marqueeImages;
+        if (marqueeImages.length > 0) {
+          canvasImages = [...canvasImages];
+        }
         selectionBox = null;
       }
     } else if (isShapeDrawing) {
@@ -3208,7 +3222,8 @@
   }
 
   function drawCanvasImages(ctxTarget: CanvasRenderingContext2D) {
-    for (const canvasImg of canvasImages) {
+    const sortedImages = [...canvasImages].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+    for (const canvasImg of sortedImages) {
       if (canvasMode === 'a4' && canvasImg.pageIndex !== activePageIndex) continue;
       const imgEl = imageElementCache[canvasImg.mediaId];
       if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
@@ -4149,7 +4164,8 @@
               y: centerY - height / 2,
               width,
               height,
-              pageIndex: canvasMode === 'a4' ? activePageIndex : 0
+              pageIndex: canvasMode === 'a4' ? activePageIndex : 0,
+              zIndex: Date.now()
             };
             
              canvasImages = [...canvasImages, newImage];
@@ -4216,7 +4232,8 @@
             y: targetY - height / 2,
             width,
             height,
-            pageIndex: canvasMode === 'a4' ? activePageIndex : 0
+            pageIndex: canvasMode === 'a4' ? activePageIndex : 0,
+            zIndex: Date.now()
           };
           
           canvasImages = [...canvasImages, newImage];
