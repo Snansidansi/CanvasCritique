@@ -375,7 +375,7 @@
     </div>
  
     <!-- Tool selectors (Pen / Eraser / Hand / Select) and Brush slider -->
-    <div class="flex items-center gap-4 text-xs font-semibold pl-4 shrink-0">
+    <div class="flex items-center gap-4 text-xs font-semibold shrink-0">
       <div class="flex items-center gap-3">
         <button 
           onclick={() => activeTool = 'pen'}
