@@ -2687,6 +2687,38 @@
     }
 
     if (isMovingSelection) {
+      let moved = false;
+      const strokesTo = JSON.parse(JSON.stringify(selectedStrokes));
+      const imageTo = selectedImage ? { id: selectedImage.id, x: selectedImage.x, y: selectedImage.y } : null;
+      
+      if (selectedStrokes.length > 0 && selectionStartStrokes.length > 0) {
+        if (selectedStrokes[0].points[0].x !== selectionStartStrokes[0].points[0].x ||
+            selectedStrokes[0].points[0].y !== selectionStartStrokes[0].points[0].y) {
+          moved = true;
+        }
+      }
+      if (selectedImage && selectionStartImageRect) {
+        if (selectedImage.x !== selectionStartImageRect.x || selectedImage.y !== selectionStartImageRect.y) {
+          moved = true;
+        }
+      }
+      
+      if (moved) {
+        const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+        undoStack.push({
+          type: 'move_selection',
+          strokesFrom: selectionStartStrokes,
+          strokesTo,
+          imageFrom: selectedImage && selectionStartImageRect ? { id: selectedImage.id, x: selectionStartImageRect.x, y: selectionStartImageRect.y } : null,
+          imageTo
+        });
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].redoStack = [];
+        } else {
+          infiniteRedo = [];
+        }
+      }
+      
       saveToStore();
       isMovingSelection = false;
       requestRedraw();
@@ -3336,6 +3368,38 @@
         const original = fromMap.get(s.id) as any;
         return original ? { ...s, color: original.color } : s;
       });
+    } else if (action.type === 'move_selection') {
+      if (action.strokesFrom && action.strokesFrom.length > 0) {
+        const fromMap = new Map(action.strokesFrom.map((s: any) => [s.id, s]));
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.map(s => {
+            const orig = fromMap.get(s.id) as any;
+            return orig ? { ...s, points: orig.points, bounds: orig.bounds } : s;
+          });
+        } else {
+          infiniteStrokes = infiniteStrokes.map(s => {
+            const orig = fromMap.get(s.id) as any;
+            return orig ? { ...s, points: orig.points, bounds: orig.bounds } : s;
+          });
+        }
+        selectedStrokes = selectedStrokes.map(s => {
+          const orig = fromMap.get(s.id) as any;
+          return orig ? { ...s, points: orig.points, bounds: orig.bounds } : s;
+        });
+      }
+      if (action.imageFrom) {
+        const img = canvasImages.find(i => i.id === action.imageFrom.id);
+        if (img) {
+          img.x = action.imageFrom.x;
+          img.y = action.imageFrom.y;
+          canvasImages = [...canvasImages];
+        }
+        if (selectedImage && selectedImage.id === action.imageFrom.id) {
+          selectedImage.x = action.imageFrom.x;
+          selectedImage.y = action.imageFrom.y;
+          selectedImage = { ...selectedImage };
+        }
+      }
     }
     
     invalidateCache();
@@ -3409,6 +3473,38 @@
         const updated = toMap.get(s.id) as any;
         return updated ? { ...s, color: updated.color } : s;
       });
+    } else if (action.type === 'move_selection') {
+      if (action.strokesTo && action.strokesTo.length > 0) {
+        const toMap = new Map(action.strokesTo.map((s: any) => [s.id, s]));
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.map(s => {
+            const updated = toMap.get(s.id) as any;
+            return updated ? { ...s, points: updated.points, bounds: updated.bounds } : s;
+          });
+        } else {
+          infiniteStrokes = infiniteStrokes.map(s => {
+            const updated = toMap.get(s.id) as any;
+            return updated ? { ...s, points: updated.points, bounds: updated.bounds } : s;
+          });
+        }
+        selectedStrokes = selectedStrokes.map(s => {
+          const updated = toMap.get(s.id) as any;
+          return updated ? { ...s, points: updated.points, bounds: updated.bounds } : s;
+        });
+      }
+      if (action.imageTo) {
+        const img = canvasImages.find(i => i.id === action.imageTo.id);
+        if (img) {
+          img.x = action.imageTo.x;
+          img.y = action.imageTo.y;
+          canvasImages = [...canvasImages];
+        }
+        if (selectedImage && selectedImage.id === action.imageTo.id) {
+          selectedImage.x = action.imageTo.x;
+          selectedImage.y = action.imageTo.y;
+          selectedImage = { ...selectedImage };
+        }
+      }
     }
     
     invalidateCache();
