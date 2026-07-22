@@ -426,7 +426,8 @@
       "posTop": "Top",
       "posBottom": "Bottom",
       "paste": "Paste",
-      "copy": "Copy"
+      "copy": "Copy",
+      "cut": "Cut"
     }
   },
   "settings": {

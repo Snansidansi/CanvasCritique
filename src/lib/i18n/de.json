@@ -425,7 +425,8 @@
       "posTop": "Oben",
       "posBottom": "Unten",
       "paste": "Einfügen",
-      "copy": "Kopieren"
+      "copy": "Kopieren",
+      "cut": "Ausschneiden"
     }
   },
   "settings": {

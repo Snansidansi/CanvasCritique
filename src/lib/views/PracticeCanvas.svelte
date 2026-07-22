@@ -667,6 +667,13 @@
   let copiedStrokes = $state([]); // array of copied stroke objects
   let isMovingSelection = $state(false);
   let selectionDragStart = { x: 0, y: 0 };
+  let selectionStartStrokes = [];
+  let selectionStartImageRect = null;
+  let lastCopiedDrawingTime = 0;
+  let lastClipboardImageTime = 0;
+  let lastClipboardImageHash = '';
+  let toolbarColorInput = $state(null);
+  let canvasRecentColors = $state(['#000000', '#1d4ed8', '#dc2626', '#059669']);
   let contextMenu = $state(null); // { x, y, canvasX, canvasY }
   let longPressTimer = null;
 
@@ -3545,7 +3552,55 @@
   function copySelected() {
     if (selectedStrokes.length === 0) return;
     copiedStrokes = JSON.parse(JSON.stringify(selectedStrokes));
+    lastCopiedDrawingTime = Date.now();
+    const textData = 'canvascritique-strokes:' + JSON.stringify(copiedStrokes);
+    navigator.clipboard.writeText(textData).catch(err => {
+      console.warn('Failed to write strokes to clipboard:', err);
+    });
     selectedStrokes = [];
+  }
+
+  function cutSelected() {
+    if (selectedStrokes.length === 0) return;
+    copiedStrokes = JSON.parse(JSON.stringify(selectedStrokes));
+    lastCopiedDrawingTime = Date.now();
+    const textData = 'canvascritique-strokes:' + JSON.stringify(copiedStrokes);
+    navigator.clipboard.writeText(textData).catch(err => {
+      console.warn('Failed to write strokes to clipboard:', err);
+    });
+
+    const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+    const history = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+    const removedStrokes = history.filter(s => selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id)));
+    
+    if (removedStrokes.length > 0) {
+      undoStack.push({
+        type: 'erase_action',
+        removedStrokes,
+        addedStrokes: []
+      });
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].redoStack = [];
+      } else {
+        infiniteRedo = [];
+      }
+    }
+
+    if (canvasMode === 'a4') {
+      pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(
+        s => !selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id))
+      );
+    } else {
+      infiniteStrokes = infiniteStrokes.filter(
+        s => !selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id))
+      );
+    }
+    
+    selectedStrokes = [];
+    contextMenu = null;
+    saveToStore();
+    invalidateCache();
+    requestRedraw();
   }
 
   function deleteSelected() {
@@ -4471,6 +4526,15 @@
               <span>{t('practice.canvas.copy')}</span>
             </button>
             <div class="w-px h-3 bg-outline-variant/50"></div>
+            <button 
+              onclick={cutSelected}
+              class="px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/10 rounded cursor-pointer transition-colors flex items-center gap-1 border-0 bg-transparent"
+              title={t('practice.canvas.cut')}
+            >
+              <span class="material-symbols-outlined text-[14px]">content_cut</span>
+              <span>{t('practice.canvas.cut')}</span>
+            </button>
+            <div class="w-px h-3 bg-outline-variant/50"></div>
           {/if}
           <button 
             onclick={deleteSelected}
@@ -4526,6 +4590,13 @@
             >
               <span class="material-symbols-outlined text-[16px]">content_copy</span>
               <span>{t('practice.canvas.copy')}</span>
+            </button>
+            <button 
+              onclick={() => { cutSelected(); contextMenu = null; }}
+              class="w-full text-left px-4 py-2 hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer font-semibold border-0 bg-transparent"
+            >
+              <span class="material-symbols-outlined text-[16px]">content_cut</span>
+              <span>{t('practice.canvas.cut')}</span>
             </button>
             <button 
               onclick={() => { deleteSelected(); contextMenu = null; }}
