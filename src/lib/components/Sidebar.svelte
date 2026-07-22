@@ -37,12 +37,41 @@
   let isSidebarDragActive = $state(false);
   let sidebarDropIndex = $state<number | null>(null);
 
+  let sidebarAutoScrollRafId: number | null = null;
+  function updateSidebarAutoScroll(pointerY: number, containerEl: HTMLElement | null) {
+    if (sidebarAutoScrollRafId) cancelAnimationFrame(sidebarAutoScrollRafId);
+    if (!containerEl) return;
+    const rect = containerEl.getBoundingClientRect();
+    const threshold = 60;
+    let speed = 0;
+    if (pointerY < rect.top + threshold) {
+      speed = -Math.max(4, Math.min(20, (rect.top + threshold - pointerY) * 0.3));
+    } else if (pointerY > rect.bottom - threshold) {
+      speed = Math.max(4, Math.min(20, (pointerY - (rect.bottom - threshold)) * 0.3));
+    }
+    if (speed !== 0) {
+      function step() {
+        if (containerEl) containerEl.scrollTop += speed;
+        sidebarAutoScrollRafId = requestAnimationFrame(step);
+      }
+      sidebarAutoScrollRafId = requestAnimationFrame(step);
+    }
+  }
+
+  function stopSidebarAutoScroll() {
+    if (sidebarAutoScrollRafId) {
+      cancelAnimationFrame(sidebarAutoScrollRafId);
+      sidebarAutoScrollRafId = null;
+    }
+  }
+
   function handleSidebarPointerDown(e: PointerEvent, projectId: string) {
     if (e.button !== 0 && e.button !== -1) return;
     const target = e.currentTarget as HTMLElement;
     if ((e.target as HTMLElement).closest('button')) return;
     sidebarDragStartX = e.clientX;
     sidebarDragStartY = e.clientY;
+    const scrollContainer = target.closest('.overflow-y-auto') as HTMLElement | null;
     try { target.setPointerCapture(e.pointerId); } catch (_) {}
 
     function onMove(me: PointerEvent) {
@@ -60,6 +89,7 @@
         sidebarDragGhostEl = ghost;
       }
       if (!isSidebarDragActive) return;
+      updateSidebarAutoScroll(me.clientY, scrollContainer);
       if (sidebarDragGhostEl) {
         sidebarDragGhostEl.style.left = `${me.clientX - sidebarDragGhostOffsetX}px`;
         sidebarDragGhostEl.style.top = `${me.clientY - sidebarDragGhostOffsetY}px`;
@@ -75,6 +105,7 @@
     }
 
     function onUp(ue: PointerEvent) {
+      stopSidebarAutoScroll();
       target.removeEventListener('pointermove', onMove);
       target.removeEventListener('pointerup', onUp);
       target.removeEventListener('pointercancel', onUp);

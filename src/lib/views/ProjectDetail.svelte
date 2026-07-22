@@ -369,34 +369,84 @@
     return Math.round((completed / project.tasks.length) * 100);
   }
 
+  // Edge auto-scrolling during drag
+  let autoScrollRafId: number | null = null;
+  function updateAutoScroll(pointerY: number, containerEl?: HTMLElement | null) {
+    if (autoScrollRafId) cancelAnimationFrame(autoScrollRafId);
+    const scrollTarget = containerEl || document.scrollingElement || document.documentElement;
+    const threshold = 100;
+    const viewportHeight = window.innerHeight;
+
+    let speed = 0;
+    if (pointerY < threshold) {
+      speed = -Math.max(4, Math.min(25, (threshold - pointerY) * 0.35));
+    } else if (pointerY > viewportHeight - threshold) {
+      speed = Math.max(4, Math.min(25, (pointerY - (viewportHeight - threshold)) * 0.35));
+    }
+
+    if (speed !== 0) {
+      function step() {
+        if (scrollTarget === document.scrollingElement || scrollTarget === document.documentElement) {
+          window.scrollBy(0, speed);
+        } else if (scrollTarget instanceof HTMLElement) {
+          scrollTarget.scrollTop += speed;
+        }
+        autoScrollRafId = requestAnimationFrame(step);
+      }
+      autoScrollRafId = requestAnimationFrame(step);
+    }
+  }
+
+  function stopAutoScroll() {
+    if (autoScrollRafId) {
+      cancelAnimationFrame(autoScrollRafId);
+      autoScrollRafId = null;
+    }
+  }
+
+  let wasSectionDragged = $state(false);
+
   // Pointer-based drag & drop (works with touch, stylus, and mouse)
   function handleTaskPointerDown(e: PointerEvent, taskId: string, category: string) {
     if (isSelectionMode) return;
-    // Only react to primary pointer (left mouse / single touch / stylus)
     if (e.button !== 0 && e.button !== -1) return;
 
     const target = e.currentTarget as HTMLElement;
-    // Ignore drags starting on interactive children (buttons, checkboxes)
     if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input')) return;
 
     dragPointerStartX = e.clientX;
     dragPointerStartY = e.clientY;
     dragSourceEl = target;
 
-    // Use pointer capture so move/up events always reach this element
+    const isTouchOrStylus = e.pointerType === 'touch' || e.pointerType === 'pen';
+    let longPressTimer: any = null;
+    let longPressReady = !isTouchOrStylus;
+
+    if (isTouchOrStylus) {
+      longPressTimer = setTimeout(() => {
+        longPressReady = true;
+        if (navigator.vibrate) try { navigator.vibrate(40); } catch (_) {}
+      }, 300);
+    }
+
     try { target.setPointerCapture(e.pointerId); } catch (_) {}
 
     function onMove(me: PointerEvent) {
       const dx = me.clientX - dragPointerStartX;
       const dy = me.clientY - dragPointerStartY;
 
-      // Only start drag after a small movement threshold
+      if (isTouchOrStylus && !longPressReady) {
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+          if (longPressTimer) clearTimeout(longPressTimer);
+        }
+        return;
+      }
+
       if (!isDragActive && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
         isDragActive = true;
         draggedTaskId = taskId;
         draggedCategory = category;
 
-        // Create ghost element
         const ghost = target.cloneNode(true) as HTMLElement;
         const rect = target.getBoundingClientRect();
         ghost.style.cssText = `
@@ -420,13 +470,13 @@
 
       if (!isDragActive) return;
 
-      // Move ghost
+      updateAutoScroll(me.clientY);
+
       if (dragGhostEl) {
         dragGhostEl.style.left = `${me.clientX - dragGhostOffsetX}px`;
         dragGhostEl.style.top  = `${me.clientY - dragGhostOffsetY}px`;
       }
 
-      // Hit-test to find the drop target
       if (dragGhostEl) dragGhostEl.style.display = 'none';
       const el = document.elementFromPoint(me.clientX, me.clientY);
       if (dragGhostEl) dragGhostEl.style.display = '';
@@ -448,12 +498,13 @@
     }
 
     function onUp(ue: PointerEvent) {
+      if (longPressTimer) clearTimeout(longPressTimer);
+      stopAutoScroll();
       target.removeEventListener('pointermove', onMove);
       target.removeEventListener('pointerup', onUp);
       target.removeEventListener('pointercancel', onUp);
       try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
 
-      // Clean up ghost
       if (dragGhostEl) {
         dragGhostEl.remove();
         dragGhostEl = null;
@@ -461,8 +512,7 @@
 
       if (isDragActive && draggedTaskId && dropIndicatorCategory !== null && dropIndicatorIndex !== null) {
         store.moveAndReorderTask(project.id, draggedTaskId, dropIndicatorCategory, dropIndicatorIndex);
-      } else if (!isDragActive) {
-        // Was a click, not a drag — open practice
+      } else if (!isDragActive && longPressReady) {
         const task = project.tasks.find(t => t.id === taskId);
         if (task) openPractice(task);
       }
@@ -488,13 +538,34 @@
 
     sectionDragStartX = e.clientX;
     sectionDragStartY = e.clientY;
+
+    const isTouchOrStylus = e.pointerType === 'touch' || e.pointerType === 'pen';
+    let longPressTimer: any = null;
+    let longPressReady = !isTouchOrStylus;
+
+    if (isTouchOrStylus) {
+      longPressTimer = setTimeout(() => {
+        longPressReady = true;
+        if (navigator.vibrate) try { navigator.vibrate(40); } catch (_) {}
+      }, 300);
+    }
+
     try { target.setPointerCapture(e.pointerId); } catch (_) {}
 
     function onMove(me: PointerEvent) {
       const dx = me.clientX - sectionDragStartX;
       const dy = me.clientY - sectionDragStartY;
+
+      if (isTouchOrStylus && !longPressReady) {
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+          if (longPressTimer) clearTimeout(longPressTimer);
+        }
+        return;
+      }
+
       if (!isSectionDragActive && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
         isSectionDragActive = true;
+        wasSectionDragged = true;
         draggedSectionCategory = category;
         const ghost = target.cloneNode(true) as HTMLElement;
         const rect = target.getBoundingClientRect();
@@ -504,7 +575,11 @@
         document.body.appendChild(ghost);
         sectionDragGhostEl = ghost;
       }
+
       if (!isSectionDragActive) return;
+
+      updateAutoScroll(me.clientY);
+
       if (sectionDragGhostEl) {
         sectionDragGhostEl.style.left = `${me.clientX - sectionDragGhostOffsetX}px`;
         sectionDragGhostEl.style.top = `${me.clientY - sectionDragGhostOffsetY}px`;
@@ -521,6 +596,8 @@
     }
 
     function onUp(ue: PointerEvent) {
+      if (longPressTimer) clearTimeout(longPressTimer);
+      stopAutoScroll();
       target.removeEventListener('pointermove', onMove);
       target.removeEventListener('pointerup', onUp);
       target.removeEventListener('pointercancel', onUp);
@@ -925,7 +1002,7 @@
           ondragleave={handleSectionDragLeave}
           ondrop={(e) => handleSectionDrop(e, category)}
         >
-          <summary class="bg-surface-container-low border rounded-xl group-open/section:rounded-b-none p-6 flex flex-col gap-4 cursor-pointer list-none transition-all duration-200 {sectionDropTargetCat === category ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : 'border-outline-variant/60'}" onpointerdown={(e) => handleSectionPointerDown(e, category)}>
+          <summary class="bg-surface-container-low border rounded-xl group-open/section:rounded-b-none p-6 flex flex-col gap-4 cursor-pointer list-none transition-all duration-200 {sectionDropTargetCat === category ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : 'border-outline-variant/60'}" onpointerdown={(e) => handleSectionPointerDown(e, category)} onclick={(e) => { if (wasSectionDragged) { e.preventDefault(); e.stopPropagation(); wasSectionDragged = false; } }}>
           <div class="flex items-center justify-between border-b border-outline-variant/20 pb-3">
             <div class="flex items-center gap-2">
               {#if editingCategory === category}

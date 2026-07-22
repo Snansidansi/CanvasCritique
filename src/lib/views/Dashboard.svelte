@@ -299,6 +299,41 @@
     return project.tasks.find((t: any) => !t.completed) || project.tasks[0];
   }
 
+  // Edge auto-scrolling during drag
+  let autoScrollRafId: number | null = null;
+  function updateAutoScroll(pointerY: number, containerEl?: HTMLElement | null) {
+    if (autoScrollRafId) cancelAnimationFrame(autoScrollRafId);
+    const scrollTarget = containerEl || document.scrollingElement || document.documentElement;
+    const threshold = 100;
+    const viewportHeight = window.innerHeight;
+
+    let speed = 0;
+    if (pointerY < threshold) {
+      speed = -Math.max(4, Math.min(25, (threshold - pointerY) * 0.35));
+    } else if (pointerY > viewportHeight - threshold) {
+      speed = Math.max(4, Math.min(25, (pointerY - (viewportHeight - threshold)) * 0.35));
+    }
+
+    if (speed !== 0) {
+      function step() {
+        if (scrollTarget === document.scrollingElement || scrollTarget === document.documentElement) {
+          window.scrollBy(0, speed);
+        } else if (scrollTarget instanceof HTMLElement) {
+          scrollTarget.scrollTop += speed;
+        }
+        autoScrollRafId = requestAnimationFrame(step);
+      }
+      autoScrollRafId = requestAnimationFrame(step);
+    }
+  }
+
+  function stopAutoScroll() {
+    if (autoScrollRafId) {
+      cancelAnimationFrame(autoScrollRafId);
+      autoScrollRafId = null;
+    }
+  }
+
   // Lesson drag-and-drop handlers
   function handleLessonPointerDown(e: PointerEvent, projectId: string) {
     if (e.button !== 0 && e.button !== -1) return;
@@ -341,6 +376,8 @@
 
       if (!isLessonDragActive) return;
 
+      updateAutoScroll(me.clientY);
+
       if (dragGhostEl) {
         dragGhostEl.style.left = `${me.clientX - dragGhostOffsetX}px`;
         dragGhostEl.style.top  = `${me.clientY - dragGhostOffsetY}px`;
@@ -382,6 +419,7 @@
     }
 
     function onUp(ue: PointerEvent) {
+      stopAutoScroll();
       target.removeEventListener('pointermove', onMove);
       target.removeEventListener('pointerup', onUp);
       target.removeEventListener('pointercancel', onUp);
