@@ -957,6 +957,7 @@
   let isPointerPen = $state(false);
   let isStrokeErasing = $state(false);
   let erasedStrokesInSession: any[] = [];
+  let lastStrokeEraserCoords: Point | null = null;
   let isSelectToolOneShot = $state(false);
   let lastPointerType = $state('mouse');
   let hoverPos = $state(null);
@@ -1922,6 +1923,7 @@
   function endStrokeErasing() {
     if (!isStrokeErasing) return;
     isStrokeErasing = false;
+    lastStrokeEraserCoords = null;
     if (erasedStrokesInSession.length > 0) {
       const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
       undoStack.push({
@@ -2316,6 +2318,7 @@
         requestRedraw();
       }
       isStrokeErasing = true;
+      lastStrokeEraserCoords = coords;
       try {
         canvasElement.setPointerCapture(e.pointerId);
       } catch (err) {}
@@ -2542,15 +2545,32 @@
       const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
       const coords = getCoords(e);
       let erased = false;
-      for (let i = currentHistory.length - 1; i >= 0; i--) {
-        const stroke = currentHistory[i];
-        if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
-        if (isStrokeHit(stroke, coords, hitRadius)) {
-          if (!erasedStrokesInSession.some(s => s === stroke || (s.id && s.id === stroke.id))) {
-            erasedStrokesInSession.push(stroke);
+      
+      const p1 = lastStrokeEraserCoords || coords;
+      const p2 = coords;
+      lastStrokeEraserCoords = coords;
+      
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const stepDist = Math.max(2, hitRadius / 3);
+      const steps = Math.max(1, Math.ceil(dist / stepDist));
+      
+      for (let step = 0; step <= steps; step++) {
+        const t = step / steps;
+        const pt = {
+          x: p1.x + (p2.x - p1.x) * t,
+          y: p1.y + (p2.y - p1.y) * t
+        };
+        
+        for (let i = currentHistory.length - 1; i >= 0; i--) {
+          const stroke = currentHistory[i];
+          if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
+          if (isStrokeHit(stroke, pt, hitRadius)) {
+            if (!erasedStrokesInSession.some(s => s === stroke || (s.id && s.id === stroke.id))) {
+              erasedStrokesInSession.push(stroke);
+            }
+            currentHistory.splice(i, 1);
+            erased = true;
           }
-          currentHistory.splice(i, 1);
-          erased = true;
         }
       }
       if (erased) {
