@@ -2386,8 +2386,8 @@
       Math.abs(coords.x - (selectedImage.x + selectedImage.width)) <= handleSize &&
       Math.abs(coords.y - (selectedImage.y + selectedImage.height)) <= handleSize;
       
-    // Check if clicked inside any image body
-    const clickedImage = canvasImages.find(img => {
+    // Check if clicked inside any image body (top-most first)
+    const clickedImage = [...canvasImages].reverse().find(img => {
       if (canvasMode === 'a4' && img.pageIndex !== activePageIndex) return false;
       return coords.x >= img.x && coords.x <= img.x + img.width &&
              coords.y >= img.y && coords.y <= img.y + img.height;
