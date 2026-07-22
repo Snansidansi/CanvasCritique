@@ -4372,7 +4372,7 @@
           };
           
           canvasImages = [...canvasImages, newImage];
-          selectedImages = [newImage];
+          selectedImages = [canvasImages.find(img => img.id === newImage.id) || newImage];
           selectedStrokes = [];
           
           const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
@@ -4512,7 +4512,8 @@
     }
     
     selectedStrokes = strokesToPaste;
-    selectedImages = imagesToPaste;
+    const pastedImageIds = new Set(imagesToPaste.map(img => img.id));
+    selectedImages = canvasImages.filter(img => pastedImageIds.has(img.id));
     contextMenu = null;
     saveToStore();
     invalidateCache();
