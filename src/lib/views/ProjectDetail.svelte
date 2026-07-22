@@ -229,17 +229,17 @@
     importMultipleTaskFiles(Array.from(files));
   }
 
-  // Auto-scroll to section after task creation
+  // Instant scroll to section after task creation
   $effect(() => {
     if (store.pendingScrollCategory && store.currentView === 'project-detail') {
       const cat = store.pendingScrollCategory;
       store.pendingScrollCategory = null;
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         const el = document.querySelector(`[data-section-category="${CSS.escape(cat)}"]`);
         if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          el.scrollIntoView({ behavior: 'instant', block: 'start' });
         }
-      }, 100);
+      });
     }
   });
 
