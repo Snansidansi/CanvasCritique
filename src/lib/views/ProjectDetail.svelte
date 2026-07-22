@@ -371,7 +371,7 @@
 
   // Edge auto-scrolling during drag
   let autoScrollRafId: number | null = null;
-  function updateAutoScroll(pointerY: number, containerEl?: HTMLElement | null) {
+  function updateAutoScroll(pointerY: number, containerEl: HTMLElement | null = null) {
     if (autoScrollRafId) cancelAnimationFrame(autoScrollRafId);
     const scrollTarget = containerEl || document.scrollingElement || document.documentElement;
     const threshold = 100;
