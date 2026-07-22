@@ -3122,7 +3122,6 @@
       isPanning = false;
       saveToStore();
     }
-    isStrokeErasing = false;
     endStrokeErasing();
     isPointerEraser = false;
     isPointerSelect = false;
