@@ -209,9 +209,40 @@
   function handleModalPointerCancel(e: PointerEvent) {
     handleModalPointerUp(e);
   }
+
+  function getScoreStats(): { correctCount: number; totalCount: number } {
+    let correctCount = 0;
+    const totalCount = multipleChoiceTasks.length;
+    for (const q of multipleChoiceTasks) {
+      const userSelected = selectedAnswers[q.id] || [];
+      const correctOptionIds = q.options.filter(o => o.isCorrect).map(o => o.id);
+      const isAllCorrect = userSelected.length === correctOptionIds.length &&
+        userSelected.every(id => correctOptionIds.includes(id));
+      if (isAllCorrect) correctCount++;
+    }
+    return { correctCount, totalCount };
+  }
 </script>
 
 <div class="flex flex-col gap-6 w-full max-h-full overflow-y-auto p-4 select-text custom-scrollbar">
+  {#if showSolution && multipleChoiceTasks.length > 0}
+    {@const stats = getScoreStats()}
+    <div class="w-full border rounded-2xl p-4 flex items-center justify-between shadow-sm select-none font-sans transition-all {stats.correctCount === stats.totalCount ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-800 dark:text-emerald-300' : 'bg-surface-container-high border-outline-variant/60 text-on-surface'}">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-2xl {stats.correctCount === stats.totalCount ? 'text-emerald-600' : 'text-primary'}">
+          {stats.correctCount === stats.totalCount ? 'emoji_events' : 'fact_check'}
+        </span>
+        <div class="flex flex-col">
+          <span class="font-bold text-sm">
+            {stats.correctCount} von {stats.totalCount} {stats.totalCount === 1 ? (t('practice.mc.questionSingle') || 'Frage') : (t('practice.mc.questionsPlural') || 'Fragen')} richtig
+          </span>
+          <span class="text-xs opacity-75">
+            {Math.round((stats.correctCount / (stats.totalCount || 1)) * 100)}% {t('practice.mc.completedPercent') || 'erreicht'}
+          </span>
+        </div>
+      </div>
+    </div>
+  {/if}
   {#each multipleChoiceTasks as question, qIndex (question.id)}
     {@const isCheckbox = getIsCheckbox(question)}
     <div class="border border-outline-variant/60 rounded-2xl bg-surface-container-lowest p-5 flex flex-col gap-4 text-left shadow-sm">

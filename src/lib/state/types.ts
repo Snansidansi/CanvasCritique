@@ -11,6 +11,7 @@ export interface MultipleChoiceOption {
   text: string;
   media: MediaFile[];
   isCorrect: boolean;
+  hint?: string;
 }
 
 export interface MultipleChoiceTask {

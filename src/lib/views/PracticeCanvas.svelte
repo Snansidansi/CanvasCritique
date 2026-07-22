@@ -1253,12 +1253,8 @@
 
   const combinedSolutionContent = $derived.by(() => {
     let parts: string[] = [];
-    if (task.multipleChoiceTasks && task.multipleChoiceTasks.length > 0) {
-      parts.push(mcEvaluationMarkdown);
-    }
     if (task.solution && task.solution.trim()) {
-      const heading = store.settings.language === 'Deutsch' ? '### Musterlösung' : '### Sample Solution';
-      parts.push(`${heading}\n\n${task.solution}`);
+      parts.push(task.solution.trim());
     }
     return parts.join('\n\n---\n\n');
   });
