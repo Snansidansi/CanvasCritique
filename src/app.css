@@ -220,7 +220,7 @@ input[type="date"]::-webkit-datetime-edit-fields-wrapper {
 .prose {
   font-size: inherit;
 }
-.prose p, .prose li, .prose table, .prose blockquote, .prose pre, .prose code, .prose span, .prose ul, .prose ol {
+.prose p, .prose li, .prose table, .prose blockquote, .prose pre, .prose code, .prose span:not(.katex):not(.katex *), .prose ul, .prose ol {
   font-size: inherit;
 }
 .prose h1 { font-size: 1.5em; }
