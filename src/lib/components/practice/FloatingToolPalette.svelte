@@ -15,7 +15,7 @@
     onInsertImage = null
   } = $props();
 
-  let recentColors = $state(['#000000', '#1d4ed8', '#dc2626', '#059669']);
+  let recentColors = $derived(store.settings.penRecentColors || ['#000000', '#1d4ed8', '#dc2626', '#059669']);
 
   // Collapsible state
   let isCollapsed = $state(false);
@@ -140,19 +140,19 @@
   }
 
   function addColorToPalette() {
-    if (recentColors.some(c => c.toLowerCase() === strokeColor.toLowerCase())) return;
-    if (recentColors.length >= 8) {
-      recentColors = [...recentColors.slice(1), strokeColor];
+    if (store.settings.penRecentColors.some(c => c.toLowerCase() === strokeColor.toLowerCase())) return;
+    if (store.settings.penRecentColors.length >= 8) {
+      store.settings.penRecentColors = [...store.settings.penRecentColors.slice(1), strokeColor];
     } else {
-      recentColors = [...recentColors, strokeColor];
+      store.settings.penRecentColors = [...store.settings.penRecentColors, strokeColor];
     }
-    localStorage.setItem('canvascritique_recent_colors', JSON.stringify(recentColors));
+    store.saveSettings();
   }
 
   function removeColorFromPalette(idx: number) {
-    if (recentColors.length <= 1) return;
-    recentColors = recentColors.filter((_, i) => i !== idx);
-    localStorage.setItem('canvascritique_recent_colors', JSON.stringify(recentColors));
+    if (store.settings.penRecentColors.length <= 1) return;
+    store.settings.penRecentColors = store.settings.penRecentColors.filter((_, i) => i !== idx);
+    store.saveSettings();
   }
 
   let isCustomColorInPalette = $derived(
@@ -160,15 +160,6 @@
   );
 
   onMount(() => {
-    // Load recent colors
-    const savedRecents = localStorage.getItem('canvascritique_recent_colors') || localStorage.getItem('scribeflow_recent_colors');
-    if (savedRecents) {
-      try {
-        recentColors = JSON.parse(savedRecents);
-      } catch (e) {
-        // Fallback
-      }
-    }
 
     // Load position
     const savedPos = localStorage.getItem('canvascritique_palette_pos');

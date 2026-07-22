@@ -685,22 +685,84 @@
   let lastCopiedDrawingTime = 0;
   let lastClipboardImageTime = 0;
   let lastClipboardImageHash = '';
-  let toolbarColorInput = $state(null);
-  let canvasRecentColors = $state(['#000000', '#1d4ed8', '#dc2626', '#059669']);
+  let canvasRecentColors = $derived(store.settings.penRecentColors || ['#000000', '#1d4ed8', '#dc2626', '#059669']);
   let contextMenu = $state(null); // { x, y, canvasX, canvasY }
   let longPressTimer = null;
 
-  // Load recent colors when selection is active
-  $effect(() => {
-    if (selectedStrokes.length > 0) {
-      const saved = localStorage.getItem('canvascritique_recent_colors') || localStorage.getItem('scribeflow_recent_colors');
-      if (saved) {
-        try {
-          canvasRecentColors = JSON.parse(saved);
-        } catch (e) {}
+  // Custom Color Picker Modal states for selection
+  let showSelectionColorPicker = $state(false);
+  let selectionHue = $state(0);
+  let selectionSat = $state(100);
+  let selectionLight = $state(50);
+  let selectionPickerColor = $derived(`hsl(${selectionHue}, ${selectionSat}%, ${selectionLight}%)`);
+
+  function openSelectionColorPicker() {
+    const hsl = hexToHsl(strokeColor);
+    selectionHue = hsl.h;
+    selectionSat = hsl.s;
+    selectionLight = hsl.l;
+    showSelectionColorPicker = true;
+  }
+
+  function confirmSelectionColorPicker() {
+    const hex = hslToHex(selectionHue, selectionSat, selectionLight);
+    strokeColor = hex;
+    changeSelectedStrokesColor(hex);
+    
+    // Add custom color to palette if not exists
+    if (!store.settings.penRecentColors.some(c => c.toLowerCase() === hex.toLowerCase())) {
+      if (store.settings.penRecentColors.length >= 8) {
+        store.settings.penRecentColors = [...store.settings.penRecentColors.slice(1), hex];
+      } else {
+        store.settings.penRecentColors = [...store.settings.penRecentColors, hex];
       }
+      store.saveSettings();
     }
-  });
+    
+    showSelectionColorPicker = false;
+  }
+
+  function hexToHsl(hex: string) {
+    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    const fullHex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(fullHex);
+    if (!result) return { h: 0, s: 100, l: 50 };
+    
+    let r = parseInt(result[1], 16) / 255;
+    let g = parseInt(result[2], 16) / 255;
+    let b = parseInt(result[3], 16) / 255;
+
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+
+    return {
+      h: Math.round(h * 360),
+      s: Math.round(s * 100),
+      l: Math.round(l * 100)
+    };
+  }
+
+  function hslToHex(h: number, s: number, l: number) {
+    l /= 100;
+    const a = (s * Math.min(l, 1 - l)) / 100;
+    const f = (n: number) => {
+      const k = (n + h / 30) % 12;
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  }
 
   // Watch strokeColor to update selectedStrokes color
   let lastAppliedColor = $state<string | null>(null);
@@ -4871,34 +4933,13 @@
               
               <!-- Custom color button -->
               <button
-                onclick={() => toolbarColorInput?.click()}
+                onclick={openSelectionColorPicker}
                 class="w-5.5 h-5.5 rounded-full cursor-pointer border border-outline-variant/60 hover:scale-110 active:scale-[0.9] transition-all flex items-center justify-center relative overflow-hidden shrink-0"
                 style="background: conic-gradient(from 0deg, red, yellow, lime, aqua, blue, magenta, red);"
                 title={t('practice.palette.pickColor')}
               >
                 <span class="material-symbols-outlined text-[11px] text-white font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">palette</span>
               </button>
-              <input
-                type="color"
-                bind:this={toolbarColorInput}
-                value={strokeColor}
-                onchange={(e) => {
-                  const val = e.currentTarget.value;
-                  strokeColor = val;
-                  changeSelectedStrokesColor(val);
-                  
-                  // Add custom color to palette if not exists
-                  if (!canvasRecentColors.includes(val)) {
-                    if (canvasRecentColors.length >= 8) {
-                      canvasRecentColors = [...canvasRecentColors.slice(1), val];
-                    } else {
-                      canvasRecentColors = [...canvasRecentColors, val];
-                    }
-                    localStorage.setItem('canvascritique_recent_colors', JSON.stringify(canvasRecentColors));
-                  }
-                }}
-                class="hidden"
-              />
             </div>
             
             <button 
@@ -5498,6 +5539,81 @@
     </span>
     <div style="font-size: 0.9em;">
       {@html parseMarkdown(activeTextTooltip.feedback)}
+    </div>
+  </div>
+{/if}
+
+{#if showSelectionColorPicker}
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs font-sans">
+    <div class="bg-surface-container-high border border-outline-variant rounded-xl p-5 shadow-2xl w-80 flex flex-col gap-4">
+      <h3 class="text-sm font-bold text-on-surface">{t('practice.palette.pickColor') || 'Farbe wählen'}</h3>
+      
+      <!-- Color Preview Box -->
+      <div class="h-20 rounded-lg shadow-inner border border-outline-variant" style="background-color: {selectionPickerColor}"></div>
+      
+      <!-- Hue Slider -->
+      <div class="flex flex-col gap-1">
+        <div class="flex justify-between text-xs text-on-surface-variant">
+          <span>{store.settings.language === 'Deutsch' ? 'Farbton' : 'Hue'}</span>
+          <span>{selectionHue}°</span>
+        </div>
+        <input 
+          type="range" 
+          min="0" 
+          max="360" 
+          bind:value={selectionHue}
+          class="w-full accent-primary"
+          style="background: linear-gradient(to right, red, yellow, lime, aqua, blue, magenta, red); height: 8px; border-radius: 4px; appearance: none;"
+        />
+      </div>
+
+      <!-- Saturation Slider -->
+      <div class="flex flex-col gap-1">
+        <div class="flex justify-between text-xs text-on-surface-variant">
+          <span>{store.settings.language === 'Deutsch' ? 'Sättigung' : 'Saturation'}</span>
+          <span>{selectionSat}%</span>
+        </div>
+        <input 
+          type="range" 
+          min="0" 
+          max="100" 
+          bind:value={selectionSat}
+          class="w-full accent-primary"
+          style="background: linear-gradient(to right, hsl({selectionHue}, 0%, 50%), hsl({selectionHue}, 100%, 50%)); height: 8px; border-radius: 4px; appearance: none;"
+        />
+      </div>
+
+      <!-- Lightness Slider -->
+      <div class="flex flex-col gap-1">
+        <div class="flex justify-between text-xs text-on-surface-variant">
+          <span>{store.settings.language === 'Deutsch' ? 'Helligkeit' : 'Lightness'}</span>
+          <span>{selectionLight}%</span>
+        </div>
+        <input 
+          type="range" 
+          min="0" 
+          max="100" 
+          bind:value={selectionLight}
+          class="w-full accent-primary"
+          style="background: linear-gradient(to right, black, hsl({selectionHue}, {selectionSat}%, 50%), white); height: 8px; border-radius: 4px; appearance: none;"
+        />
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex justify-end gap-2 mt-2">
+        <button 
+          onclick={() => showSelectionColorPicker = false}
+          class="px-4 py-2 text-xs font-semibold rounded-lg hover:bg-surface-container transition-colors border-0 bg-transparent text-outline cursor-pointer"
+        >
+          {t('common.cancel') || 'Abbrechen'}
+        </button>
+        <button 
+          onclick={confirmSelectionColorPicker}
+          class="px-4 py-2 text-xs font-semibold bg-primary text-on-primary rounded-lg hover:bg-primary/90 transition-colors border-0 cursor-pointer"
+        >
+          OK
+        </button>
+      </div>
     </div>
   </div>
 {/if}
