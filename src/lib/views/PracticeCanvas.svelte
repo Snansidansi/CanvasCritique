@@ -678,6 +678,7 @@
   let selectionBox = $state(null); // { x1, y1, x2, y2 }
   let selectedStrokes = $state([]); // array of stroke objects
   let copiedStrokes = $state([]); // array of copied stroke objects
+  let copiedImages = $state([]); // array of copied image objects
   let isMovingSelection = $state(false);
   let selectionDragStart = { x: 0, y: 0 };
   let selectionStartStrokes = [];
@@ -4074,53 +4075,73 @@
   }
 
   function copySelected() {
-    if (selectedStrokes.length === 0) return;
+    if (selectedStrokes.length === 0 && selectedImages.length === 0) return;
     copiedStrokes = JSON.parse(JSON.stringify(selectedStrokes));
+    copiedImages = JSON.parse(JSON.stringify(selectedImages));
     lastCopiedDrawingTime = Date.now();
-    const textData = 'canvascritique-strokes:' + JSON.stringify(copiedStrokes);
+    const copyData = {
+      strokes: copiedStrokes,
+      images: copiedImages
+    };
+    const textData = 'canvascritique-data:' + JSON.stringify(copyData);
     navigator.clipboard.writeText(textData).catch(err => {
-      console.warn('Failed to write strokes to clipboard:', err);
+      console.warn('Failed to write selection to clipboard:', err);
     });
     selectedStrokes = [];
+    selectedImages = [];
   }
 
   function cutSelected() {
-    if (selectedStrokes.length === 0) return;
+    if (selectedStrokes.length === 0 && selectedImages.length === 0) return;
     copiedStrokes = JSON.parse(JSON.stringify(selectedStrokes));
+    copiedImages = JSON.parse(JSON.stringify(selectedImages));
     lastCopiedDrawingTime = Date.now();
-    const textData = 'canvascritique-strokes:' + JSON.stringify(copiedStrokes);
+    const copyData = {
+      strokes: copiedStrokes,
+      images: copiedImages
+    };
+    const textData = 'canvascritique-data:' + JSON.stringify(copyData);
     navigator.clipboard.writeText(textData).catch(err => {
-      console.warn('Failed to write strokes to clipboard:', err);
+      console.warn('Failed to write selection to clipboard:', err);
     });
 
     const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
-    const history = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
-    const removedStrokes = history.filter(s => selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id)));
-    
-    if (removedStrokes.length > 0) {
-      undoStack.push({
-        type: 'erase_action',
-        removedStrokes,
-        addedStrokes: []
-      });
+    const deletedStrokesList = [];
+    const deletedImagesList = [];
+
+    if (selectedImages.length > 0) {
+      deletedImagesList.push(...selectedImages);
+      const ids = new Set(selectedImages.map(img => img.id));
+      canvasImages = canvasImages.filter(img => !ids.has(img.id));
+    }
+
+    if (selectedStrokes.length > 0) {
+      const history = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+      const removedStrokes = history.filter(s => selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id)));
+      deletedStrokesList.push(...removedStrokes);
+      
+      const removedIds = new Set(removedStrokes.map(s => s.id));
       if (canvasMode === 'a4') {
-        pages[activePageIndex].redoStack = [];
+        pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(s => !removedIds.has(s.id));
       } else {
-        infiniteRedo = [];
+        infiniteStrokes = infiniteStrokes.filter(s => !removedIds.has(s.id));
       }
     }
 
+    undoStack.push({
+      type: 'delete_selection',
+      strokes: deletedStrokesList,
+      images: deletedImagesList
+    });
+    
     if (canvasMode === 'a4') {
-      pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(
-        s => !selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id))
-      );
+      pages[activePageIndex].redoStack = [];
     } else {
-      infiniteStrokes = infiniteStrokes.filter(
-        s => !selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id))
-      );
+      infiniteRedo = [];
     }
     
     selectedStrokes = [];
+    selectedImages = [];
     contextMenu = null;
     saveToStore();
     invalidateCache();
@@ -4365,22 +4386,36 @@
         return;
       }
 
-      if (textContent && textContent.startsWith('canvascritique-strokes:')) {
-        try {
-          const jsonStr = textContent.substring('canvascritique-strokes:'.length);
-          copiedStrokes = JSON.parse(jsonStr);
-          pasteStrokes(targetX, targetY);
-          return;
-        } catch (e) {
-          console.warn('Failed to parse strokes from clipboard text:', e);
+      if (textContent) {
+        if (textContent.startsWith('canvascritique-data:')) {
+          try {
+            const jsonStr = textContent.substring('canvascritique-data:'.length);
+            const copyData = JSON.parse(jsonStr);
+            copiedStrokes = copyData.strokes || [];
+            copiedImages = copyData.images || [];
+            pasteStrokesAndImages(targetX, targetY);
+            return;
+          } catch (e) {
+            console.warn('Failed to parse selection from clipboard text:', e);
+          }
+        } else if (textContent.startsWith('canvascritique-strokes:')) {
+          try {
+            const jsonStr = textContent.substring('canvascritique-strokes:'.length);
+            copiedStrokes = JSON.parse(jsonStr);
+            copiedImages = [];
+            pasteStrokesAndImages(targetX, targetY);
+            return;
+          } catch (e) {
+            console.warn('Failed to parse strokes from clipboard text:', e);
+          }
         }
       }
     } catch (err) {
       console.warn('Clipboard read error or not permitted: ', err);
     }
     
-    if (copiedStrokes && copiedStrokes.length > 0) {
-      pasteStrokes(targetX, targetY);
+    if ((copiedStrokes && copiedStrokes.length > 0) || (copiedImages && copiedImages.length > 0)) {
+      pasteStrokesAndImages(targetX, targetY);
     }
   }
 
@@ -4393,15 +4428,17 @@
     });
   }
 
-  function pasteStrokes(targetX, targetY) {
-    if (copiedStrokes.length === 0) return;
+  function pasteStrokesAndImages(targetX: number, targetY: number) {
+    if (copiedStrokes.length === 0 && copiedImages.length === 0) return;
     
     const strokesToPaste = JSON.parse(JSON.stringify(copiedStrokes));
+    const imagesToPaste = JSON.parse(JSON.stringify(copiedImages));
     
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
+    
     for (const stroke of strokesToPaste) {
       for (const p of stroke.points) {
         if (p.x < minX) minX = p.x;
@@ -4409,6 +4446,20 @@
         if (p.x > maxX) maxX = p.x;
         if (p.y > maxY) maxY = p.y;
       }
+    }
+
+    for (const img of imagesToPaste) {
+      if (img.x < minX) minX = img.x;
+      if (img.y < minY) minY = img.y;
+      if (img.x + img.width > maxX) maxX = img.x + img.width;
+      if (img.y + img.height > maxY) maxY = img.y + img.height;
+    }
+
+    if (minX === Infinity) {
+      minX = targetX - 50;
+      maxX = targetX + 50;
+      minY = targetY - 50;
+      maxY = targetY + 50;
     }
     
     const centerX = (minX + maxX) / 2;
@@ -4424,30 +4475,42 @@
       }
       stroke.bounds = calculateStrokeBounds(stroke);
     }
+
+    const now = Date.now();
+    for (let i = 0; i < imagesToPaste.length; i++) {
+      const img = imagesToPaste[i];
+      img.id = 'img-' + (now + i);
+      img.x += dx;
+      img.y += dy;
+      img.zIndex = now + i;
+      img.pageIndex = canvasMode === 'a4' ? activePageIndex : 0;
+    }
     
     const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
     undoStack.push({
-      type: 'erase_action',
-      removedStrokes: [],
-      addedStrokes: strokesToPaste
+      type: 'paste_selection',
+      strokes: strokesToPaste,
+      images: imagesToPaste
     });
 
     if (canvasMode === 'a4') {
       pages[activePageIndex].strokeHistory.push(...strokesToPaste);
       pages[activePageIndex].redoStack = [];
       pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
-      const len = pages[activePageIndex].strokeHistory.length;
-      selectedStrokes = pages[activePageIndex].strokeHistory.slice(len - strokesToPaste.length);
+      canvasImages = [...canvasImages, ...imagesToPaste];
     } else {
       infiniteStrokes.push(...strokesToPaste);
       infiniteRedo = [];
       infiniteStrokes = [...infiniteStrokes];
-      const len = infiniteStrokes.length;
-      selectedStrokes = infiniteStrokes.slice(len - strokesToPaste.length);
+      canvasImages = [...canvasImages, ...imagesToPaste];
     }
     
+    selectedStrokes = strokesToPaste;
+    selectedImages = imagesToPaste;
     contextMenu = null;
     saveToStore();
+    invalidateCache();
+    redraw();
   }
 
   // Handle global keyboard shortcuts
