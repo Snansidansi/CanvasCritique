@@ -2307,6 +2307,12 @@
       const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
       let erased = false;
       erasedStrokesInSession = [];
+
+      // Ensure all strokes in history have unique IDs for robust proxy comparison
+      for (const stroke of currentHistory) {
+        if (!stroke.id) stroke.id = Math.random().toString(36).substring(2, 9);
+      }
+
       let strokeToErase: Stroke | null = null;
       for (let i = currentHistory.length - 1; i >= 0; i--) {
         const stroke = currentHistory[i];
@@ -2318,7 +2324,8 @@
       }
       if (strokeToErase) {
         erasedStrokesInSession.push(strokeToErase);
-        const newHistory = currentHistory.filter(s => s !== strokeToErase);
+        const eraseId = strokeToErase.id;
+        const newHistory = currentHistory.filter(s => s !== strokeToErase && (!eraseId || s.id !== eraseId));
         if (canvasMode === 'a4') {
           pages[activePageIndex].strokeHistory = newHistory;
         } else {
@@ -2508,7 +2515,9 @@
       const stepDist = Math.max(2, hitRadius / 3);
       const steps = Math.max(1, Math.ceil(dist / stepDist));
       
-      const strokesToErase: Stroke[] = [];
+      const strokesToEraseSet = new Set<Stroke>();
+      const strokeIdsToEraseSet = new Set<string>();
+
       for (let step = 0; step <= steps; step++) {
         const t = step / steps;
         const pt = {
@@ -2520,22 +2529,24 @@
           if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
           if (!stroke.id) stroke.id = Math.random().toString(36).substring(2, 9);
           if (isStrokeHit(stroke, pt, hitRadius)) {
-            if (!strokesToErase.includes(stroke)) {
-              strokesToErase.push(stroke);
-            }
+            strokesToEraseSet.add(stroke);
+            if (stroke.id) strokeIdsToEraseSet.add(stroke.id);
           }
         }
       }
 
-      if (strokesToErase.length > 0) {
+      if (strokesToEraseSet.size > 0) {
         const newHistory = currentHistory.filter(s => {
-          if (strokesToErase.includes(s)) return false;
-          if (s.id && strokesToErase.some(se => se.id === s.id)) return false;
+          if (strokesToEraseSet.has(s)) return false;
+          if (s.id && strokeIdsToEraseSet.has(s.id)) return false;
           return true;
         });
 
-        for (const stroke of strokesToErase) {
-          if (!erasedStrokesInSession.some(s => s === stroke || (s.id && s.id === stroke.id))) {
+        for (const stroke of strokesToEraseSet) {
+          const alreadyAdded = erasedStrokesInSession.some(
+            s => s === stroke || (s.id && stroke.id && s.id === stroke.id)
+          );
+          if (!alreadyAdded) {
             erasedStrokesInSession.push(stroke);
           }
         }
