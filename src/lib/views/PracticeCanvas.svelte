@@ -2069,8 +2069,11 @@
       case 'circle': {
         const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
         const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
-        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-        const radius = Math.min(maxX - minX, maxY - minY) / Math.SQRT2;
+        const rx = (maxX - minX) / 2;
+        const ry = (maxY - minY) / 2;
+        const radius = Math.min(rx, ry);
+        const cx = minX + rx;
+        const cy = minY + ry;
         const steps = 64;
         const pts: Point[] = [];
         for (let i = 0; i <= steps; i++) {
@@ -2082,8 +2085,10 @@
       case 'ellipse': {
         const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
         const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
-        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-        const rx = (maxX - minX) / Math.SQRT2, ry = (maxY - minY) / Math.SQRT2;
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const rx = (maxX - minX) / 2;
+        const ry = (maxY - minY) / 2;
         const steps = 64;
         const pts: Point[] = [];
         for (let i = 0; i <= steps; i++) {
@@ -3376,6 +3381,32 @@
         ctx.translate(panOffset.x, panOffset.y);
         ctx.scale(zoomScale, zoomScale);
       }
+      
+      // Draw temporary bounding box preview for circle/ellipse
+      if (shapeType === 'circle' || shapeType === 'ellipse') {
+        const minX = Math.min(shapeAnchorX, shapePreviewX);
+        const maxX = Math.max(shapeAnchorX, shapePreviewX);
+        const minY = Math.min(shapeAnchorY, shapePreviewY);
+        const maxY = Math.max(shapeAnchorY, shapePreviewY);
+        
+        ctx.save();
+        ctx.strokeStyle = strokeColor + '60'; // light dashed outline
+        ctx.lineWidth = Math.max(1, brushWidth / 2);
+        ctx.setLineDash([4, 4]);
+        
+        if (shapeType === 'circle') {
+          const rx = (maxX - minX) / 2;
+          const ry = (maxY - minY) / 2;
+          const radius = Math.min(rx, ry);
+          const cx = minX + rx;
+          const cy = minY + ry;
+          ctx.strokeRect(cx - radius, cy - radius, radius * 2, radius * 2);
+        } else {
+          ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+        }
+        ctx.restore();
+      }
+
       const previewPoints = generateShapePoints(shapeType, shapeAnchorX, shapeAnchorY, shapePreviewX, shapePreviewY);
       if (previewPoints.length > 0) {
         ctx.strokeStyle = strokeColor + '80';
