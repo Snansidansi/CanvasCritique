@@ -2689,9 +2689,11 @@
         movedAny = true;
       }
 
-      if (selectedImage) {
-        selectedImage.x += dx;
-        selectedImage.y += dy;
+      if (selectedImages.length > 0) {
+        for (const img of selectedImages) {
+          img.x += dx;
+          img.y += dy;
+        }
         canvasImages = [...canvasImages];
         movedAny = true;
       }
