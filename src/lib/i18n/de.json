@@ -174,7 +174,12 @@
       "optionMediaTitle": "Medien für diese Option",
       "optionsTitle": "Antwortoptionen",
       "noQuestionText": "Keine Frage eingegeben",
-      "noOptionText": "Keine Antwortoption eingegeben"
+      "noOptionText": "Keine Antwortoption eingegeben",
+      "hintTitle": "Hinweis / Erklärung",
+      "deleteHint": "Hinweis löschen",
+      "addHint": "Hinweis / Erklärung hinzufügen",
+      "hintPlaceholder": "Hinweis oder Erklärung zu dieser Antwortmöglichkeit...",
+      "noHintText": "Kein Hinweis eingegeben"
     },
     "contextTitle": "Aufgabenkontext",
     "contextSubtitle": "Füge Kontext-Dateien und Richtlinien für die KI hinzu, die nicht auf der Leinwand angezeigt werden",
@@ -327,7 +332,11 @@
     "modeMultipleChoiceLabel": "Multiple Choice",
     "mc": {
       "multipleAnswers": "Mehrfachauswahl",
-      "singleAnswer": "Einfachauswahl"
+      "singleAnswer": "Einfachauswahl",
+      "hintExplanationTitle": "Hinweis / Erklärung",
+      "questionSingle": "Frage",
+      "questionsPlural": "Fragen",
+      "completedPercent": "richtig gelöst"
     },
     "textEditor": {
       "writeTitle": "Texteditor",

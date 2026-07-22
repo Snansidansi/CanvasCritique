@@ -175,7 +175,12 @@
       "optionMediaTitle": "Media for this option",
       "optionsTitle": "Answer Options",
       "noQuestionText": "No question entered",
-      "noOptionText": "No answer option entered"
+      "noOptionText": "No answer option entered",
+      "hintTitle": "Hint / Explanation",
+      "deleteHint": "Delete hint",
+      "addHint": "Add hint / explanation",
+      "hintPlaceholder": "Hint or explanation for this answer option...",
+      "noHintText": "No hint entered"
     },
     "contextTitle": "Task Context",
     "contextSubtitle": "Add context files and guidelines for the AI that will not be displayed on the canvas",
@@ -328,7 +333,11 @@
     "modeMultipleChoiceLabel": "Multiple Choice",
     "mc": {
       "multipleAnswers": "Multiple Choice",
-      "singleAnswer": "Single Choice"
+      "singleAnswer": "Single Choice",
+      "hintExplanationTitle": "Hint / Explanation",
+      "questionSingle": "question",
+      "questionsPlural": "questions",
+      "completedPercent": "correctly solved"
     },
     "textEditor": {
       "writeTitle": "Text Editor",
