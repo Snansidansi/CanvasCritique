@@ -334,6 +334,8 @@
 
   let isCustomBgModalOpen = $state(false);
 
+  let isExportingPdf = $state(false);
+
   // Brush configuration
   let strokeColor = $state('#000000');
   let brushWidth = $state(2);
@@ -3526,22 +3528,77 @@
     saveToStore();
   }
 
-  async function handleExportPdf() {
-    try {
-      let pdf: jsPDF;
-      const scale = 3; // 3x scaling for high-resolution 4K quality print sharpness
+  async function generatePdfData(scale: number): Promise<jsPDF> {
+    let pdf: jsPDF;
 
-      if (showCanvas) {
-        if (canvasMode === 'infinite') {
-          // Bounding Box of all drawing strokes
-          let box = getStrokesBoundingBox(infiniteStrokes, 'infinite');
-          if (!box) {
-            box = { x: 0, y: 0, width: containerWidth || 800, height: containerHeight || 1130 };
+    if (showCanvas) {
+      if (canvasMode === 'infinite') {
+        // Bounding Box of all drawing strokes
+        let box = getStrokesBoundingBox(infiniteStrokes, 'infinite');
+        if (!box) {
+          box = { x: 0, y: 0, width: containerWidth || 800, height: containerHeight || 1130 };
+        }
+        
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = box.width * scale;
+        exportCanvas.height = box.height * scale;
+        const exportCtx = exportCanvas.getContext('2d');
+        if (!exportCtx) throw new Error('Could not create canvas context');
+
+        // Scale all drawing operations
+        exportCtx.scale(scale, scale);
+
+        // White background
+        exportCtx.fillStyle = '#FFFFFF';
+        exportCtx.fillRect(0, 0, box.width, box.height);
+
+        // Background Image
+        if (currentBgImage) {
+          exportCtx.save();
+          exportCtx.globalAlpha = bgOpacity / 100;
+          const pattern = exportCtx.createPattern(currentBgImage, 'repeat');
+          if (pattern) {
+            exportCtx.fillStyle = pattern;
+            exportCtx.fillRect(0, 0, box.width, box.height);
           }
-          
+          exportCtx.restore();
+        }
+
+        // Guidelines
+        drawGuidelinesInWorld(exportCtx, box.x, box.y, box.width, box.height, activeBg, bgOpacity);
+
+        // Strokes (offset by bounding box x and y)
+        exportCtx.save();
+        exportCtx.translate(-box.x, -box.y);
+        for (const stroke of infiniteStrokes) {
+          drawStroke(exportCtx, stroke);
+        }
+        exportCtx.restore();
+
+        // Use compressed PNG to keep file size small and lines lossless
+        const imgData = exportCanvas.toDataURL('image/png');
+        pdf = new jsPDF({
+          orientation: box.width > box.height ? 'l' : 'p',
+          unit: 'px',
+          format: [box.width, box.height]
+        });
+        pdf.addImage(imgData, 'PNG', 0, 0, box.width, box.height, undefined, 'FAST');
+      } else {
+        // A4 Mode
+        pdf = new jsPDF({
+          orientation: 'p',
+          unit: 'px',
+          format: [800, 1130]
+        });
+
+        for (let i = 0; i < pages.length; i++) {
+          if (i > 0) {
+            pdf.addPage([800, 1130], 'p');
+          }
+          const page = pages[i];
           const exportCanvas = document.createElement('canvas');
-          exportCanvas.width = box.width * scale;
-          exportCanvas.height = box.height * scale;
+          exportCanvas.width = 800 * scale;
+          exportCanvas.height = 1130 * scale;
           const exportCtx = exportCanvas.getContext('2d');
           if (!exportCtx) throw new Error('Could not create canvas context');
 
@@ -3550,7 +3607,7 @@
 
           // White background
           exportCtx.fillStyle = '#FFFFFF';
-          exportCtx.fillRect(0, 0, box.width, box.height);
+          exportCtx.fillRect(0, 0, 800, 1130);
 
           // Background Image
           if (currentBgImage) {
@@ -3559,160 +3616,112 @@
             const pattern = exportCtx.createPattern(currentBgImage, 'repeat');
             if (pattern) {
               exportCtx.fillStyle = pattern;
-              exportCtx.fillRect(0, 0, box.width, box.height);
+              exportCtx.fillRect(0, 0, 800, 1130);
             }
             exportCtx.restore();
           }
 
           // Guidelines
-          drawGuidelinesInWorld(exportCtx, box.x, box.y, box.width, box.height, activeBg, bgOpacity);
+          drawGuidelinesInWorld(exportCtx, 0, 0, 800, 1130, activeBg, bgOpacity);
 
-          // Strokes (offset by bounding box x and y)
-          exportCtx.save();
-          exportCtx.translate(-box.x, -box.y);
-          for (const stroke of infiniteStrokes) {
+          // Strokes
+          for (const stroke of page.strokeHistory || []) {
             drawStroke(exportCtx, stroke);
           }
-          exportCtx.restore();
 
           // Use compressed PNG to keep file size small and lines lossless
           const imgData = exportCanvas.toDataURL('image/png');
-          pdf = new jsPDF({
-            orientation: box.width > box.height ? 'l' : 'p',
-            unit: 'px',
-            format: [box.width, box.height]
-          });
-          pdf.addImage(imgData, 'PNG', 0, 0, box.width, box.height, undefined, 'FAST');
-        } else {
-          // A4 Mode
-          pdf = new jsPDF({
-            orientation: 'p',
-            unit: 'px',
-            format: [800, 1130]
-          });
-
-          for (let i = 0; i < pages.length; i++) {
-            if (i > 0) {
-              pdf.addPage([800, 1130], 'p');
-            }
-            const page = pages[i];
-            const exportCanvas = document.createElement('canvas');
-            exportCanvas.width = 800 * scale;
-            exportCanvas.height = 1130 * scale;
-            const exportCtx = exportCanvas.getContext('2d');
-            if (!exportCtx) throw new Error('Could not create canvas context');
-
-            // Scale all drawing operations
-            exportCtx.scale(scale, scale);
-
-            // White background
-            exportCtx.fillStyle = '#FFFFFF';
-            exportCtx.fillRect(0, 0, 800, 1130);
-
-            // Background Image
-            if (currentBgImage) {
-              exportCtx.save();
-              exportCtx.globalAlpha = bgOpacity / 100;
-              const pattern = exportCtx.createPattern(currentBgImage, 'repeat');
-              if (pattern) {
-                exportCtx.fillStyle = pattern;
-                exportCtx.fillRect(0, 0, 800, 1130);
-              }
-              exportCtx.restore();
-            }
-
-            // Guidelines
-            drawGuidelinesInWorld(exportCtx, 0, 0, 800, 1130, activeBg, bgOpacity);
-
-            // Strokes
-            for (const stroke of page.strokeHistory || []) {
-              drawStroke(exportCtx, stroke);
-            }
-
-            // Use compressed PNG to keep file size small and lines lossless
-            const imgData = exportCanvas.toDataURL('image/png');
-            pdf.addImage(imgData, 'PNG', 0, 0, 800, 1130, undefined, 'FAST');
-          }
-        }
-      } else {
-        // Markdown/Text Mode
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
-        tempDiv.style.top = '-9999px';
-        tempDiv.style.width = '800px';
-        tempDiv.style.background = '#FFFFFF';
-        tempDiv.style.color = '#000000';
-        tempDiv.style.padding = '40px';
-        tempDiv.style.boxSizing = 'border-box';
-        tempDiv.className = 'prose max-w-none';
-        
-        const style = document.createElement('style');
-        style.innerHTML = `
-          .prose {
-            color: #1a1a1a !important;
-            background-color: #ffffff !important;
-            font-family: system-ui, -apple-system, sans-serif !important;
-          }
-          .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
-            color: #0040e0 !important;
-            margin-top: 1.5em !important;
-            margin-bottom: 0.5em !important;
-          }
-          .prose a {
-            color: #0040e0 !important;
-          }
-          .prose code {
-            color: #0040e0 !important;
-            background-color: #f3f4f6 !important;
-          }
-          .prose blockquote {
-            border-left-color: #d1d5db !important;
-            background-color: #f9fafb !important;
-            color: #4b5563 !important;
-          }
-          .prose hr {
-            border-top: 1px solid #e5e7eb !important;
-            margin: 2em 0 !important;
-          }
-        `;
-        tempDiv.appendChild(style);
-
-        const contentSpan = document.createElement('div');
-        contentSpan.innerHTML = getParsedPreviewHtml(editorText);
-        tempDiv.appendChild(contentSpan);
-
-        document.body.appendChild(tempDiv);
-        const canvas = await html2canvas(tempDiv, {
-          backgroundColor: '#FFFFFF',
-          scale: scale, // Render text layout at high resolution
-          logging: false
-        });
-        document.body.removeChild(tempDiv);
-
-        const imgWidth = 800;
-        const pageHeight = 1130;
-        const canvasHeight = canvas.height * (imgWidth / canvas.width);
-
-        pdf = new jsPDF('p', 'px', [imgWidth, pageHeight]);
-
-        let heightLeft = canvasHeight;
-        let position = 0;
-
-        // Use compressed PNG to keep file size small and lines lossless
-        const imgData = canvas.toDataURL('image/png');
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width), undefined, 'FAST');
-        heightLeft -= pageHeight;
-
-        while (heightLeft > 0) {
-          position = position - pageHeight;
-          pdf.addPage([imgWidth, pageHeight]);
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width), undefined, 'FAST');
-          heightLeft -= pageHeight;
+          pdf.addImage(imgData, 'PNG', 0, 0, 800, 1130, undefined, 'FAST');
         }
       }
+    } else {
+      // Markdown/Text Mode
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.width = '800px';
+      tempDiv.style.background = '#FFFFFF';
+      tempDiv.style.color = '#000000';
+      tempDiv.style.padding = '40px';
+      tempDiv.style.boxSizing = 'border-box';
+      tempDiv.className = 'prose max-w-none';
+      
+      const style = document.createElement('style');
+      style.innerHTML = `
+        .prose {
+          color: #1a1a1a !important;
+          background-color: #ffffff !important;
+          font-family: system-ui, -apple-system, sans-serif !important;
+        }
+        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+          color: #0040e0 !important;
+          margin-top: 1.5em !important;
+          margin-bottom: 0.5em !important;
+        }
+        .prose a {
+          color: #0040e0 !important;
+        }
+        .prose code {
+          color: #0040e0 !important;
+          background-color: #f3f4f6 !important;
+        }
+        .prose blockquote {
+          border-left-color: #d1d5db !important;
+          background-color: #f9fafb !important;
+          color: #4b5563 !important;
+        }
+        .prose hr {
+          border-top: 1px solid #e5e7eb !important;
+          margin: 2em 0 !important;
+        }
+      `;
+      tempDiv.appendChild(style);
 
-      // Dialog to save file
+      const contentSpan = document.createElement('div');
+      contentSpan.innerHTML = getParsedPreviewHtml(editorText);
+      tempDiv.appendChild(contentSpan);
+
+      document.body.appendChild(tempDiv);
+      const canvas = await html2canvas(tempDiv, {
+        backgroundColor: '#FFFFFF',
+        scale: scale, // Render text layout at high resolution
+        logging: false
+      });
+      document.body.removeChild(tempDiv);
+
+      const imgWidth = 800;
+      const pageHeight = 1130;
+      const canvasHeight = canvas.height * (imgWidth / canvas.width);
+
+      pdf = new jsPDF('p', 'px', [imgWidth, pageHeight]);
+
+      let heightLeft = canvasHeight;
+      let position = 0;
+
+      // Use compressed PNG to keep file size small and lines lossless
+      const imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width), undefined, 'FAST');
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = position - pageHeight;
+        pdf.addPage([imgWidth, pageHeight]);
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width), undefined, 'FAST');
+        heightLeft -= pageHeight;
+      }
+    }
+
+    return pdf;
+  }
+
+  async function handleExportPdf() {
+    isExportingPdf = true;
+    try {
+      // Start generating the PDF data in the background
+      const pdfPromise = generatePdfData(3);
+
+      // Immediately query the user where to save the file
       const defaultName = showCanvas
         ? `canvas_${task.name.toLowerCase().replace(/\s+/g, '_')}.pdf`
         : `text_${task.name.toLowerCase().replace(/\s+/g, '_')}.pdf`;
@@ -3725,7 +3734,13 @@
         defaultPath: defaultName
       });
 
-      if (!filePath) return; // User cancelled
+      if (!filePath) {
+        isExportingPdf = false;
+        return; // User cancelled
+      }
+
+      // Wait for the background PDF generation to complete
+      const pdf = await pdfPromise;
 
       const pdfArrayBuffer = pdf.output('arraybuffer');
       await writeFile(filePath, new Uint8Array(pdfArrayBuffer));
@@ -3733,6 +3748,8 @@
     } catch (err) {
       console.error('[PDF Export] Failed:', err);
       store.showNotification(t('practice.exportPdfError'), 'error');
+    } finally {
+      isExportingPdf = false;
     }
   }
 
@@ -5256,14 +5273,19 @@
           <!-- Actions side-by-side -->
           <div class="grid grid-cols-2 gap-3 border-t border-outline-variant/30 pt-4 mt-2">
             <button 
-              onclick={() => {
+              onclick={async () => {
                 store.canvasSettingsOpen = false;
-                handleExportPdf();
+                await handleExportPdf();
               }}
-              class="flex items-center justify-center gap-1.5 border border-outline-variant text-on-surface hover:bg-surface-container py-2.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none bg-transparent transition-colors"
+              disabled={isExportingPdf}
+              class="flex items-center justify-center gap-1.5 border border-outline-variant text-on-surface hover:bg-surface-container py-2.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none bg-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={showCanvas ? t('practice.exportCanvasPdf') : t('practice.exportTextPdf')}
             >
-              <span class="material-symbols-outlined text-base text-primary">picture_as_pdf</span>
+              {#if isExportingPdf}
+                <span class="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></span>
+              {:else}
+                <span class="material-symbols-outlined text-base text-primary">picture_as_pdf</span>
+              {/if}
               <span>{t('practice.exportPdfLabel')}</span>
             </button>
 
