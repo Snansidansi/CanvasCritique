@@ -1823,6 +1823,7 @@
       if (!isNewTaskOrAttempt) return;
 
       untrack(() => {
+        showSolution = false;
         // Save previous state to disk before we switch task/attempt
         if (lastInitializedTaskId && lastInitializedAttemptId) {
           store.saveCanvasState(lastInitializedTaskId, {
