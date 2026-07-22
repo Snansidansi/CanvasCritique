@@ -29,6 +29,7 @@
   let dragStartRight = 0;
   let dragStartBottom = 0;
   let wasCollapsedOnDown = false;
+  let hasDragged = $state(false);
 
   let paletteElement = $state<HTMLElement | null>(null);
 
@@ -209,6 +210,7 @@
     e.preventDefault();
 
     isDragging = true;
+    hasDragged = false;
     dragStartMouseX = e.clientX;
     dragStartMouseY = e.clientY;
 
@@ -237,6 +239,13 @@
 
     const deltaX = e.clientX - dragStartMouseX;
     const deltaY = e.clientY - dragStartMouseY;
+    const dist = Math.hypot(deltaX, deltaY);
+
+    if (!hasDragged && dist > 8) {
+      hasDragged = true;
+    }
+
+    if (!hasDragged) return;
 
     let newRight = dragStartRight - deltaX;
     let newBottom = dragStartBottom - deltaY;
@@ -276,22 +285,20 @@
       paletteElement?.releasePointerCapture(e.pointerId);
     } catch (err) {}
 
-    // Tap detection: only toggle collapse if user did not drag it
-    const dx = e.clientX - dragStartMouseX;
-    const dy = e.clientY - dragStartMouseY;
-    const dist = Math.hypot(dx, dy);
-
-    if (wasCollapsedOnDown && dist < 6) {
+    // Tap detection: only toggle collapse if user did not drag beyond threshold
+    if (wasCollapsedOnDown && !hasDragged) {
       toggleCollapse();
     }
 
-    if (rightX !== null && bottomY !== null) {
+    if (hasDragged && rightX !== null && bottomY !== null) {
       localStorage.setItem('canvascritique_palette_pos', JSON.stringify({ right: rightX, bottom: bottomY }));
     }
+    hasDragged = false;
   }
 
   function onPointerCancel(e: PointerEvent) {
     isDragging = false;
+    hasDragged = false;
     try {
       paletteElement?.releasePointerCapture(e.pointerId);
     } catch (err) {}
@@ -301,7 +308,7 @@
 <div 
   bind:this={paletteElement}
   class="fixed bg-surface-container/95 backdrop-blur-md shadow-lg border border-outline-variant/30 select-none z-20 flex items-center
-         {isCollapsed ? 'w-12 max-w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : 'w-fit max-w-[850px] h-12 pl-4 pr-7 rounded-full'}
+         {isCollapsed ? 'w-12 max-w-12 h-12 rounded-full p-0 justify-center overflow-hidden cursor-pointer' : 'w-fit max-w-212.5 h-12 pl-4 pr-7 rounded-full'}
          {isDragging ? '' : 'palette-transition'}"
   style="{positionStyle} touch-action: none;"
   onpointerdown={onPointerDown}
