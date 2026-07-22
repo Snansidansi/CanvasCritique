@@ -178,7 +178,8 @@ export function calculateStrokeBounds(stroke: Stroke): StrokeBounds {
 }
 
 export function ensureStrokeBounds(stroke: Stroke): Stroke {
-  if (!stroke.bounds) {
+  const bounds = stroke.bounds;
+  if (!bounds || typeof bounds.minX !== 'number' || (bounds.minX === 0 && bounds.maxX === 0 && stroke.points && stroke.points.length > 1)) {
     stroke.bounds = calculateStrokeBounds(stroke);
   }
   return stroke;
