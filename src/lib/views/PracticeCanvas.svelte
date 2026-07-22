@@ -681,7 +681,7 @@
   let isMovingSelection = $state(false);
   let selectionDragStart = { x: 0, y: 0 };
   let selectionStartStrokes = [];
-  let selectionStartImageRect = null;
+  let selectionStartImageRects = [];
   let lastCopiedDrawingTime = 0;
   let lastClipboardImageTime = 0;
   let lastClipboardImageHash = '';
@@ -764,21 +764,7 @@
     return `#${f(0)}${f(8)}${f(4)}`;
   }
 
-  // Watch strokeColor to update selectedStrokes color
-  let lastAppliedColor = $state<string | null>(null);
-  $effect(() => {
-    const currentColor = strokeColor;
-    if (lastAppliedColor === null) {
-      lastAppliedColor = currentColor;
-      return;
-    }
-    if (currentColor !== lastAppliedColor) {
-      lastAppliedColor = currentColor;
-      if (selectedStrokes.length > 0) {
-        changeSelectedStrokesColor(currentColor);
-      }
-    }
-  });
+
 
   // Canvas Image states
   interface CanvasImage {
@@ -791,7 +777,8 @@
     pageIndex: number;
   }
   let canvasImages = $state<CanvasImage[]>([]);
-  let selectedImage = $state<CanvasImage | null>(null);
+  let selectedImages = $state<CanvasImage[]>([]);
+  let selectedImage = $derived(selectedImages.length === 1 && selectedStrokes.length === 0 ? selectedImages[0] : null);
   let isMovingImage = $state(false);
   let isResizingImage = $state(false);
   let imageDragStart = { x: 0, y: 0 };
@@ -803,19 +790,25 @@
   let pendingInsertImage = $state<{ name: string; dataUrl?: string; mediaId?: string } | null>(null);
 
   let selectionBoundingBox = $derived.by(() => {
-    if (selectedImage) {
+    // If only a single image is selected (and no strokes), return its bounding box
+    if (selectedImages.length === 1 && selectedStrokes.length === 0) {
+      const img = selectedImages[0];
       return {
-        minX: selectedImage.x,
-        minY: selectedImage.y,
-        maxX: selectedImage.x + selectedImage.width,
-        maxY: selectedImage.y + selectedImage.height
+        minX: img.x,
+        minY: img.y,
+        maxX: img.x + img.width,
+        maxY: img.y + img.height
       };
     }
-    if (selectedStrokes.length === 0) return null;
+
+    if (selectedStrokes.length === 0 && selectedImages.length === 0) return null;
+
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
+
+    // Add selected strokes bounds
     for (const stroke of selectedStrokes) {
       const halfWidth = stroke.width / 2;
       for (const p of stroke.points) {
@@ -825,6 +818,15 @@
         if (p.y + halfWidth > maxY) maxY = p.y + halfWidth;
       }
     }
+
+    // Add selected images bounds
+    for (const img of selectedImages) {
+      if (img.x < minX) minX = img.x;
+      if (img.y < minY) minY = img.y;
+      if (img.x + img.width > maxX) maxX = img.x + img.width;
+      if (img.y + img.height > maxY) maxY = img.y + img.height;
+    }
+
     if (minX === Infinity) return null;
     return { minX, minY, maxX, maxY };
   });
@@ -1138,7 +1140,8 @@
                 infiniteRedo = [];
               }
               canvasImages = [...canvasImages, newImage];
-              selectedImage = canvasImages.find(img => img.id === newImage.id) || newImage;
+              selectedImages = [canvasImages.find(img => img.id === newImage.id) || newImage];
+              selectedStrokes = [];
               activeTool = 'select'; // Automatically select the selection tool!
               saveToStore();
             };
@@ -1235,7 +1238,8 @@
         infiniteRedo = [];
       }
       canvasImages = [...canvasImages, newImage];
-      selectedImage = canvasImages.find(img => img.id === newImage.id) || newImage;
+      selectedImages = [canvasImages.find(img => img.id === newImage.id) || newImage];
+      selectedStrokes = [];
       activeTool = 'select';
       saveToStore();
     };
@@ -1674,7 +1678,7 @@
   function performLoadState(taskId: string) {
     // Clear selections since we switched task/reloaded
     selectedStrokes = [];
-    selectedImage = null;
+    selectedImages = [];
     selectionBox = null;
     isMovingSelection = false;
 
@@ -1898,13 +1902,13 @@
     });
   }
 
-  function getImageInMarquee(x1, y1, x2, y2) {
+  function getImagesInMarquee(x1, y1, x2, y2) {
     const minX = Math.min(x1, x2);
     const maxX = Math.max(x1, x2);
     const minY = Math.min(y1, y2);
     const maxY = Math.max(y1, y2);
     
-    return canvasImages.find(img => {
+    return canvasImages.filter(img => {
       if (canvasMode === 'a4' && img.pageIndex !== activePageIndex) return false;
       const imgMinX = img.x;
       const imgMaxX = img.x + img.width;
@@ -2247,22 +2251,24 @@
       panStart = { x: e.clientX, y: e.clientY };
       panBaseOffset = { ...panOffset };
       
-      // Setup long-press (600ms) timer for context menu (stylus paste shortcut) even during panning
-      longPressStartPos = { x: e.clientX, y: e.clientY };
-      longPressTimer = setTimeout(() => {
-        const rect = canvasContainer.getBoundingClientRect();
-        contextMenu = {
-          x: longPressStartPos.x - rect.left,
-          y: longPressStartPos.y - rect.top,
-          canvasX: coords.x,
-          canvasY: coords.y
-        };
-        isPanning = false;
-        isDrawing = false;
-        currentStroke = [];
-        selectionBox = null;
-        isMovingSelection = false;
-      }, 600);
+      // Setup long-press (600ms) timer for context menu (stylus paste shortcut) even during panning (only for touch or stylus)
+      if (e.pointerType !== 'mouse') {
+        longPressStartPos = { x: e.clientX, y: e.clientY };
+        longPressTimer = setTimeout(() => {
+          const rect = canvasContainer.getBoundingClientRect();
+          contextMenu = {
+            x: longPressStartPos.x - rect.left,
+            y: longPressStartPos.y - rect.top,
+            canvasX: coords.x,
+            canvasY: coords.y
+          };
+          isPanning = false;
+          isDrawing = false;
+          currentStroke = [];
+          selectionBox = null;
+          isMovingSelection = false;
+        }, 600);
+      }
 
       e.preventDefault();
       return;
@@ -2313,22 +2319,24 @@
     // In stylus mode, finger/touch/mouse cannot draw/select on A4 canvas either (unless clicking in selection to drag/move)
     if (store.settings.stylusMode && isFingerOrMouse && !isClickInSelection) {
       if (canvasMode !== 'infinite') {
-        // Setup long-press (600ms) timer for context menu (stylus paste shortcut)
-        longPressStartPos = { x: e.clientX, y: e.clientY };
-        longPressTimer = setTimeout(() => {
-          const rect = canvasContainer.getBoundingClientRect();
-          contextMenu = {
-            x: longPressStartPos.x - rect.left,
-            y: longPressStartPos.y - rect.top,
-            canvasX: coords.x,
-            canvasY: coords.y
-          };
-          isDrawing = false;
-          currentStroke = [];
-          selectionBox = null;
-          isMovingSelection = false;
-          isPanning = false;
-        }, 600);
+        // Setup long-press (600ms) timer for context menu (stylus paste shortcut) (only for touch or stylus)
+        if (e.pointerType !== 'mouse') {
+          longPressStartPos = { x: e.clientX, y: e.clientY };
+          longPressTimer = setTimeout(() => {
+            const rect = canvasContainer.getBoundingClientRect();
+            contextMenu = {
+              x: longPressStartPos.x - rect.left,
+              y: longPressStartPos.y - rect.top,
+              canvasX: coords.x,
+              canvasY: coords.y
+            };
+            isDrawing = false;
+            currentStroke = [];
+            selectionBox = null;
+            isMovingSelection = false;
+            isPanning = false;
+          }, 600);
+        }
         
         try {
           canvasElement.setPointerCapture(e.pointerId);
@@ -2344,8 +2352,8 @@
       canvasElement.setPointerCapture(e.pointerId);
     } catch (err) {}
 
-    // Setup long-press (600ms) timer for context menu (stylus paste shortcut)
-    if (!isPointerEraser && !isPointerSelect && !isPointerPan) {
+    // Setup long-press (600ms) timer for context menu (stylus paste shortcut) (only for touch or stylus)
+    if (!isPointerEraser && !isPointerSelect && !isPointerPan && e.pointerType !== 'mouse') {
       longPressStartPos = { x: e.clientX, y: e.clientY };
       longPressTimer = setTimeout(() => {
         const rect = canvasContainer.getBoundingClientRect();
@@ -2389,10 +2397,10 @@
       return;
     }
 
-    const shouldDragImage = clickedImage && (activeTool === 'select' || isPointerSelect || activeTool === 'pan' || selectedImage !== null);
+    const shouldDragImage = clickedImage && (activeTool === 'select' || isPointerSelect || activeTool === 'pan' || selectedImages.length > 0);
 
     if (shouldDragImage) {
-      selectedImage = clickedImage;
+      selectedImages = [clickedImage];
       selectedStrokes = []; // Clear stroke selection
       isMovingImage = true;
       imageDragStart = { x: coords.x, y: coords.y };
@@ -2406,15 +2414,16 @@
     }
 
     if (isClickInSelection) {
-      if (selectedImage && selectedStrokes.length === 0) {
+      if (selectedImages.length === 1 && selectedStrokes.length === 0) {
+        const img = selectedImages[0];
         isMovingImage = true;
         imageDragStart = { x: coords.x, y: coords.y };
-        imageStartRect = { x: selectedImage.x, y: selectedImage.y, width: selectedImage.width, height: selectedImage.height };
+        imageStartRect = { x: img.x, y: img.y, width: img.width, height: img.height };
       } else {
         isMovingSelection = true;
         selectionDragStart = { x: coords.x, y: coords.y };
         selectionStartStrokes = JSON.parse(JSON.stringify(selectedStrokes));
-        selectionStartImageRect = selectedImage ? { x: selectedImage.x, y: selectedImage.y } : null;
+        selectionStartImageRects = selectedImages.map(img => ({ id: img.id, x: img.x, y: img.y }));
       }
       selectionBox = null;
       if (longPressTimer) {
@@ -2423,7 +2432,7 @@
       }
     } else if (activeTool === 'shape' && !isPointerEraser && !isPointerSelect && !isPointerPan) {
       if (selectedStrokes.length > 0) selectedStrokes = [];
-      selectedImage = null;
+      selectedImages = [];
       isShapeDrawing = true;
       shapeAnchorX = coords.x;
       shapeAnchorY = coords.y;
@@ -2431,12 +2440,12 @@
       shapePreviewY = coords.y;
     } else if (activeTool === 'select' || isPointerSelect) {
       selectedStrokes = [];
-      selectedImage = null;
+      selectedImages = [];
       selectionBox = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y };
       isMovingSelection = false;
     } else {
       if (selectedStrokes.length > 0) selectedStrokes = [];
-      selectedImage = null;
+      selectedImages = [];
       isDrawing = true;
       currentStroke = [coords];
       startStraightenTimer(coords, e.clientX, e.clientY);
@@ -2767,7 +2776,7 @@
     if (isMovingSelection) {
       let moved = false;
       const strokesTo = JSON.parse(JSON.stringify(selectedStrokes));
-      const imageTo = selectedImage ? { id: selectedImage.id, x: selectedImage.x, y: selectedImage.y } : null;
+      const imagesTo = selectedImages.map(img => ({ id: img.id, x: img.x, y: img.y }));
       
       if (selectedStrokes.length > 0 && selectionStartStrokes.length > 0) {
         if (selectedStrokes[0].points[0].x !== selectionStartStrokes[0].points[0].x ||
@@ -2775,8 +2784,12 @@
           moved = true;
         }
       }
-      if (selectedImage && selectionStartImageRect) {
-        if (selectedImage.x !== selectionStartImageRect.x || selectedImage.y !== selectionStartImageRect.y) {
+      if (selectedImages.length > 0 && selectionStartImageRects.length > 0) {
+        const hasImgMoved = selectedImages.some(img => {
+          const start = selectionStartImageRects.find(s => s.id === img.id);
+          return start && (img.x !== start.x || img.y !== start.y);
+        });
+        if (hasImgMoved) {
           moved = true;
         }
       }
@@ -2787,8 +2800,8 @@
           type: 'move_selection',
           strokesFrom: selectionStartStrokes,
           strokesTo,
-          imageFrom: selectedImage && selectionStartImageRect ? { id: selectedImage.id, x: selectionStartImageRect.x, y: selectionStartImageRect.y } : null,
-          imageTo
+          imagesFrom: selectionStartImageRects,
+          imagesTo
         });
         if (canvasMode === 'a4') {
           pages[activePageIndex].redoStack = [];
@@ -2803,7 +2816,7 @@
     } else if (activeTool === 'select' || isPointerSelect) {
       if (selectionBox) {
         selectedStrokes = getStrokesInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2);
-        selectedImage = getImageInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2) || null;
+        selectedImages = getImagesInMarquee(selectionBox.x1, selectionBox.y1, selectionBox.x2, selectionBox.y2);
         selectionBox = null;
       }
     } else if (isShapeDrawing) {
@@ -3408,9 +3421,7 @@
       }
     } else if (action.type === 'insert_image') {
       canvasImages = canvasImages.filter(img => img.id !== action.image.id);
-      if (selectedImage && selectedImage.id === action.image.id) {
-        selectedImage = null;
-      }
+      selectedImages = selectedImages.filter(img => img.id !== action.image.id);
     } else if (action.type === 'delete_image') {
       canvasImages = [...canvasImages, action.image];
     } else if (action.type === 'move_image') {
@@ -3465,17 +3476,33 @@
           return orig ? { ...s, points: orig.points, bounds: orig.bounds } : s;
         });
       }
-      if (action.imageFrom) {
+      if (action.imagesFrom) {
+        for (const imgFrom of action.imagesFrom) {
+          const img = canvasImages.find(i => i.id === imgFrom.id);
+          if (img) {
+            img.x = imgFrom.x;
+            img.y = imgFrom.y;
+          }
+          const selImg = selectedImages.find(i => i.id === imgFrom.id);
+          if (selImg) {
+            selImg.x = imgFrom.x;
+            selImg.y = imgFrom.y;
+          }
+        }
+        canvasImages = [...canvasImages];
+        selectedImages = [...selectedImages];
+      } else if (action.imageFrom) {
         const img = canvasImages.find(i => i.id === action.imageFrom.id);
         if (img) {
           img.x = action.imageFrom.x;
           img.y = action.imageFrom.y;
           canvasImages = [...canvasImages];
         }
-        if (selectedImage && selectedImage.id === action.imageFrom.id) {
-          selectedImage.x = action.imageFrom.x;
-          selectedImage.y = action.imageFrom.y;
-          selectedImage = { ...selectedImage };
+        const selImg = selectedImages.find(i => i.id === action.imageFrom.id);
+        if (selImg) {
+          selImg.x = action.imageFrom.x;
+          selImg.y = action.imageFrom.y;
+          selectedImages = [...selectedImages];
         }
       }
     }
@@ -3515,9 +3542,7 @@
       canvasImages = [...canvasImages, action.image];
     } else if (action.type === 'delete_image') {
       canvasImages = canvasImages.filter(img => img.id !== action.image.id);
-      if (selectedImage && selectedImage.id === action.image.id) {
-        selectedImage = null;
-      }
+      selectedImages = selectedImages.filter(img => img.id !== action.image.id);
     } else if (action.type === 'move_image') {
       const img = canvasImages.find(i => i.id === action.imageId);
       if (img) {
@@ -3570,17 +3595,33 @@
           return updated ? { ...s, points: updated.points, bounds: updated.bounds } : s;
         });
       }
-      if (action.imageTo) {
+      if (action.imagesTo) {
+        for (const imgTo of action.imagesTo) {
+          const img = canvasImages.find(i => i.id === imgTo.id);
+          if (img) {
+            img.x = imgTo.x;
+            img.y = imgTo.y;
+          }
+          const selImg = selectedImages.find(i => i.id === imgTo.id);
+          if (selImg) {
+            selImg.x = imgTo.x;
+            selImg.y = imgTo.y;
+          }
+        }
+        canvasImages = [...canvasImages];
+        selectedImages = [...selectedImages];
+      } else if (action.imageTo) {
         const img = canvasImages.find(i => i.id === action.imageTo.id);
         if (img) {
           img.x = action.imageTo.x;
           img.y = action.imageTo.y;
           canvasImages = [...canvasImages];
         }
-        if (selectedImage && selectedImage.id === action.imageTo.id) {
-          selectedImage.x = action.imageTo.x;
-          selectedImage.y = action.imageTo.y;
-          selectedImage = { ...selectedImage };
+        const selImg = selectedImages.find(i => i.id === action.imageTo.id);
+        if (selImg) {
+          selImg.x = action.imageTo.x;
+          selImg.y = action.imageTo.y;
+          selectedImages = [...selectedImages];
         }
       }
     }
@@ -3843,7 +3884,7 @@
         showFeedback = false;
         showCritiqueBanner = false;
         activeTooltipMarker = null;
-        selectedImage = null;
+        selectedImages = [];
 
         saveToStore();
 
@@ -3964,52 +4005,53 @@
   }
 
   function deleteSelected() {
-    if (selectedImage) {
-      const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+    let deletedAny = false;
+    const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+    
+    // Create transaction lists
+    const deletedStrokesList = [];
+    const deletedImagesList = [];
+
+    if (selectedImages.length > 0) {
+      deletedImagesList.push(...selectedImages);
+      const ids = new Set(selectedImages.map(img => img.id));
+      canvasImages = canvasImages.filter(img => !ids.has(img.id));
+      deletedAny = true;
+    }
+
+    if (selectedStrokes.length > 0) {
+      const history = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
+      const removedStrokes = history.filter(s => selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id)));
+      deletedStrokesList.push(...removedStrokes);
+      
+      const removedIds = new Set(removedStrokes.map(s => s.id));
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(s => !removedIds.has(s.id));
+      } else {
+        infiniteStrokes = infiniteStrokes.filter(s => !removedIds.has(s.id));
+      }
+      deletedAny = true;
+    }
+
+    if (deletedAny) {
+      // Push transaction action to undo stack
       undoStack.push({
-        type: 'delete_image',
-        image: selectedImage
+        type: 'delete_selection',
+        strokes: deletedStrokesList,
+        images: deletedImagesList
       });
       if (canvasMode === 'a4') {
         pages[activePageIndex].redoStack = [];
       } else {
         infiniteRedo = [];
       }
-      canvasImages = canvasImages.filter(img => img.id !== selectedImage.id);
-      selectedImage = null;
+      
+      selectedStrokes = [];
+      selectedImages = [];
+      contextMenu = null;
       saveToStore();
       redraw();
-      return;
     }
-    if (selectedStrokes.length === 0) return;
-    
-    const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
-    const history = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
-    const removedStrokes = history.filter(s => selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id)));
-    
-    if (removedStrokes.length > 0) {
-      undoStack.push({
-        type: 'erase_action',
-        removedStrokes,
-        addedStrokes: []
-      });
-    }
-
-    if (canvasMode === 'a4') {
-      pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(
-        s => !selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id))
-      );
-      pages[activePageIndex].redoStack = [];
-    } else {
-      infiniteStrokes = infiniteStrokes.filter(
-        s => !selectedStrokes.some(sel => sel === s || (sel.id && sel.id === s.id))
-      );
-      infiniteRedo = [];
-    }
-    
-    selectedStrokes = [];
-    contextMenu = null;
-    saveToStore();
   }
 
   let fileInputEl = $state<HTMLInputElement | null>(null);
@@ -4058,7 +4100,8 @@
             };
             
              canvasImages = [...canvasImages, newImage];
-             selectedImage = canvasImages.find(img => img.id === newImage.id) || newImage;
+             selectedImages = [canvasImages.find(img => img.id === newImage.id) || newImage];
+             selectedStrokes = [];
              saveToStore();
             redraw();
           };
@@ -4124,7 +4167,9 @@
           };
           
           canvasImages = [...canvasImages, newImage];
-          selectedImage = null; // Do not select the image after pasting
+          selectedImages = [newImage];
+          selectedStrokes = [];
+          activeTool = 'select';
           
           const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
           undoStack.push({
@@ -4268,7 +4313,7 @@
         handleRedo();
         e.preventDefault();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedImage || selectedStrokes.length > 0) {
+        if (selectedImages.length > 0 || selectedStrokes.length > 0) {
           deleteSelected();
           e.preventDefault();
         }
@@ -4971,7 +5016,7 @@
           </button>
           <div class="w-px h-3 bg-outline-variant/50 shrink-0"></div>
           <button 
-            onclick={() => { selectedStrokes = []; selectedImage = null; }}
+            onclick={() => { selectedStrokes = []; selectedImages = []; }}
             class="px-2.5 py-1 text-[10px] font-bold text-outline hover:bg-surface-container rounded cursor-pointer transition-colors border-0 bg-transparent shrink-0"
             title={t('project.cancelSelection')}
           >
