@@ -234,8 +234,20 @@
     multipleChoiceTasksJson: '[]'
   });
 
+  function isTaskEmpty(): boolean {
+    return instructions.trim() === '' &&
+           solution.trim() === '' &&
+           aiInstructions.trim() === '' &&
+           contextFiles.length === 0 &&
+           providedFiles.length === 0 &&
+           instructionFiles.length === 0 &&
+           solutionFiles.length === 0 &&
+           multipleChoiceTasks.length === 0;
+  }
+
   function hasChanges() {
     if (isSavingOrCanceling) return false;
+    if (!isEditMode && isTaskEmpty()) return false;
     return taskName !== initialValues.taskName ||
            instructions !== initialValues.instructions ||
            solution !== initialValues.solution ||
