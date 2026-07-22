@@ -2530,13 +2530,9 @@
       };
     }
 
-    // Handle stroke-erasing BEFORE the e.buttons check — touch events always
-    // report e.buttons === 0, so erasing during drag would be skipped otherwise.
+    // Handle stroke-erasing BEFORE the e.buttons check — touch/mouse events during drag
+    // must continue erasing continuously until pointerup/pointercancel.
     if (isStrokeErasing) {
-      if (e.pointerType === 'mouse' && e.buttons === 0) {
-        endStrokeErasing();
-        return;
-      }
       e.preventDefault();
       const coords = getCoords(e);
       const p1 = lastStrokeEraserCoords || coords;
