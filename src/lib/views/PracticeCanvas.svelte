@@ -947,7 +947,6 @@
   let isPointerPan = $state(false);
   let isPointerPen = $state(false);
   let isStrokeErasing = $state(false);
-  let erasedStrokesInSession: any[] = [];
   let lastStrokeEraserCoords: Point | null = null;
   let isSelectToolOneShot = $state(false);
   let lastPointerType = $state('mouse');
@@ -1601,7 +1600,8 @@
     activeTooltipMarker = null;
     isPanning = false;
     isDrawing = false;
-    endStrokeErasing();
+    isStrokeErasing = false;
+    lastStrokeEraserCoords = null;
     currentStroke = [];
     isShapeDrawing = false;
 
@@ -1999,27 +1999,6 @@
     );
   }
 
-  function endStrokeErasing() {
-    if (!isStrokeErasing) return;
-    isStrokeErasing = false;
-    lastStrokeEraserCoords = null;
-    if (erasedStrokesInSession.length > 0) {
-      const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
-      undoStack.push({
-        type: 'erase_action',
-        removedStrokes: [...erasedStrokesInSession],
-        addedStrokes: []
-      });
-      if (canvasMode === 'a4') {
-        pages[activePageIndex].redoStack = [];
-      } else {
-        infiniteRedo = [];
-      }
-      erasedStrokesInSession = [];
-      saveToStore();
-    }
-  }
-
   function isStrokeHitBySegment(stroke: Stroke, p1: Point, p2: Point, hitRadius: number): boolean {
     if (!stroke.points || stroke.points.length === 0) return false;
 
@@ -2051,12 +2030,11 @@
     const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
     if (!currentHistory || currentHistory.length === 0) return;
 
+    const currentEraserUndo = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
     const toRemove = new Set<Stroke>();
 
     for (const stroke of currentHistory) {
       if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
-      if (!stroke.id) stroke.id = Math.random().toString(36).substring(2, 9);
-      
       if (isStrokeHitBySegment(stroke, p1, p2, hitRadius)) {
         toRemove.add(stroke);
       }
@@ -2065,21 +2043,22 @@
     if (toRemove.size > 0) {
       const newHistory = currentHistory.filter(s => !toRemove.has(s));
       for (const stroke of toRemove) {
-        const alreadyInSession = erasedStrokesInSession.some(
-          s => s === stroke || (s.id && stroke.id && s.id === stroke.id)
-        );
-        if (!alreadyInSession) {
-          erasedStrokesInSession.push(stroke);
-        }
+        currentEraserUndo.push({
+          type: 'erase_action',
+          removedStrokes: [stroke],
+          addedStrokes: []
+        });
       }
-
       if (canvasMode === 'a4') {
+        pages[activePageIndex].redoStack = [];
         pages[activePageIndex].strokeHistory = newHistory;
       } else {
+        infiniteRedo = [];
         infiniteStrokes = newHistory;
       }
       invalidateCache();
       requestRedraw();
+      saveToStore();
     }
   }
 
@@ -2363,7 +2342,6 @@
 
     // Stroke-erase mode: delete entire stroke under pointer (drag-support)
     if (!isClickInSelection && isEraserAction && effectiveEraserSettings.eraserMode === 'stroke') {
-      erasedStrokesInSession = [];
       isStrokeErasing = true;
       lastStrokeEraserCoords = coords;
       try {
@@ -2771,7 +2749,8 @@
     }
 
     if (isStrokeErasing) {
-      endStrokeErasing();
+      isStrokeErasing = false;
+      lastStrokeEraserCoords = null;
       if (e) e.preventDefault();
       return;
     }
@@ -3122,7 +3101,8 @@
       isPanning = false;
       saveToStore();
     }
-    endStrokeErasing();
+    isStrokeErasing = false;
+    lastStrokeEraserCoords = null;
     isPointerEraser = false;
     isPointerSelect = false;
     isPointerPan = false;
@@ -3141,7 +3121,8 @@
     isDrawing = false;
     currentStroke = [];
     isPanning = false;
-    endStrokeErasing();
+    isStrokeErasing = false;
+    lastStrokeEraserCoords = null;
   }
 
   function handleWheel(e) {
