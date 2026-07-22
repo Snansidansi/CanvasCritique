@@ -41,9 +41,12 @@
 
   async function handleCreateProject(e: Event) {
     e.preventDefault();
-    if (!newProjectName.trim()) return;
-    const proj = await store.addProject(newProjectName.trim(), newProjectIcon);
+    const name = newProjectName.trim();
+    if (!name) return;
+    const icon = newProjectIcon;
     isOpen = false;
+    newProjectName = "";
+    const proj = await store.addProject(name, icon);
     store.selectProject(proj);
     store.setView("project-detail");
   }
