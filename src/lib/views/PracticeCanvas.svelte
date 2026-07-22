@@ -3529,6 +3529,7 @@
   async function handleExportPdf() {
     try {
       let pdf: jsPDF;
+      const scale = 3; // 3x scaling for high-resolution 4K quality print sharpness
 
       if (showCanvas) {
         if (canvasMode === 'infinite') {
@@ -3539,10 +3540,13 @@
           }
           
           const exportCanvas = document.createElement('canvas');
-          exportCanvas.width = box.width;
-          exportCanvas.height = box.height;
+          exportCanvas.width = box.width * scale;
+          exportCanvas.height = box.height * scale;
           const exportCtx = exportCanvas.getContext('2d');
           if (!exportCtx) throw new Error('Could not create canvas context');
+
+          // Scale all drawing operations
+          exportCtx.scale(scale, scale);
 
           // White background
           exportCtx.fillStyle = '#FFFFFF';
@@ -3571,13 +3575,14 @@
           }
           exportCtx.restore();
 
-          const imgData = exportCanvas.toDataURL('image/png');
+          // Use compressed JPEG with 85% quality to keep file size small
+          const imgData = exportCanvas.toDataURL('image/jpeg', 0.85);
           pdf = new jsPDF({
             orientation: box.width > box.height ? 'l' : 'p',
             unit: 'px',
             format: [box.width, box.height]
           });
-          pdf.addImage(imgData, 'PNG', 0, 0, box.width, box.height);
+          pdf.addImage(imgData, 'JPEG', 0, 0, box.width, box.height);
         } else {
           // A4 Mode
           pdf = new jsPDF({
@@ -3592,10 +3597,13 @@
             }
             const page = pages[i];
             const exportCanvas = document.createElement('canvas');
-            exportCanvas.width = 800;
-            exportCanvas.height = 1130;
+            exportCanvas.width = 800 * scale;
+            exportCanvas.height = 1130 * scale;
             const exportCtx = exportCanvas.getContext('2d');
             if (!exportCtx) throw new Error('Could not create canvas context');
+
+            // Scale all drawing operations
+            exportCtx.scale(scale, scale);
 
             // White background
             exportCtx.fillStyle = '#FFFFFF';
@@ -3621,8 +3629,9 @@
               drawStroke(exportCtx, stroke);
             }
 
-            const imgData = exportCanvas.toDataURL('image/png');
-            pdf.addImage(imgData, 'PNG', 0, 0, 800, 1130);
+            // Use compressed JPEG with 85% quality to keep file size small
+            const imgData = exportCanvas.toDataURL('image/jpeg', 0.85);
+            pdf.addImage(imgData, 'JPEG', 0, 0, 800, 1130);
           }
         }
       } else {
@@ -3676,7 +3685,7 @@
         document.body.appendChild(tempDiv);
         const canvas = await html2canvas(tempDiv, {
           backgroundColor: '#FFFFFF',
-          scale: 2,
+          scale: scale, // Render text layout at high resolution
           logging: false
         });
         document.body.removeChild(tempDiv);
@@ -3690,13 +3699,15 @@
         let heightLeft = canvasHeight;
         let position = 0;
 
-        pdf.addImage(canvas, 'PNG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width));
+        // Use compressed JPEG with 85% quality to keep file size small
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width));
         heightLeft -= pageHeight;
 
         while (heightLeft > 0) {
           position = position - pageHeight;
           pdf.addPage([imgWidth, pageHeight]);
-          pdf.addImage(canvas, 'PNG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width));
+          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width));
           heightLeft -= pageHeight;
         }
       }
