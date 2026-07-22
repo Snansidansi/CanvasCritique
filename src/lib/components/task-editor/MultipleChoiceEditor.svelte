@@ -13,6 +13,7 @@
 
   // Active preview states per question (mapping question.id -> boolean)
   let showQuestionPreview = $state<Record<string, boolean>>({});
+  let showOptionPreview = $state<Record<string, boolean>>({});
 
   // Collapsible MC Editor state
   let isEditorExpanded = $state(true);
@@ -793,7 +794,7 @@
 
                     <!-- Option Text Input / Preview -->
                     <div class="grow min-w-0 font-sans">
-                      {#if showQuestionPreview[question.id]}
+                      {#if showOptionPreview[option.id] || showQuestionPreview[question.id]}
                         <div 
                           class="w-full border border-outline-variant/40 rounded-lg p-2.5 bg-surface-container-low text-left leading-relaxed prose prose-sm dark:prose-invert"
                           style="font-size: {fontSize}px;"
@@ -809,6 +810,18 @@
                         ></textarea>
                       {/if}
                     </div>
+
+                    <!-- Option Preview Toggle Button -->
+                    <button
+                      type="button"
+                      onclick={() => showOptionPreview[option.id] = !showOptionPreview[option.id]}
+                      class="text-on-surface-variant hover:text-primary p-1 hover:bg-surface-container rounded-lg cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
+                      title={showOptionPreview[option.id] ? (t('taskEditor.editMode') || 'Bearbeiten') : (t('taskEditor.previewMode') || 'Vorschau')}
+                    >
+                      <span class="material-symbols-outlined text-[16px]">
+                        {showOptionPreview[option.id] ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
 
                     <!-- Delete Option -->
                     {#if question.options.length > 2}
