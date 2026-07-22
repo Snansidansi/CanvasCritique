@@ -192,6 +192,7 @@
         <div
           data-sidebar-project-id={project.id}
           onpointerdown={(e) => handleSidebarPointerDown(e, project.id)}
+          style="touch-action: none;"
           role="button"
           tabindex="0"
           onclick={() => { if (!isSidebarDragActive) handleNavigate("project-detail", project); }}

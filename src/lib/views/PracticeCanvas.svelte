@@ -222,6 +222,9 @@
     if (!target.closest('.text-editor-workspace')) {
       activeLineIndex = null;
     }
+    if (contextMenu && !target.closest('.context-menu-container')) {
+      contextMenu = null;
+    }
   }
 
   // Resizable left panel splitter state
@@ -360,6 +363,14 @@
       return 'cursor-default';
     }
     return 'cursor-crosshair';
+  });
+
+  let cursorStyle = $derived.by(() => {
+    if (cursorClass === 'cursor-dot') {
+      const escapedColor = encodeURIComponent(strokeColor);
+      return `cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><circle cx='8' cy='8' r='3.5' fill='${escapedColor}' stroke='white' stroke-width='1'/></svg>") 8 8, crosshair;`;
+    }
+    return '';
   });
 
   // AI feedback overlay states
@@ -2032,6 +2043,9 @@
   let longPressStartPos = { x: 0, y: 0 };
 
   function handlePointerDown(e) {
+    if (contextMenu) {
+      contextMenu = null;
+    }
     if (!ctx || !canvasElement) return;
 
     // Intercept click when placing a provided image
@@ -4646,8 +4660,8 @@
             onpointerleave={handlePointerLeave}
             onpointercancel={handlePointerCancel}
             oncontextmenu={e => e.preventDefault()}
-            class="absolute inset-0 w-full h-full z-10 bg-white {cursorClass}"
-            style="touch-action: none; will-change: transform;"
+            class="absolute inset-0 w-full h-full z-10 bg-white {cursorClass === 'cursor-dot' ? '' : cursorClass}"
+            style="touch-action: none; will-change: transform; {cursorStyle}"
           ></canvas>
 
           <!-- SVG Overlays for Markers (Infinite Mode) -->
@@ -4743,8 +4757,8 @@
             onpointerleave={handlePointerLeave}
             onpointercancel={handlePointerCancel}
             oncontextmenu={e => e.preventDefault()}
-            class="absolute inset-0 w-full h-full z-10 bg-transparent {cursorClass}"
-            style="touch-action: none; will-change: transform;"
+            class="absolute inset-0 w-full h-full z-10 bg-transparent {cursorClass === 'cursor-dot' ? '' : cursorClass}"
+            style="touch-action: none; will-change: transform; {cursorStyle}"
           ></canvas>
         </div>
 
@@ -4899,20 +4913,12 @@
 
       <!-- Custom Right-Click / Long-Press Paste Context Menu -->
       {#if contextMenu}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <button 
-          type="button"
-          class="absolute inset-0 z-40 bg-transparent cursor-default border-0 p-0 m-0 w-full h-full focus:outline-none"
-          onclick={() => contextMenu = null}
-          aria-label="Dismiss context menu"
-        ></button>
-        
         {@const menuWidth = 160}
         {@const menuHeight = 120}
         {@const menuLeft = Math.max(8, Math.min(contextMenu.x, containerWidth - menuWidth - 8))}
         {@const menuTop = Math.max(8, Math.min(contextMenu.y, containerHeight - menuHeight - 8))}
         <div 
-          class="absolute z-50 bg-surface-container-high border border-outline-variant shadow-xl rounded-xl py-1.5 w-40 flex flex-col font-sans text-xs select-none"
+          class="absolute z-50 bg-surface-container-high border border-outline-variant shadow-xl rounded-xl py-1.5 w-40 flex flex-col font-sans text-xs select-none context-menu-container"
           style="left: {menuLeft}px; top: {menuTop}px;"
         >
           <button 

@@ -197,7 +197,7 @@
                         editingAttemptId = attempt.id;
                         editNameValue = attempt.name;
                       }}
-                      class="material-symbols-outlined text-xs text-on-surface-variant hover:text-primary p-1 hover:bg-surface-container rounded opacity-0 group-hover:opacity-100 transition-opacity border-0 bg-transparent cursor-pointer flex items-center justify-center"
+                      class="material-symbols-outlined text-xs text-on-surface-variant hover:text-primary p-1 hover:bg-surface-container rounded transition-opacity border-0 bg-transparent cursor-pointer flex items-center justify-center"
                       title={store.settings.language === 'Deutsch' ? 'Umbenennen' : 'Rename'}
                     >edit</button>
                     {#if task.attempts && task.attempts.length > 1}
@@ -211,7 +211,7 @@
                             }
                           );
                         }}
-                        class="material-symbols-outlined text-xs text-error hover:bg-error/10 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity border-0 bg-transparent cursor-pointer flex items-center justify-center"
+                        class="material-symbols-outlined text-xs text-error hover:bg-error/10 p-1 rounded transition-opacity border-0 bg-transparent cursor-pointer flex items-center justify-center"
                         title={t('practice.attemptsDeleteTitle')}
                       >delete</button>
                     {/if}
