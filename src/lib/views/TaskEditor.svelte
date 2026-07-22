@@ -186,6 +186,7 @@
   }
 
   function isModeActive(mode: string): boolean {
+    if (defaultEditMode === '' || defaultEditMode === 'none') return false;
     const activeModes = (defaultEditMode || 'both').split(',').map(m => m.trim());
     if (activeModes.includes('both')) {
       return mode === 'canvas' || mode === 'text';
@@ -194,6 +195,10 @@
   }
 
   function toggleMode(mode: string) {
+    if (defaultEditMode === '' || defaultEditMode === 'none') {
+      defaultEditMode = mode;
+      return;
+    }
     let activeModes = (defaultEditMode || 'both').split(',').map(m => m.trim());
     if (activeModes.includes('both')) {
       activeModes = ['canvas', 'text'];
@@ -203,7 +208,7 @@
     } else {
       activeModes = [...activeModes, mode];
     }
-    defaultEditMode = activeModes.join(',');
+    defaultEditMode = activeModes.length > 0 ? activeModes.join(',') : 'none';
   }
 
   // Derived edit state

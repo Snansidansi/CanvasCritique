@@ -1685,12 +1685,16 @@
     const hasText = text.trim() !== '';
     
     // Union logic: start with default edit mode, then additionally show any editor with existing data
-    const defaultMode = task.defaultEditMode || 'both';
-    const activeModes = defaultMode.split(',').map(m => m.trim());
+    const defaultMode = task.defaultEditMode !== undefined ? task.defaultEditMode : 'both';
+    const activeModes = defaultMode ? defaultMode.split(',').map(m => m.trim()) : [];
     
     if (activeModes.includes('both')) {
       showCanvas = true;
       showText = true;
+      showMultipleChoice = false;
+    } else if (defaultMode === 'none' || defaultMode === '') {
+      showCanvas = false;
+      showText = false;
       showMultipleChoice = false;
     } else {
       showCanvas = activeModes.includes('canvas');
@@ -1708,8 +1712,8 @@
     if (hasDrawing) showCanvas = true;
     if (hasText) showText = true;
     
-    // If none are open but we have MC, default to MC. Else default to Canvas.
-    if (!showCanvas && !showText && !showMultipleChoice) {
+    // If none are open and defaultMode is not explicitly 'none'/'', fallback
+    if (!showCanvas && !showText && !showMultipleChoice && defaultMode !== 'none' && defaultMode !== '') {
       if (hasMc) {
         showMultipleChoice = true;
       } else {
