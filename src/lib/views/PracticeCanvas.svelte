@@ -1731,35 +1731,63 @@
       for (const page of pages) {
         if (!page.eraserUndoStack) page.eraserUndoStack = [];
         for (const stroke of page.strokeHistory || []) {
+          if (!stroke.id) stroke.id = Math.random().toString(36).substring(2, 9);
           ensureStrokeBounds(stroke);
         }
-        for (const stroke of page.redoStack || []) {
-          ensureStrokeBounds(stroke);
+        for (const action of page.redoStack || []) {
+          if (action && action.type === 'stroke' && action.stroke) {
+            if (!action.stroke.id) action.stroke.id = Math.random().toString(36).substring(2, 9);
+            ensureStrokeBounds(action.stroke);
+          }
         }
         for (const action of page.eraserUndoStack || []) {
           if (action && action.points) {
+            if (!action.id) action.id = Math.random().toString(36).substring(2, 9);
             ensureStrokeBounds(action);
+          } else if (action && action.type === 'stroke' && action.stroke) {
+            if (!action.stroke.id) action.stroke.id = Math.random().toString(36).substring(2, 9);
+            ensureStrokeBounds(action.stroke);
           } else if (action && action.removedStrokes) {
-            for (const s of action.removedStrokes || []) ensureStrokeBounds(s);
-            for (const s of action.addedStrokes || []) ensureStrokeBounds(s);
+            for (const s of action.removedStrokes || []) {
+              if (!s.id) s.id = Math.random().toString(36).substring(2, 9);
+              ensureStrokeBounds(s);
+            }
+            for (const s of action.addedStrokes || []) {
+              if (!s.id) s.id = Math.random().toString(36).substring(2, 9);
+              ensureStrokeBounds(s);
+            }
           }
         }
       }
       infiniteStrokes = saved.infiniteStrokes || [];
       for (const stroke of infiniteStrokes) {
+        if (!stroke.id) stroke.id = Math.random().toString(36).substring(2, 9);
         ensureStrokeBounds(stroke);
       }
       infiniteRedo = saved.infiniteRedo || [];
-      for (const stroke of infiniteRedo) {
-        ensureStrokeBounds(stroke);
+      for (const action of infiniteRedo) {
+        if (action && action.type === 'stroke' && action.stroke) {
+          if (!action.stroke.id) action.stroke.id = Math.random().toString(36).substring(2, 9);
+          ensureStrokeBounds(action.stroke);
+        }
       }
       infiniteEraserUndo = saved.infiniteEraserUndo || [];
       for (const action of infiniteEraserUndo) {
         if (action && action.points) {
+          if (!action.id) action.id = Math.random().toString(36).substring(2, 9);
           ensureStrokeBounds(action);
+        } else if (action && action.type === 'stroke' && action.stroke) {
+          if (!action.stroke.id) action.stroke.id = Math.random().toString(36).substring(2, 9);
+          ensureStrokeBounds(action.stroke);
         } else if (action && action.removedStrokes) {
-          for (const s of action.removedStrokes || []) ensureStrokeBounds(s);
-          for (const s of action.addedStrokes || []) ensureStrokeBounds(s);
+          for (const s of action.removedStrokes || []) {
+            if (!s.id) s.id = Math.random().toString(36).substring(2, 9);
+            ensureStrokeBounds(s);
+          }
+          for (const s of action.addedStrokes || []) {
+            if (!s.id) s.id = Math.random().toString(36).substring(2, 9);
+            ensureStrokeBounds(s);
+          }
         }
       }
       panOffset = saved.panOffset || { x: 0, y: 0 };
@@ -2288,22 +2316,26 @@
       const currentHistory = canvasMode === 'a4' ? pages[activePageIndex].strokeHistory : infiniteStrokes;
       let erased = false;
       erasedStrokesInSession = [];
+      let strokeToErase: Stroke | null = null;
       for (let i = currentHistory.length - 1; i >= 0; i--) {
         const stroke = currentHistory[i];
         if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
         if (isStrokeHit(stroke, coords, hitRadius)) {
-          erasedStrokesInSession.push(stroke);
-          currentHistory.splice(i, 1);
-          erased = true;
+          strokeToErase = stroke;
           break;
         }
       }
-      if (erased) {
+      if (strokeToErase) {
+        erasedStrokesInSession.push(strokeToErase);
+        const newHistory = currentHistory.filter(s => s !== strokeToErase);
         if (canvasMode === 'a4') {
-          pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
+          pages[activePageIndex].strokeHistory = newHistory;
         } else {
-          infiniteStrokes = [...infiniteStrokes];
+          infiniteStrokes = newHistory;
         }
+        erased = true;
+      }
+      if (erased) {
         invalidateCache();
         requestRedraw();
       }
@@ -2547,6 +2579,7 @@
       const stepDist = Math.max(2, hitRadius / 3);
       const steps = Math.max(1, Math.ceil(dist / stepDist));
       
+      const strokesToErase: Stroke[] = [];
       for (let step = 0; step <= steps; step++) {
         const t = step / steps;
         const pt = {
@@ -2554,24 +2587,38 @@
           y: p1.y + (p2.y - p1.y) * t
         };
         
-        for (let i = currentHistory.length - 1; i >= 0; i--) {
-          const stroke = currentHistory[i];
+        for (const stroke of currentHistory) {
           if (stroke.color === 'eraser' || stroke.color === '#FFFFFF') continue;
           if (isStrokeHit(stroke, pt, hitRadius)) {
-            if (!erasedStrokesInSession.some(s => s === stroke || (s.id && s.id === stroke.id))) {
-              erasedStrokesInSession.push(stroke);
+            if (!strokesToErase.includes(stroke)) {
+              strokesToErase.push(stroke);
             }
-            currentHistory.splice(i, 1);
-            erased = true;
           }
         }
       }
-      if (erased) {
-        if (canvasMode === 'a4') {
-          pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory];
-        } else {
-          infiniteStrokes = [...infiniteStrokes];
+
+      if (strokesToErase.length > 0) {
+        const idsToErase = new Set(strokesToErase.map(s => s.id).filter(Boolean));
+        const newHistory = currentHistory.filter(s => {
+          if (s.id && idsToErase.has(s.id)) return false;
+          return !strokesToErase.includes(s);
+        });
+
+        for (const stroke of strokesToErase) {
+          if (!erasedStrokesInSession.some(s => s === stroke || (s.id && s.id === stroke.id))) {
+            erasedStrokesInSession.push(stroke);
+          }
         }
+
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].strokeHistory = newHistory;
+        } else {
+          infiniteStrokes = newHistory;
+        }
+        erased = true;
+      }
+
+      if (erased) {
         invalidateCache();
         requestRedraw();
       }
@@ -3466,16 +3513,51 @@
         infiniteStrokes = infiniteStrokes.filter(s => s.id !== strokeId);
       }
     } else if (action.type === 'erase_action') {
-      const addedIds = new Set(action.addedStrokes.map((s: any) => s.id));
+      const addedIds = new Set(action.addedStrokes.map((s: any) => s.id).filter(Boolean));
       if (canvasMode === 'a4') {
-        let h = pages[activePageIndex].strokeHistory.filter(s => !addedIds.has(s.id));
+        let h = pages[activePageIndex].strokeHistory.filter(s => {
+          if (s.id && addedIds.has(s.id)) return false;
+          return !action.addedStrokes.includes(s);
+        });
         h.push(...action.removedStrokes);
         pages[activePageIndex].strokeHistory = h;
       } else {
-        let h = infiniteStrokes.filter(s => !addedIds.has(s.id));
+        let h = infiniteStrokes.filter(s => {
+          if (s.id && addedIds.has(s.id)) return false;
+          return !action.addedStrokes.includes(s);
+        });
         h.push(...action.removedStrokes);
         infiniteStrokes = h;
       }
+    } else if (action.type === 'delete_selection') {
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory, ...action.strokes];
+      } else {
+        infiniteStrokes = [...infiniteStrokes, ...action.strokes];
+      }
+      canvasImages = [...canvasImages, ...action.images];
+      selectedStrokes = action.strokes;
+      selectedImages = action.images;
+    } else if (action.type === 'paste_selection') {
+      const strokeIds = new Set(action.strokes.map((s: any) => s.id).filter(Boolean));
+      const imageIds = new Set(action.images.map((img: any) => img.id).filter(Boolean));
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(s => {
+          if (s.id && strokeIds.has(s.id)) return false;
+          return !action.strokes.includes(s);
+        });
+      } else {
+        infiniteStrokes = infiniteStrokes.filter(s => {
+          if (s.id && strokeIds.has(s.id)) return false;
+          return !action.strokes.includes(s);
+        });
+      }
+      canvasImages = canvasImages.filter(img => {
+        if (img.id && imageIds.has(img.id)) return false;
+        return !action.images.includes(img);
+      });
+      selectedStrokes = [];
+      selectedImages = [];
     } else if (action.type === 'insert_image') {
       canvasImages = canvasImages.filter(img => img.id !== action.image.id);
       selectedImages = selectedImages.filter(img => img.id !== action.image.id);
@@ -3585,16 +3667,51 @@
         infiniteStrokes = [...infiniteStrokes, action.stroke];
       }
     } else if (action.type === 'erase_action') {
-      const removedIds = new Set(action.removedStrokes.map((s: any) => s.id));
+      const removedIds = new Set(action.removedStrokes.map((s: any) => s.id).filter(Boolean));
       if (canvasMode === 'a4') {
-        let h = pages[activePageIndex].strokeHistory.filter(s => !removedIds.has(s.id));
+        let h = pages[activePageIndex].strokeHistory.filter(s => {
+          if (s.id && removedIds.has(s.id)) return false;
+          return !action.removedStrokes.includes(s);
+        });
         h.push(...action.addedStrokes);
         pages[activePageIndex].strokeHistory = h;
       } else {
-        let h = infiniteStrokes.filter(s => !removedIds.has(s.id));
+        let h = infiniteStrokes.filter(s => {
+          if (s.id && removedIds.has(s.id)) return false;
+          return !action.removedStrokes.includes(s);
+        });
         h.push(...action.addedStrokes);
         infiniteStrokes = h;
       }
+    } else if (action.type === 'delete_selection') {
+      const strokeIds = new Set(action.strokes.map((s: any) => s.id).filter(Boolean));
+      const imageIds = new Set(action.images.map((img: any) => img.id).filter(Boolean));
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.filter(s => {
+          if (s.id && strokeIds.has(s.id)) return false;
+          return !action.strokes.includes(s);
+        });
+      } else {
+        infiniteStrokes = infiniteStrokes.filter(s => {
+          if (s.id && strokeIds.has(s.id)) return false;
+          return !action.strokes.includes(s);
+        });
+      }
+      canvasImages = canvasImages.filter(img => {
+        if (img.id && imageIds.has(img.id)) return false;
+        return !action.images.includes(img);
+      });
+      selectedStrokes = [];
+      selectedImages = [];
+    } else if (action.type === 'paste_selection') {
+      if (canvasMode === 'a4') {
+        pages[activePageIndex].strokeHistory = [...pages[activePageIndex].strokeHistory, ...action.strokes];
+      } else {
+        infiniteStrokes = [...infiniteStrokes, ...action.strokes];
+      }
+      canvasImages = [...canvasImages, ...action.images];
+      selectedStrokes = action.strokes;
+      selectedImages = action.images;
     } else if (action.type === 'insert_image') {
       canvasImages = [...canvasImages, action.image];
     } else if (action.type === 'delete_image') {
