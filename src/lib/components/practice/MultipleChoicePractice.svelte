@@ -356,6 +356,23 @@
                 {/each}
               </div>
             {/if}
+
+            <!-- Option Hint / Explanation in Solution Mode -->
+            {#if showSolution && (selected || (!selected && correct)) && option.hint && option.hint.trim() !== ''}
+              <div 
+                class="flex flex-col gap-1 mt-1 p-2.5 rounded-lg border text-left font-sans text-xs animate-fade-in {selected && correct ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-900 dark:text-emerald-200' : selected && !correct ? 'bg-error/15 border-error/30 text-error' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'}"
+                onclick={e => e.stopPropagation()}
+                role="presentation"
+              >
+                <div class="flex items-center gap-1 font-bold text-[10px] uppercase tracking-wider opacity-85">
+                  <span class="material-symbols-outlined text-[13px]">info</span>
+                  <span>{t('practice.mc.hintExplanationTitle') || 'Hinweis / Erklärung'}</span>
+                </div>
+                <div class="prose prose-xs dark:prose-invert leading-relaxed" style="font-size: {Math.max(11, fontSize - 1)}px;">
+                  {@html parseMarkdown(option.hint)}
+                </div>
+              </div>
+            {/if}
           </div>
         {/each}
       </div>

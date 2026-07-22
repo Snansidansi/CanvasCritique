@@ -14,6 +14,7 @@
   // Active preview states per question (mapping question.id -> boolean)
   let showQuestionPreview = $state<Record<string, boolean>>({});
   let showOptionPreview = $state<Record<string, boolean>>({});
+  let showHintPreview = $state<Record<string, boolean>>({});
 
   // Collapsible MC Editor state
   let isEditorExpanded = $state(true);
@@ -823,6 +824,18 @@
                       </span>
                     </button>
 
+                    <!-- Add Hint Button -->
+                    {#if option.hint === undefined}
+                      <button
+                        type="button"
+                        onclick={() => option.hint = ''}
+                        class="text-on-surface-variant hover:text-primary p-1 hover:bg-surface-container rounded-lg cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
+                        title={t('taskEditor.mc.addHint') || 'Hinweis / Erklärung hinzufügen'}
+                      >
+                        <span class="material-symbols-outlined text-[16px]">add_comment</span>
+                      </button>
+                    {/if}
+
                     <!-- Delete Option -->
                     {#if question.options.length > 2}
                       <button
@@ -835,6 +848,54 @@
                       </button>
                     {/if}
                   </div>
+
+                  <!-- Option Hint Collapsible Section -->
+                  {#if option.hint !== undefined}
+                    <div class="flex flex-col gap-1.5 p-2.5 bg-primary/5 rounded-xl border border-primary/20 font-sans animate-fade-in">
+                      <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-primary flex items-center gap-1">
+                          <span class="material-symbols-outlined text-[14px]">info</span>
+                          {t('taskEditor.mc.hintTitle') || 'Hinweis / Erklärung'}
+                        </span>
+                        <div class="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onclick={() => showHintPreview[option.id] = !showHintPreview[option.id]}
+                            class="text-on-surface-variant hover:text-primary p-0.5 rounded hover:bg-surface-container cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
+                            title={showHintPreview[option.id] ? (t('taskEditor.editMode') || 'Bearbeiten') : (t('taskEditor.previewMode') || 'Vorschau')}
+                          >
+                            <span class="material-symbols-outlined text-[14px]">
+                              {showHintPreview[option.id] ? 'visibility_off' : 'visibility'}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onclick={() => option.hint = undefined}
+                            class="text-on-surface-variant hover:text-error p-0.5 rounded hover:bg-surface-container cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
+                            title={t('taskEditor.mc.deleteHint') || 'Hinweis löschen'}
+                          >
+                            <span class="material-symbols-outlined text-[14px]">delete</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {#if showHintPreview[option.id]}
+                        <div 
+                          class="w-full border border-primary/30 rounded-lg p-2 bg-surface-container-lowest text-left leading-relaxed prose prose-sm dark:prose-invert"
+                          style="font-size: {fontSize}px;"
+                        >
+                          {@html parseMarkdown(option.hint || `*${t('taskEditor.mc.noHintText') || 'Kein Hinweis eingegeben'}*`)}
+                        </div>
+                      {:else}
+                        <textarea
+                          bind:value={option.hint}
+                          use:autoResize={option.hint}
+                          placeholder={t('taskEditor.mc.hintPlaceholder') || 'Hinweis oder Erklärung zu dieser Antwortmöglichkeit...'}
+                          class="w-full bg-surface-container-lowest border border-primary/30 rounded-lg px-2.5 py-1.5 text-xs text-on-surface focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none resize-none overflow-hidden"
+                        ></textarea>
+                      {/if}
+                    </div>
+                  {/if}
 
                   <!-- Option Media Attachments -->
                   <div class="flex flex-col gap-2 bg-surface-container-low/20 rounded-xl p-3 border border-outline-variant/20 font-sans">
