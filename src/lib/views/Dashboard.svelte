@@ -954,7 +954,7 @@
                     bind:value={quickTaskCategory[project.id]}
                     class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1 text-[10px] text-on-surface-variant"
                   >
-                    {#each project.categories || ["Basics", "Intermediate", "Advanced"] as category}
+                    {#each (project.categories && project.categories.length > 0) ? project.categories : ['Grundlagen'] as category}
                       <option value={category}>{category}</option>
                     {/each}
                   </select>

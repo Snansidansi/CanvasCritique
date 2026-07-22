@@ -540,7 +540,10 @@
 
   // Categories list of target project
   let categories = $derived(
-    store.projects.find(p => p.id === targetProjectId)?.categories || ['Basics', 'Intermediate', 'Advanced']
+    (() => {
+      const cats = store.projects.find(p => p.id === targetProjectId)?.categories;
+      return (cats && cats.length > 0) ? cats : ['Grundlagen'];
+    })()
   );
 
   function performSave() {
