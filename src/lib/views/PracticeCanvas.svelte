@@ -1143,7 +1143,6 @@
               canvasImages = [...canvasImages, newImage];
               selectedImages = [canvasImages.find(img => img.id === newImage.id) || newImage];
               selectedStrokes = [];
-              activeTool = 'select'; // Automatically select the selection tool!
               saveToStore();
             };
           } catch (err) {
@@ -1241,7 +1240,6 @@
       canvasImages = [...canvasImages, newImage];
       selectedImages = [canvasImages.find(img => img.id === newImage.id) || newImage];
       selectedStrokes = [];
-      activeTool = 'select';
       saveToStore();
     };
   }
@@ -4224,7 +4222,6 @@
           canvasImages = [...canvasImages, newImage];
           selectedImages = [newImage];
           selectedStrokes = [];
-          activeTool = 'select';
           
           const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
           undoStack.push({
