@@ -3575,14 +3575,14 @@
           }
           exportCtx.restore();
 
-          // Use compressed JPEG with 85% quality to keep file size small
-          const imgData = exportCanvas.toDataURL('image/jpeg', 0.85);
+          // Use compressed PNG to keep file size small and lines lossless
+          const imgData = exportCanvas.toDataURL('image/png');
           pdf = new jsPDF({
             orientation: box.width > box.height ? 'l' : 'p',
             unit: 'px',
             format: [box.width, box.height]
           });
-          pdf.addImage(imgData, 'JPEG', 0, 0, box.width, box.height);
+          pdf.addImage(imgData, 'PNG', 0, 0, box.width, box.height, undefined, 'FAST');
         } else {
           // A4 Mode
           pdf = new jsPDF({
@@ -3629,9 +3629,9 @@
               drawStroke(exportCtx, stroke);
             }
 
-            // Use compressed JPEG with 85% quality to keep file size small
-            const imgData = exportCanvas.toDataURL('image/jpeg', 0.85);
-            pdf.addImage(imgData, 'JPEG', 0, 0, 800, 1130);
+            // Use compressed PNG to keep file size small and lines lossless
+            const imgData = exportCanvas.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', 0, 0, 800, 1130, undefined, 'FAST');
           }
         }
       } else {
@@ -3699,15 +3699,15 @@
         let heightLeft = canvasHeight;
         let position = 0;
 
-        // Use compressed JPEG with 85% quality to keep file size small
-        const imgData = canvas.toDataURL('image/jpeg', 0.85);
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width));
+        // Use compressed PNG to keep file size small and lines lossless
+        const imgData = canvas.toDataURL('image/png');
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width), undefined, 'FAST');
         heightLeft -= pageHeight;
 
         while (heightLeft > 0) {
           position = position - pageHeight;
           pdf.addPage([imgWidth, pageHeight]);
-          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width));
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, canvas.height * (imgWidth / canvas.width), undefined, 'FAST');
           heightLeft -= pageHeight;
         }
       }
