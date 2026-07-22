@@ -24,6 +24,7 @@
     "searchPlaceholder": "Lektionen suchen...",
     "importLesson": "Lektion importieren",
     "createLesson": "Lektion erstellen",
+    "dropLessonHere": "Lektion hier platzieren",
     "createLessonTitle": "Neue Lektion erstellen",
     "lessonNameLabel": "Name der Lektion",
     "lessonNamePlaceholder": "z.B. Spencerian Script Basics",

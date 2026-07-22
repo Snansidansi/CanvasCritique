@@ -433,11 +433,16 @@
     let longPressReady = !isTouchOrStylus;
     let pointerCaptured = false;
 
+    function onTouchMovePrevent(te: TouchEvent) {
+      if (te.cancelable) te.preventDefault();
+    }
+
     function cleanupListeners() {
       if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('touchmove', onTouchMovePrevent);
       if (pointerCaptured) {
         try { target.releasePointerCapture(e.pointerId); } catch (_) {}
         pointerCaptured = false;
@@ -447,6 +452,7 @@
     if (isTouchOrStylus) {
       longPressTimer = setTimeout(() => {
         longPressReady = true;
+        window.addEventListener('touchmove', onTouchMovePrevent, { passive: false });
         try {
           target.setPointerCapture(e.pointerId);
           pointerCaptured = true;
@@ -571,11 +577,16 @@
     let longPressReady = !isTouchOrStylus;
     let pointerCaptured = false;
 
+    function onTouchMovePrevent(te: TouchEvent) {
+      if (te.cancelable) te.preventDefault();
+    }
+
     function cleanupSectionListeners() {
       if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('touchmove', onTouchMovePrevent);
       if (pointerCaptured) {
         try { target.releasePointerCapture(e.pointerId); } catch (_) {}
         pointerCaptured = false;
@@ -585,6 +596,7 @@
     if (isTouchOrStylus) {
       longPressTimer = setTimeout(() => {
         longPressReady = true;
+        window.addEventListener('touchmove', onTouchMovePrevent, { passive: false });
         try {
           target.setPointerCapture(e.pointerId);
           pointerCaptured = true;

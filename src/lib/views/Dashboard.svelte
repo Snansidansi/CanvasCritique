@@ -343,11 +343,54 @@
     dragPointerStartX = e.clientX;
     dragPointerStartY = e.clientY;
 
-    try { target.setPointerCapture(e.pointerId); } catch (_) {}
+    const isTouchOrStylus = e.pointerType === 'touch' || e.pointerType === 'pen';
+    let longPressTimer: any = null;
+    let longPressReady = !isTouchOrStylus;
+    let pointerCaptured = false;
+
+    function onTouchMovePrevent(te: TouchEvent) {
+      if (te.cancelable) te.preventDefault();
+    }
+
+    function cleanupLessonListeners() {
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('touchmove', onTouchMovePrevent);
+      if (pointerCaptured) {
+        try { target.releasePointerCapture(e.pointerId); } catch (_) {}
+        pointerCaptured = false;
+      }
+    }
+
+    if (isTouchOrStylus) {
+      longPressTimer = setTimeout(() => {
+        longPressReady = true;
+        window.addEventListener('touchmove', onTouchMovePrevent, { passive: false });
+        try {
+          target.setPointerCapture(e.pointerId);
+          pointerCaptured = true;
+        } catch (_) {}
+        if (navigator.vibrate) try { navigator.vibrate(40); } catch (_) {}
+      }, 300);
+    } else {
+      try {
+        target.setPointerCapture(e.pointerId);
+        pointerCaptured = true;
+      } catch (_) {}
+    }
 
     function onMove(me: PointerEvent) {
       const dx = me.clientX - dragPointerStartX;
       const dy = me.clientY - dragPointerStartY;
+
+      if (isTouchOrStylus && !longPressReady) {
+        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+          cleanupLessonListeners();
+        }
+        return;
+      }
 
       if (!isLessonDragActive && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
         isLessonDragActive = true;
@@ -388,20 +431,26 @@
       if (dragGhostEl) dragGhostEl.style.display = '';
 
       const card = el?.closest('[data-project-id]') as HTMLElement | null;
-      if (card && card.dataset.projectId !== draggedProjectId) {
+      if (card) {
         const visibleCards = Array.from(
           document.querySelectorAll('.projects-grid-section [data-project-id]')
         );
         const idx = visibleCards.indexOf(card);
-        const rect = card.getBoundingClientRect();
-        const midX = rect.left + rect.width / 2;
-        const midY = rect.top + rect.height / 2;
-        const dx = me.clientX - midX;
-        const dy = me.clientY - midY;
-        if (Math.abs(dx) > Math.abs(dy)) {
-          dropTargetIndex = dx < 0 ? idx : idx + 1;
-        } else {
-          dropTargetIndex = dy < 0 ? idx : idx + 1;
+        if (idx !== -1) {
+          if (card.dataset.projectId === draggedProjectId) {
+            dropTargetIndex = idx;
+          } else {
+            const rect = card.getBoundingClientRect();
+            const midX = rect.left + rect.width / 2;
+            const midY = rect.top + rect.height / 2;
+            const cdx = me.clientX - midX;
+            const cdy = me.clientY - midY;
+            if (Math.abs(cdx) > Math.abs(cdy)) {
+              dropTargetIndex = cdx < 0 ? idx : idx + 1;
+            } else {
+              dropTargetIndex = cdy < 0 ? idx : idx + 1;
+            }
+          }
         }
       } else if (!card) {
         const gridSection = document.querySelector('.projects-grid-section');
@@ -420,10 +469,6 @@
 
     function onUp(ue: PointerEvent) {
       stopAutoScroll();
-      target.removeEventListener('pointermove', onMove);
-      target.removeEventListener('pointerup', onUp);
-      target.removeEventListener('pointercancel', onUp);
-      try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
 
       if (dragGhostEl) {
         dragGhostEl.remove();
@@ -443,11 +488,12 @@
       isLessonDragActive = false;
       draggedProjectId = null;
       dropTargetIndex = null;
+      cleanupLessonListeners();
     }
 
-    target.addEventListener('pointermove', onMove);
-    target.addEventListener('pointerup', onUp);
-    target.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }
 
   // Profile drag-and-drop state
@@ -758,12 +804,15 @@
       {@const remaining = getRemainingTasks(project)}
       {@const isDeleting = store.deletingProjectIds.includes(project.id)}
       {#if dropTargetIndex === idx && draggedProjectId && draggedProjectId !== project.id}
-        <div class="h-1 bg-primary rounded-full mx-2 animate-pulse"></div>
+        <div class="border-2 border-dashed border-primary/60 bg-primary/10 text-primary font-bold text-xs p-6 rounded-xl flex flex-col items-center justify-center gap-2 animate-pulse shadow-sm min-h-48 w-full transition-all">
+          <span class="material-symbols-outlined text-[28px]">swap_vert</span>
+          <span>{t('dashboard.dropLessonHere')}</span>
+        </div>
       {/if}
       <article
         data-project-id={project.id}
         onpointerdown={(e) => !isDeleting && handleLessonPointerDown(e, project.id)}
-        class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary transition-colors group relative overflow-hidden shadow-sm self-start w-full {draggedProjectId === project.id ? 'opacity-50 scale-95' : ''} {isLessonDragActive ? 'cursor-grabbing' : 'cursor-grab'} select-none {isDeleting ? 'pointer-events-none opacity-80' : ''}"
+        class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col justify-between hover:border-primary transition-colors group relative overflow-hidden shadow-sm self-start w-full {draggedProjectId === project.id ? 'opacity-35 scale-[0.98] border-2 border-dashed border-primary/50' : ''} {isLessonDragActive ? 'cursor-grabbing' : 'cursor-grab'} select-none {isDeleting ? 'pointer-events-none opacity-80' : ''}"
       >
         {#if isDeleting}
           <div class="absolute inset-0 bg-surface-container/60 backdrop-blur-[2px] z-30 flex flex-col items-center justify-center gap-2">
@@ -1009,8 +1058,11 @@
           </details>
         </div>
       </article>
-      {#if dropTargetIndex === filteredProjects.length && draggedProjectId}
-        <div class="h-1 bg-primary rounded-full mx-2 animate-pulse"></div>
+      {#if dropTargetIndex === filteredProjects.length && idx === filteredProjects.length - 1 && draggedProjectId}
+        <div class="border-2 border-dashed border-primary/60 bg-primary/10 text-primary font-bold text-xs p-6 rounded-xl flex flex-col items-center justify-center gap-2 animate-pulse shadow-sm min-h-48 w-full transition-all">
+          <span class="material-symbols-outlined text-[28px]">swap_vert</span>
+          <span>{t('dashboard.dropLessonHere')}</span>
+        </div>
       {/if}
     {/each}
   </section>
