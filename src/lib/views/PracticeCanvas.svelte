@@ -2431,24 +2431,6 @@
       return;
     }
 
-    const shouldDragImage = clickedImage && (activeTool === 'select' || isPointerSelect || activeTool === 'pan' || selectedImages.length > 0);
-
-    if (shouldDragImage) {
-      clickedImage.zIndex = Date.now();
-      canvasImages = [...canvasImages];
-      selectedImages = [clickedImage];
-      selectedStrokes = []; // Clear stroke selection
-      isMovingImage = true;
-      imageDragStart = { x: coords.x, y: coords.y };
-      imageStartRect = { x: clickedImage.x, y: clickedImage.y, width: clickedImage.width, height: clickedImage.height };
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-      e.preventDefault();
-      return;
-    }
-
     if (isClickInSelection) {
       if (selectedImages.length === 1 && selectedStrokes.length === 0) {
         const img = selectedImages[0];
@@ -2466,6 +2448,26 @@
         clearTimeout(longPressTimer);
         longPressTimer = null;
       }
+      e.preventDefault();
+      return;
+    }
+
+    const shouldDragImage = clickedImage && (activeTool === 'select' || isPointerSelect || activeTool === 'pan' || selectedImages.length > 0);
+
+    if (shouldDragImage) {
+      clickedImage.zIndex = Date.now();
+      canvasImages = [...canvasImages];
+      selectedImages = [clickedImage];
+      selectedStrokes = []; // Clear stroke selection
+      isMovingImage = true;
+      imageDragStart = { x: coords.x, y: coords.y };
+      imageStartRect = { x: clickedImage.x, y: clickedImage.y, width: clickedImage.width, height: clickedImage.height };
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      e.preventDefault();
+      return;
     } else if (activeTool === 'shape' && !isPointerEraser && !isPointerSelect && !isPointerPan) {
       if (selectedStrokes.length > 0) selectedStrokes = [];
       selectedImages = [];
