@@ -2047,21 +2047,6 @@
   function isStrokeHit(stroke: Stroke, coords: { x: number; y: number }, hitRadius: number): boolean {
     if (stroke.points.length === 0) return false;
     
-    let bounds = stroke.bounds;
-    if (!bounds || typeof bounds.minX !== 'number' || (bounds.minX === 0 && bounds.maxX === 0 && stroke.points.length > 1)) {
-      bounds = calculateStrokeBounds(stroke);
-      stroke.bounds = bounds;
-    }
-
-    if (
-      coords.x < bounds.minX - hitRadius ||
-      coords.x > bounds.maxX + hitRadius ||
-      coords.y < bounds.minY - hitRadius ||
-      coords.y > bounds.maxY + hitRadius
-    ) {
-      return false;
-    }
-
     if (stroke.points.length === 1) {
       const p = stroke.points[0];
       return Math.hypot(p.x - coords.x, p.y - coords.y) < hitRadius;
@@ -2607,10 +2592,10 @@
       }
 
       if (strokesToErase.length > 0) {
-        const idsToErase = new Set(strokesToErase.map(s => s.id).filter(Boolean));
         const newHistory = currentHistory.filter(s => {
-          if (s.id && idsToErase.has(s.id)) return false;
-          return !strokesToErase.includes(s);
+          if (strokesToErase.includes(s)) return false;
+          if (s.id && strokesToErase.some(se => se.id === s.id)) return false;
+          return true;
         });
 
         for (const stroke of strokesToErase) {
