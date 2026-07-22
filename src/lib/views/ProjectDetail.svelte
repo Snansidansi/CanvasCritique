@@ -421,23 +421,42 @@
     const isTouchOrStylus = e.pointerType === 'touch' || e.pointerType === 'pen';
     let longPressTimer: any = null;
     let longPressReady = !isTouchOrStylus;
+    let pointerCaptured = false;
+
+    function cleanupListeners() {
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      if (pointerCaptured) {
+        try { target.releasePointerCapture(e.pointerId); } catch (_) {}
+        pointerCaptured = false;
+      }
+    }
 
     if (isTouchOrStylus) {
       longPressTimer = setTimeout(() => {
         longPressReady = true;
+        try {
+          target.setPointerCapture(e.pointerId);
+          pointerCaptured = true;
+        } catch (_) {}
         if (navigator.vibrate) try { navigator.vibrate(40); } catch (_) {}
       }, 300);
+    } else {
+      try {
+        target.setPointerCapture(e.pointerId);
+        pointerCaptured = true;
+      } catch (_) {}
     }
-
-    try { target.setPointerCapture(e.pointerId); } catch (_) {}
 
     function onMove(me: PointerEvent) {
       const dx = me.clientX - dragPointerStartX;
       const dy = me.clientY - dragPointerStartY;
 
       if (isTouchOrStylus && !longPressReady) {
-        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-          if (longPressTimer) clearTimeout(longPressTimer);
+        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+          cleanupListeners();
         }
         return;
       }
@@ -498,12 +517,7 @@
     }
 
     function onUp(ue: PointerEvent) {
-      if (longPressTimer) clearTimeout(longPressTimer);
       stopAutoScroll();
-      target.removeEventListener('pointermove', onMove);
-      target.removeEventListener('pointerup', onUp);
-      target.removeEventListener('pointercancel', onUp);
-      try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
 
       if (dragGhostEl) {
         dragGhostEl.remove();
@@ -517,17 +531,20 @@
         if (task) openPractice(task);
       }
 
+      const wasActive = isDragActive;
       isDragActive = false;
       draggedTaskId = null;
       draggedCategory = null;
       dropIndicatorCategory = null;
       dropIndicatorIndex = null;
       dragSourceEl = null;
+
+      cleanupListeners();
     }
 
-    target.addEventListener('pointermove', onMove);
-    target.addEventListener('pointerup', onUp);
-    target.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }
 
   function handleSectionPointerDown(e: PointerEvent, category: string) {
@@ -542,23 +559,42 @@
     const isTouchOrStylus = e.pointerType === 'touch' || e.pointerType === 'pen';
     let longPressTimer: any = null;
     let longPressReady = !isTouchOrStylus;
+    let pointerCaptured = false;
+
+    function cleanupSectionListeners() {
+      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      if (pointerCaptured) {
+        try { target.releasePointerCapture(e.pointerId); } catch (_) {}
+        pointerCaptured = false;
+      }
+    }
 
     if (isTouchOrStylus) {
       longPressTimer = setTimeout(() => {
         longPressReady = true;
+        try {
+          target.setPointerCapture(e.pointerId);
+          pointerCaptured = true;
+        } catch (_) {}
         if (navigator.vibrate) try { navigator.vibrate(40); } catch (_) {}
       }, 300);
+    } else {
+      try {
+        target.setPointerCapture(e.pointerId);
+        pointerCaptured = true;
+      } catch (_) {}
     }
-
-    try { target.setPointerCapture(e.pointerId); } catch (_) {}
 
     function onMove(me: PointerEvent) {
       const dx = me.clientX - sectionDragStartX;
       const dy = me.clientY - sectionDragStartY;
 
       if (isTouchOrStylus && !longPressReady) {
-        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-          if (longPressTimer) clearTimeout(longPressTimer);
+        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+          cleanupSectionListeners();
         }
         return;
       }
@@ -596,12 +632,7 @@
     }
 
     function onUp(ue: PointerEvent) {
-      if (longPressTimer) clearTimeout(longPressTimer);
       stopAutoScroll();
-      target.removeEventListener('pointermove', onMove);
-      target.removeEventListener('pointerup', onUp);
-      target.removeEventListener('pointercancel', onUp);
-      try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
       if (sectionDragGhostEl) { sectionDragGhostEl.remove(); sectionDragGhostEl = null; }
       if (isSectionDragActive && draggedSectionCategory && sectionDropTargetIndex !== null) {
         const cats = [...(project.categories || [])];
@@ -615,11 +646,12 @@
       isSectionDragActive = false;
       draggedSectionCategory = null;
       sectionDropTargetIndex = null;
+      cleanupSectionListeners();
     }
 
-    target.addEventListener('pointermove', onMove);
-    target.addEventListener('pointerup', onUp);
-    target.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }
 
   function handleDeleteSelected() {
@@ -1119,7 +1151,7 @@
                   }}
                   role="button"
                   tabindex="0"
-                  style="touch-action: none;"
+                  style="touch-action: pan-y;"
                   class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-4 flex items-center justify-between group hover:border-primary transition-all duration-150 shadow-sm relative overflow-hidden focus:outline-none focus:border-primary
                          {isSelectionMode ? 'cursor-default' : 'cursor-pointer'}
                          {isDragActive && draggedTaskId === task.id ? 'opacity-40 scale-95' : ''}"
