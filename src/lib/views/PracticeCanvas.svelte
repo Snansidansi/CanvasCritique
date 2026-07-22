@@ -894,27 +894,16 @@
     const length = Math.hypot(dx, dy);
     if (length === 0) return { ...end };
 
-    const angleRad = Math.atan2(dy, dx);
-    let angleDeg = (angleRad * 180 / Math.PI) % 360;
-    if (angleDeg < 0) angleDeg += 360;
+    // Distance threshold in pixels: max 15px, scaled down for short lines
+    const threshold = Math.min(15, length * 0.25);
 
-    const threshold = 5; // ±5 degrees
-    
-    // Check horizontal (0, 180, 360)
-    if (Math.abs(angleDeg - 0) <= threshold || Math.abs(angleDeg - 360) <= threshold) {
-      return { x: start.x + Math.sign(dx || 1) * length, y: start.y };
+    if (Math.abs(dy) <= threshold && Math.abs(dx) >= Math.abs(dy)) {
+      return { x: start.x + (dx >= 0 ? length : -length), y: start.y };
     }
-    if (Math.abs(angleDeg - 180) <= threshold) {
-      return { x: start.x - length, y: start.y };
+    if (Math.abs(dx) <= threshold && Math.abs(dy) >= Math.abs(dx)) {
+      return { x: start.x, y: start.y + (dy >= 0 ? length : -length) };
     }
-    // Check vertical (90, 270)
-    if (Math.abs(angleDeg - 90) <= threshold) {
-      return { x: start.x, y: start.y + length };
-    }
-    if (Math.abs(angleDeg - 270) <= threshold) {
-      return { x: start.x, y: start.y - length };
-    }
-    
+
     return { ...end };
   }
 
