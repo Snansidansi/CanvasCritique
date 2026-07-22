@@ -2323,8 +2323,9 @@
 
     // Check if middle click or Hand tool or custom pan action
     const isFingerOrMouse = !isPen;
+    const isEraserAction = activeTool === 'eraser' || isPointerEraser;
     const isPanAction = canvasMode === 'infinite' && 
-      (e.button === 1 || activeTool === 'pan' || isPointerPan || (store.settings.stylusMode && isFingerOrMouse));
+      (e.button === 1 || activeTool === 'pan' || isPointerPan || (store.settings.stylusMode && isFingerOrMouse && !isEraserAction && activeTool !== 'select' && activeTool !== 'shape'));
     
     if (isPanAction) {
       isPanning = true;
@@ -2366,7 +2367,7 @@
     const isClickInSelection = bounds && isPointInBounds(coords.x, coords.y, bounds);
 
     // Stroke-erase mode: delete entire stroke under pointer (drag-support)
-    if (!isClickInSelection && (activeTool === 'eraser' || isPointerEraser) && effectiveEraserSettings.eraserMode === 'stroke') {
+    if (!isClickInSelection && isEraserAction && effectiveEraserSettings.eraserMode === 'stroke') {
       erasedStrokesInSession = [];
       isStrokeErasing = true;
       lastStrokeEraserCoords = coords;
@@ -2379,7 +2380,7 @@
     }
 
     // In stylus mode, finger/touch/mouse cannot draw/select on A4 canvas either (unless clicking in selection to drag/move)
-    if (store.settings.stylusMode && isFingerOrMouse && !isClickInSelection) {
+    if (store.settings.stylusMode && isFingerOrMouse && !isClickInSelection && !isEraserAction) {
       if (canvasMode !== 'infinite') {
         // Setup long-press (600ms) timer for context menu (stylus paste shortcut) (only for touch or stylus)
         if (e.pointerType !== 'mouse') {
