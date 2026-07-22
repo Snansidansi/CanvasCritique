@@ -3829,43 +3829,83 @@
 
   async function handlePaste(targetX: number, targetY: number) {
     try {
-      const clipboardItems = await navigator.clipboard.read();
-      for (const item of clipboardItems) {
-        const imageType = item.types.find(t => t.startsWith('image/'));
-        if (imageType) {
-          const blob = await item.getType(imageType);
-          const base64Data = await blobToBase64(blob);
-          const ext = imageType.split('/')[1] || 'png';
-          const mediaId = await saveMediaToDb(base64Data, `canvas_image_${Date.now()}.${ext}`);
+      const items = await navigator.clipboard.read();
+      let hasImage = false;
+      let imageType = '';
+      let imageBlob: Blob | null = null;
+      let textContent = '';
+
+      for (const item of items) {
+        const imgT = item.types.find(t => t.startsWith('image/'));
+        if (imgT) {
+          hasImage = true;
+          imageType = imgT;
+          imageBlob = await item.getType(imgT);
+          break;
+        }
+      }
+
+      if (!hasImage) {
+        try {
+          textContent = await navigator.clipboard.readText();
+        } catch (e) {}
+      }
+
+      if (hasImage && imageBlob) {
+        const base64Data = await blobToBase64(imageBlob);
+        const ext = imageType.split('/')[1] || 'png';
+        const mediaId = await saveMediaToDb(base64Data, `canvas_image_${Date.now()}.${ext}`);
+        
+        const img = new Image();
+        img.src = base64Data;
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 400;
+          if (width > maxDim || height > maxDim) {
+            const scale = Math.min(maxDim / width, maxDim / height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
           
-          const img = new Image();
-          img.src = base64Data;
-          img.onload = () => {
-            let width = img.width;
-            let height = img.height;
-            const maxDim = 400;
-            if (width > maxDim || height > maxDim) {
-              const scale = Math.min(maxDim / width, maxDim / height);
-              width = Math.round(width * scale);
-              height = Math.round(height * scale);
-            }
-            
-            const newImage: CanvasImage = {
-              id: 'img-' + Date.now(),
-              mediaId,
-              x: targetX - width / 2,
-              y: targetY - height / 2,
-              width,
-              height,
-              pageIndex: canvasMode === 'a4' ? activePageIndex : 0
-            };
-            
-            canvasImages = [...canvasImages, newImage];
-            selectedImage = newImage;
-            saveToStore();
-            redraw();
+          const newImage: CanvasImage = {
+            id: 'img-' + Date.now(),
+            mediaId,
+            x: targetX - width / 2,
+            y: targetY - height / 2,
+            width,
+            height,
+            pageIndex: canvasMode === 'a4' ? activePageIndex : 0
           };
+          
+          canvasImages = [...canvasImages, newImage];
+          selectedImage = null; // Do not select the image after pasting
+          
+          const undoStack = canvasMode === 'a4' ? pages[activePageIndex].eraserUndoStack : infiniteEraserUndo;
+          undoStack.push({
+            type: 'insert_image',
+            image: newImage
+          });
+          if (canvasMode === 'a4') {
+            pages[activePageIndex].redoStack = [];
+          } else {
+            infiniteRedo = [];
+          }
+
+          saveToStore();
+          redraw();
+        };
+        return;
+      }
+
+      if (textContent && textContent.startsWith('canvascritique-strokes:')) {
+        try {
+          const jsonStr = textContent.substring('canvascritique-strokes:'.length);
+          copiedStrokes = JSON.parse(jsonStr);
+          pasteStrokes(targetX, targetY);
           return;
+        } catch (e) {
+          console.warn('Failed to parse strokes from clipboard text:', e);
         }
       }
     } catch (err) {
@@ -4735,9 +4775,8 @@
           style="left: {menuLeft}px; top: {menuTop}px;"
         >
           <button 
-            onclick={() => pasteStrokes(contextMenu.canvasX, contextMenu.canvasY)}
-            disabled={copiedStrokes.length === 0}
-            class="w-full text-left px-4 py-2 hover:bg-primary/10 hover:text-primary disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-on-surface flex items-center gap-2 cursor-pointer font-semibold border-0 bg-transparent"
+            onclick={() => { handlePaste(contextMenu.canvasX, contextMenu.canvasY); contextMenu = null; }}
+            class="w-full text-left px-4 py-2 hover:bg-primary/10 hover:text-primary flex items-center gap-2 cursor-pointer font-semibold border-0 bg-transparent"
           >
             <span class="material-symbols-outlined text-[16px]">content_paste</span>
             <span>{t('practice.canvas.paste')}</span>
