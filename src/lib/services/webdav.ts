@@ -439,25 +439,30 @@ export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup 
       await remove(localBackupPath);
     }
 
-    // 3. Media Sync
-    try {
-      const mediaTransferred = await syncMedia(client, effectiveMode);
-      if (mediaTransferred) {
-        filesTransferred = true;
+    // 3. Media Sync & Canvas Data Sync (only if DB has changes, or is forced, or remote hash unknown)
+    if (!isForced && remoteDbHash && !hasDbChanges) {
+      console.log('[WebDAV Sync] DB hashes match and sync is not forced. Skipping media and canvas file scans.');
+    } else {
+      // 3. Media Sync
+      try {
+        const mediaTransferred = await syncMedia(client, effectiveMode);
+        if (mediaTransferred) {
+          filesTransferred = true;
+        }
+      } catch (mediaErr) {
+        console.error('Failed to sync media:', mediaErr);
       }
-    } catch (mediaErr) {
-      console.error('Failed to sync media:', mediaErr);
-    }
 
-    // 3.5. Canvas Data Sync
-    try {
-      const canvasRes = await syncCanvasData(client, effectiveMode, shouldDownload);
-      dbModifiedDuringSync = canvasRes.dbModified;
-      if (canvasRes.filesTransferred) {
-        filesTransferred = true;
+      // 3.5. Canvas Data Sync
+      try {
+        const canvasRes = await syncCanvasData(client, effectiveMode, shouldDownload);
+        dbModifiedDuringSync = canvasRes.dbModified;
+        if (canvasRes.filesTransferred) {
+          filesTransferred = true;
+        }
+      } catch (canvasErr) {
+        console.error('Failed to sync canvas data:', canvasErr);
       }
-    } catch (canvasErr) {
-      console.error('Failed to sync canvas data:', canvasErr);
     }
 
     // Reload store state in-place to update UI without window reload
@@ -589,17 +594,11 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
     console.error('Failed to read local canvas_data directory:', err);
   }
 
-  const localFiles = new Map<string, { name: string; mtime: Date }>();
+  const localFiles = new Map<string, { name: string }>();
   for (const entry of localEntries) {
     if (entry.isFile && entry.name && entry.name.endsWith('.json') && entry.name !== 'canvas_metadata.json') {
       const id = entry.name.substring(0, entry.name.length - 5); // strip '.json'
-      try {
-        const info = await stat(await join(localCanvasDir, entry.name));
-        const mtime = info.mtime ? new Date(info.mtime) : new Date();
-        localFiles.set(id, { name: entry.name, mtime });
-      } catch (_) {
-        localFiles.set(id, { name: entry.name, mtime: new Date() });
-      }
+      localFiles.set(id, { name: entry.name });
     }
   }
 
@@ -666,13 +665,7 @@ async function syncCanvasData(client: WebDAVClient, syncMode: 'bidirectional' | 
         }
       }
     } else if (hasLocal && hasRemote) {
-      let localUpdatedAt: string | null = null;
-      try {
-        const attempt = await loadAttemptFromDisk(item.dbId);
-        localUpdatedAt = attempt ? attempt.updatedAt || null : null;
-      } catch (_) {}
-      
-      const localTimeStr = localUpdatedAt || (localInfo ? localInfo.mtime.toISOString() : new Date(0).toISOString());
+      const localTimeStr = item.dbTimestamp || new Date(0).toISOString();
       const localTime = new Date(localTimeStr).getTime();
       const remoteTime = remoteInfo.lastmod.getTime();
       const lastSyncedTimeStr = localMetadata[id] || new Date(0).toISOString();
