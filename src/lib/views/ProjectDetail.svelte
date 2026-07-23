@@ -492,6 +492,8 @@
       } catch (_) {}
     }
 
+    const dragPointerStartTime = Date.now();
+
     function onMove(me: PointerEvent) {
       const dx = me.clientX - dragPointerStartX;
       const dy = me.clientY - dragPointerStartY;
@@ -566,9 +568,10 @@
         dragGhostEl = null;
       }
 
+      const pressDuration = Date.now() - dragPointerStartTime;
       if (isDragActive && draggedTaskId && dropIndicatorCategory !== null && dropIndicatorIndex !== null) {
         store.moveAndReorderTask(project.id, draggedTaskId, dropIndicatorCategory, dropIndicatorIndex);
-      } else if (!isDragActive && longPressReady) {
+      } else if (!isDragActive && (pressDuration < 250 || longPressReady || !isTouchOrStylus)) {
         const task = project.tasks.find(t => t.id === taskId);
         if (task) openPractice(task);
       }
