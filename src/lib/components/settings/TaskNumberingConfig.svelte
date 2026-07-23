@@ -24,20 +24,24 @@
   }
 
   function isModeActive(mode: string) {
-    const activeModes = (settings.defaultEditMode || 'canvas').split(',').map(m => m.trim());
+    if (!settings.defaultEditMode || settings.defaultEditMode === 'none' || settings.defaultEditMode === '') return false;
+    const activeModes = settings.defaultEditMode.split(',').map(m => m.trim());
     return activeModes.includes(mode);
   }
 
   function toggleMode(mode: string) {
-    let activeModes = (settings.defaultEditMode || 'canvas').split(',').map(m => m.trim()).filter(Boolean);
+    if (!settings.defaultEditMode || settings.defaultEditMode === 'none') {
+      settings.defaultEditMode = mode;
+      if (onchange) onchange();
+      return;
+    }
+    let activeModes = settings.defaultEditMode.split(',').map(m => m.trim()).filter(Boolean);
     if (activeModes.includes(mode)) {
-      if (activeModes.length > 1) {
-        activeModes = activeModes.filter(m => m !== mode);
-      }
+      activeModes = activeModes.filter(m => m !== mode);
     } else {
       activeModes.push(mode);
     }
-    settings.defaultEditMode = activeModes.join(',');
+    settings.defaultEditMode = activeModes.length > 0 ? activeModes.join(',') : 'none';
     if (onchange) onchange();
   }
 </script>
