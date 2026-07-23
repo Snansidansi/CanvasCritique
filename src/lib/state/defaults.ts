@@ -65,6 +65,7 @@ export const defaultSettings: Settings = {
   canvasMode: 'infinite',
   a4Orientation: 'portrait',
   canvasBgPattern: 'grid',
+  canvasBgOpacity: 15,
   canvasFontSize: 13,
   editorFontSize: 16,
   editorShowAllRaw: false,

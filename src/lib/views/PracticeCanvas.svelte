@@ -58,7 +58,19 @@
   let showTask = $state(true);
   let showSolution = $state(false);
   let activeBg = $state('grid'); // 'grid' | 'lines' | 'blank' | custom template ID
-  let bgOpacity = $state(15); // Background template opacity range 1-100
+  let bgOpacity = $state(
+    (store.activeProject
+      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id)
+      : store.settings).canvasBgOpacity ?? 15
+  ); // Background template opacity range 1-100
+
+  $effect(() => {
+    const op = bgOpacity;
+    if (op !== undefined && store.settings.canvasBgOpacity !== op) {
+      store.settings.canvasBgOpacity = op;
+      store.saveSettings();
+    }
+  });
   let customBgUrl = $state(null);
   
   // Active editing mode ('canvas', 'text', 'multiple_choice')
@@ -455,12 +467,22 @@
   );
 
   $effect(() => {
-    const mode = effectiveEraserSettings.eraserMode;
-    eraserWidth = effectiveEraserSettings.eraserRadiusNormal ?? 24;
+    const w = eraserWidth;
+    if (w !== undefined && store.settings.eraserRadiusNormal !== w) {
+      store.settings.eraserRadiusNormal = w;
+      store.settings.penEraserWidth = w;
+      store.saveSettings();
+    }
+  });
 
+  $effect(() => {
     const bg = effectiveEraserSettings.canvasBgPattern;
     if (bg) {
       activeBg = bg;
+    }
+    const op = effectiveEraserSettings.canvasBgOpacity;
+    if (op !== undefined && bgOpacity !== op) {
+      bgOpacity = op;
     }
   });
 

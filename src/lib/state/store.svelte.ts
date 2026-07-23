@@ -303,6 +303,15 @@ class CanvasCritiqueStore {
         await dbSaveSettings(database, $state.snapshot(this.settings));
       }
       this.settings.stylusMode = localStorage.getItem('canvascritique_stylus_mode') === 'true';
+      const savedBgOpacity = localStorage.getItem('canvascritique_bg_opacity');
+      if (savedBgOpacity !== null && !isNaN(Number(savedBgOpacity))) {
+        this.settings.canvasBgOpacity = Number(savedBgOpacity);
+      }
+      const savedEraserWidth = localStorage.getItem('canvascritique_eraser_width');
+      if (savedEraserWidth !== null && !isNaN(Number(savedEraserWidth))) {
+        this.settings.eraserRadiusNormal = Number(savedEraserWidth);
+        this.settings.penEraserWidth = Number(savedEraserWidth);
+      }
 
       this.statsHistory = data.requestLogs || [];
 
@@ -560,6 +569,12 @@ class CanvasCritiqueStore {
     }
     if (this.settings.editorFontSize !== undefined) {
       localStorage.setItem('canvascritique_editor_fontsize', String(this.settings.editorFontSize));
+    }
+    if (this.settings.canvasBgOpacity !== undefined) {
+      localStorage.setItem('canvascritique_bg_opacity', String(this.settings.canvasBgOpacity));
+    }
+    if (this.settings.eraserRadiusNormal !== undefined) {
+      localStorage.setItem('canvascritique_eraser_width', String(this.settings.eraserRadiusNormal));
     }
 
     const dbSnapshot = $state.snapshot(this.settings);
