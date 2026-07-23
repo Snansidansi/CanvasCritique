@@ -1122,8 +1122,8 @@
               dropX = (dropClientX - panOffset.x) / zoomScale;
               dropY = (dropClientY - panOffset.y) / zoomScale;
             } else {
-              dropX = dropClientX / a4Scale;
-              dropY = dropClientY / a4Scale;
+              dropX = dropClientX;
+              dropY = dropClientY;
             }
 
             const img = new Image();
@@ -1220,8 +1220,8 @@
       placeX = (clickClientX - panOffset.x) / zoomScale;
       placeY = (clickClientY - panOffset.y) / zoomScale;
     } else {
-      placeX = clickClientX / a4Scale;
-      placeY = clickClientY / a4Scale;
+      placeX = clickClientX;
+      placeY = clickClientY;
     }
 
     const img = new Image();
@@ -1931,8 +1931,8 @@
       };
     } else {
       return {
-        x: screenX / a4Scale,
-        y: screenY / a4Scale
+        x: screenX,
+        y: screenY
       };
     }
   }

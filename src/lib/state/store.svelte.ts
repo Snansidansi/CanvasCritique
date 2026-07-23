@@ -952,6 +952,7 @@ class CanvasCritiqueStore {
     if (this.currentView === 'task-editor' && view !== 'task-editor') {
       this.editingTask = null;
     }
+    this.canvasSettingsOpen = false;
     this.currentView = view;
   }
 
@@ -971,6 +972,7 @@ class CanvasCritiqueStore {
 
   selectTask(task: Task | null): void {
     this.activeTask = task;
+    this.canvasSettingsOpen = false;
     this.setView('practice');
   }
 
