@@ -225,6 +225,7 @@ class CanvasCritiqueStore {
       maxOutputTokens: useTaskModel ? (taskOverride.maxOutputTokens ?? globalSettings.maxOutputTokens) : (useProjModel ? (projOverride.maxOutputTokens ?? globalSettings.maxOutputTokens) : globalSettings.maxOutputTokens),
       customSystemPrompt: useTaskSystemPrompt ? (taskOverride.customSystemPrompt !== undefined && taskOverride.customSystemPrompt !== null ? taskOverride.customSystemPrompt : globalSettings.customSystemPrompt) : (useProjSystemPrompt ? (projOverride.customSystemPrompt !== undefined && projOverride.customSystemPrompt !== null ? projOverride.customSystemPrompt : globalSettings.customSystemPrompt) : globalSettings.customSystemPrompt),
       canvasMode: useTaskCanvas ? (taskOverride.canvasMode ?? globalSettings.canvasMode) : (useProjCanvas ? (projOverride.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode),
+      a4Orientation: useTaskCanvas ? (taskOverride.a4Orientation ?? globalSettings.a4Orientation ?? 'portrait') : (useProjCanvas ? (projOverride.a4Orientation ?? globalSettings.a4Orientation ?? 'portrait') : (globalSettings.a4Orientation ?? 'portrait')),
       canvasFontSize: useTaskCanvas ? (taskOverride.canvasFontSize ?? globalSettings.canvasFontSize) : (useProjCanvas ? (projOverride.canvasFontSize ?? globalSettings.canvasFontSize) : globalSettings.canvasFontSize),
       editorFontSize: useTaskEditorFontSize ? (taskOverride.editorFontSize ?? globalSettings.editorFontSize) : (useProjEditorFontSize ? (projOverride.editorFontSize ?? globalSettings.editorFontSize) : globalSettings.editorFontSize),
       eraserMode: useTaskEraser ? (taskOverride.eraserMode ?? globalSettings.eraserMode) : (useProjEraser ? (projOverride.eraserMode ?? globalSettings.eraserMode) : globalSettings.eraserMode),
@@ -341,6 +342,12 @@ class CanvasCritiqueStore {
         this.settings.openRouterProvider = [];
       }
 
+      if (!this.settings.canvasMode) {
+        this.settings.canvasMode = 'infinite';
+      }
+      if (!this.settings.a4Orientation) {
+        this.settings.a4Orientation = 'portrait';
+      }
       const localCanvasFontSize = localStorage.getItem('canvascritique_canvas_fontsize');
       if (localCanvasFontSize) {
         this.settings.canvasFontSize = parseInt(localCanvasFontSize, 10);

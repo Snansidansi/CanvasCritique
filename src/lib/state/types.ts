@@ -97,6 +97,7 @@ export interface ProjectSettingsOverride {
   customSystemPrompt?: string;
   language?: string;
   canvasMode?: string;
+  a4Orientation?: 'portrait' | 'landscape';
   canvasFontSize?: number;
   editorFontSize?: number;
   autoNumberTasks?: boolean;
@@ -175,6 +176,7 @@ export interface Settings {
   sendContextMedia: boolean;
   maxOutputTokens: number;
   canvasMode: string;
+  a4Orientation?: 'portrait' | 'landscape';
   canvasFontSize: number;
   editorFontSize?: number;
   editorShowAllRaw?: boolean;

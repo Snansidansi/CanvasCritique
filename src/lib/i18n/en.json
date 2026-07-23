@@ -438,7 +438,15 @@
       "posBottom": "Bottom",
       "paste": "Paste",
       "copy": "Copy",
-      "cut": "Cut"
+      "cut": "Cut",
+      "tabs": {
+        "pageLayout": "Page & Layout",
+        "toolsEraser": "Tools & Eraser",
+        "viewText": "View & Text",
+        "actionsExport": "Actions & Export"
+      },
+      "overrideTask": "Settings for this task",
+      "resetToDefault": "Reset to Default"
     }
   },
   "settings": {
@@ -484,6 +492,10 @@
       "infiniteDesc": "Unlimited drawing space",
       "a4": "A4 Format",
       "a4Desc": "Fixed A4 page size",
+      "a4Orientation": "A4 Orientation",
+      "a4OrientationDesc": "Choose between portrait and landscape",
+      "portrait": "Portrait",
+      "landscape": "Landscape",
       "autoCompleteOnSuccess": "Auto-complete on Success",
       "autoCompleteOnSuccessDesc": "Automatically mark task as completed when score is 100%",
       "textFontSize": "Text Font Size",
