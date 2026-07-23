@@ -107,6 +107,21 @@
     return total;
   });
 
+  let modelSortColumn = $state<'name' | 'requests' | 'tokens' | 'cost' | null>(null);
+  let modelSortDirection = $state<'asc' | 'desc' | null>(null);
+
+  function toggleModelSort(col: 'name' | 'requests' | 'tokens' | 'cost') {
+    if (modelSortColumn !== col) {
+      modelSortColumn = col;
+      modelSortDirection = col === 'name' ? 'asc' : 'desc';
+    } else if (modelSortDirection === (col === 'name' ? 'asc' : 'desc')) {
+      modelSortDirection = col === 'name' ? 'desc' : 'asc';
+    } else {
+      modelSortColumn = null;
+      modelSortDirection = null;
+    }
+  }
+
   // Group request history by model inside range
   const modelStats = $derived.by(() => {
     let start: Date | null = null;
@@ -148,10 +163,30 @@
       }
     }
 
-    return Object.entries(models).map(([name, stats]) => ({
+    const list = Object.entries(models).map(([name, stats]) => ({
       name,
-      ...stats
-    })).sort((a, b) => b.cost - a.cost);
+      ...stats,
+      totalTokens: stats.inputTokens + stats.outputTokens
+    }));
+
+    if (modelSortColumn && modelSortDirection) {
+      list.sort((a, b) => {
+        const key = modelSortColumn === 'tokens' ? 'totalTokens' : modelSortColumn;
+        const valA = a[key];
+        const valB = b[key];
+        
+        if (typeof valA === 'string') {
+          const comp = valA.localeCompare(valB as string);
+          return modelSortDirection === 'asc' ? comp : -comp;
+        } else {
+          return modelSortDirection === 'asc' ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
+        }
+      });
+    } else {
+      list.sort((a, b) => b.cost - a.cost);
+    }
+
+    return list;
   });
 
   // 2. Generate date range for selected timeframe
@@ -1196,10 +1231,58 @@
         <table class="w-full text-left border-collapse text-xs">
           <thead>
             <tr class="border-b border-outline-variant/60 text-on-surface-variant font-semibold">
-              <th class="py-2 pr-4">{store.settings.language === 'Deutsch' ? 'Modell' : 'Model'}</th>
-              <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Anfragen' : 'Requests'}</th>
-              <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Tokens (In/Out)' : 'Tokens (In/Out)'}</th>
-              <th class="py-2 pl-4 text-right">{store.settings.language === 'Deutsch' ? 'Kosten' : 'Cost'}</th>
+              <th 
+                onclick={() => toggleModelSort('name')}
+                class="py-2 pr-4 cursor-pointer hover:text-on-surface select-none transition-colors"
+              >
+                <div class="flex items-center gap-1">
+                  <span>{store.settings.language === 'Deutsch' ? 'Modell' : 'Model'}</span>
+                  {#if modelSortColumn === 'name'}
+                    <span class="material-symbols-outlined text-xs text-primary">
+                      {modelSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                    </span>
+                  {/if}
+                </div>
+              </th>
+              <th 
+                onclick={() => toggleModelSort('requests')}
+                class="py-2 px-4 text-right cursor-pointer hover:text-on-surface select-none transition-colors"
+              >
+                <div class="flex items-center justify-end gap-1">
+                  <span>{store.settings.language === 'Deutsch' ? 'Anfragen' : 'Requests'}</span>
+                  {#if modelSortColumn === 'requests'}
+                    <span class="material-symbols-outlined text-xs text-primary">
+                      {modelSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                    </span>
+                  {/if}
+                </div>
+              </th>
+              <th 
+                onclick={() => toggleModelSort('tokens')}
+                class="py-2 px-4 text-right cursor-pointer hover:text-on-surface select-none transition-colors"
+              >
+                <div class="flex items-center justify-end gap-1">
+                  <span>{store.settings.language === 'Deutsch' ? 'Tokens (In/Out)' : 'Tokens (In/Out)'}</span>
+                  {#if modelSortColumn === 'tokens'}
+                    <span class="material-symbols-outlined text-xs text-primary">
+                      {modelSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                    </span>
+                  {/if}
+                </div>
+              </th>
+              <th 
+                onclick={() => toggleModelSort('cost')}
+                class="py-2 pl-4 text-right cursor-pointer hover:text-on-surface select-none transition-colors"
+              >
+                <div class="flex items-center justify-end gap-1">
+                  <span>{store.settings.language === 'Deutsch' ? 'Kosten' : 'Cost'}</span>
+                  {#if modelSortColumn === 'cost'}
+                    <span class="material-symbols-outlined text-xs text-primary">
+                      {modelSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                    </span>
+                  {/if}
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody class="divide-y divide-outline-variant/30 text-on-surface">
