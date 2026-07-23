@@ -34,7 +34,7 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-export function getStrokesBoundingBox(history: Stroke[], canvasMode: 'infinite' | 'a4'): BoundingBox | null {
+export function getStrokesBoundingBox(history: Stroke[], canvasMode: 'infinite' | 'a4', a4Orientation: 'portrait' | 'landscape' = 'portrait'): BoundingBox | null {
   if (!history || history.length === 0) return null;
   
   const drawingStrokes = history.filter(s => s.color !== 'eraser' && s.color !== '#FFFFFF' && s.points.length > 0);
@@ -57,10 +57,12 @@ export function getStrokesBoundingBox(history: Stroke[], canvasMode: 'infinite' 
   
   const padding = 20;
   if (canvasMode === 'a4') {
+    const a4W = a4Orientation === 'landscape' ? 1130 : 800;
+    const a4H = a4Orientation === 'landscape' ? 800 : 1130;
     minX = Math.max(0, minX - padding);
     minY = Math.max(0, minY - padding);
-    maxX = Math.min(800, maxX + padding);
-    maxY = Math.min(1130, maxY + padding);
+    maxX = Math.min(a4W, maxX + padding);
+    maxY = Math.min(a4H, maxY + padding);
   } else {
     minX = minX - padding;
     minY = minY - padding;

@@ -77,6 +77,7 @@ export interface CheckWorkSettings {
 
 export interface CheckWorkOptions {
   canvasMode: 'infinite' | 'a4';
+  a4Orientation?: 'portrait' | 'landscape';
   pages: Array<{ strokeHistory: Stroke[] }>;
   infiniteStrokes: Stroke[];
   canvasImages?: any[];
@@ -345,16 +346,18 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
   if (sendCanvas) {
     for (const item of activePagesWithIndex) {
       const pageImagesForThisPage = canvasImages.filter(img => canvasMode === 'infinite' || img.pageIndex === item.originalIndex);
-      const box = getPageBoundingBox(item.strokeHistory, pageImagesForThisPage, canvasMode);
+      const a4W = options.a4Orientation === 'landscape' ? 1130 : 800;
+      const a4H = options.a4Orientation === 'landscape' ? 800 : 1130;
+      const box = getPageBoundingBox(item.strokeHistory, pageImagesForThisPage, canvasMode, options.a4Orientation);
       let base64Data = '';
-      let widthVal = 800;
-      let heightVal = 1130;
+      let widthVal = a4W;
+      let heightVal = a4H;
       let boxOffset = { x: 0, y: 0 };
       
       if (!box) {
         const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = 800;
-        tempCanvas.height = 1130;
+        tempCanvas.width = a4W;
+        tempCanvas.height = a4H;
         widthVal = tempCanvas.width;
         heightVal = tempCanvas.height;
         const tempCtx = tempCanvas.getContext('2d');
@@ -1195,8 +1198,8 @@ Return a SINGLE JSON object with the following schema:
   };
 }
 
-function getPageBoundingBox(history: Stroke[], pageImages: any[], canvasMode: 'infinite' | 'a4'): BoundingBox | null {
-  const strokeBox = getStrokesBoundingBox(history, canvasMode);
+function getPageBoundingBox(history: Stroke[], pageImages: any[], canvasMode: 'infinite' | 'a4', a4Orientation: 'portrait' | 'landscape' = 'portrait'): BoundingBox | null {
+  const strokeBox = getStrokesBoundingBox(history, canvasMode, a4Orientation);
   if (pageImages.length === 0) return strokeBox;
   
   let minX = strokeBox ? strokeBox.x : Infinity;
@@ -1215,10 +1218,12 @@ function getPageBoundingBox(history: Stroke[], pageImages: any[], canvasMode: 'i
   
   const padding = 20;
   if (canvasMode === 'a4') {
+    const a4W = a4Orientation === 'landscape' ? 1130 : 800;
+    const a4H = a4Orientation === 'landscape' ? 800 : 1130;
     minX = Math.max(0, minX - padding);
     minY = Math.max(0, minY - padding);
-    maxX = Math.min(800, maxX + padding);
-    maxY = Math.min(1130, maxY + padding);
+    maxX = Math.min(a4W, maxX + padding);
+    maxY = Math.min(a4H, maxY + padding);
   } else {
     minX = minX - padding;
     minY = minY - padding;

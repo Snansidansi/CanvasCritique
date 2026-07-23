@@ -341,6 +341,8 @@
   let brushWidth = $state(2);
   let activeTool = $state('pen'); // 'pen' | 'eraser' | 'pan' | 'select' | 'shape'
   let shapeType = $state('rectangle'); // 'circle' | 'ellipse' | 'line' | 'square' | 'rectangle' | 'triangle'
+  let canvasSettingsTab = $state<'pageLayout' | 'toolsEraser' | 'viewText' | 'actionsExport'>('pageLayout');
+  let targetSettings = $derived((store.activeTask && store.activeTask.settingsOverride?.overrideSettings) ? store.activeTask.settingsOverride : store.settings);
 
   let cursorClass = $derived.by(() => {
     // If placing a provided image, show crosshair
@@ -510,13 +512,21 @@
     };
   });
   
-  let canvasWidth = $derived(canvasMode === 'infinite' ? Math.round(containerWidth / 8) * 8 : 800);
-  let canvasHeight = $derived(canvasMode === 'infinite' ? Math.round(containerHeight / 8) * 8 : 1130);
+  let a4Orientation = $derived(
+    store.activeProject
+      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id).a4Orientation ?? 'portrait'
+      : store.settings.a4Orientation ?? 'portrait'
+  );
+  let a4BaseWidth = $derived(a4Orientation === 'landscape' ? 1130 : 800);
+  let a4BaseHeight = $derived(a4Orientation === 'landscape' ? 800 : 1130);
+
+  let canvasWidth = $derived(canvasMode === 'infinite' ? Math.round(containerWidth / 8) * 8 : a4BaseWidth);
+  let canvasHeight = $derived(canvasMode === 'infinite' ? Math.round(containerHeight / 8) * 8 : a4BaseHeight);
   let a4Scale = $derived(
     canvasMode === 'a4' 
       ? Math.max(0.1, Math.min(
-          containerWidth > 32 ? (containerWidth - 32) / 800 : 0.1,
-          containerHeight > 32 ? (containerHeight - 32) / 1130 : 0.1
+          containerWidth > 32 ? (containerWidth - 32) / a4BaseWidth : 0.1,
+          containerHeight > 32 ? (containerHeight - 32) / a4BaseHeight : 0.1
         )) * zoomScale
       : 1
   );
@@ -3174,8 +3184,8 @@
         
         // Temporarily calculate new a4Scale
         const baseA4Scale = Math.max(0.1, Math.min(
-          containerWidth > 32 ? (containerWidth - 32) / 800 : 0.1,
-          containerHeight > 32 ? (containerHeight - 32) / 1130 : 0.1
+          containerWidth > 32 ? (containerWidth - 32) / a4BaseWidth : 0.1,
+          containerHeight > 32 ? (containerHeight - 32) / a4BaseHeight : 0.1
         ));
         const newA4Scale = baseA4Scale * newZoomScale;
         
@@ -3184,8 +3194,8 @@
         const mX = e.clientX - containerRect.left;
         const mY = e.clientY - containerRect.top;
         
-        const cardX = (containerWidth - 800 * oldScale) / 2 + panOffset.x;
-        const cardY = (containerHeight - 1130 * oldScale) / 2 + panOffset.y;
+        const cardX = (containerWidth - a4BaseWidth * oldScale) / 2 + panOffset.x;
+        const cardY = (containerHeight - a4BaseHeight * oldScale) / 2 + panOffset.y;
         
         const relX = (mX - cardX) / oldScale;
         const relY = (mY - cardY) / oldScale;
@@ -3193,8 +3203,8 @@
         const newCardX = mX - relX * newA4Scale;
         const newCardY = mY - relY * newA4Scale;
         
-        const newPanX = newCardX - (containerWidth - 800 * newA4Scale) / 2;
-        const newPanY = newCardY - (containerHeight - 1130 * newA4Scale) / 2;
+        const newPanX = newCardX - (containerWidth - a4BaseWidth * newA4Scale) / 2;
+        const newPanY = newCardY - (containerHeight - a4BaseHeight * newA4Scale) / 2;
         
         zoomScale = newZoomScale;
         panOffset = { x: newPanX, y: newPanY };
@@ -3277,11 +3287,11 @@
         const pattern = ctx.createPattern(currentBgImage, 'repeat');
         if (pattern) {
           ctx.fillStyle = pattern;
-          ctx.fillRect(0, 0, 800, 1130);
+          ctx.fillRect(0, 0, a4BaseWidth, a4BaseHeight);
         }
         ctx.restore();
       }
-      drawGuidelinesInWorld(ctx, 0, 0, 800, 1130, activeBg, bgOpacity);
+      drawGuidelinesInWorld(ctx, 0, 0, a4BaseWidth, a4BaseHeight, activeBg, bgOpacity);
       drawCanvasImages(ctx);
     }
     ctx.restore();
@@ -3828,21 +3838,21 @@
         });
         pdf.addImage(imgData, 'PNG', 0, 0, box.width, box.height, undefined, 'FAST');
       } else {
-        // A4 Mode
+        const pdfOrientation = a4Orientation === 'landscape' ? 'l' : 'p';
         pdf = new jsPDF({
-          orientation: 'p',
+          orientation: pdfOrientation,
           unit: 'px',
-          format: [800, 1130]
+          format: [a4BaseWidth, a4BaseHeight]
         });
 
         for (let i = 0; i < pages.length; i++) {
           if (i > 0) {
-            pdf.addPage([800, 1130], 'p');
+            pdf.addPage([a4BaseWidth, a4BaseHeight], pdfOrientation);
           }
           const page = pages[i];
           const exportCanvas = document.createElement('canvas');
-          exportCanvas.width = 800 * scale;
-          exportCanvas.height = 1130 * scale;
+          exportCanvas.width = a4BaseWidth * scale;
+          exportCanvas.height = a4BaseHeight * scale;
           const exportCtx = exportCanvas.getContext('2d');
           if (!exportCtx) throw new Error('Could not create canvas context');
 
@@ -3851,7 +3861,7 @@
 
           // White background
           exportCtx.fillStyle = '#FFFFFF';
-          exportCtx.fillRect(0, 0, 800, 1130);
+          exportCtx.fillRect(0, 0, a4BaseWidth, a4BaseHeight);
 
           // Background Image
           if (currentBgImage) {
@@ -3860,13 +3870,13 @@
             const pattern = exportCtx.createPattern(currentBgImage, 'repeat');
             if (pattern) {
               exportCtx.fillStyle = pattern;
-              exportCtx.fillRect(0, 0, 800, 1130);
+              exportCtx.fillRect(0, 0, a4BaseWidth, a4BaseHeight);
             }
             exportCtx.restore();
           }
 
           // Guidelines
-          drawGuidelinesInWorld(exportCtx, 0, 0, 800, 1130, activeBg, bgOpacity);
+          drawGuidelinesInWorld(exportCtx, 0, 0, a4BaseWidth, a4BaseHeight, activeBg, bgOpacity);
 
           // Strokes
           for (const stroke of page.strokeHistory || []) {
@@ -3875,7 +3885,7 @@
 
           // Use compressed PNG to keep file size small and lines lossless
           const imgData = exportCanvas.toDataURL('image/png');
-          pdf.addImage(imgData, 'PNG', 0, 0, 800, 1130, undefined, 'FAST');
+          pdf.addImage(imgData, 'PNG', 0, 0, a4BaseWidth, a4BaseHeight, undefined, 'FAST');
         }
       }
     } else {
@@ -5085,12 +5095,12 @@
         <!-- A4 Page Card Layout -->
         <div 
           class="relative bg-white shadow-xl border border-outline-variant rounded-sm shrink-0 origin-center" 
-          style="width: 800px; height: 1130px; transform: translate({panOffset.x}px, {panOffset.y}px) scale({a4Scale});"
+          style="width: {a4BaseWidth}px; height: {a4BaseHeight}px; transform: translate({panOffset.x}px, {panOffset.y}px) scale({a4Scale});"
         >
           <canvas 
             bind:this={canvasElement}
-            width="800"
-            height="1130"
+            width={a4BaseWidth}
+            height={a4BaseHeight}
             onpointerdown={handlePointerDown}
             onpointermove={handlePointerMove}
             onpointerup={handlePointerUp}
@@ -5104,8 +5114,8 @@
 
         <!-- Clickable Marker Buttons (A4 Page Mode) - Placed outside the scaled div to remain crisp and full size -->
         {#if showFeedback && hasCheckedWork && !isChecking && showCanvasAnnotations}
-          {@const leftOffset = (containerWidth - 800 * a4Scale) / 2 + panOffset.x}
-          {@const topOffset = (containerHeight - 1130 * a4Scale) / 2 + panOffset.y}
+          {@const leftOffset = (containerWidth - a4BaseWidth * a4Scale) / 2 + panOffset.x}
+          {@const topOffset = (containerHeight - a4BaseHeight * a4Scale) / 2 + panOffset.y}
           
           {#each feedbackMarkers.filter(m => m.pageIndex === activePageIndex) as marker (marker.id)}
             <button
@@ -5143,8 +5153,8 @@
       <!-- Selection Bounding Box Floating Options -->
       {#if selectionBoundingBox}
         {@const bounds = selectionBoundingBox}
-        {@const leftOffset = canvasMode === 'a4' ? (containerWidth - 800 * a4Scale) / 2 + panOffset.x : panOffset.x}
-        {@const topOffset = canvasMode === 'a4' ? (containerHeight - 1130 * a4Scale) / 2 + panOffset.y : panOffset.y}
+        {@const leftOffset = canvasMode === 'a4' ? (containerWidth - a4BaseWidth * a4Scale) / 2 + panOffset.x : panOffset.x}
+        {@const topOffset = canvasMode === 'a4' ? (containerHeight - a4BaseHeight * a4Scale) / 2 + panOffset.y : panOffset.y}
         {@const scale = canvasMode === 'a4' ? a4Scale : zoomScale}
         {@const boxLeft = bounds.minX * scale + leftOffset}
         {@const boxTop = bounds.minY * scale + topOffset}
@@ -5443,7 +5453,7 @@
       <div class="flex items-center justify-between border-b border-outline-variant/30 pb-3">
         <div class="flex items-center gap-2 text-primary">
           <span class="material-symbols-outlined text-xl">tune</span>
-          <h3 class="font-bold text-base text-on-surface">Canvas Settings</h3>
+          <h3 class="font-bold text-base text-on-surface">{t('sidebar.canvasSettings')}</h3>
         </div>
         <button 
           onclick={() => store.canvasSettingsOpen = false}
@@ -5453,325 +5463,511 @@
         </button>
       </div>
 
-      <!-- Two-column Layout -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Left Column: Background & Appearance Settings -->
-        <div class="flex flex-col gap-4">
-          <!-- Background Selection -->
-          <div class="flex flex-col gap-2">
-            <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('practice.canvas.background')}</span>
-            <!-- Grid of standard options -->
-            <div class="grid grid-cols-3 gap-2">
-              <button 
-                onclick={() => activeBg = 'grid'}
-                class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
-                       {activeBg === 'grid' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+      <!-- Task Override Banner if inside activeTask -->
+      {#if store.activeTask}
+        {@const hasOverride = !!store.activeTask.settingsOverride?.overrideSettings}
+        <div class="flex items-center justify-between p-3 rounded-lg bg-surface-container-low border border-outline-variant/40">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm text-primary">task</span>
+            <span class="text-xs font-semibold text-on-surface">{t('practice.canvas.overrideTask')}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            {#if hasOverride}
+              <button
+                type="button"
+                onclick={() => {
+                  if (store.activeTask) {
+                    store.activeTask.settingsOverride = undefined;
+                    store.saveProjects();
+                  }
+                }}
+                class="text-[11px] font-semibold text-primary hover:underline bg-transparent border-0 cursor-pointer"
               >
-                <span class="material-symbols-outlined text-xl">apps</span>
-                <span class="text-[11px] font-semibold">{t('practice.canvas.dots')}</span>
+                {t('practice.canvas.resetToDefault')}
               </button>
+            {/if}
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={hasOverride}
+                onchange={(e) => {
+                  if (!store.activeTask) return;
+                  if (e.currentTarget.checked) {
+                    const effective = store.activeProject
+                      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask.id)
+                      : store.settings;
+                    store.activeTask.settingsOverride = {
+                      overrideSettings: true,
+                      overrideCanvas: true,
+                      overrideEraser: true,
+                      overrideEditorFontSize: true,
+                      canvasMode: effective.canvasMode,
+                      a4Orientation: effective.a4Orientation,
+                      eraserMode: effective.eraserMode,
+                      eraserRadiusNormal: effective.eraserRadiusNormal,
+                      eraserRadiusStroke: effective.eraserRadiusStroke,
+                      canvasFontSize: effective.canvasFontSize,
+                      editorFontSize: effective.editorFontSize
+                    };
+                  } else {
+                    store.activeTask.settingsOverride = undefined;
+                  }
+                  store.saveProjects();
+                }}
+                class="sr-only peer"
+              />
+              <div class="w-8 h-4 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Tab Navigation Bar -->
+      <div class="flex border-b border-outline-variant/30 gap-1 bg-surface-container-low/50 p-1 rounded-xl">
+        <button
+          type="button"
+          onclick={() => canvasSettingsTab = 'pageLayout'}
+          class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer border-0 transition-all
+                 {canvasSettingsTab === 'pageLayout' ? 'bg-surface text-primary shadow-sm font-bold' : 'text-on-surface-variant hover:bg-surface-container-high'}"
+        >
+          <span class="material-symbols-outlined text-base">description</span>
+          <span>{t('practice.canvas.tabs.pageLayout')}</span>
+        </button>
+        <button
+          type="button"
+          onclick={() => canvasSettingsTab = 'toolsEraser'}
+          class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer border-0 transition-all
+                 {canvasSettingsTab === 'toolsEraser' ? 'bg-surface text-primary shadow-sm font-bold' : 'text-on-surface-variant hover:bg-surface-container-high'}"
+        >
+          <span class="material-symbols-outlined text-base">auto_fix_high</span>
+          <span>{t('practice.canvas.tabs.toolsEraser')}</span>
+        </button>
+        <button
+          type="button"
+          onclick={() => canvasSettingsTab = 'viewText'}
+          class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer border-0 transition-all
+                 {canvasSettingsTab === 'viewText' ? 'bg-surface text-primary shadow-sm font-bold' : 'text-on-surface-variant hover:bg-surface-container-high'}"
+        >
+          <span class="material-symbols-outlined text-base">format_size</span>
+          <span>{t('practice.canvas.tabs.viewText')}</span>
+        </button>
+        <button
+          type="button"
+          onclick={() => canvasSettingsTab = 'actionsExport'}
+          class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer border-0 transition-all
+                 {canvasSettingsTab === 'actionsExport' ? 'bg-surface text-primary shadow-sm font-bold' : 'text-on-surface-variant hover:bg-surface-container-high'}"
+        >
+          <span class="material-symbols-outlined text-base">download</span>
+          <span>{t('practice.canvas.tabs.actionsExport')}</span>
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="flex flex-col gap-5 min-h-[260px]">
+        {#if canvasSettingsTab === 'pageLayout'}
+          <!-- TAB 1: SEITE & LAYOUT -->
+          <div class="flex flex-col gap-5 animate-fade-in">
+            <!-- Canvas Mode & Orientation -->
+            <div class="flex flex-col gap-2">
+              <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.title')}</span>
+              <CanvasModeSelector 
+                settings={targetSettings} 
+                onchange={() => {
+                  if (store.activeTask?.settingsOverride?.overrideSettings) {
+                    store.saveProjects();
+                  } else {
+                    store.saveSettings();
+                  }
+                }}
+              />
+            </div>
+
+            <!-- Background Selection -->
+            <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+              <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('practice.canvas.background')}</span>
+              <div class="grid grid-cols-3 gap-2">
+                <button 
+                  onclick={() => activeBg = 'grid'}
+                  class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
+                         {activeBg === 'grid' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+                >
+                  <span class="material-symbols-outlined text-xl">apps</span>
+                  <span class="text-[11px] font-semibold">{t('practice.canvas.dots')}</span>
+                </button>
+                <button 
+                  onclick={() => activeBg = 'lines'}
+                  class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
+                         {activeBg === 'lines' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+                >
+                  <span class="material-symbols-outlined text-xl">reorder</span>
+                  <span class="text-[11px] font-semibold">{t('practice.canvas.lines')}</span>
+                </button>
+                <button 
+                  onclick={() => activeBg = 'blank'}
+                  class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
+                         {activeBg === 'blank' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+                >
+                  <span class="material-symbols-outlined text-xl">check_box_outline_blank</span>
+                  <span class="text-[11px] font-semibold">{t('practice.canvas.blank')}</span>
+                </button>
+              </div>
+
+              <!-- Custom Backgrounds list -->
+              {#if store.customBackgrounds.length > 0}
+                <div class="mt-2 flex flex-col gap-1.5">
+                  <span class="text-[11px] font-semibold text-on-surface-variant">{t('practice.canvas.customTemplates')}</span>
+                  <div class="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar border border-outline-variant/30 rounded-lg p-1">
+                    {#each store.customBackgrounds as customBg}
+                      <div class="flex items-center justify-between hover:bg-surface-container-high rounded-md group px-2 py-1">
+                        <button 
+                          onclick={() => activeBg = customBg.id}
+                          class="grow text-left text-xs flex items-center gap-2 cursor-pointer border-0 bg-transparent focus:outline-none {activeBg === customBg.id ? 'text-primary font-bold' : 'text-on-surface'}"
+                        >
+                          {#if customBg.icon && customBg.icon.startsWith('data:image/')}
+                            <img src={customBg.icon} class="w-4 h-4 object-contain rounded" alt="" />
+                          {:else}
+                            <span class="material-symbols-outlined text-base">image</span>
+                          {/if}
+                          <span class="truncate max-w-50">{customBg.name}</span>
+                        </button>
+                        <button 
+                          onclick={() => {
+                            store.confirm(
+                              t('practice.canvas.deleteBg'),
+                              t('practice.canvas.deleteBgConfirm', { name: customBg.name }),
+                              () => {
+                                if (activeBg === customBg.id) activeBg = 'grid';
+                                store.deleteCustomBackground(customBg.id);
+                              }
+                            );
+                          }}
+                          class="p-1 text-outline hover:text-error opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none cursor-pointer flex items-center justify-center border-0 bg-transparent"
+                          title="Delete Background"
+                        >
+                          <span class="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+
               <button 
-                onclick={() => activeBg = 'lines'}
-                class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
-                       {activeBg === 'lines' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+                onclick={() => { 
+                  isCustomBgModalOpen = true; 
+                  store.canvasSettingsOpen = false;
+                }}
+                class="mt-2 w-full py-2 border border-dashed border-primary/50 text-primary hover:bg-primary/10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none bg-transparent"
               >
-                <span class="material-symbols-outlined text-xl">reorder</span>
-                <span class="text-[11px] font-semibold">{t('practice.canvas.lines')}</span>
-              </button>
-              <button 
-                onclick={() => activeBg = 'blank'}
-                class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
-                       {activeBg === 'blank' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
-              >
-                <span class="material-symbols-outlined text-xl">check_box_outline_blank</span>
-                <span class="text-[11px] font-semibold">{t('practice.canvas.blank')}</span>
+                <span class="material-symbols-outlined text-base">add_box</span>
+                <span>{t('practice.canvas.addCustomBg')}</span>
               </button>
             </div>
 
-            <!-- Custom Backgrounds list if any -->
-            {#if store.customBackgrounds.length > 0}
-              <div class="mt-2 flex flex-col gap-1.5">
-                <span class="text-[11px] font-semibold text-on-surface-variant">{t('practice.canvas.customTemplates')}</span>
-                <div class="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar border border-outline-variant/30 rounded-lg p-1">
-                  {#each store.customBackgrounds as customBg}
-                    <div class="flex items-center justify-between hover:bg-surface-container-high rounded-md group px-2 py-1">
-                      <button 
-                        onclick={() => activeBg = customBg.id}
-                        class="grow text-left text-xs flex items-center gap-2 cursor-pointer border-0 bg-transparent focus:outline-none {activeBg === customBg.id ? 'text-primary font-bold' : 'text-on-surface'}"
-                      >
-                        {#if customBg.icon && customBg.icon.startsWith('data:image/')}
-                          <img src={customBg.icon} class="w-4 h-4 object-contain rounded" alt="" />
-                        {:else}
-                          <span class="material-symbols-outlined text-base">image</span>
-                        {/if}
-                        <span class="truncate max-w-50">{customBg.name}</span>
-                      </button>
-                      <button 
-                        onclick={() => {
-                          store.confirm(
-                            t('practice.canvas.deleteBg'),
-                            t('practice.canvas.deleteBgConfirm', { name: customBg.name }),
-                            () => {
-                              if (activeBg === customBg.id) activeBg = 'grid';
-                              store.deleteCustomBackground(customBg.id);
-                            }
-                          );
-                        }}
-                        class="p-1 text-outline hover:text-error opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none cursor-pointer flex items-center justify-center border-0 bg-transparent"
-                        title="Delete Background"
-                      >
-                        <span class="material-symbols-outlined text-sm">delete</span>
-                      </button>
-                    </div>
-                  {/each}
+            <!-- Opacity Slider -->
+            {#if activeBg !== 'blank'}
+              <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+                <div class="flex justify-between items-center">
+                  <label for="bg-opacity-slider" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('practice.canvas.opacity')}</label>
+                  <span class="text-xs font-bold text-primary">{bgOpacity}%</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="material-symbols-outlined text-base text-outline">opacity</span>
+                  <input 
+                    id="bg-opacity-slider"
+                    type="range" 
+                    min="1" 
+                    max="100" 
+                    bind:value={bgOpacity}
+                    class="grow h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary border-0"
+                  />
                 </div>
               </div>
             {/if}
-
-            <button 
-              onclick={() => { 
-                isCustomBgModalOpen = true; 
-                store.canvasSettingsOpen = false;
-              }}
-              class="mt-2 w-full py-2 border border-dashed border-primary/50 text-primary hover:bg-primary/10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none bg-transparent"
-            >
-              <span class="material-symbols-outlined text-base">add_box</span>
-              <span>{t('practice.canvas.addCustomBg')}</span>
-            </button>
           </div>
 
-          <!-- Opacity Slider -->
-          {#if activeBg !== 'blank'}
+        {:else if canvasSettingsTab === 'toolsEraser'}
+          <!-- TAB 2: WERKZEUGE & RADIERER -->
+          <div class="flex flex-col gap-5 animate-fade-in">
+            <!-- Eraser Mode -->
+            <div class="flex flex-col gap-2">
+              <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.eraser.title')}</span>
+              <p class="text-xs text-on-surface-variant">{t('settings.canvas.eraser.desc')}</p>
+              <div class="grid grid-cols-2 gap-3 mt-1">
+                <button
+                  type="button"
+                  onclick={() => {
+                    targetSettings.eraserMode = 'normal';
+                    if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                  }}
+                  class="flex flex-col p-3 border rounded-lg gap-1.5 cursor-pointer text-left transition-all bg-transparent
+                         {targetSettings.eraserMode !== 'stroke' ? 'border-primary bg-primary/5 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-xs text-on-surface">{t('settings.canvas.eraser.normal')}</span>
+                    {#if targetSettings.eraserMode !== 'stroke'}
+                      <span class="material-symbols-outlined text-sm text-primary">check_circle</span>
+                    {/if}
+                  </div>
+                  <span class="text-[11px] text-on-surface-variant leading-tight">{t('settings.canvas.eraser.normalDesc')}</span>
+                </button>
+                <button
+                  type="button"
+                  onclick={() => {
+                    targetSettings.eraserMode = 'stroke';
+                    if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                  }}
+                  class="flex flex-col p-3 border rounded-lg gap-1.5 cursor-pointer text-left transition-all bg-transparent
+                         {targetSettings.eraserMode === 'stroke' ? 'border-primary bg-primary/5 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-xs text-on-surface">{t('settings.canvas.eraser.stroke')}</span>
+                    {#if targetSettings.eraserMode === 'stroke'}
+                      <span class="material-symbols-outlined text-sm text-primary">check_circle</span>
+                    {/if}
+                  </div>
+                  <span class="text-[11px] text-on-surface-variant leading-tight">{t('settings.canvas.eraser.strokeDesc')}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Eraser Radius Spinbox -->
             <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-              <div class="flex justify-between items-center">
-                <label for="bg-opacity-slider" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('practice.canvas.opacity')}</label>
-                <span class="text-xs font-bold text-primary">{bgOpacity}%</span>
-              </div>
+              <label for="eraser-radius-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                {targetSettings.eraserMode === 'stroke' ? t('settings.canvas.eraser.strokeRadius') : t('settings.canvas.eraser.normalSize')}
+              </label>
               <div class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-base text-outline">opacity</span>
-                <input 
-                  id="bg-opacity-slider"
-                  type="range" 
-                  min="1" 
-                  max="100" 
-                  bind:value={bgOpacity}
-                  class="grow h-1 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary border-0"
-                />
+                <span class="material-symbols-outlined text-base text-outline">cleaning_services</span>
+                <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
+                  <button 
+                    type="button"
+                    onclick={() => {
+                      if (targetSettings.eraserMode === 'stroke') {
+                        targetSettings.eraserRadiusStroke = Math.max(5, (targetSettings.eraserRadiusStroke || 24) - 2);
+                      } else {
+                        targetSettings.eraserRadiusNormal = Math.max(5, (targetSettings.eraserRadiusNormal || 24) - 2);
+                      }
+                      if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                    }}
+                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  >
+                    <span class="material-symbols-outlined text-sm">remove</span>
+                  </button>
+                  <span class="w-16 text-center text-xs font-bold text-on-surface">
+                    {targetSettings.eraserMode === 'stroke' ? (targetSettings.eraserRadiusStroke || 24) : (targetSettings.eraserRadiusNormal || 24)} px
+                  </span>
+                  <button 
+                    type="button"
+                    onclick={() => {
+                      if (targetSettings.eraserMode === 'stroke') {
+                        targetSettings.eraserRadiusStroke = Math.min(100, (targetSettings.eraserRadiusStroke || 24) + 2);
+                      } else {
+                        targetSettings.eraserRadiusNormal = Math.min(100, (targetSettings.eraserRadiusNormal || 24) + 2);
+                      }
+                      if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                    }}
+                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  >
+                    <span class="material-symbols-outlined text-sm">add</span>
+                  </button>
+                </div>
               </div>
             </div>
-          {/if}
-
-          <!-- Actions side-by-side -->
-          <div class="grid grid-cols-2 gap-3 border-t border-outline-variant/30 pt-4 mt-2">
-            <button 
-              onclick={async () => {
-                store.canvasSettingsOpen = false;
-                await handleExportPdf();
-              }}
-              disabled={isExportingPdf}
-              class="flex items-center justify-center gap-1.5 border border-outline-variant text-on-surface hover:bg-surface-container py-2.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none bg-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title={showCanvas ? t('practice.exportCanvasPdf') : t('practice.exportTextPdf')}
-            >
-              {#if isExportingPdf}
-                <span class="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></span>
-              {:else}
-                <span class="material-symbols-outlined text-base text-primary">picture_as_pdf</span>
-              {/if}
-              <span>{t('practice.exportPdfLabel')}</span>
-            </button>
-
-            <button 
-              onclick={() => {
-                clearCanvas();
-              }}
-              class="flex items-center justify-center gap-1.5 border border-outline-variant text-on-surface-variant hover:bg-error/10 hover:text-error hover:border-error/30 py-2.5 rounded-lg text-xs font-semibold cursor-pointer focus:outline-none bg-transparent transition-colors"
-              title="Clear Canvas"
-            >
-              <span class="material-symbols-outlined text-base">delete_sweep</span>
-              <span>{t('practice.canvas.clearCanvas')}</span>
-            </button>
           </div>
-        </div>
 
-        <!-- Right Column: Font Sizes, Layout -->
-        <div class="flex flex-col gap-4">
-          <!-- Text Editor Font Size (Spinbox) -->
-          <div class="flex flex-col gap-2">
-            <label for="editor-font-size-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-              {t('practice.canvas.editorFontSize')}
-            </label>
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-base text-outline">format_size</span>
-              <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
+        {:else if canvasSettingsTab === 'viewText'}
+          <!-- TAB 3: ANSICHT & SCHRIFT -->
+          <div class="flex flex-col gap-5 animate-fade-in">
+            <!-- Text Editor Font Size (Spinbox) -->
+            <div class="flex flex-col gap-2">
+              <label for="editor-font-size-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                {t('practice.canvas.editorFontSize')}
+              </label>
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-base text-outline">format_size</span>
+                <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
+                  <button 
+                    type="button"
+                    onclick={() => {
+                      targetSettings.editorFontSize = Math.max(10, (targetSettings.editorFontSize || 16) - 1);
+                      if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                    }}
+                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  >
+                    <span class="material-symbols-outlined text-sm">remove</span>
+                  </button>
+                  <span class="w-16 text-center text-xs font-bold text-on-surface">{targetSettings.editorFontSize || 16} px</span>
+                  <button 
+                    type="button"
+                    onclick={() => {
+                      targetSettings.editorFontSize = Math.min(40, (targetSettings.editorFontSize || 16) + 1);
+                      if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                    }}
+                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  >
+                    <span class="material-symbols-outlined text-sm">add</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Canvas Font Size (Spinbox) -->
+            <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+              <label for="canvas-font-size-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                {t('settings.canvas.textFontSize')}
+              </label>
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-base text-outline">text_fields</span>
+                <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
+                  <button 
+                    type="button"
+                    onclick={() => {
+                      targetSettings.canvasFontSize = Math.max(10, (targetSettings.canvasFontSize || 13) - 1);
+                      if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                    }}
+                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  >
+                    <span class="material-symbols-outlined text-sm">remove</span>
+                  </button>
+                  <span class="w-16 text-center text-xs font-bold text-on-surface">{targetSettings.canvasFontSize || 13} px</span>
+                  <button 
+                    type="button"
+                    onclick={() => {
+                      targetSettings.canvasFontSize = Math.min(24, (targetSettings.canvasFontSize || 13) + 1);
+                      if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                    }}
+                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  >
+                    <span class="material-symbols-outlined text-sm">add</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Info Panels Layout -->
+            <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+              <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                {t('practice.canvas.infoPanelsLayoutTitle')}
+              </span>
+              <div class="flex bg-surface-container rounded-lg border border-outline-variant p-0.5 grow">
                 <button 
                   type="button"
-                  onclick={() => {
-                    store.settings.editorFontSize = Math.max(10, (store.settings.editorFontSize || 16) - 1);
-                    store.saveSettings();
-                  }}
-                  class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  onclick={() => infoPanelsLayout = 'vertical'}
+                  class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
+                         {infoPanelsLayout === 'vertical' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
                 >
-                  <span class="material-symbols-outlined text-sm">remove</span>
+                  <span class="material-symbols-outlined text-sm">view_stream</span>
+                  <span>{t('practice.canvas.layoutVertical')}</span>
                 </button>
-                <input 
-                  id="editor-font-size-spinbox"
-                  type="number"
-                  min="10"
-                  max="40"
-                  bind:value={store.settings.editorFontSize}
-                  onchange={() => {
-                    if (typeof store.settings.editorFontSize !== 'number' || isNaN(store.settings.editorFontSize)) {
-                      store.settings.editorFontSize = 16;
-                    }
-                    store.settings.editorFontSize = Math.max(10, Math.min(store.settings.editorFontSize, 40));
-                    store.saveSettings();
-                  }}
-                  class="w-16 bg-transparent text-center text-xs font-bold text-on-surface focus:outline-none border-0 p-0"
-                />
                 <button 
                   type="button"
-                  onclick={() => {
-                    store.settings.editorFontSize = Math.min(40, (store.settings.editorFontSize || 16) + 1);
-                    store.saveSettings();
-                  }}
-                  class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  onclick={() => infoPanelsLayout = 'horizontal'}
+                  class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
+                         {infoPanelsLayout === 'horizontal' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
                 >
-                  <span class="material-symbols-outlined text-sm">add</span>
+                  <span class="material-symbols-outlined text-sm">view_week</span>
+                  <span>{t('practice.canvas.layoutHorizontal')}</span>
                 </button>
               </div>
-              <span class="text-xs font-bold text-on-surface-variant select-none w-6 text-right">px</span>
             </div>
-          </div>
 
-          <!-- Canvas Font Size (Spinbox) -->
-          <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-            <label for="canvas-font-size-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-              {t('settings.canvas.textFontSize')}
-            </label>
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-base text-outline">text_fields</span>
-              <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
+            <!-- Workspace Layout -->
+            <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+              <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                {t('practice.canvas.workspaceLayoutTitle')}
+              </span>
+              <div class="flex bg-surface-container rounded-lg border border-outline-variant p-0.5 grow">
                 <button 
                   type="button"
-                  onclick={() => {
-                    store.settings.canvasFontSize = Math.max(10, (store.settings.canvasFontSize || 13) - 1);
-                    store.saveSettings();
-                  }}
-                  class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  onclick={() => workspaceLayout = 'vertical'}
+                  class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
+                         {workspaceLayout === 'vertical' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
                 >
-                  <span class="material-symbols-outlined text-sm">remove</span>
+                  <span class="material-symbols-outlined text-sm">table_rows</span>
+                  <span>{t('practice.canvas.layoutVertical')}</span>
                 </button>
-                <input 
-                  id="canvas-font-size-spinbox"
-                  type="number"
-                  min="10"
-                  max="24"
-                  bind:value={store.settings.canvasFontSize}
-                  onchange={() => {
-                    if (typeof store.settings.canvasFontSize !== 'number' || isNaN(store.settings.canvasFontSize)) {
-                      store.settings.canvasFontSize = 13;
-                    }
-                    store.settings.canvasFontSize = Math.max(10, Math.min(store.settings.canvasFontSize, 24));
-                    store.saveSettings();
-                  }}
-                  class="w-16 bg-transparent text-center text-xs font-bold text-on-surface focus:outline-none border-0 p-0"
-                />
                 <button 
                   type="button"
-                  onclick={() => {
-                    store.settings.canvasFontSize = Math.min(24, (store.settings.canvasFontSize || 13) + 1);
-                    store.saveSettings();
-                  }}
-                  class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                  onclick={() => workspaceLayout = 'horizontal'}
+                  class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
+                         {workspaceLayout === 'horizontal' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
                 >
-                  <span class="material-symbols-outlined text-sm">add</span>
+                  <span class="material-symbols-outlined text-sm">view_column</span>
+                  <span>{t('practice.canvas.layoutHorizontal')}</span>
                 </button>
               </div>
-              <span class="text-xs font-bold text-on-surface-variant select-none w-6 text-right">px</span>
             </div>
-          </div>
 
-          <!-- Info Panels Layout -->
-          <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-            <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider text-ellipsis overflow-hidden whitespace-nowrap">
-              {t('practice.canvas.infoPanelsLayoutTitle')}
-            </span>
-            <div class="flex bg-surface-container rounded-lg border border-outline-variant p-0.5 grow">
-              <button 
-                type="button"
-                onclick={() => infoPanelsLayout = 'vertical'}
-                class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
-                       {infoPanelsLayout === 'vertical' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
-              >
-                <span class="material-symbols-outlined text-sm">view_stream</span>
-                <span>{t('practice.canvas.layoutVertical')}</span>
-              </button>
-              <button 
-                type="button"
-                onclick={() => infoPanelsLayout = 'horizontal'}
-                class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
-                       {infoPanelsLayout === 'horizontal' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
-              >
-                <span class="material-symbols-outlined text-sm">view_week</span>
-                <span>{t('practice.canvas.layoutHorizontal')}</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Workspace Layout -->
-          <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-            <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider text-ellipsis overflow-hidden whitespace-nowrap">
-              {t('practice.canvas.workspaceLayoutTitle')}
-            </span>
-            <div class="flex bg-surface-container rounded-lg border border-outline-variant p-0.5 grow">
-              <button 
-                type="button"
-                onclick={() => workspaceLayout = 'vertical'}
-                class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
-                       {workspaceLayout === 'vertical' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
-              >
-                <span class="material-symbols-outlined text-sm">table_rows</span>
-                <span>{t('practice.canvas.layoutVertical')}</span>
-              </button>
-              <button 
-                type="button"
-                onclick={() => workspaceLayout = 'horizontal'}
-                class="grow py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer focus:outline-none transition-all border-0 flex items-center justify-center gap-1.5
-                       {workspaceLayout === 'horizontal' ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
-              >
-                <span class="material-symbols-outlined text-sm">view_column</span>
-                <span>{t('practice.canvas.layoutHorizontal')}</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Sidebar Position -->
-          <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-            <div class="flex justify-between items-center">
+            <!-- Sidebar Position -->
+            <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
               <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
                 {t('practice.canvas.sidebarPositionTitle')}
               </span>
-            </div>
-            <div class="grid grid-cols-4 gap-0.5 bg-surface-container rounded-lg border border-outline-variant p-0.5">
-              {#each [
-                { value: 'left', icon: 'dock_to_left', label: t('practice.canvas.posLeft') },
-                { value: 'right', icon: 'dock_to_right', label: t('practice.canvas.posRight') },
-                { value: 'top', icon: 'vertical_align_top', label: t('practice.canvas.posTop') },
-                { value: 'bottom', icon: 'vertical_align_bottom', label: t('practice.canvas.posBottom') }
-              ] as opt}
-                <button 
-                  type="button"
-                  onclick={() => sidebarPosition = opt.value as 'left' | 'right' | 'top' | 'bottom'}
-                  class="py-1.5 px-1 rounded-md text-[10px] font-semibold cursor-pointer focus:outline-none transition-all border-0 flex flex-col items-center justify-center gap-0.5
-                         {sidebarPosition === opt.value ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
-                >
-                  <span class="material-symbols-outlined text-sm">{opt.icon}</span>
-                  <span>{opt.label}</span>
-                </button>
-              {/each}
+              <div class="grid grid-cols-4 gap-0.5 bg-surface-container rounded-lg border border-outline-variant p-0.5">
+                {#each [
+                  { value: 'left', icon: 'dock_to_left', label: t('practice.canvas.posLeft') },
+                  { value: 'right', icon: 'dock_to_right', label: t('practice.canvas.posRight') },
+                  { value: 'top', icon: 'vertical_align_top', label: t('practice.canvas.posTop') },
+                  { value: 'bottom', icon: 'vertical_align_bottom', label: t('practice.canvas.posBottom') }
+                ] as opt}
+                  <button 
+                    type="button"
+                    onclick={() => sidebarPosition = opt.value as 'left' | 'right' | 'top' | 'bottom'}
+                    class="py-1.5 px-1 rounded-md text-[10px] font-semibold cursor-pointer focus:outline-none transition-all border-0 flex flex-col items-center justify-center gap-0.5
+                           {sidebarPosition === opt.value ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-on-surface-variant hover:bg-surface-container-high'}"
+                  >
+                    <span class="material-symbols-outlined text-sm">{opt.icon}</span>
+                    <span>{opt.label}</span>
+                  </button>
+                {/each}
+              </div>
             </div>
           </div>
-        </div>
+
+        {:else if canvasSettingsTab === 'actionsExport'}
+          <!-- TAB 4: AKTIONEN & EXPORT -->
+          <div class="flex flex-col gap-5 animate-fade-in">
+            <div class="flex flex-col gap-3">
+              <button 
+                onclick={async () => {
+                  store.canvasSettingsOpen = false;
+                  await handleExportPdf();
+                }}
+                disabled={isExportingPdf}
+                class="w-full flex items-center justify-center gap-2 border border-primary text-primary hover:bg-primary/10 py-3 rounded-xl text-xs font-bold cursor-pointer focus:outline-none bg-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={showCanvas ? t('practice.exportCanvasPdf') : t('practice.exportTextPdf')}
+              >
+                {#if isExportingPdf}
+                  <span class="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></span>
+                {:else}
+                  <span class="material-symbols-outlined text-lg text-primary">picture_as_pdf</span>
+                {/if}
+                <span>{t('practice.exportPdfLabel')}</span>
+              </button>
+
+              <button 
+                onclick={() => {
+                  clearCanvas();
+                }}
+                class="w-full flex items-center justify-center gap-2 border border-outline-variant text-on-surface-variant hover:bg-error/10 hover:text-error hover:border-error/30 py-3 rounded-xl text-xs font-bold cursor-pointer focus:outline-none bg-transparent transition-colors"
+                title="Clear Canvas"
+              >
+                <span class="material-symbols-outlined text-lg">delete_sweep</span>
+                <span>{t('practice.canvas.clearCanvas')}</span>
+              </button>
+
+              <button
+                onclick={() => {
+                  store.resetCanvasLayoutPreferences();
+                }}
+                class="w-full flex items-center justify-center gap-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container-high py-3 rounded-xl text-xs font-bold cursor-pointer focus:outline-none bg-transparent transition-colors"
+              >
+                <span class="material-symbols-outlined text-lg">restart_alt</span>
+                <span>{t('settings.canvas.resetLayout')}</span>
+              </button>
+            </div>
+          </div>
+        {/if}
       </div>
     </div>
   </div>
