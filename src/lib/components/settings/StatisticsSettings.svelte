@@ -980,6 +980,23 @@
 
       <!-- Timeframe Capsules for Request History -->
       <div class="flex flex-wrap items-center gap-3">
+        {#if requestHistoryMode === 'selection'}
+          {#if tableStartDate || tableEndDate}
+            <div class="flex items-center gap-2 text-xs text-on-surface-variant font-medium select-none animate-fade-in">
+              <span>
+                {store.settings.language === 'Deutsch' ? 'Auswahl:' : 'Selection:'} 
+                {formatDisplayDate(tableStartDate)} - {formatDisplayDate(tableEndDate)}
+              </span>
+            </div>
+          {:else}
+            <span class="text-xs text-on-surface-variant italic select-none animate-fade-in">
+              {store.settings.language === 'Deutsch' 
+                ? 'Bereich im Diagramm ziehen...' 
+                : 'Drag range in chart...'}
+            </span>
+          {/if}
+        {/if}
+
         <div class="bg-surface-container-low border border-outline-variant/60 rounded-lg p-0.5 flex">
           <button
             onclick={() => { requestHistoryMode = 'chart'; tablePage = 1; }}
@@ -1003,23 +1020,6 @@
             {t('settings.stats.modelStatsTotal')}
           </button>
         </div>
-
-        {#if requestHistoryMode === 'selection'}
-          {#if tableStartDate || tableEndDate}
-            <div class="flex items-center gap-2 text-xs text-on-surface-variant font-medium select-none animate-fade-in">
-              <span>
-                {store.settings.language === 'Deutsch' ? 'Auswahl:' : 'Selection:'} 
-                {formatDisplayDate(tableStartDate)} - {formatDisplayDate(tableEndDate)}
-              </span>
-            </div>
-          {:else}
-            <span class="text-xs text-on-surface-variant italic select-none animate-fade-in">
-              {store.settings.language === 'Deutsch' 
-                ? 'Bereich im Diagramm ziehen...' 
-                : 'Drag range in chart...'}
-            </span>
-          {/if}
-        {/if}
       </div>
     </div>
 
