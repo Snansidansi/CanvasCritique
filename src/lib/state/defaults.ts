@@ -63,6 +63,8 @@ export const defaultSettings: Settings = {
   sendContextMedia: true,
   maxOutputTokens: 0,
   canvasMode: 'infinite',
+  a4Orientation: 'portrait',
+  canvasBgPattern: 'grid',
   canvasFontSize: 13,
   editorFontSize: 16,
   editorShowAllRaw: false,

@@ -17,6 +17,7 @@
   import MarkerTooltip from '../components/practice/MarkerTooltip.svelte';
   import MultipleChoicePractice from '../components/practice/MultipleChoicePractice.svelte';
   import CanvasModeSelector from '../components/settings/CanvasModeSelector.svelte';
+  import CanvasBackgroundSelector from '../components/settings/CanvasBackgroundSelector.svelte';
 
   // External Helpers
   import { parseMarkdown } from '../utils/markdown';
@@ -447,10 +448,11 @@
 
   $effect(() => {
     const mode = effectiveEraserSettings.eraserMode;
-    if (mode === 'stroke') {
-      eraserWidth = effectiveEraserSettings.eraserRadiusStroke ?? 24;
-    } else {
-      eraserWidth = effectiveEraserSettings.eraserRadiusNormal ?? 24;
+    eraserWidth = effectiveEraserSettings.eraserRadiusNormal ?? 24;
+
+    const bg = effectiveEraserSettings.canvasBgPattern;
+    if (bg) {
+      activeBg = bg;
     }
   });
 
@@ -5620,74 +5622,19 @@
 
             <!-- Background Selection -->
             <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-              <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('practice.canvas.background')}</span>
-              <div class="grid grid-cols-3 gap-2">
-                <button 
-                  onclick={() => activeBg = 'grid'}
-                  class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
-                         {activeBg === 'grid' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
-                >
-                  <span class="material-symbols-outlined text-xl">apps</span>
-                  <span class="text-[11px] font-semibold">{t('practice.canvas.dots')}</span>
-                </button>
-                <button 
-                  onclick={() => activeBg = 'lines'}
-                  class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
-                         {activeBg === 'lines' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
-                >
-                  <span class="material-symbols-outlined text-xl">reorder</span>
-                  <span class="text-[11px] font-semibold">{t('practice.canvas.lines')}</span>
-                </button>
-                <button 
-                  onclick={() => activeBg = 'blank'}
-                  class="flex flex-col items-center justify-center p-3 border rounded-lg gap-1.5 cursor-pointer focus:outline-none transition-all bg-transparent
-                         {activeBg === 'blank' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
-                >
-                  <span class="material-symbols-outlined text-xl">check_box_outline_blank</span>
-                  <span class="text-[11px] font-semibold">{t('practice.canvas.blank')}</span>
-                </button>
-              </div>
-
-              <!-- Custom Backgrounds list -->
-              {#if store.customBackgrounds.length > 0}
-                <div class="mt-2 flex flex-col gap-1.5">
-                  <span class="text-[11px] font-semibold text-on-surface-variant">{t('practice.canvas.customTemplates')}</span>
-                  <div class="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar border border-outline-variant/30 rounded-lg p-1">
-                    {#each store.customBackgrounds as customBg}
-                      <div class="flex items-center justify-between hover:bg-surface-container-high rounded-md group px-2 py-1">
-                        <button 
-                          onclick={() => activeBg = customBg.id}
-                          class="grow text-left text-xs flex items-center gap-2 cursor-pointer border-0 bg-transparent focus:outline-none {activeBg === customBg.id ? 'text-primary font-bold' : 'text-on-surface'}"
-                        >
-                          {#if customBg.icon && customBg.icon.startsWith('data:image/')}
-                            <img src={customBg.icon} class="w-4 h-4 object-contain rounded" alt="" />
-                          {:else}
-                            <span class="material-symbols-outlined text-base">image</span>
-                          {/if}
-                          <span class="truncate max-w-50">{customBg.name}</span>
-                        </button>
-                        <button 
-                          onclick={() => {
-                            store.confirm(
-                              t('practice.canvas.deleteBg'),
-                              t('practice.canvas.deleteBgConfirm', { name: customBg.name }),
-                              () => {
-                                if (activeBg === customBg.id) activeBg = 'grid';
-                                store.deleteCustomBackground(customBg.id);
-                              }
-                            );
-                          }}
-                          class="p-1 text-outline hover:text-error opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none cursor-pointer flex items-center justify-center border-0 bg-transparent"
-                          title="Delete Background"
-                        >
-                          <span class="material-symbols-outlined text-sm">delete</span>
-                        </button>
-                      </div>
-                    {/each}
-                  </div>
-                </div>
-              {/if}
-
+              <CanvasBackgroundSelector 
+                settings={pageLayoutSettings} 
+                onchange={() => {
+                  if (pageLayoutSettings.canvasBgPattern) {
+                    activeBg = pageLayoutSettings.canvasBgPattern;
+                  }
+                  if (store.activeTask) {
+                    store.saveProjects();
+                  } else {
+                    store.saveSettings();
+                  }
+                }}
+              />
               <button 
                 onclick={() => { 
                   isCustomBgModalOpen = true; 

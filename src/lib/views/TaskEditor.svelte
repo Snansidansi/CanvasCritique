@@ -8,6 +8,7 @@
   import AiModelConfig from '../components/settings/AiModelConfig.svelte';
   import EvaluationDetailsSettings from '../components/settings/EvaluationDetailsSettings.svelte';
   import CanvasModeSelector from '../components/settings/CanvasModeSelector.svelte';
+  import CanvasBackgroundSelector from '../components/settings/CanvasBackgroundSelector.svelte';
   import MediaFilterSettings from '../components/settings/MediaFilterSettings.svelte';
   import TaskNumberingConfig from '../components/settings/TaskNumberingConfig.svelte';
   import MultipleChoiceEditor from '../components/task-editor/MultipleChoiceEditor.svelte';
@@ -2035,8 +2036,11 @@
                 </div>
 
                 {#if settingsOverride.overrideCanvas}
-                  <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                  <div class="border-t border-outline-variant/30 pt-4 animate-fade-in flex flex-col gap-4">
                     <CanvasModeSelector settings={settingsOverride} />
+                    <div class="border-t border-outline-variant/30 pt-4">
+                      <CanvasBackgroundSelector settings={settingsOverride} />
+                    </div>
                   </div>
                 {:else}
                   <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">

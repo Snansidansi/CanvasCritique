@@ -98,6 +98,7 @@ export interface ProjectSettingsOverride {
   language?: string;
   canvasMode?: string;
   a4Orientation?: 'portrait' | 'landscape';
+  canvasBgPattern?: string;
   canvasFontSize?: number;
   editorFontSize?: number;
   autoNumberTasks?: boolean;
@@ -177,6 +178,7 @@ export interface Settings {
   maxOutputTokens: number;
   canvasMode: string;
   a4Orientation?: 'portrait' | 'landscape';
+  canvasBgPattern?: string;
   canvasFontSize: number;
   editorFontSize?: number;
   editorShowAllRaw?: boolean;

@@ -3,6 +3,7 @@
   import AiModelConfig from '../settings/AiModelConfig.svelte';
   import EvaluationDetailsSettings from '../settings/EvaluationDetailsSettings.svelte';
   import CanvasModeSelector from '../settings/CanvasModeSelector.svelte';
+  import CanvasBackgroundSelector from '../settings/CanvasBackgroundSelector.svelte';
   import TaskNumberingConfig from '../settings/TaskNumberingConfig.svelte';
   import MediaFilterSettings from '../settings/MediaFilterSettings.svelte';
   import type { Project } from '../../state/types';
@@ -310,6 +311,12 @@
                   settings={project.settingsOverride} 
                   onchange={() => store.saveProjects()} 
                 />
+                <div class="border-t border-outline-variant/30 pt-4">
+                  <CanvasBackgroundSelector 
+                    settings={project.settingsOverride} 
+                    onchange={() => store.saveProjects()} 
+                  />
+                </div>
               </div>
             {:else}
               <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in flex flex-col gap-1 items-center">

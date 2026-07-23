@@ -2,6 +2,7 @@
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
   import CanvasModeSelector from './CanvasModeSelector.svelte';
+  import CanvasBackgroundSelector from './CanvasBackgroundSelector.svelte';
 
 </script>
 
@@ -16,6 +17,11 @@
   </p>
   
   <CanvasModeSelector settings={store.settings} onchange={() => store.saveSettings()} />
+
+  <!-- Background Selection -->
+  <div class="mt-6 border-t border-outline-variant/40 pt-5">
+    <CanvasBackgroundSelector settings={store.settings} onchange={() => store.saveSettings()} />
+  </div>
 
 
 
