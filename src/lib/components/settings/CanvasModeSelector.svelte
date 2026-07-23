@@ -2,15 +2,27 @@
   import { t } from '../../services/i18n';
 
   let {
-    settings,
+    settings = $bindable(),
     onchange
   }: {
-    settings: { canvasMode?: string; [key: string]: any };
+    settings: { canvasMode?: string; a4Orientation?: 'portrait' | 'landscape'; [key: string]: any };
     onchange?: () => void;
   } = $props();
 
+  let orientation = $derived(settings?.a4Orientation || 'portrait');
+
   function selectMode(mode: 'infinite' | 'a4') {
     settings.canvasMode = mode;
+    if (!settings.a4Orientation) {
+      settings.a4Orientation = 'portrait';
+    }
+    if (onchange) {
+      onchange();
+    }
+  }
+
+  function selectOrientation(orient: 'portrait' | 'landscape') {
+    settings.a4Orientation = orient;
     if (onchange) {
       onchange();
     }
@@ -69,24 +81,18 @@
     <div class="grid grid-cols-2 gap-2">
       <button
         type="button"
-        onclick={() => {
-          settings.a4Orientation = 'portrait';
-          if (onchange) onchange();
-        }}
+        onclick={() => selectOrientation('portrait')}
         class="flex items-center justify-center gap-2 p-2.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all bg-transparent
-               {(!settings.a4Orientation || settings.a4Orientation === 'portrait') ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+               {orientation === 'portrait' ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
       >
         <span class="material-symbols-outlined text-base">crop_portrait</span>
         <span>{t('settings.canvas.portrait')}</span>
       </button>
       <button
         type="button"
-        onclick={() => {
-          settings.a4Orientation = 'landscape';
-          if (onchange) onchange();
-        }}
+        onclick={() => selectOrientation('landscape')}
         class="flex items-center justify-center gap-2 p-2.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all bg-transparent
-               {(settings.a4Orientation === 'landscape') ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+               {orientation === 'landscape' ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
       >
         <span class="material-symbols-outlined text-base">crop_landscape</span>
         <span>{t('settings.canvas.landscape')}</span>
