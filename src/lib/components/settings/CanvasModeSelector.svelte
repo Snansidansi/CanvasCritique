@@ -62,3 +62,35 @@
     </div>
   </button>
 </div>
+
+{#if settings.canvasMode === 'a4'}
+  <div class="mt-3 flex flex-col gap-1.5 border-t border-outline-variant/30 pt-3">
+    <span class="text-xs font-semibold text-on-surface-variant">{t('settings.canvas.a4Orientation')}</span>
+    <div class="grid grid-cols-2 gap-2">
+      <button
+        type="button"
+        onclick={() => {
+          settings.a4Orientation = 'portrait';
+          if (onchange) onchange();
+        }}
+        class="flex items-center justify-center gap-2 p-2.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all bg-transparent
+               {(!settings.a4Orientation || settings.a4Orientation === 'portrait') ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+      >
+        <span class="material-symbols-outlined text-base">crop_portrait</span>
+        <span>{t('settings.canvas.portrait')}</span>
+      </button>
+      <button
+        type="button"
+        onclick={() => {
+          settings.a4Orientation = 'landscape';
+          if (onchange) onchange();
+        }}
+        class="flex items-center justify-center gap-2 p-2.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all bg-transparent
+               {(settings.a4Orientation === 'landscape') ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'}"
+      >
+        <span class="material-symbols-outlined text-base">crop_landscape</span>
+        <span>{t('settings.canvas.landscape')}</span>
+      </button>
+    </div>
+  </div>
+{/if}
