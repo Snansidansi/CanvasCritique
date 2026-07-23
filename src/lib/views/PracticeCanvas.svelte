@@ -5636,16 +5636,6 @@
                   }
                 }}
               />
-              <button 
-                onclick={() => { 
-                  isCustomBgModalOpen = true; 
-                  store.canvasSettingsOpen = false;
-                }}
-                class="mt-2 w-full py-2 border border-dashed border-primary/50 text-primary hover:bg-primary/10 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none bg-transparent"
-              >
-                <span class="material-symbols-outlined text-base">add_box</span>
-                <span>{t('practice.canvas.addCustomBg')}</span>
-              </button>
             </div>
 
             <!-- Opacity Slider -->
