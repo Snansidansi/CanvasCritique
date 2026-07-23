@@ -105,26 +105,47 @@
     };
     window.addEventListener("contextmenu", handleGlobalContextMenu);
     window.addEventListener("keydown", handleGlobalKeyDown);
-    let syncIntervalId: number | undefined;
-    let unlistenShutdownSync: (() => void) | undefined;
+  let syncIntervalId: number | undefined;
+  let unlistenShutdownSync: (() => void) | undefined;
 
-    const setupSync = () => {
-      if (syncIntervalId) clearInterval(syncIntervalId);
-      if (store.settings.webdavEnabled && store.settings.webdavAutoSync && store.settings.webdavSyncIntervalMinutes) {
-        const intervalMs = store.settings.webdavSyncIntervalMinutes * 60 * 1000;
-        syncIntervalId = window.setInterval(() => {
-          syncWebDav();
-        }, intervalMs);
+  // Reactive WebDAV Auto-Sync Interval
+  $effect(() => {
+    const enabled = store.settings?.webdavEnabled;
+    const autoSync = store.settings?.webdavAutoSync;
+    const intervalMinutes = store.settings?.webdavSyncIntervalMinutes;
+
+    if (syncIntervalId) {
+      clearInterval(syncIntervalId);
+      syncIntervalId = undefined;
+    }
+
+    if (enabled && autoSync && intervalMinutes && intervalMinutes > 0) {
+      const intervalMs = intervalMinutes * 60 * 1000;
+      console.log(`[WebDAV AutoSync] Scheduling auto sync every ${intervalMinutes} min`);
+      syncIntervalId = window.setInterval(() => {
+        console.log('[WebDAV AutoSync] Auto sync interval triggered');
+        syncWebDav();
+      }, intervalMs);
+    }
+
+    return () => {
+      if (syncIntervalId) {
+        clearInterval(syncIntervalId);
+        syncIntervalId = undefined;
       }
     };
+  });
 
-    setupSync();
-
-    if (store.settings.webdavEnabled && store.settings.webdavSyncOnStartup) {
+  // Reactive WebDAV Startup Sync
+  let hasTriggeredStartupSync = false;
+  $effect(() => {
+    if (!hasTriggeredStartupSync && store.settings?.webdavEnabled && store.settings?.webdavSyncOnStartup) {
+      hasTriggeredStartupSync = true;
       setTimeout(() => {
         syncWebDav();
       }, 1000);
     }
+  });
 
     const setupShutdownSyncListener = async () => {
       unlistenShutdownSync = await listen("trigger-shutdown-sync", async () => {
