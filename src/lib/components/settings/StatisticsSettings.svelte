@@ -486,6 +486,8 @@
         tableStartDate = dates[0];
         tableEndDate = dates[dates.length - 1];
         tablePage = 1;
+        requestHistoryMode = 'selection';
+        modelStatsMode = 'selection';
       }
     }
     isDraggingRange = false;
@@ -1141,7 +1143,24 @@
           </p>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          {#if modelStatsMode === 'selection'}
+            {#if tableStartDate || tableEndDate}
+              <div class="flex items-center gap-2 text-xs text-on-surface-variant font-medium select-none animate-fade-in">
+                <span>
+                  {store.settings.language === 'Deutsch' ? 'Auswahl:' : 'Selection:'} 
+                  {formatDisplayDate(tableStartDate)} - {formatDisplayDate(tableEndDate)}
+                </span>
+              </div>
+            {:else}
+              <span class="text-xs text-on-surface-variant italic select-none animate-fade-in">
+                {store.settings.language === 'Deutsch' 
+                  ? 'Bereich im Diagramm ziehen...' 
+                  : 'Drag range in chart...'}
+              </span>
+            {/if}
+          {/if}
+
           <!-- Timeframe Capsules for Model Stats -->
           <div class="bg-surface-container-low border border-outline-variant/60 rounded-lg p-0.5 flex">
             <button
@@ -1196,6 +1215,16 @@
             {/each}
           </tbody>
         </table>
+      </div>
+
+      <!-- Subtle Drag Range Selector Tip Box -->
+      <div class="flex items-start gap-2.5 bg-surface-container-low/50 p-3 rounded-lg border border-outline-variant/30 text-[11px] text-on-surface-variant font-medium leading-normal">
+        <span class="material-symbols-outlined text-primary text-base shrink-0">info</span>
+        <span>
+          {store.settings.language === 'Deutsch' 
+            ? 'Tipp: Du kannst im Diagramm oben klicken und ziehen, um direkt einen Zeitraum für diese Tabelle auszuwählen.'
+            : 'Tip: You can click and drag in the chart above to select a time range for this table.'}
+        </span>
       </div>
     </section>
   {/if}
