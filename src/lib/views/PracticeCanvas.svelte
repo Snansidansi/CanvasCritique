@@ -727,7 +727,8 @@
   let selectionPickerColor = $derived(`hsl(${selectionHue}, ${selectionSat}%, ${selectionLight}%)`);
 
   function openSelectionColorPicker() {
-    const hsl = hexToHsl(strokeColor);
+    const initialColor = selectedStrokes.length > 0 ? (selectedStrokes[0].color || strokeColor) : strokeColor;
+    const hsl = hexToHsl(initialColor);
     selectionHue = hsl.h;
     selectionSat = hsl.s;
     selectionLight = hsl.l;
@@ -736,7 +737,6 @@
 
   function confirmSelectionColorPicker() {
     const hex = hslToHex(selectionHue, selectionSat, selectionLight);
-    strokeColor = hex;
     changeSelectedStrokesColor(hex);
     
     // Add custom color to palette if not exists
@@ -5276,13 +5276,13 @@
             <!-- Color presets -->
             <div class="flex items-center gap-1 px-1 border-r border-outline-variant/50 mr-1 shrink-0">
               {#each canvasRecentColors as color}
+                {@const isCurrentSelectedColor = selectedStrokes.length > 0 && selectedStrokes[0].color === color}
                 <button
                   onclick={() => {
-                    strokeColor = color;
                     changeSelectedStrokesColor(color);
                   }}
                   class="w-5.5 h-5.5 rounded-full cursor-pointer border transition-all hover:scale-110 focus:outline-none"
-                  style="background-color: {color}; border-color: {strokeColor === color ? 'var(--md-sys-color-primary, #1d4ed8)' : 'rgba(0, 0, 0, 0.15)'}; transform: {strokeColor === color ? 'scale(1.1)' : 'none'};"
+                  style="background-color: {color}; border-color: {isCurrentSelectedColor ? 'var(--md-sys-color-primary, #1d4ed8)' : 'rgba(0, 0, 0, 0.15)'}; transform: {isCurrentSelectedColor ? 'scale(1.1)' : 'none'};"
                   title={t('practice.palette.clickToSelect')}
                 ></button>
               {/each}
