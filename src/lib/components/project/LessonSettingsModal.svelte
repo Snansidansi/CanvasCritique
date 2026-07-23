@@ -124,13 +124,8 @@
     }
   });
 
-  function handleSave() {
+  function closeModal() {
     store.saveProjects();
-    isOpen = false;
-    store.showNotification(t('lessonSettings.saveSuccess'), 'success');
-  }
-
-  function handleCancel() {
     isOpen = false;
   }
 
@@ -212,7 +207,13 @@
 
 {#if isOpen && project}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-full max-w-3xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden animate-fade-in">
+    <button
+      type="button"
+      aria-label="Close"
+      onclick={closeModal}
+      class="absolute inset-0 bg-transparent border-0 cursor-default p-0 m-0 w-full h-full focus:outline-none"
+    ></button>
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 w-full max-w-3xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden animate-fade-in relative z-10">
       <!-- Modal Header -->
       <div class="flex items-center justify-between pb-4 border-b border-outline-variant shrink-0">
         <div class="flex items-center gap-2">
@@ -222,7 +223,7 @@
           </h3>
         </div>
         <button 
-          onclick={handleCancel}
+          onclick={closeModal}
           class="text-on-surface-variant hover:text-on-surface p-1 rounded-full hover:bg-surface-container transition-colors cursor-pointer focus:outline-none"
         >
           <span class="material-symbols-outlined">close</span>
@@ -551,23 +552,6 @@
         </div>
       </div>
 
-      <!-- Modal Footer -->
-      <div class="flex justify-end gap-2 pt-4 border-t border-outline-variant shrink-0 mt-2">
-        <button
-          type="button"
-          onclick={handleCancel}
-          class="px-4 py-2 border border-outline-variant rounded-lg font-semibold text-xs text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer focus:outline-none"
-        >
-          {t('common.cancel')}
-        </button>
-        <button
-          type="button"
-          onclick={handleSave}
-          class="px-4 py-2 bg-primary text-on-primary rounded-lg font-semibold text-xs hover:bg-primary-hover transition-colors cursor-pointer focus:outline-none"
-        >
-          {t('lessonSettings.saveSettings')}
-        </button>
-      </div>
     </div>
   </div>
 {/if}
