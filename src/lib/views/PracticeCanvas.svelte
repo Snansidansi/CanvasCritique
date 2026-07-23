@@ -147,9 +147,16 @@
     }
   });
 
+  let editorTextSaveTimeout: any = null;
   function handleEditorInput() {
     if (task && task.id) {
-      store.saveEditorText(task.id, editorText);
+      if (editorTextSaveTimeout) clearTimeout(editorTextSaveTimeout);
+      editorTextSaveTimeout = setTimeout(() => {
+        if (task && task.id) {
+          store.saveEditorText(task.id, editorText);
+        }
+        editorTextSaveTimeout = null;
+      }, 300);
     }
   }
 
@@ -594,7 +601,7 @@
       cachedZoom !== zoomScale
     );
 
-    if (sizeChanged || panOrZoomChanged) {
+    if ((sizeChanged || panOrZoomChanged) && !isGesturing && !isPanning && !isWheelActive) {
       cacheIsValid = false;
     }
 
@@ -3398,7 +3405,7 @@
       
       // Composite historical strokes cache first
       if (cachedStrokesCanvas && cachedStrokesCanvas.width > 0 && cachedStrokesCanvas.height > 0) {
-        if (canvasMode === 'infinite' && isGesturing) {
+        if (canvasMode === 'infinite' && (isGesturing || isPanning || isWheelActive)) {
           offscreenCtx.save();
           const scaleRatio = zoomScale / cachedZoom;
           offscreenCtx.translate(panOffset.x - cachedPan.x * scaleRatio, panOffset.y - cachedPan.y * scaleRatio);
