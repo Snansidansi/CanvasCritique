@@ -16,6 +16,7 @@
   import FloatingToolPalette from '../components/practice/FloatingToolPalette.svelte';
   import MarkerTooltip from '../components/practice/MarkerTooltip.svelte';
   import MultipleChoicePractice from '../components/practice/MultipleChoicePractice.svelte';
+  import CanvasModeSelector from '../components/settings/CanvasModeSelector.svelte';
 
   // External Helpers
   import { parseMarkdown } from '../utils/markdown';
@@ -690,6 +691,8 @@
   let copiedStrokes = $state([]); // array of copied stroke objects
   let copiedImages = $state([]); // array of copied image objects
   let isMovingSelection = $state(false);
+  let isResizingSelection = $state(false);
+  let selectionResizeStartBox = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
   let selectionDragStart = { x: 0, y: 0 };
   let selectionStartStrokes = [];
   let selectionStartImageRects = [];
@@ -2423,11 +2426,11 @@
       }, 600);
     }
 
-    // Check if clicked near the active selected image's resize handle
+    // Check if clicked near the selection bottom-right resize handle
     const handleSize = 15 / (canvasMode === 'infinite' ? zoomScale : 1);
-    const isNearBottomRight = selectedImage && selectedStrokes.length === 0 &&
-      Math.abs(coords.x - (selectedImage.x + selectedImage.width)) <= handleSize &&
-      Math.abs(coords.y - (selectedImage.y + selectedImage.height)) <= handleSize;
+    const isNearSelectionResize = selectionBoundingBox &&
+      Math.abs(coords.x - selectionBoundingBox.maxX) <= handleSize &&
+      Math.abs(coords.y - selectionBoundingBox.maxY) <= handleSize;
       
     // Check if clicked inside any image body (top-most first based on zIndex)
     const sortedImagesDesc = [...canvasImages].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
@@ -2437,11 +2440,12 @@
              coords.y >= img.y && coords.y <= img.y + img.height;
     });
 
-    if (isNearBottomRight && selectedImage) {
-      isResizingImage = true;
+    if (isNearSelectionResize && selectionBoundingBox) {
+      isResizingSelection = true;
       imageDragStart = { x: coords.x, y: coords.y };
-      imageStartRect = { x: selectedImage.x, y: selectedImage.y, width: selectedImage.width, height: selectedImage.height };
-      imageStartAspectRatio = selectedImage.width / selectedImage.height;
+      selectionResizeStartBox = { ...selectionBoundingBox };
+      selectionStartStrokes = JSON.parse(JSON.stringify(selectedStrokes));
+      selectionStartImageRects = selectedImages.map(img => ({ id: img.id, x: img.x, y: img.y, width: img.width, height: img.height }));
       if (longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
@@ -2460,7 +2464,7 @@
         isMovingSelection = true;
         selectionDragStart = { x: coords.x, y: coords.y };
         selectionStartStrokes = JSON.parse(JSON.stringify(selectedStrokes));
-        selectionStartImageRects = selectedImages.map(img => ({ id: img.id, x: img.x, y: img.y }));
+        selectionStartImageRects = selectedImages.map(img => ({ id: img.id, x: img.x, y: img.y, width: img.width, height: img.height }));
       }
       selectionBox = null;
       if (longPressTimer) {
@@ -2636,18 +2640,75 @@
       return;
     }
 
-    if (isResizingImage && selectedImage) {
+    if (isResizingSelection && selectionResizeStartBox) {
       const dx = coords.x - imageDragStart.x;
       const dy = coords.y - imageDragStart.y;
-      
-      const dragDelta = (dx + dy) / 2;
-      const scaleFactor = 1 + (dragDelta / Math.max(imageStartRect.width, imageStartRect.height));
-      const newWidth = Math.max(20, imageStartRect.width * scaleFactor);
-      const newHeight = newWidth / imageStartAspectRatio;
 
-      selectedImage.width = Math.round(newWidth);
-      selectedImage.height = Math.round(newHeight);
-      canvasImages = [...canvasImages];
+      const startWidth = Math.max(10, selectionResizeStartBox.maxX - selectionResizeStartBox.minX);
+      const startHeight = Math.max(10, selectionResizeStartBox.maxY - selectionResizeStartBox.minY);
+
+      const dragDelta = (dx + dy) / 2;
+      const scaleFactor = Math.max(0.1, 1 + (dragDelta / Math.max(startWidth, startHeight)));
+
+      const originX = selectionResizeStartBox.minX;
+      const originY = selectionResizeStartBox.minY;
+
+      // Rescale strokes
+      if (selectedStrokes.length > 0 && selectionStartStrokes.length > 0) {
+        for (const s of selectionStartStrokes) {
+          if (!s.id) {
+            s.id = Math.random().toString(36).substring(2, 9);
+          }
+        }
+
+        const updatedSelectedStrokes = selectionStartStrokes.map(stroke => {
+          const newPoints = stroke.points.map(p => ({
+            x: originX + (p.x - originX) * scaleFactor,
+            y: originY + (p.y - originY) * scaleFactor
+          }));
+          const newStroke = {
+            ...stroke,
+            width: Math.max(0.5, stroke.width * scaleFactor),
+            points: newPoints
+          };
+          newStroke.bounds = calculateStrokeBounds(newStroke);
+          return newStroke;
+        });
+
+        selectedStrokes = updatedSelectedStrokes;
+        const selectedIds = new Set(updatedSelectedStrokes.map(s => s.id));
+
+        if (canvasMode === 'a4') {
+          pages[activePageIndex].strokeHistory = pages[activePageIndex].strokeHistory.map(stroke => {
+            if (stroke.id && selectedIds.has(stroke.id)) {
+              return updatedSelectedStrokes.find(s => s.id === stroke.id)!;
+            }
+            return stroke;
+          });
+        } else {
+          infiniteStrokes = infiniteStrokes.map(stroke => {
+            if (stroke.id && selectedIds.has(stroke.id)) {
+              return updatedSelectedStrokes.find(s => s.id === stroke.id)!;
+            }
+            return stroke;
+          });
+        }
+      }
+
+      // Rescale images
+      if (selectedImages.length > 0 && selectionStartImageRects.length > 0) {
+        for (const imgRect of selectionStartImageRects) {
+          const img = selectedImages.find(i => i.id === imgRect.id);
+          if (img) {
+            img.x = Math.round(originX + (imgRect.x - originX) * scaleFactor);
+            img.y = Math.round(originY + (imgRect.y - originY) * scaleFactor);
+            img.width = Math.max(10, Math.round((imgRect.width || img.width) * scaleFactor));
+            img.height = Math.max(10, Math.round((imgRect.height || img.height) * scaleFactor));
+          }
+        }
+        canvasImages = [...canvasImages];
+      }
+
       requestRedraw();
       return;
     }
@@ -2779,6 +2840,13 @@
     if (isPanning) {
       isPanning = false;
       saveToStore();
+      return;
+    }
+
+    if (isResizingSelection) {
+      isResizingSelection = false;
+      saveToStore();
+      requestRedraw();
       return;
     }
     
@@ -3380,7 +3448,7 @@
       ctx.restore();
     }
     
-    // Draw selection bounding box (if strokes are selected)
+    // Draw selection bounding box (if strokes or images are selected)
     if (selectionBoundingBox) {
       const bounds = selectionBoundingBox;
       ctx.save();
@@ -3394,6 +3462,18 @@
       ctx.strokeRect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
       ctx.fillStyle = 'rgba(37, 99, 235, 0.05)';
       ctx.fillRect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+
+      // Draw resize handle at bottom-right corner
+      ctx.fillStyle = '#2563eb';
+      ctx.setLineDash([]);
+      const handleSize = 10 / (canvasMode === 'infinite' ? zoomScale : 1);
+      ctx.fillRect(
+        bounds.maxX - handleSize / 2,
+        bounds.maxY - handleSize / 2,
+        handleSize,
+        handleSize
+      );
+
       ctx.restore();
     }
 
