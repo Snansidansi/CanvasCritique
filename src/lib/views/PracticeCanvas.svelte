@@ -342,8 +342,21 @@
   let brushWidth = $state(2);
   let activeTool = $state('pen'); // 'pen' | 'eraser' | 'pan' | 'select' | 'shape'
   let shapeType = $state('rectangle'); // 'circle' | 'ellipse' | 'line' | 'square' | 'rectangle' | 'triangle'
-  let canvasSettingsTab = $state<'pageLayout' | 'toolsEraser' | 'viewText' | 'actionsExport'>('pageLayout');
-  let targetSettings = $derived((store.activeTask && store.activeTask.settingsOverride?.overrideSettings) ? store.activeTask.settingsOverride : store.settings);
+  let pageLayoutSettings = $derived.by(() => {
+    if (store.activeTask) {
+      if (!store.activeTask.settingsOverride) {
+        store.activeTask.settingsOverride = {
+          overrideSettings: true,
+          overrideCanvas: true,
+          canvasMode: store.settings.canvasMode,
+          a4Orientation: store.settings.a4Orientation || 'portrait'
+        };
+      }
+      return store.activeTask.settingsOverride;
+    }
+    return store.settings;
+  });
+  let targetSettings = $derived(store.settings);
 
   let cursorClass = $derived.by(() => {
     // If placing a provided image, show crosshair
@@ -5543,64 +5556,7 @@
         </button>
       </div>
 
-      <!-- Task Override Banner if inside activeTask -->
-      {#if store.activeTask}
-        {@const hasOverride = !!store.activeTask.settingsOverride?.overrideSettings}
-        <div class="flex items-center justify-between p-3 rounded-lg bg-surface-container-low border border-outline-variant/40">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-sm text-primary">task</span>
-            <span class="text-xs font-semibold text-on-surface">{t('practice.canvas.overrideTask')}</span>
-          </div>
-          <div class="flex items-center gap-2">
-            {#if hasOverride}
-              <button
-                type="button"
-                onclick={() => {
-                  if (store.activeTask) {
-                    store.activeTask.settingsOverride = undefined;
-                    store.saveProjects();
-                  }
-                }}
-                class="text-[11px] font-semibold text-primary hover:underline bg-transparent border-0 cursor-pointer"
-              >
-                {t('practice.canvas.resetToDefault')}
-              </button>
-            {/if}
-            <label class="relative inline-flex items-center cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={hasOverride}
-                onchange={(e) => {
-                  if (!store.activeTask) return;
-                  if (e.currentTarget.checked) {
-                    const effective = store.activeProject
-                      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask.id)
-                      : store.settings;
-                    store.activeTask.settingsOverride = {
-                      overrideSettings: true,
-                      overrideCanvas: true,
-                      overrideEraser: true,
-                      overrideEditorFontSize: true,
-                      canvasMode: effective.canvasMode,
-                      a4Orientation: effective.a4Orientation,
-                      eraserMode: effective.eraserMode,
-                      eraserRadiusNormal: effective.eraserRadiusNormal,
-                      eraserRadiusStroke: effective.eraserRadiusStroke,
-                      canvasFontSize: effective.canvasFontSize,
-                      editorFontSize: effective.editorFontSize
-                    };
-                  } else {
-                    store.activeTask.settingsOverride = undefined;
-                  }
-                  store.saveProjects();
-                }}
-                class="sr-only peer"
-              />
-              <div class="w-8 h-4 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-        </div>
-      {/if}
+
 
       <!-- Tab Navigation Bar -->
       <div class="flex border-b border-outline-variant/30 gap-1 bg-surface-container-low/50 p-1 rounded-xl">
@@ -5651,9 +5607,9 @@
             <div class="flex flex-col gap-2">
               <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.title')}</span>
               <CanvasModeSelector 
-                settings={targetSettings} 
+                settings={pageLayoutSettings} 
                 onchange={() => {
-                  if (store.activeTask?.settingsOverride?.overrideSettings) {
+                  if (store.activeTask) {
                     store.saveProjects();
                   } else {
                     store.saveSettings();
