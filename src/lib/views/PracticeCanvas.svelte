@@ -343,6 +343,7 @@
   let brushWidth = $state(2);
   let activeTool = $state('pen'); // 'pen' | 'eraser' | 'pan' | 'select' | 'shape'
   let shapeType = $state('rectangle'); // 'circle' | 'ellipse' | 'line' | 'square' | 'rectangle' | 'triangle'
+  let canvasSettingsTab = $state<'pageLayout' | 'toolsEraser' | 'viewText' | 'actionsExport'>('pageLayout');
   let pageLayoutSettings = $derived.by(() => {
     if (store.activeTask) {
       if (!store.activeTask.settingsOverride) {
