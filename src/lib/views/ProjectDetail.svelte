@@ -229,6 +229,30 @@
     importMultipleTaskFiles(Array.from(files));
   }
 
+  function saveCurrentScrollPosition() {
+    if (mainScrollEl && project?.id) {
+      store.setProjectScrollPosition(project.id, mainScrollEl.scrollTop);
+    }
+  }
+
+  function handleScroll() {
+    saveCurrentScrollPosition();
+  }
+
+  // Restore scroll position when viewing this project
+  $effect(() => {
+    if (store.currentView === 'project-detail' && project?.id && mainScrollEl) {
+      if (!store.pendingScrollCategory) {
+        const savedPos = store.getProjectScrollPosition(project.id);
+        if (savedPos > 0) {
+          requestAnimationFrame(() => {
+            if (mainScrollEl) mainScrollEl.scrollTop = savedPos;
+          });
+        }
+      }
+    }
+  });
+
   // Instant scroll to section after task creation
   $effect(() => {
     if (store.pendingScrollCategory && store.currentView === 'project-detail') {
@@ -332,10 +356,12 @@
   }
 
   function handleEditTask(task) {
+    saveCurrentScrollPosition();
     store.setEditingTask(task);
   }
 
   function openPractice(task) {
+    saveCurrentScrollPosition();
     store.selectTask(task);
   }
 
@@ -933,6 +959,7 @@
 <!-- Main details area -->
 <main 
   bind:this={mainScrollEl}
+  onscroll={handleScroll}
   class="grow overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar h-full {(isDragging && !sectionDropTargetCat) ? 'bg-primary/5 ring-2 ring-primary/30 ring-inset' : ''}"
   ondragover={handleMainDragOver}
   ondragenter={handleMainDragEnter}

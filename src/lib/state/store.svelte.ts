@@ -68,6 +68,7 @@ class CanvasCritiqueStore {
   editingTask = $state<Task | null>(null);
   quickAddTaskData = $state<{ name: string; category: string } | null>(null);
   pendingScrollCategory = $state<string | null>(null);
+  projectScrollPositions = $state<Record<string, number>>({});
   settings = $state<Settings>(defaultSettings);
   customBackgrounds = $state<CustomBackground[]>([]);
   confirmDialog = $state<ConfirmDialog | null>(null);
@@ -944,6 +945,16 @@ class CanvasCritiqueStore {
       this.editingTask = null;
     }
     this.currentView = view;
+  }
+
+  setProjectScrollPosition(projectId: string, scrollTop: number): void {
+    if (projectId) {
+      this.projectScrollPositions[projectId] = scrollTop;
+    }
+  }
+
+  getProjectScrollPosition(projectId: string): number {
+    return (projectId && this.projectScrollPositions[projectId]) || 0;
   }
 
   selectProject(project: Project | null): void {
