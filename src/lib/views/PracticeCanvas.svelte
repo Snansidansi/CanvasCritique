@@ -5811,48 +5811,42 @@
               </div>
             </div>
 
-            <!-- Eraser Radius Spinbox -->
-            <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-              <label for="eraser-radius-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-                {targetSettings.eraserMode === 'stroke' ? t('settings.canvas.eraser.strokeRadius') : t('settings.canvas.eraser.normalSize')}
-              </label>
-              <div class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-base text-outline">cleaning_services</span>
-                <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
-                  <button 
-                    type="button"
-                    onclick={() => {
-                      if (targetSettings.eraserMode === 'stroke') {
-                        targetSettings.eraserRadiusStroke = Math.max(5, (targetSettings.eraserRadiusStroke || 24) - 2);
-                      } else {
+            <!-- Eraser Radius Spinbox (Normal Eraser Only) -->
+            {#if targetSettings.eraserMode === 'normal'}
+              <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
+                <label for="eraser-radius-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+                  {t('settings.canvas.eraser.normalSize')}
+                </label>
+                <div class="flex items-center gap-3">
+                  <span class="material-symbols-outlined text-base text-outline">cleaning_services</span>
+                  <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
+                    <button 
+                      type="button"
+                      onclick={() => {
                         targetSettings.eraserRadiusNormal = Math.max(5, (targetSettings.eraserRadiusNormal || 24) - 2);
-                      }
-                      if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
-                    }}
-                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
-                  >
-                    <span class="material-symbols-outlined text-sm">remove</span>
-                  </button>
-                  <span class="w-16 text-center text-xs font-bold text-on-surface">
-                    {targetSettings.eraserMode === 'stroke' ? (targetSettings.eraserRadiusStroke || 24) : (targetSettings.eraserRadiusNormal || 24)} px
-                  </span>
-                  <button 
-                    type="button"
-                    onclick={() => {
-                      if (targetSettings.eraserMode === 'stroke') {
-                        targetSettings.eraserRadiusStroke = Math.min(100, (targetSettings.eraserRadiusStroke || 24) + 2);
-                      } else {
+                        if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                      }}
+                      class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                    >
+                      <span class="material-symbols-outlined text-sm">remove</span>
+                    </button>
+                    <span class="w-16 text-center text-xs font-bold text-on-surface">
+                      {targetSettings.eraserRadiusNormal || 24} px
+                    </span>
+                    <button 
+                      type="button"
+                      onclick={() => {
                         targetSettings.eraserRadiusNormal = Math.min(100, (targetSettings.eraserRadiusNormal || 24) + 2);
-                      }
-                      if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
-                    }}
-                    class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
-                  >
-                    <span class="material-symbols-outlined text-sm">add</span>
-                  </button>
+                        if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                      }}
+                      class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
+                    >
+                      <span class="material-symbols-outlined text-sm">add</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            {/if}
           </div>
 
         {:else if canvasSettingsTab === 'viewText'}
