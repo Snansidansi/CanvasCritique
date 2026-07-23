@@ -1011,12 +1011,6 @@
                 {store.settings.language === 'Deutsch' ? 'Auswahl:' : 'Selection:'} 
                 {formatDisplayDate(tableStartDate)} - {formatDisplayDate(tableEndDate)}
               </span>
-              <button
-                onclick={resetTableFilter}
-                class="px-2 py-0.5 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-[10px] font-semibold rounded-md text-on-surface cursor-pointer focus:outline-none transition-colors"
-              >
-                {store.settings.language === 'Deutsch' ? 'Aufheben' : 'Clear'}
-              </button>
             </div>
           {:else}
             <span class="text-xs text-on-surface-variant italic select-none animate-fade-in">
