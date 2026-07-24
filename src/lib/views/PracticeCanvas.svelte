@@ -1421,6 +1421,8 @@
     const cw = containerWidth;
     const ch = containerHeight;
     const scaleA4 = a4Scale;
+    const cMode = canvasMode;
+    const orient = a4Orientation;
 
     const bg = activeBg;
     const opacity = bgOpacity;
@@ -1684,7 +1686,7 @@
     }
   });
 
-  // Watch canvasMode to reset zoom/pan
+  // Watch canvasMode to reset zoom/pan and invalidate cache
   let lastCanvasMode = '';
   $effect(() => {
     const currentMode = canvasMode;
@@ -1692,6 +1694,30 @@
       lastCanvasMode = currentMode;
       zoomScale = 1;
       panOffset = { x: 0, y: 0 };
+      invalidateCache();
+      requestRedraw();
+    }
+  });
+
+  // Watch a4Orientation to invalidate cache and trigger live redraw
+  let lastA4Orientation = '';
+  $effect(() => {
+    const currentOrient = a4Orientation;
+    if (currentOrient !== lastA4Orientation) {
+      lastA4Orientation = currentOrient;
+      invalidateCache();
+      requestRedraw();
+    }
+  });
+
+  // Watch activeBg to invalidate cache and trigger live redraw
+  let lastActiveBg = '';
+  $effect(() => {
+    const bg = activeBg;
+    if (bg !== lastActiveBg) {
+      lastActiveBg = bg;
+      invalidateCache();
+      requestRedraw();
     }
   });
 
@@ -5753,13 +5779,16 @@
             <div class="flex flex-col gap-2">
               <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{t('settings.canvas.title')}</span>
               <CanvasModeSelector 
-                settings={pageLayoutSettings} 
+                settings={{
+                  get canvasMode() { return canvasMode; },
+                  set canvasMode(v) { canvasMode = v as 'infinite' | 'a4'; },
+                  get a4Orientation() { return a4Orientation; },
+                  set a4Orientation(v) { a4Orientation = v as 'portrait' | 'landscape'; }
+                }} 
                 onchange={() => {
-                  if (store.activeTask) {
-                    store.saveProjects();
-                  } else {
-                    store.saveSettings();
-                  }
+                  invalidateCache();
+                  requestRedraw();
+                  saveToStore(true);
                 }}
               />
             </div>
@@ -5767,16 +5796,14 @@
             <!-- Background Selection -->
             <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
               <CanvasBackgroundSelector 
-                settings={pageLayoutSettings} 
+                settings={{
+                  get canvasBgPattern() { return activeBg; },
+                  set canvasBgPattern(v) { activeBg = v; }
+                }} 
                 onchange={() => {
-                  if (pageLayoutSettings.canvasBgPattern) {
-                    activeBg = pageLayoutSettings.canvasBgPattern;
-                  }
-                  if (store.activeTask) {
-                    store.saveProjects();
-                  } else {
-                    store.saveSettings();
-                  }
+                  invalidateCache();
+                  requestRedraw();
+                  saveToStore(true);
                 }}
               />
             </div>
