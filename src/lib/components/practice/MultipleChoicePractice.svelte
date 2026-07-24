@@ -45,6 +45,7 @@
   }
 
   function handleOptionToggle(question: MultipleChoiceTask, optionId: string, isCheckbox: boolean) {
+    if (showSolution) return;
     const questionId = question.id;
     let list = [...(selectedAnswers[questionId] || [])];
 
@@ -299,11 +300,11 @@
           {@const correct = option.isCorrect}
           {@const showResult = showSolution}
           {@const stateClass = !showResult 
-            ? (selected ? 'bg-primary/5 border-primary shadow-sm' : 'bg-surface-container-low border-outline-variant/40 hover:bg-surface-container-high cursor-pointer')
-            : (selected && correct ? 'bg-emerald-500/10 border-emerald-500 border-2 shadow-sm text-emerald-800 dark:text-emerald-300 cursor-pointer' :
-               selected && !correct ? 'bg-error/10 border-error border-2 shadow-sm text-error cursor-pointer' :
-               !selected && correct ? 'bg-emerald-500/5 border-emerald-500/50 border-2 border-dashed text-emerald-800 dark:text-emerald-300 cursor-pointer' :
-               'bg-surface-container-low/50 border-outline-variant/20 opacity-60 cursor-pointer')}
+            ? (selected ? 'bg-primary/5 border-primary shadow-sm cursor-pointer' : 'bg-surface-container-low border-outline-variant/40 hover:bg-surface-container-high cursor-pointer')
+            : (selected && correct ? 'bg-emerald-500/10 border-emerald-500 border-2 shadow-sm text-emerald-800 dark:text-emerald-300 cursor-default' :
+               selected && !correct ? 'bg-error/10 border-error border-2 shadow-sm text-error cursor-default' :
+               !selected && correct ? 'bg-emerald-500/5 border-emerald-500/50 border-2 border-dashed text-emerald-800 dark:text-emerald-300 cursor-default' :
+               'bg-surface-container-low/50 border-outline-variant/20 opacity-60 cursor-default')}
           <div 
             class="flex flex-col gap-2.5 p-3.5 rounded-xl border transition-all font-sans {stateClass}"
             onclick={() => handleOptionToggle(question, option.id, isCheckbox)}
