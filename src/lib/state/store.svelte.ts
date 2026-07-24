@@ -1547,6 +1547,9 @@ class CanvasCritiqueStore {
       const attempt = task.attempts?.find(a => a.id === targetAttemptId);
       if (attempt) {
         attempt.canvasData = data;
+        if (data && data.activeBg) {
+          attempt.background = data.activeBg;
+        }
         attempt.timestamp = new Date().toISOString();
       }
     }
@@ -1558,7 +1561,7 @@ class CanvasCritiqueStore {
         await saveAttemptCanvasDataToDisk(targetAttemptId, data);
         const attempt = task.attempts?.find(a => a.id === targetAttemptId);
         if (attempt) {
-          await dbUpdateAttempt(db, attempt.id, { canvasData: data, timestamp: attempt.timestamp });
+          await dbUpdateAttempt(db, attempt.id, { canvasData: data, timestamp: attempt.timestamp, background: attempt.background });
         }
       }
 
@@ -1722,6 +1725,7 @@ class CanvasCritiqueStore {
       name: name,
       timestamp: now,
       createdAt: now,
+      background: initialActiveBg,
       canvasData: {
         pages: [{ id: 'page-' + Date.now(), strokeHistory: [], redoStack: [], eraserUndoStack: [] }],
         infiniteStrokes: [],
@@ -2320,18 +2324,25 @@ class CanvasCritiqueStore {
               }
             }
 
-            // Pack referenced custom backgrounds and their media
+            // Pack referenced custom backgrounds and their media (DB-driven, no disk file scanning)
             const referencedBgIds = new Set<string>();
             if (project.default_background) referencedBgIds.add(project.default_background);
             if (project.settingsOverride?.canvasBgPattern) referencedBgIds.add(project.settingsOverride.canvasBgPattern);
 
             const db = this.getDb();
+            if (project.tasks) {
+              for (const t of project.tasks) {
+                if (t.background) referencedBgIds.add(t.background);
+                if (t.settingsOverride?.canvasBgPattern) referencedBgIds.add(t.settingsOverride.canvasBgPattern);
+              }
+            }
+
             const taskIds = (project.tasks || []).map(t => t.id);
             if (taskIds.length > 0) {
               try {
                 const placeholders = taskIds.map(() => '?').join(',');
                 const attemptRows: any[] = await db.select(
-                  `SELECT DISTINCT background FROM task_attempts WHERE task_id IN (${placeholders}) AND background IS NOT NULL`,
+                  `SELECT DISTINCT background FROM task_attempts WHERE task_id IN (${placeholders}) AND background IS NOT NULL AND background != ''`,
                   taskIds
                 );
                 for (const r of attemptRows) {
@@ -2339,21 +2350,6 @@ class CanvasCritiqueStore {
                 }
               } catch (err) {
                 console.error('[store] Error scanning attempt backgrounds from DB:', err);
-              }
-            }
-
-            if (project.tasks) {
-              for (const t of project.tasks) {
-                if (t.background) referencedBgIds.add(t.background);
-                if (t.settingsOverride?.canvasBgPattern) referencedBgIds.add(t.settingsOverride.canvasBgPattern);
-                const attempts = t.attempts || (await getAttemptsForTask(db, t.id));
-                for (const att of attempts) {
-                  if (att.background) referencedBgIds.add(att.background);
-                  try {
-                    const attCanvas = await loadAttemptCanvasDataFromDisk(att.id);
-                    if (attCanvas && attCanvas.activeBg) referencedBgIds.add(attCanvas.activeBg);
-                  } catch (_) {}
-                }
               }
             }
 
