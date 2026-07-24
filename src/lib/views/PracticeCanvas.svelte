@@ -567,15 +567,47 @@
   let a4BaseHeight = $derived(a4Orientation === 'landscape' ? 800 : 1130);
 
   let canvasWidth = $derived(canvasMode === 'infinite' ? Math.round(containerWidth / 8) * 8 : a4BaseWidth);
-  let canvasHeight = $derived(canvasMode === 'infinite' ? Math.round(containerHeight / 8) * 8 : a4BaseHeight);
+  let baseA4Scale = $derived(
+    Math.max(0.1, Math.min(
+      containerWidth > 32 ? (containerWidth - 32) / a4BaseWidth : 0.1,
+      containerHeight > 32 ? (containerHeight - 32) / a4BaseHeight : 0.1
+    ))
+  );
+
   let a4Scale = $derived(
     canvasMode === 'a4' 
-      ? Math.max(0.1, Math.min(
-          containerWidth > 32 ? (containerWidth - 32) / a4BaseWidth : 0.1,
-          containerHeight > 32 ? (containerHeight - 32) / a4BaseHeight : 0.1
-        )) * zoomScale
+      ? baseA4Scale * zoomScale
       : 1
   );
+
+  function clampA4ZoomAndPan(newZoom: number, newPan: { x: number; y: number }): { zoom: number; pan: { x: number; y: number } } {
+    if (canvasMode !== 'a4') {
+      return {
+        zoom: Math.max(0.2, Math.min(4.0, newZoom)),
+        pan: {
+          x: Math.min(0, newPan.x),
+          y: Math.min(0, newPan.y)
+        }
+      };
+    }
+
+    const zoom = Math.max(0.75, Math.min(4.0, newZoom));
+    const effectiveA4Scale = baseA4Scale * zoom;
+    const displayW = a4BaseWidth * effectiveA4Scale;
+    const displayH = a4BaseHeight * effectiveA4Scale;
+
+    const minVisible = 150;
+    const maxPanX = Math.max(100, (displayW / 2) + (containerWidth / 2) - minVisible);
+    const maxPanY = Math.max(100, (displayH / 2) + (containerHeight / 2) - minVisible);
+
+    return {
+      zoom,
+      pan: {
+        x: Math.max(-maxPanX, Math.min(maxPanX, newPan.x)),
+        y: Math.max(-maxPanY, Math.min(maxPanY, newPan.y))
+      }
+    };
+  }
   let ctx = null;
 
   // Performance: reusable offscreen canvas for stroke compositing
@@ -2612,25 +2644,19 @@
       
       if (initialPinchDistance > 0 && canvasElement) {
         const factor = currentDistance / initialPinchDistance;
-        const newScale = Math.max(0.2, Math.min(4.0, initialPinchZoom * factor));
-        
         const rect = canvasElement.getBoundingClientRect();
         
         // World coordinates of initial midpoint
         const worldX = (initialPinchMidpoint.x - rect.left - initialPinchPanOffset.x) / initialPinchZoom;
         const worldY = (initialPinchMidpoint.y - rect.top - initialPinchPanOffset.y) / initialPinchZoom;
         
-        // Calculate new pan offset based on current midpoint and new scale
-        let newPanX = (currentMidpoint.x - rect.left) - worldX * newScale;
-        let newPanY = (currentMidpoint.y - rect.top) - worldY * newScale;
+        const rawScale = initialPinchZoom * factor;
+        const rawPanX = (currentMidpoint.x - rect.left) - worldX * rawScale;
+        const rawPanY = (currentMidpoint.y - rect.top) - worldY * rawScale;
         
-        if (canvasMode === 'infinite') {
-          newPanX = Math.min(0, newPanX);
-          newPanY = Math.min(0, newPanY);
-        }
-        
-        zoomScale = newScale;
-        panOffset = { x: newPanX, y: newPanY };
+        const clamped = clampA4ZoomAndPan(rawScale, { x: rawPanX, y: rawPanY });
+        zoomScale = clamped.zoom;
+        panOffset = clamped.pan;
         saveToStoreDebounced();
       }
       return;
@@ -2657,18 +2683,11 @@
       const dx = e.clientX - panStart.x;
       const dy = e.clientY - panStart.y;
       
-      let newPanX = panBaseOffset.x + dx;
-      let newPanY = panBaseOffset.y + dy;
+      const rawPanX = panBaseOffset.x + dx;
+      const rawPanY = panBaseOffset.y + dy;
       
-      if (canvasMode === 'infinite') {
-        newPanX = Math.min(0, newPanX);
-        newPanY = Math.min(0, newPanY);
-      }
-      
-      panOffset = {
-        x: newPanX,
-        y: newPanY
-      };
+      const clamped = clampA4ZoomAndPan(zoomScale, { x: rawPanX, y: rawPanY });
+      panOffset = clamped.pan;
       e.preventDefault();
       return;
     }
@@ -3293,34 +3312,31 @@
       } else {
         // A4 mode zoom
         const oldScale = a4Scale;
-        const newZoomScale = Math.max(0.2, Math.min(4.0, zoomScale * factor));
+        const rawZoomScale = zoomScale * factor;
+        const newZoomScale = Math.max(0.75, Math.min(4.0, rawZoomScale));
         
-        // Temporarily calculate new a4Scale
-        const baseA4Scale = Math.max(0.1, Math.min(
-          containerWidth > 32 ? (containerWidth - 32) / a4BaseWidth : 0.1,
-          containerHeight > 32 ? (containerHeight - 32) / a4BaseHeight : 0.1
-        ));
         const newA4Scale = baseA4Scale * newZoomScale;
         
         // Panned offset relative to container center
-        const containerRect = canvasContainer.getBoundingClientRect();
+        const containerRect = canvasContainer ? canvasContainer.getBoundingClientRect() : { left: 0, top: 0 };
         const mX = e.clientX - containerRect.left;
         const mY = e.clientY - containerRect.top;
         
         const cardX = (containerWidth - a4BaseWidth * oldScale) / 2 + panOffset.x;
         const cardY = (containerHeight - a4BaseHeight * oldScale) / 2 + panOffset.y;
         
-        const relX = (mX - cardX) / oldScale;
-        const relY = (mY - cardY) / oldScale;
+        const relX = (mX - cardX) / (oldScale || 1);
+        const relY = (mY - cardY) / (oldScale || 1);
         
         const newCardX = mX - relX * newA4Scale;
         const newCardY = mY - relY * newA4Scale;
         
-        const newPanX = newCardX - (containerWidth - a4BaseWidth * newA4Scale) / 2;
-        const newPanY = newCardY - (containerHeight - a4BaseHeight * newA4Scale) / 2;
+        const rawPanX = newCardX - (containerWidth - a4BaseWidth * newA4Scale) / 2;
+        const rawPanY = newCardY - (containerHeight - a4BaseHeight * newA4Scale) / 2;
         
-        zoomScale = newZoomScale;
-        panOffset = { x: newPanX, y: newPanY };
+        const clamped = clampA4ZoomAndPan(newZoomScale, { x: rawPanX, y: rawPanY });
+        zoomScale = clamped.zoom;
+        panOffset = clamped.pan;
       }
       saveToStoreDebounced();
     } else {
@@ -3338,10 +3354,12 @@
       } else {
         // Trackpad panning in A4 mode
         e.preventDefault();
-        panOffset = {
+        const rawPan = {
           x: panOffset.x - e.deltaX,
           y: panOffset.y - e.deltaY
         };
+        const clamped = clampA4ZoomAndPan(zoomScale, rawPan);
+        panOffset = clamped.pan;
         saveToStoreDebounced();
       }
     }
