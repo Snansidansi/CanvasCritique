@@ -36,10 +36,12 @@ import {
   deleteTask as dbDeleteTask,
   deleteTasks as dbDeleteTasks,
   setCanvasState,
+  getCustomBackgrounds,
   insertCustomBackground,
   deleteCustomBackground as dbDeleteCustomBackground,
   insertRequestLog,
   clearRequestLogs,
+  getAttemptsForTask,
   insertAttempt as dbInsertAttempt,
   updateAttempt as dbUpdateAttempt,
   deleteAttempt as dbDeleteAttempt,
@@ -1838,21 +1840,6 @@ class CanvasCritiqueStore {
           if (updatedProj) {
             this.activeProject = updatedProj;
             this.currentView = 'project-detail';
-          } else {
-            this.currentView = 'dashboard';
-          }
-        } else {
-          const importedProjId = this.activeProject?.id;
-          if (importedProjId) {
-            const updatedProj = this.projects.find(p => p.id === importedProjId);
-            if (updatedProj) {
-              this.activeProject = updatedProj;
-              this.currentView = 'project-detail';
-            } else {
-              this.currentView = 'dashboard';
-            }
-          } else {
-            this.currentView = 'dashboard';
           }
         }
       },
@@ -2183,10 +2170,7 @@ class CanvasCritiqueStore {
         }
       }
 
-      if (lastImported) {
-        this.selectProject(lastImported);
-        this.setView('project-detail');
-      } else {
+      if (!lastImported) {
         console.warn('Could not find any valid lesson to import.');
       }
     } finally {
@@ -2340,19 +2324,41 @@ class CanvasCritiqueStore {
             const referencedBgIds = new Set<string>();
             if (project.default_background) referencedBgIds.add(project.default_background);
             if (project.settingsOverride?.canvasBgPattern) referencedBgIds.add(project.settingsOverride.canvasBgPattern);
+
+            const db = this.getDb();
+            const taskIds = (project.tasks || []).map(t => t.id);
+            if (taskIds.length > 0) {
+              try {
+                const placeholders = taskIds.map(() => '?').join(',');
+                const attemptRows: any[] = await db.select(
+                  `SELECT DISTINCT background FROM task_attempts WHERE task_id IN (${placeholders}) AND background IS NOT NULL`,
+                  taskIds
+                );
+                for (const r of attemptRows) {
+                  if (r.background) referencedBgIds.add(r.background);
+                }
+              } catch (err) {
+                console.error('[store] Error scanning attempt backgrounds from DB:', err);
+              }
+            }
+
             if (project.tasks) {
               for (const t of project.tasks) {
                 if (t.background) referencedBgIds.add(t.background);
-                if (t.attempts) {
-                  for (const att of t.attempts) {
-                    if (att.background) referencedBgIds.add(att.background);
-                    if (att.canvasData?.activeBg) referencedBgIds.add(att.canvasData.activeBg);
-                  }
+                if (t.settingsOverride?.canvasBgPattern) referencedBgIds.add(t.settingsOverride.canvasBgPattern);
+                const attempts = t.attempts || (await getAttemptsForTask(db, t.id));
+                for (const att of attempts) {
+                  if (att.background) referencedBgIds.add(att.background);
+                  try {
+                    const attCanvas = await loadAttemptCanvasDataFromDisk(att.id);
+                    if (attCanvas && attCanvas.activeBg) referencedBgIds.add(attCanvas.activeBg);
+                  } catch (_) {}
                 }
               }
             }
 
-            const customBgsToPack = this.customBackgrounds.filter(bg => referencedBgIds.has(bg.id));
+            const allCustomBgs = await getCustomBackgrounds(db);
+            const customBgsToPack = allCustomBgs.filter(bg => referencedBgIds.has(bg.id));
             if (customBgsToPack.length > 0) {
               exportData.customBackgrounds = customBgsToPack;
               for (const bg of customBgsToPack) {
