@@ -962,6 +962,13 @@ export async function insertTask(db: Database, task: Task, projectId: string): P
       for (const attempt of task.attempts) {
         await insertAttempt(db, attempt);
       }
+      // Set active attempt: use task.activeAttemptId if valid, else first attempt
+      const firstAttempt = task.attempts[0];
+      const activeId = task.activeAttemptId && task.attempts.some(a => a.id === task.activeAttemptId)
+        ? task.activeAttemptId
+        : firstAttempt.id;
+      await db.execute('UPDATE tasks SET active_attempt_id = ? WHERE id = ?', [activeId, task.id]);
+      task.activeAttemptId = activeId;
     } else {
       const attemptId = 'attempt_default_' + task.id;
       const defaultAttempt: TaskAttempt = {
