@@ -1835,19 +1835,29 @@ class CanvasCritiqueStore {
         const currentActiveProjId = this.activeProject?.id;
         const currentActiveTaskId = this.activeTask?.id;
 
-        await this.executeImportProject(projectData, { ...options, targetCategory });
-        this.importDialog = null;
-        
-        await this.loadState();
-        
-        // Restore user active view, project, and task without screen jumping
-        this.currentView = currentActiveView;
-        if (currentActiveProjId) {
-          const foundProj = this.projects.find(p => p.id === currentActiveProjId);
-          if (foundProj) {
-            this.activeProject = foundProj;
-            if (currentActiveTaskId) {
-              this.activeTask = foundProj.tasks?.find(t => t.id === currentActiveTaskId) || null;
+        try {
+          await this.executeImportProject(projectData, { ...options, targetCategory });
+        } catch (err) {
+          console.error('[store] Error executing import project:', err);
+          this.showNotification(
+            this.settings?.language === 'Deutsch'
+              ? 'Import fehlgeschlagen.'
+              : 'Import failed.',
+            'error'
+          );
+        } finally {
+          this.importDialog = null;
+          await this.loadState();
+          
+          // Restore user active view, project, and task without screen jumping
+          this.currentView = currentActiveView;
+          if (currentActiveProjId) {
+            const foundProj = this.projects.find(p => p.id === currentActiveProjId);
+            if (foundProj) {
+              this.activeProject = foundProj;
+              if (currentActiveTaskId) {
+                this.activeTask = foundProj.tasks?.find(t => t.id === currentActiveTaskId) || null;
+              }
             }
           }
         }
@@ -2048,6 +2058,9 @@ class CanvasCritiqueStore {
                 }
                 if (options.importCritique && t.critique) newTask.critique = t.critique;
 
+                mergeProject.tasks.push(newTask);
+                await insertTask(db, newTask, mergeProject.id);
+
                 if (t.attempts && Array.isArray(t.attempts)) {
                   newTask.attempts = [];
                   for (const att of t.attempts) {
@@ -2075,9 +2088,6 @@ class CanvasCritiqueStore {
                     newTask.attempts.push(importedAttempt);
                   }
                 }
-
-                mergeProject.tasks.push(newTask);
-                await insertTask(db, newTask, mergeProject.id);
               }
             }
           }
@@ -2166,10 +2176,6 @@ class CanvasCritiqueStore {
                   critique: options.importCritique ? att.critique : null,
                   multipleChoiceAnswers: att.multipleChoiceAnswers || {}
                 };
-                if (options.importCanvas && att.canvasData) {
-                  await saveAttemptCanvasDataToDisk(attId, att.canvasData);
-                }
-                await dbInsertAttempt(db, importedAttempt);
                 newTask.attempts.push(importedAttempt);
               }
             }
@@ -2232,6 +2238,14 @@ class CanvasCritiqueStore {
           await insertProject(db, { ...newProj, icon: dbIcon });
           for (const t of tasks) {
             await insertTask(db, t, newProj.id);
+            if (t.attempts && Array.isArray(t.attempts)) {
+              for (const att of t.attempts) {
+                if (options.importCanvas && att.canvasData) {
+                  await saveAttemptCanvasDataToDisk(att.id, att.canvasData);
+                }
+                await dbInsertAttempt(db, att);
+              }
+            }
           }
           lastImported = newProj;
         }
