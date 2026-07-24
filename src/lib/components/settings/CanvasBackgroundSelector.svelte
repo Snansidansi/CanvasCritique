@@ -2,6 +2,7 @@
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
   import CustomBgModal from '../practice/CustomBgModal.svelte';
+  import CustomBgThumbnail from '../practice/CustomBgThumbnail.svelte';
 
   let {
     settings = $bindable(),
@@ -61,13 +62,9 @@
             <button 
               type="button"
               onclick={() => selectBg(customBg.id)}
-              class="grow text-left text-xs flex items-center gap-2 cursor-pointer border-0 bg-transparent focus:outline-none p-1.5 rounded {activeBg === customBg.id ? 'text-primary font-bold bg-primary/5' : 'text-on-surface'}"
+              class="grow text-left text-xs flex items-center gap-2 cursor-pointer border-0 bg-transparent focus:outline-none p-1 rounded {activeBg === customBg.id ? 'text-primary font-bold bg-primary/5' : 'text-on-surface'}"
             >
-              {#if customBg.icon && customBg.icon.startsWith('data:image/')}
-                <img src={customBg.icon} class="w-4 h-4 object-contain rounded" alt="" />
-              {:else}
-                <span class="material-symbols-outlined text-base">image</span>
-              {/if}
+              <CustomBgThumbnail background={customBg} size="w-6 h-6" />
               <span class="truncate">{customBg.name}</span>
             </button>
             <button 
