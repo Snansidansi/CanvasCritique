@@ -2649,21 +2649,50 @@
         y: (p1.clientY + p2.clientY) / 2
       };
       
-      if (initialPinchDistance > 0 && canvasElement) {
+      if (initialPinchDistance > 0 && canvasContainer) {
         const factor = currentDistance / initialPinchDistance;
-        const rect = canvasElement.getBoundingClientRect();
-        
-        // World coordinates of initial midpoint
-        const worldX = (initialPinchMidpoint.x - rect.left - initialPinchPanOffset.x) / initialPinchZoom;
-        const worldY = (initialPinchMidpoint.y - rect.top - initialPinchPanOffset.y) / initialPinchZoom;
-        
         const rawScale = initialPinchZoom * factor;
-        const rawPanX = (currentMidpoint.x - rect.left) - worldX * rawScale;
-        const rawPanY = (currentMidpoint.y - rect.top) - worldY * rawScale;
         
-        const clamped = clampA4ZoomAndPan(rawScale, { x: rawPanX, y: rawPanY });
-        zoomScale = clamped.zoom;
-        panOffset = clamped.pan;
+        if (canvasMode === 'a4') {
+          const oldScale = baseA4Scale * initialPinchZoom;
+          const newZoomScale = Math.max(0.75, Math.min(4.0, rawScale));
+          const newA4Scale = baseA4Scale * newZoomScale;
+
+          const containerRect = canvasContainer.getBoundingClientRect();
+          const initMX = initialPinchMidpoint.x - containerRect.left;
+          const initMY = initialPinchMidpoint.y - containerRect.top;
+          const curMX = currentMidpoint.x - containerRect.left;
+          const curMY = currentMidpoint.y - containerRect.top;
+
+          const cardX = (containerWidth - a4BaseWidth * oldScale) / 2 + initialPinchPanOffset.x;
+          const cardY = (containerHeight - a4BaseHeight * oldScale) / 2 + initialPinchPanOffset.y;
+
+          const relX = (initMX - cardX) / (oldScale || 1);
+          const relY = (initMY - cardY) / (oldScale || 1);
+
+          const newCardX = curMX - relX * newA4Scale;
+          const newCardY = curMY - relY * newA4Scale;
+
+          const rawPanX = newCardX - (containerWidth - a4BaseWidth * newA4Scale) / 2;
+          const rawPanY = newCardY - (containerHeight - a4BaseHeight * newA4Scale) / 2;
+
+          const clamped = clampA4ZoomAndPan(newZoomScale, { x: rawPanX, y: rawPanY });
+          zoomScale = clamped.zoom;
+          panOffset = clamped.pan;
+        } else {
+          const rect = canvasElement ? canvasElement.getBoundingClientRect() : canvasContainer.getBoundingClientRect();
+          
+          // World coordinates of initial midpoint
+          const worldX = (initialPinchMidpoint.x - rect.left - initialPinchPanOffset.x) / initialPinchZoom;
+          const worldY = (initialPinchMidpoint.y - rect.top - initialPinchPanOffset.y) / initialPinchZoom;
+          
+          const rawPanX = (currentMidpoint.x - rect.left) - worldX * rawScale;
+          const rawPanY = (currentMidpoint.y - rect.top) - worldY * rawScale;
+          
+          const clamped = clampA4ZoomAndPan(rawScale, { x: rawPanX, y: rawPanY });
+          zoomScale = clamped.zoom;
+          panOffset = clamped.pan;
+        }
         saveToStoreDebounced();
       }
       return;
