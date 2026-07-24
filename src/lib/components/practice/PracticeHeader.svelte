@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
+  import { getAttemptCreationMs } from '../../utils/attempts';
 
   let {
     task,
@@ -41,18 +42,7 @@
   );
 
   const sortedAttempts = $derived.by(() => {
-    return [...(task?.attempts || [])].sort((a, b) => {
-      const getMs = (att: any) => {
-        if (att.timestamp) {
-          const p = new Date(att.timestamp).getTime();
-          if (!isNaN(p)) return p;
-        }
-        const match = String(att.id || '').match(/(\d{10,})/);
-        if (match) return parseInt(match[1], 10);
-        return 0;
-      };
-      return getMs(a) - getMs(b);
-    });
+    return [...(task?.attempts || [])].sort((a, b) => getAttemptCreationMs(a) - getAttemptCreationMs(b));
   });
   
   function handleDocumentClick(e: MouseEvent) {

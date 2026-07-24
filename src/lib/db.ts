@@ -1,6 +1,7 @@
 import Database from '@tauri-apps/plugin-sql';
 import type { Profile, Settings, Project, Task, CustomBackground, ProjectSettingsOverride, RequestLog, TaskAttempt } from './state/types';
 import { defaultSettings, defaultProjects } from './state/defaults';
+import { getAttemptCreationMs } from './utils/attempts';
 
 let dbInstance: Database | null = null;
 
@@ -51,6 +52,7 @@ export async function initDb(): Promise<Database> {
       task_id TEXT NOT NULL,
       name TEXT NOT NULL,
       timestamp TEXT NOT NULL,
+      created_at TEXT,
       critique_json TEXT,
       canvas_data_json TEXT,
       editor_text TEXT,
@@ -181,6 +183,10 @@ export async function initDb(): Promise<Database> {
 
   try {
     await db.execute('ALTER TABLE task_attempts ADD COLUMN multiple_choice_answers_json TEXT DEFAULT "{}"');
+  } catch (_) {}
+
+  try {
+    await db.execute('ALTER TABLE task_attempts ADD COLUMN created_at TEXT');
   } catch (_) {}
 
   // Check if task_canvas_media table exists before creating it, to see if we need to migrate existing references
@@ -1174,19 +1180,22 @@ export async function loadAllData(db: Database): Promise<AllData> {
 export async function getAttemptsForTask(db: Database, taskId: string): Promise<TaskAttempt[]> {
   try {
     const rows: any[] = await db.select(
-      'SELECT id, task_id, name, timestamp, critique_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE task_id = ? ORDER BY timestamp ASC',
+      'SELECT id, task_id, name, timestamp, created_at, critique_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE task_id = ?',
       [taskId]
     );
-    return rows.map(r => ({
+    const attempts = rows.map(r => ({
       id: r.id,
       taskId: r.task_id,
       name: r.name,
       timestamp: r.timestamp,
+      createdAt: r.created_at || r.timestamp,
       canvasData: null, // Loaded on-demand
       editorText: r.editor_text || '',
       critique: r.critique_json ? JSON.parse(r.critique_json) : null,
       multipleChoiceAnswers: r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {}
     }));
+    attempts.sort((a, b) => getAttemptCreationMs(a) - getAttemptCreationMs(b));
+    return attempts;
   } catch (err) {
     console.error('Failed to load attempts from DB:', err);
     return [];
@@ -1196,12 +1205,13 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
 export async function insertAttempt(db: Database, attempt: TaskAttempt): Promise<void> {
   await saveAttemptToDisk(attempt.id, attempt);
   await db.execute(
-    'INSERT INTO task_attempts (id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO task_attempts (id, task_id, name, timestamp, created_at, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       attempt.id,
       attempt.taskId,
       attempt.name,
       attempt.timestamp,
+      attempt.createdAt || attempt.timestamp,
       attempt.critique ? JSON.stringify(attempt.critique) : null,
       null, // canvas_data_json column is kept NULL in database
       attempt.editorText,
@@ -1216,6 +1226,7 @@ export async function updateAttempt(db: Database, id: string, updates: Partial<T
 
   if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
   if (updates.timestamp !== undefined) { fields.push('timestamp = ?'); values.push(updates.timestamp); }
+  if (updates.createdAt !== undefined) { fields.push('created_at = ?'); values.push(updates.createdAt); }
   if (updates.critique !== undefined) { fields.push('critique_json = ?'); values.push(updates.critique ? JSON.stringify(updates.critique) : null); }
   if (updates.canvasData !== undefined) {
     fields.push('canvas_data_json = ?');
