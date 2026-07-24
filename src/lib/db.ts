@@ -478,7 +478,7 @@ export async function getProjects(db: Database): Promise<Project[]> {
 
 export async function insertProject(db: Database, project: Project): Promise<void> {
   await db.execute(
-    `INSERT INTO projects (id, name, icon_media_path, guidelines, categories_json, profile_id, hide_completed, settings_override_json, default_background)
+    `INSERT OR REPLACE INTO projects (id, name, icon_media_path, guidelines, categories_json, profile_id, hide_completed, settings_override_json, default_background)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       project.id,
@@ -930,7 +930,7 @@ export async function getTasks(db: Database): Promise<Task[]> {
 
 export async function insertTask(db: Database, task: Task, projectId: string): Promise<void> {
   await db.execute(
-    `INSERT INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data, provided_files_json, multiple_choice_tasks_json)
+    `INSERT OR REPLACE INTO tasks (id, name, completed, instructions, solution, category, instruction_files_json, solution_files_json, critique_json, canvas_data_json, project_id, background, editor_text, settings_override_json, ai_instructions, default_edit_mode, context_files_json, template_canvas_data, provided_files_json, multiple_choice_tasks_json)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       task.id,
@@ -1097,7 +1097,7 @@ export async function getCustomBackgrounds(db: Database): Promise<CustomBackgrou
 
 export async function insertCustomBackground(db: Database, bg: CustomBackground): Promise<void> {
   await db.execute(
-    'INSERT INTO custom_backgrounds (id, name, relative_path, icon) VALUES (?, ?, ?, ?)',
+    'INSERT OR REPLACE INTO custom_backgrounds (id, name, relative_path, icon) VALUES (?, ?, ?, ?)',
     [bg.id, bg.name, bg.mediaId, bg.iconMediaId || null]
   );
 }
@@ -1211,7 +1211,7 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
 export async function insertAttempt(db: Database, attempt: TaskAttempt): Promise<void> {
   await saveAttemptToDisk(attempt.id, attempt);
   await db.execute(
-    'INSERT INTO task_attempts (id, task_id, name, timestamp, created_at, background, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT OR REPLACE INTO task_attempts (id, task_id, name, timestamp, created_at, background, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       attempt.id,
       attempt.taskId,

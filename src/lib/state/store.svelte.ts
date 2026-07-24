@@ -1838,11 +1838,12 @@ class CanvasCritiqueStore {
         try {
           await this.executeImportProject(projectData, { ...options, targetCategory });
         } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
           console.error('[store] Error executing import project:', err);
           this.showNotification(
-            this.settings?.language === 'Deutsch'
-              ? 'Import fehlgeschlagen.'
-              : 'Import failed.',
+            (this.settings?.language === 'Deutsch'
+              ? 'Import fehlgeschlagen: '
+              : 'Import failed: ') + errMsg,
             'error'
           );
         } finally {
@@ -2058,9 +2059,6 @@ class CanvasCritiqueStore {
                 }
                 if (options.importCritique && t.critique) newTask.critique = t.critique;
 
-                mergeProject.tasks.push(newTask);
-                await insertTask(db, newTask, mergeProject.id);
-
                 if (t.attempts && Array.isArray(t.attempts)) {
                   newTask.attempts = [];
                   for (const att of t.attempts) {
@@ -2076,18 +2074,17 @@ class CanvasCritiqueStore {
                       timestamp: att.timestamp || new Date().toISOString(),
                       createdAt: att.createdAt || att.timestamp || new Date().toISOString(),
                       background: attBg || undefined,
-                      canvasData: att.canvasData || null,
+                      canvasData: options.importCanvas ? (att.canvasData || null) : null,
                       editorText: att.editorText || '',
                       critique: options.importCritique ? att.critique : null,
                       multipleChoiceAnswers: att.multipleChoiceAnswers || {}
                     };
-                    if (options.importCanvas && att.canvasData) {
-                      await saveAttemptCanvasDataToDisk(attId, att.canvasData);
-                    }
-                    await dbInsertAttempt(db, importedAttempt);
                     newTask.attempts.push(importedAttempt);
                   }
                 }
+
+                mergeProject.tasks.push(newTask);
+                await insertTask(db, newTask, mergeProject.id);
               }
             }
           }
@@ -2227,7 +2224,8 @@ class CanvasCritiqueStore {
             guidelines: proj.guidelines || '',
             categories: effectiveCategories,
             tasks,
-            profileId: this.activeProfileId
+            profileId: this.activeProfileId,
+            default_background: proj.default_background || null
           };
           if (proj.settingsOverride) {
             newProj.settingsOverride = proj.settingsOverride;
@@ -2237,15 +2235,8 @@ class CanvasCritiqueStore {
           const dbIcon = this._projectIconMediaIds[newProj.id] || newProj.icon;
           await insertProject(db, { ...newProj, icon: dbIcon });
           for (const t of tasks) {
+            // insertTask already handles inserting attempts via task.attempts
             await insertTask(db, t, newProj.id);
-            if (t.attempts && Array.isArray(t.attempts)) {
-              for (const att of t.attempts) {
-                if (options.importCanvas && att.canvasData) {
-                  await saveAttemptCanvasDataToDisk(att.id, att.canvasData);
-                }
-                await dbInsertAttempt(db, att);
-              }
-            }
           }
           lastImported = newProj;
         }
@@ -2370,7 +2361,8 @@ class CanvasCritiqueStore {
               guidelines: project.guidelines,
               categories: project.categories,
               tasks: clonedTasks,
-              isTasksExport: isTasksExport
+              isTasksExport: isTasksExport,
+              default_background: project.default_background || null
             };
 
             if (project.settingsOverride) {
