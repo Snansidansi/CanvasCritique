@@ -1831,19 +1831,24 @@ class CanvasCritiqueStore {
       targetProjectId,
       targetCategory,
       onConfirm: async (options) => {
-        const prevView = this.currentView;
-        const prevProjectId = this.activeProject?.id;
+        const currentActiveView = this.currentView;
+        const currentActiveProjId = this.activeProject?.id;
+        const currentActiveTaskId = this.activeTask?.id;
 
         await this.executeImportProject(projectData, { ...options, targetCategory });
         this.importDialog = null;
         
         await this.loadState();
         
-        if (prevView === 'project-detail' && prevProjectId) {
-          const updatedProj = this.projects.find(p => p.id === prevProjectId);
-          if (updatedProj) {
-            this.activeProject = updatedProj;
-            this.currentView = 'project-detail';
+        // Restore user active view, project, and task without screen jumping
+        this.currentView = currentActiveView;
+        if (currentActiveProjId) {
+          const foundProj = this.projects.find(p => p.id === currentActiveProjId);
+          if (foundProj) {
+            this.activeProject = foundProj;
+            if (currentActiveTaskId) {
+              this.activeTask = foundProj.tasks?.find(t => t.id === currentActiveTaskId) || null;
+            }
           }
         }
       },
