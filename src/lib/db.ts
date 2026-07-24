@@ -53,6 +53,7 @@ export async function initDb(): Promise<Database> {
       name TEXT NOT NULL,
       timestamp TEXT NOT NULL,
       created_at TEXT,
+      background TEXT,
       critique_json TEXT,
       canvas_data_json TEXT,
       editor_text TEXT,
@@ -187,6 +188,10 @@ export async function initDb(): Promise<Database> {
 
   try {
     await db.execute('ALTER TABLE task_attempts ADD COLUMN created_at TEXT');
+  } catch (_) {}
+
+  try {
+    await db.execute('ALTER TABLE task_attempts ADD COLUMN background TEXT');
   } catch (_) {}
 
   // Check if task_canvas_media table exists before creating it, to see if we need to migrate existing references
@@ -1180,7 +1185,7 @@ export async function loadAllData(db: Database): Promise<AllData> {
 export async function getAttemptsForTask(db: Database, taskId: string): Promise<TaskAttempt[]> {
   try {
     const rows: any[] = await db.select(
-      'SELECT id, task_id, name, timestamp, created_at, critique_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE task_id = ?',
+      'SELECT id, task_id, name, timestamp, created_at, background, critique_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE task_id = ?',
       [taskId]
     );
     const attempts = rows.map(r => ({
@@ -1189,6 +1194,7 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
       name: r.name,
       timestamp: r.timestamp,
       createdAt: r.created_at || r.timestamp,
+      background: r.background || undefined,
       canvasData: null, // Loaded on-demand
       editorText: r.editor_text || '',
       critique: r.critique_json ? JSON.parse(r.critique_json) : null,
@@ -1205,13 +1211,14 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
 export async function insertAttempt(db: Database, attempt: TaskAttempt): Promise<void> {
   await saveAttemptToDisk(attempt.id, attempt);
   await db.execute(
-    'INSERT INTO task_attempts (id, task_id, name, timestamp, created_at, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO task_attempts (id, task_id, name, timestamp, created_at, background, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       attempt.id,
       attempt.taskId,
       attempt.name,
       attempt.timestamp,
       attempt.createdAt || attempt.timestamp,
+      attempt.background || (attempt.canvasData ? attempt.canvasData.activeBg : null) || null,
       attempt.critique ? JSON.stringify(attempt.critique) : null,
       null, // canvas_data_json column is kept NULL in database
       attempt.editorText,
@@ -1227,10 +1234,15 @@ export async function updateAttempt(db: Database, id: string, updates: Partial<T
   if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
   if (updates.timestamp !== undefined) { fields.push('timestamp = ?'); values.push(updates.timestamp); }
   if (updates.createdAt !== undefined) { fields.push('created_at = ?'); values.push(updates.createdAt); }
+  if (updates.background !== undefined) { fields.push('background = ?'); values.push(updates.background); }
   if (updates.critique !== undefined) { fields.push('critique_json = ?'); values.push(updates.critique ? JSON.stringify(updates.critique) : null); }
   if (updates.canvasData !== undefined) {
     fields.push('canvas_data_json = ?');
     values.push(null);
+    if (updates.canvasData.activeBg !== undefined) {
+      fields.push('background = ?');
+      values.push(updates.canvasData.activeBg);
+    }
   }
   if (updates.editorText !== undefined) { fields.push('editor_text = ?'); values.push(updates.editorText); }
   if (updates.multipleChoiceAnswers !== undefined) { fields.push('multiple_choice_answers_json = ?'); values.push(JSON.stringify(updates.multipleChoiceAnswers)); }

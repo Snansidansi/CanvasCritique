@@ -2345,6 +2345,7 @@ class CanvasCritiqueStore {
                 if (t.background) referencedBgIds.add(t.background);
                 if (t.attempts) {
                   for (const att of t.attempts) {
+                    if (att.background) referencedBgIds.add(att.background);
                     if (att.canvasData?.activeBg) referencedBgIds.add(att.canvasData.activeBg);
                   }
                 }
@@ -2615,10 +2616,40 @@ class CanvasCritiqueStore {
     const result = replaceMediaIdsInPayload(jsonHeader, mediaIdMap);
     if (result.customBackgrounds && Array.isArray(result.customBackgrounds)) {
       const db = this.getDb();
+      const bgIdMap = new Map<string, string>();
+
       for (const bg of result.customBackgrounds) {
-        if (!this.customBackgrounds.some(existing => existing.id === bg.id)) {
+        // Check for existing custom background by ID or mediaId (file hash)
+        const existing = this.customBackgrounds.find(
+          e => e.id === bg.id || (bg.mediaId && e.mediaId === bg.mediaId)
+        );
+
+        if (existing) {
+          bgIdMap.set(bg.id, existing.id);
+        } else {
           await insertCustomBackground(db, bg);
           this.customBackgrounds.push(bg);
+        }
+      }
+
+      // Remap any references if IDs were deduplicated
+      if (bgIdMap.size > 0) {
+        const remapBg = (val: string | null | undefined) => (val && bgIdMap.has(val) ? bgIdMap.get(val) : val);
+
+        if (result.default_background) result.default_background = remapBg(result.default_background);
+        if (result.settingsOverride?.canvasBgPattern) {
+          result.settingsOverride.canvasBgPattern = remapBg(result.settingsOverride.canvasBgPattern);
+        }
+        if (result.tasks) {
+          for (const task of result.tasks) {
+            if (task.background) task.background = remapBg(task.background);
+            if (task.attempts) {
+              for (const att of task.attempts) {
+                if (att.background) att.background = remapBg(att.background);
+                if (att.canvasData?.activeBg) att.canvasData.activeBg = remapBg(att.canvasData.activeBg);
+              }
+            }
+          }
         }
       }
     }

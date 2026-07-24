@@ -67,6 +67,7 @@ export interface TaskAttempt {
   name: string;
   timestamp: string;
   createdAt?: string;
+  background?: string;
   canvasData: any;
   editorText: string;
   critique: any;
