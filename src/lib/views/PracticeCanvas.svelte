@@ -1975,7 +1975,10 @@
             panOffset: { ...panOffset },
             zoomScale,
             activePageIndex,
-            canvasImages: JSON.parse(JSON.stringify(canvasImages))
+            canvasImages: JSON.parse(JSON.stringify(canvasImages)),
+            canvasMode,
+            a4Orientation,
+            activeBg
           }, true, lastInitializedAttemptId);
         }
 
@@ -2018,7 +2021,10 @@
         panOffset: { ...panOffset },
         zoomScale,
         activePageIndex,
-        canvasImages: JSON.parse(JSON.stringify(canvasImages))
+        canvasImages: JSON.parse(JSON.stringify(canvasImages)),
+        canvasMode,
+        a4Orientation,
+        activeBg
       }, true, lastInitializedAttemptId);
     }
   });
@@ -5804,6 +5810,10 @@
                   invalidateCache();
                   requestRedraw();
                   saveToStore(true);
+                  // Persist the background to task.background in DB so it's restored on next open
+                  if (store.activeProject && task.id) {
+                    store.updateTaskBackground(store.activeProject.id, task.id, activeBg);
+                  }
                 }}
               />
             </div>
