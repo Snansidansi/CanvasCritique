@@ -2032,6 +2032,7 @@ class CanvasCritiqueStore {
                   solution: t.solution || '',
                   aiInstructions: t.aiInstructions || '',
                   category: taskCategory,
+                  background: t.background || null,
                   instructionFiles,
                   solutionFiles,
                   providedFiles,
@@ -2046,6 +2047,34 @@ class CanvasCritiqueStore {
                   this.editorTexts[taskId] = t.editorText;
                 }
                 if (options.importCritique && t.critique) newTask.critique = t.critique;
+
+                if (t.attempts && Array.isArray(t.attempts)) {
+                  newTask.attempts = [];
+                  for (const att of t.attempts) {
+                    let attId = att.id;
+                    if (!attId || this.projects.some(p => p.tasks.some(existingTask => existingTask.attempts?.some(a => a.id === attId)))) {
+                      attId = 'attempt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+                    }
+                    const attBg = att.background || (att.canvasData ? att.canvasData.activeBg : null) || t.background || null;
+                    const importedAttempt: TaskAttempt = {
+                      id: attId,
+                      taskId: taskId,
+                      name: att.name || 'Versuch 1',
+                      timestamp: att.timestamp || new Date().toISOString(),
+                      createdAt: att.createdAt || att.timestamp || new Date().toISOString(),
+                      background: attBg || undefined,
+                      canvasData: att.canvasData || null,
+                      editorText: att.editorText || '',
+                      critique: options.importCritique ? att.critique : null,
+                      multipleChoiceAnswers: att.multipleChoiceAnswers || {}
+                    };
+                    if (options.importCanvas && att.canvasData) {
+                      await saveAttemptCanvasDataToDisk(attId, att.canvasData);
+                    }
+                    await dbInsertAttempt(db, importedAttempt);
+                    newTask.attempts.push(importedAttempt);
+                  }
+                }
 
                 mergeProject.tasks.push(newTask);
                 await insertTask(db, newTask, mergeProject.id);
@@ -2101,6 +2130,7 @@ class CanvasCritiqueStore {
               solution: t.solution || '',
               aiInstructions: t.aiInstructions || '',
               category: taskCategory,
+              background: t.background || null,
               instructionFiles,
               solutionFiles,
               providedFiles,
@@ -2115,6 +2145,34 @@ class CanvasCritiqueStore {
               this.editorTexts[taskId] = t.editorText;
             }
             if (options.importCritique && t.critique) newTask.critique = t.critique;
+
+            if (t.attempts && Array.isArray(t.attempts)) {
+              newTask.attempts = [];
+              for (const att of t.attempts) {
+                let attId = att.id;
+                if (!attId || this.projects.some(p => p.tasks.some(existingTask => existingTask.attempts?.some(a => a.id === attId)))) {
+                  attId = 'attempt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+                }
+                const attBg = att.background || (att.canvasData ? att.canvasData.activeBg : null) || t.background || null;
+                const importedAttempt: TaskAttempt = {
+                  id: attId,
+                  taskId: taskId,
+                  name: att.name || 'Versuch 1',
+                  timestamp: att.timestamp || new Date().toISOString(),
+                  createdAt: att.createdAt || att.timestamp || new Date().toISOString(),
+                  background: attBg || undefined,
+                  canvasData: att.canvasData || null,
+                  editorText: att.editorText || '',
+                  critique: options.importCritique ? att.critique : null,
+                  multipleChoiceAnswers: att.multipleChoiceAnswers || {}
+                };
+                if (options.importCanvas && att.canvasData) {
+                  await saveAttemptCanvasDataToDisk(attId, att.canvasData);
+                }
+                await dbInsertAttempt(db, importedAttempt);
+                newTask.attempts.push(importedAttempt);
+              }
+            }
 
             tasks.push(newTask);
           }
