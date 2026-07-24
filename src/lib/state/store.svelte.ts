@@ -1726,6 +1726,18 @@ class CanvasCritiqueStore {
     const db = this.getDb();
     await dbInsertAttempt(db, newAttempt);
     task.attempts.push(newAttempt);
+    task.attempts.sort((a, b) => {
+      const getMs = (att: any) => {
+        if (att.timestamp) {
+          const p = new Date(att.timestamp).getTime();
+          if (!isNaN(p)) return p;
+        }
+        const match = String(att.id || '').match(/(\d{10,})/);
+        if (match) return parseInt(match[1], 10);
+        return 0;
+      };
+      return getMs(a) - getMs(b);
+    });
     await this.selectAttempt(projectId, taskId, attemptId);
   }
 

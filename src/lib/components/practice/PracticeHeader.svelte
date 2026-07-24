@@ -39,6 +39,21 @@
   const activeAttempt = $derived(
     task.attempts?.find(a => a.id === task.activeAttemptId)
   );
+
+  const sortedAttempts = $derived.by(() => {
+    return [...(task?.attempts || [])].sort((a, b) => {
+      const getMs = (att: any) => {
+        if (att.timestamp) {
+          const p = new Date(att.timestamp).getTime();
+          if (!isNaN(p)) return p;
+        }
+        const match = String(att.id || '').match(/(\d{10,})/);
+        if (match) return parseInt(match[1], 10);
+        return 0;
+      };
+      return getMs(a) - getMs(b);
+    });
+  });
   
   function handleDocumentClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
@@ -137,7 +152,7 @@
           </div>
 
           <div class="max-h-48 overflow-y-auto py-1.5 flex flex-col">
-            {#each task.attempts || [] as attempt}
+            {#each sortedAttempts as attempt}
               <div 
                 class="flex items-center justify-between px-3 py-1.5 hover:bg-surface-container-low transition-colors group cursor-pointer text-xs
                        {task.activeAttemptId === attempt.id ? 'bg-primary/5 text-primary font-semibold' : 'text-on-surface'}"

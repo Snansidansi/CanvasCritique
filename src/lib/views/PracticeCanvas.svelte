@@ -567,6 +567,7 @@
   let a4BaseHeight = $derived(a4Orientation === 'landscape' ? 800 : 1130);
 
   let canvasWidth = $derived(canvasMode === 'infinite' ? Math.round(containerWidth / 8) * 8 : a4BaseWidth);
+  let canvasHeight = $derived(canvasMode === 'infinite' ? Math.round(containerHeight / 8) * 8 : a4BaseHeight);
   let baseA4Scale = $derived(
     Math.max(0.1, Math.min(
       containerWidth > 32 ? (containerWidth - 32) / a4BaseWidth : 0.1,
