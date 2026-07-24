@@ -2336,6 +2336,30 @@ class CanvasCritiqueStore {
               }
             }
 
+            // Pack referenced custom backgrounds and their media
+            const referencedBgIds = new Set<string>();
+            if (project.default_background) referencedBgIds.add(project.default_background);
+            if (project.settingsOverride?.canvasBgPattern) referencedBgIds.add(project.settingsOverride.canvasBgPattern);
+            if (project.tasks) {
+              for (const t of project.tasks) {
+                if (t.background) referencedBgIds.add(t.background);
+                if (t.attempts) {
+                  for (const att of t.attempts) {
+                    if (att.canvasData?.activeBg) referencedBgIds.add(att.canvasData.activeBg);
+                  }
+                }
+              }
+            }
+
+            const customBgsToPack = this.customBackgrounds.filter(bg => referencedBgIds.has(bg.id));
+            if (customBgsToPack.length > 0) {
+              exportData.customBackgrounds = customBgsToPack;
+              for (const bg of customBgsToPack) {
+                if (bg.mediaId) mediaIdsToPack.push(bg.mediaId);
+                if (bg.iconMediaId) mediaIdsToPack.push(bg.iconMediaId);
+              }
+            }
+
             const packBytes = await createPack(exportData, mediaIdsToPack);
 
             // 3. Write file
@@ -2588,7 +2612,17 @@ class CanvasCritiqueStore {
       return cloned;
     };
     
-    return replaceMediaIdsInPayload(jsonHeader, mediaIdMap);
+    const result = replaceMediaIdsInPayload(jsonHeader, mediaIdMap);
+    if (result.customBackgrounds && Array.isArray(result.customBackgrounds)) {
+      const db = this.getDb();
+      for (const bg of result.customBackgrounds) {
+        if (!this.customBackgrounds.some(existing => existing.id === bg.id)) {
+          await insertCustomBackground(db, bg);
+          this.customBackgrounds.push(bg);
+        }
+      }
+    }
+    return result;
   }
 
   async recordRequest(
