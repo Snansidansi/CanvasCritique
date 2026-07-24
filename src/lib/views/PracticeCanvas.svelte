@@ -417,8 +417,15 @@
   let feedbackText = $state('');
   let feedbackScore = $state(null);
   let showFeedback = $state(false);
+  let userWantsFeedback = $state(store.settings.showCritiqueByDefault ?? true);
   let showCritiqueBanner = $state(false);
   let hasCheckedWork = $state(false);
+
+  $effect(() => {
+    if (hasCheckedWork) {
+      userWantsFeedback = showFeedback;
+    }
+  });
   let feedbackMarkers = $state([]);
   let activeTooltipMarker = $state(null);
   let showSuccessNotification = $state(false);
@@ -1478,7 +1485,7 @@
             feedbackScore = textCritique.feedbackScore ?? null;
             feedbackMarkers = [];
             hasCheckedWork = true;
-            showFeedback = isInitializingTask ? (store.settings.showCritiqueByDefault ?? true) : showFeedback;
+            showFeedback = userWantsFeedback;
           } else {
             feedbackText = '';
             feedbackScore = null;
@@ -1492,7 +1499,7 @@
           feedbackScore = canvasCritique.feedbackScore ?? null;
           feedbackMarkers = canvasCritique.feedbackMarkers || [];
           hasCheckedWork = !!canvasCritique.feedbackText;
-          showFeedback = isInitializingTask ? (hasCheckedWork && (store.settings.showCritiqueByDefault ?? true)) : (hasCheckedWork && showFeedback);
+          showFeedback = hasCheckedWork && userWantsFeedback;
         }
       } else {
         // Unified critique mode (both active, or legacy format without split critiques)
@@ -1504,7 +1511,7 @@
           feedbackMarkers = critique.feedbackMarkers || [];
         }
         hasCheckedWork = !!critique.feedbackText;
-        showFeedback = isInitializingTask ? (hasCheckedWork && (store.settings.showCritiqueByDefault ?? true)) : (hasCheckedWork && showFeedback);
+        showFeedback = hasCheckedWork && userWantsFeedback;
       }
       showCritiqueBanner = false;
     } else {
