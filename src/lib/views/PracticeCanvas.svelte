@@ -2402,8 +2402,7 @@
     // Check if middle click or Hand tool or custom pan action
     const isFingerOrMouse = !isPen;
     const isEraserAction = activeTool === 'eraser' || isPointerEraser;
-    const isPanAction = canvasMode === 'infinite' && 
-      (e.button === 1 || activeTool === 'pan' || isPointerPan || (store.settings.stylusMode && isFingerOrMouse && !isEraserAction && activeTool !== 'select'));
+    const isPanAction = e.button === 1 || activeTool === 'pan' || isPointerPan || (store.settings.stylusMode && isFingerOrMouse && !isEraserAction && activeTool !== 'select');
     
     if (isPanAction) {
       isPanning = true;
