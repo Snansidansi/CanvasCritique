@@ -3,7 +3,7 @@
 
   let {
     background,
-    size = 'w-6 h-6'
+    size = 'w-full h-full'
   }: {
     background: { mediaId?: string; iconMediaId?: string | null; icon?: string | null; name?: string };
     size?: string;
@@ -33,9 +33,9 @@
 </script>
 
 {#if src}
-  <img {src} class="{size} object-cover rounded border border-outline-variant/40 shrink-0" alt={background.name || ''} />
+  <img {src} class="{size} object-cover shrink-0" alt={background.name || ''} />
 {:else}
-  <div class="{size} bg-surface-container-high rounded border border-outline-variant/40 flex items-center justify-center shrink-0">
-    <span class="material-symbols-outlined text-xs text-on-surface-variant">image</span>
+  <div class="{size} bg-surface-container-high flex items-center justify-center shrink-0">
+    <span class="material-symbols-outlined text-lg text-on-surface-variant">image</span>
   </div>
 {/if}
