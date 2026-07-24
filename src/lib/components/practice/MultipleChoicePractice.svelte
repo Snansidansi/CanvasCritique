@@ -245,13 +245,22 @@
   {/if}
   {#each multipleChoiceTasks as question, qIndex (question.id)}
     {@const isCheckbox = getIsCheckbox(question)}
-    <div class="border border-outline-variant/60 rounded-2xl bg-surface-container-lowest p-5 flex flex-col gap-4 text-left shadow-sm">
+    {@const isUnanswered = showSolution && (!selectedAnswers[question.id] || selectedAnswers[question.id].length === 0)}
+    <div class="border rounded-2xl p-5 flex flex-col gap-4 text-left shadow-sm transition-all {isUnanswered ? 'border-error/80 bg-error/5' : 'border-outline-variant/60 bg-surface-container-lowest'}">
       
       <!-- Question Title / Index -->
       <div class="flex items-center justify-between border-b border-outline-variant/30 pb-2">
-        <span class="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full font-sans">
-          {t('common.question') || 'Frage'} {qIndex + 1}
-        </span>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold {isUnanswered ? 'text-error bg-error/15' : 'text-primary bg-primary/10'} px-2.5 py-1 rounded-full font-sans">
+            {t('common.question') || 'Frage'} {qIndex + 1}
+          </span>
+          {#if isUnanswered}
+            <span class="text-xs font-bold text-error bg-error/10 border border-error/30 px-2.5 py-1 rounded-full font-sans flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">warning</span>
+              <span>{t('practice.mc.unanswered') || 'Nicht beantwortet'}</span>
+            </span>
+          {/if}
+        </div>
         <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider font-sans">
           {isCheckbox ? (t('practice.mc.multipleAnswers') || 'Mehrfachauswahl') : (t('practice.mc.singleAnswer') || 'Einfachauswahl')}
         </span>

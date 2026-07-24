@@ -339,7 +339,8 @@
       "hintExplanationTitle": "Hint / Explanation",
       "questionSingle": "question",
       "questionsPlural": "questions",
-      "completedPercent": "correctly solved"
+      "completedPercent": "correctly solved",
+      "unanswered": "Unanswered"
     },
     "textEditor": {
       "writeTitle": "Text Editor",
