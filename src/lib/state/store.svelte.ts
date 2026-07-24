@@ -1704,6 +1704,14 @@ class CanvasCritiqueStore {
       : `Try ${nextNum}`;
     const name = attemptName || defaultName;
 
+    const activeAttempt = task.activeAttemptId ? task.attempts?.find(a => a.id === task.activeAttemptId) : null;
+    const activeCanvasData = activeAttempt?.canvasData || {};
+
+    const effSettings = this.getEffectiveSettings(projectId, taskId);
+    const initialCanvasMode = activeCanvasData.canvasMode || effSettings.canvasMode || 'infinite';
+    const initialA4Orientation = activeCanvasData.a4Orientation || effSettings.a4Orientation || 'portrait';
+    const initialActiveBg = activeCanvasData.activeBg || task.background || effSettings.canvasBgPattern || 'grid';
+
     const attemptId = 'attempt_' + Date.now();
     const now = new Date().toISOString();
     const newAttempt: TaskAttempt = {
@@ -1720,7 +1728,10 @@ class CanvasCritiqueStore {
         panOffset: { x: 0, y: 0 },
         zoomScale: 1,
         activePageIndex: 0,
-        canvasImages: []
+        canvasImages: [],
+        canvasMode: initialCanvasMode,
+        a4Orientation: initialA4Orientation,
+        activeBg: initialActiveBg
       },
       editorText: '',
       critique: null,

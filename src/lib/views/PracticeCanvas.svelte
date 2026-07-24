@@ -57,6 +57,11 @@
   // Toggles and options
   let showTask = $state(true);
   let showSolution = $state(false);
+  let defaultActiveBg = $derived(
+    store.activeProject
+      ? (store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id).canvasBgPattern ?? 'grid')
+      : (store.settings.canvasBgPattern ?? 'grid')
+  );
   let activeBg = $state('grid'); // 'grid' | 'lines' | 'blank' | custom template ID
   let bgOpacity = $state(
     (store.activeProject
@@ -430,12 +435,12 @@
   let activeTooltipMarker = $state(null);
   let showSuccessNotification = $state(false);
 
-  // Canvas mode derived from store settings (with per-lesson override)
-  let canvasMode = $derived(
+  let defaultCanvasMode = $derived(
     store.activeProject
-      ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id).canvasMode
-      : store.settings.canvasMode
+      ? (store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id).canvasMode || 'infinite')
+      : (store.settings.canvasMode || 'infinite')
   );
+  let canvasMode = $state<'infinite' | 'a4'>('infinite');
 
   let showCanvasAnnotations = $derived(
     store.activeProject
@@ -565,11 +570,12 @@
     };
   });
   
-  let a4Orientation = $derived(
+  let defaultA4Orientation = $derived(
     store.activeProject
       ? store.getEffectiveSettings(store.activeProject.id, store.activeTask?.id).a4Orientation ?? 'portrait'
       : store.settings.a4Orientation ?? 'portrait'
   );
+  let a4Orientation = $state<'portrait' | 'landscape'>('portrait');
   let a4BaseWidth = $derived(a4Orientation === 'landscape' ? 1130 : 800);
   let a4BaseHeight = $derived(a4Orientation === 'landscape' ? 800 : 1130);
 
@@ -1670,20 +1676,11 @@
       }
       
       const targetBg = task.background || store.activeProject?.default_background || 'grid';
-      activeBg = targetBg;
+      if (!activeBg) activeBg = targetBg;
       
       tick().then(() => {
         isInitializingTask = false;
       });
-    }
-  });
-
-  $effect(() => {
-    const bg = activeBg;
-    if (isInitializingTask) return;
-    if (!task || !task.id) return;
-    if (store.activeProject) {
-      store.updateTaskBackground(store.activeProject.id, task.id, bg);
     }
   });
 
@@ -1751,7 +1748,10 @@
       panOffset: { ...panOffset },
       zoomScale,
       activePageIndex,
-      canvasImages: canvasImagesData
+      canvasImages: canvasImagesData,
+      canvasMode,
+      a4Orientation,
+      activeBg
     }, writeToDisk);
   }
 
@@ -1899,6 +1899,14 @@
       zoomScale = saved.zoomScale || 1;
       activePageIndex = saved.activePageIndex || 0;
       canvasImages = saved.canvasImages || [];
+      if (saved.canvasMode) canvasMode = saved.canvasMode as 'infinite' | 'a4';
+      else canvasMode = (defaultCanvasMode || 'infinite') as 'infinite' | 'a4';
+
+      if (saved.a4Orientation) a4Orientation = saved.a4Orientation as 'portrait' | 'landscape';
+      else a4Orientation = (defaultA4Orientation || 'portrait') as 'portrait' | 'landscape';
+
+      if (saved.activeBg) activeBg = saved.activeBg;
+      else activeBg = task.background || defaultActiveBg || 'grid';
     } else {
       pages = [
         {
@@ -1915,6 +1923,9 @@
       panOffset = { x: 0, y: 0 };
       zoomScale = 1;
       activePageIndex = 0;
+      canvasMode = (defaultCanvasMode || 'infinite') as 'infinite' | 'a4';
+      a4Orientation = (defaultA4Orientation || 'portrait') as 'portrait' | 'landscape';
+      activeBg = task.background || defaultActiveBg || 'grid';
     }
   }
 
@@ -6058,7 +6069,10 @@
 
               <button
                 onclick={() => {
-                  store.resetCanvasLayoutPreferences();
+                  canvasMode = (defaultCanvasMode || 'infinite') as 'infinite' | 'a4';
+                  a4Orientation = (defaultA4Orientation || 'portrait') as 'portrait' | 'landscape';
+                  activeBg = task.background || defaultActiveBg || 'grid';
+                  saveToStore(true);
                 }}
                 class="w-full flex items-center justify-center gap-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container-high py-3 rounded-xl text-xs font-bold cursor-pointer focus:outline-none bg-transparent transition-colors"
               >
