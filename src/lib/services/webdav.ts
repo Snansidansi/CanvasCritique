@@ -1,7 +1,7 @@
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { store } from '../state/store.svelte';
 import { t } from './i18n';
-import { backupDatabase, replaceDatabase, getDb, getSettings, saveSettings, getCanvasDataDir, loadTaskSolutionFromDisk, loadAllCanvasMetadata, updateLocalCanvasMetadata, syncAttemptsTableWithFiles, loadAttemptFromDisk } from '../db';
+import { backupDatabase, replaceDatabase, getDb, getSettings, saveSettings, getCanvasDataDir, loadTaskSolutionFromDisk, loadAllCanvasMetadata, updateLocalCanvasMetadata, syncAttemptsTableWithFiles, loadAttemptFromDisk, saveAttemptToDisk } from '../db';
 import { defaultSettings } from '../state/defaults';
 import { appLocalDataDir, appDataDir, join } from '@tauri-apps/api/path';
 import { readFile, remove, exists, mkdir, readDir, stat } from '@tauri-apps/plugin-fs';
@@ -267,6 +267,172 @@ function compareVersions(v1: string, v2: string): number {
   return 0;
 }
 
+interface PreSyncAttemptBackup {
+  id: string;
+  taskId: string;
+  name: string;
+  timestamp: string;
+  createdAt?: string;
+  background?: string;
+  critiqueJson?: string | null;
+  editorText?: string;
+  multipleChoiceAnswersJson?: string | null;
+  isConflict?: boolean;
+  diskAttempt?: any;
+}
+
+async function collectPreSyncLocalAttempts(lastSyncedTimestamp: string): Promise<Map<string, PreSyncAttemptBackup>> {
+  const localAttemptsMap = new Map<string, PreSyncAttemptBackup>();
+  try {
+    const db = getDb();
+    const rows: any[] = await db.select(
+      'SELECT id, task_id, name, timestamp, created_at, background, critique_json, editor_text, multiple_choice_answers_json, is_conflict FROM task_attempts'
+    );
+    const lastSyncedTime = lastSyncedTimestamp && lastSyncedTimestamp !== '0' ? new Date(lastSyncedTimestamp).getTime() : 0;
+
+    for (const r of rows) {
+      const diskAttempt = await loadAttemptFromDisk(r.id);
+      const attemptTimeStr = r.timestamp || diskAttempt?.timestamp || new Date().toISOString();
+      const attemptTime = new Date(attemptTimeStr).getTime();
+
+      if (lastSyncedTime === 0 || attemptTime > lastSyncedTime + 1000) {
+        localAttemptsMap.set(r.id, {
+          id: r.id,
+          taskId: r.task_id,
+          name: r.name,
+          timestamp: attemptTimeStr,
+          createdAt: r.created_at || r.timestamp,
+          background: r.background || undefined,
+          critiqueJson: r.critique_json || null,
+          editorText: r.editor_text || diskAttempt?.editorText || '',
+          multipleChoiceAnswersJson: r.multiple_choice_answers_json || '{}',
+          isConflict: Boolean(r.is_conflict),
+          diskAttempt
+        });
+      }
+    }
+  } catch (err) {
+    console.error('[WebDAV Conflict Protect] Failed to collect pre-sync attempts:', err);
+  }
+  return localAttemptsMap;
+}
+
+async function resolveAttemptConflictsAfterDownload(
+  db: any,
+  preSyncLocalAttempts: Map<string, PreSyncAttemptBackup>,
+  lastSyncedTimestamp: string
+): Promise<{ dbModified: boolean; conflictCount: number }> {
+  let dbModified = false;
+  let conflictCount = 0;
+  const lastSyncedTime = lastSyncedTimestamp && lastSyncedTimestamp !== '0' ? new Date(lastSyncedTimestamp).getTime() : 0;
+
+  for (const [attemptId, localBackup] of preSyncLocalAttempts.entries()) {
+    try {
+      const taskCheck = await db.select('SELECT id FROM tasks WHERE id = ?', [localBackup.taskId]) as any[];
+      if (taskCheck.length === 0) {
+        console.warn(`[Conflict Protect] Task ${localBackup.taskId} no longer exists in downloaded DB. Skipping attempt ${attemptId}.`);
+        continue;
+      }
+
+      const dbRows = await db.select(
+        'SELECT id, task_id, name, timestamp, critique_json, editor_text, multiple_choice_answers_json, is_conflict FROM task_attempts WHERE id = ?',
+        [attemptId]
+      ) as any[];
+
+      if (dbRows.length === 0) {
+        console.log(`[Conflict Protect] Restoring local attempt ${attemptId} into DB (did not exist in remote DB).`);
+        await db.execute(
+          'INSERT INTO task_attempts (id, task_id, name, timestamp, created_at, background, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json, is_conflict) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            localBackup.id,
+            localBackup.taskId,
+            localBackup.name,
+            localBackup.timestamp,
+            localBackup.createdAt || localBackup.timestamp,
+            localBackup.background || null,
+            localBackup.critiqueJson,
+            null,
+            localBackup.editorText,
+            localBackup.multipleChoiceAnswersJson,
+            localBackup.isConflict ? 1 : 0
+          ]
+        );
+        if (localBackup.diskAttempt) {
+          await saveAttemptToDisk(localBackup.id, localBackup.diskAttempt);
+        }
+        dbModified = true;
+      } else {
+        const remoteRow = dbRows[0];
+        const remoteTime = new Date(remoteRow.timestamp).getTime();
+
+        const remoteWasModified = lastSyncedTime > 0 && remoteTime > lastSyncedTime + 1000 && remoteRow.timestamp !== localBackup.timestamp;
+
+        if (!remoteWasModified) {
+          console.log(`[Conflict Protect] Restoring local attempt ${attemptId} over remote (remote was not modified since last sync).`);
+          await db.execute(
+            'UPDATE task_attempts SET name = ?, timestamp = ?, critique_json = ?, editor_text = ?, multiple_choice_answers_json = ?, is_conflict = ? WHERE id = ?',
+            [
+              localBackup.name,
+              localBackup.timestamp,
+              localBackup.critiqueJson,
+              localBackup.editorText,
+              localBackup.multipleChoiceAnswersJson,
+              localBackup.isConflict ? 1 : 0,
+              attemptId
+            ]
+          );
+          if (localBackup.diskAttempt) {
+            await saveAttemptToDisk(attemptId, localBackup.diskAttempt);
+          }
+          dbModified = true;
+        } else {
+          console.log(`[Conflict Protect] CONFLICT on attempt ${attemptId}! Creating new conflict attempt for local changes.`);
+          
+          const newAttemptId = `attempt_${crypto.randomUUID()}`;
+          const conflictName = t('settings.data.notifications.syncConflictAttemptName', { name: localBackup.name }) || `${localBackup.name} (Sync-Konflikt)`;
+          const newTimestamp = new Date().toISOString();
+
+          await db.execute(
+            'INSERT INTO task_attempts (id, task_id, name, timestamp, created_at, background, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json, is_conflict) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              newAttemptId,
+              localBackup.taskId,
+              conflictName,
+              newTimestamp,
+              newTimestamp,
+              localBackup.background || null,
+              localBackup.critiqueJson,
+              null,
+              localBackup.editorText,
+              localBackup.multipleChoiceAnswersJson,
+              1
+            ]
+          );
+
+          if (localBackup.diskAttempt) {
+            const conflictDiskData = {
+              ...localBackup.diskAttempt,
+              id: newAttemptId,
+              name: conflictName,
+              timestamp: newTimestamp,
+              updatedAt: newTimestamp,
+              isConflict: true
+            };
+            await saveAttemptToDisk(newAttemptId, conflictDiskData);
+          }
+
+          conflictCount++;
+          dbModified = true;
+        }
+      }
+    } catch (err) {
+      console.error(`[Conflict Protect] Error resolving conflict for attempt ${attemptId}:`, err);
+    }
+  }
+
+  return { dbModified, conflictCount };
+}
+
 export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup = false): Promise<void> {
   const client = getWebDavClient();
   const settings = store.settings;
@@ -382,6 +548,8 @@ export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup 
     if (shouldDownload) {
       console.log('Remote DB is newer and has changes (or forced download). Downloading...');
       
+      const preSyncLocalAttempts = await collectPreSyncLocalAttempts(localTimestamp);
+
       let downloadedBytes: Uint8Array;
       if (await client.exists('/' + REMOTE_DB_FILE_GZ)) {
         console.log('Downloading compressed remote DB...');
@@ -416,8 +584,23 @@ export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup 
       await remove(localBackupPath);
 
       const db = getDb();
-      // Restore local attempts to the newly downloaded database
+
+      // Resolve attempt conflicts & restore local newer attempts before running self-healing
+      const conflictRes = await resolveAttemptConflictsAfterDownload(db, preSyncLocalAttempts, localTimestamp);
+      if (conflictRes.dbModified) {
+        dbModifiedDuringSync = true;
+      }
+
+      // Restore remaining local attempts to the newly downloaded database
       await syncAttemptsTableWithFiles(db);
+
+      if (conflictRes.conflictCount > 0) {
+        store.showNotification(
+          t('settings.data.notifications.syncConflictDetected', { count: conflictRes.conflictCount }) ||
+            `Sync-Konflikt erkannt! ${conflictRes.conflictCount} Versuch(e) wurden als neuer Konflikt-Versuch gerettet.`,
+          'info'
+        );
+      }
 
       const downloadedSettings = await getSettings(db);
       const mergedSettings = {

@@ -633,7 +633,10 @@
         "syncSuccess": "WebDAV-Synchronisation erfolgreich abgeschlossen.",
         "syncNoChanges": "WebDAV-Synchronisation abgeschlossen. Keine Änderungen vorhanden.",
         "syncError": "WebDAV-Synchronisation fehlgeschlagen.",
-        "syncDbDownloaded": "Datenbank von WebDAV heruntergeladen. Lokale Daten aktualisiert."
+        "syncDbDownloaded": "Datenbank von WebDAV heruntergeladen. Lokale Daten aktualisiert.",
+        "syncConflictDetected": "Sync-Konflikt erkannt! {count} Versuch(e) wurden als neuer Konflikt-Versuch gerettet.",
+        "syncConflictAttemptName": "{name} (Sync-Konflikt)",
+        "syncConflictBanner": "Bei dieser Aufgabe gab es einen Synchronisationskonflikt. Ein neuer Versuch wurde erstellt."
       }
     },
     "update": {

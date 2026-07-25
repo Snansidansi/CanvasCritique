@@ -131,6 +131,9 @@
       >
         <span class="material-symbols-outlined text-sm">history</span>
         <span class="truncate max-w-24">{activeAttempt?.name || (store.settings.language === 'Deutsch' ? 'Versuch 1' : 'Try 1')}</span>
+        {#if activeAttempt?.isConflict}
+          <span class="material-symbols-outlined text-amber-500 text-xs shrink-0" title={t('settings.data.notifications.syncConflictBanner')}>warning</span>
+        {/if}
         <span class="material-symbols-outlined text-[14px]">keyboard_arrow_down</span>
       </button>
 
@@ -191,7 +194,10 @@
                       >close</button>
                     </div>
                   {:else}
-                    <span class="truncate pr-2">{attempt.name}</span>
+                    <span class="truncate pr-1">{attempt.name}</span>
+                    {#if attempt.isConflict}
+                      <span class="material-symbols-outlined text-amber-500 text-xs shrink-0" title={t('settings.data.notifications.syncConflictBanner')}>warning</span>
+                    {/if}
                   {/if}
                 </div>
 

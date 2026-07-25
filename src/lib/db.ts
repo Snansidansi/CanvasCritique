@@ -46,6 +46,12 @@ export async function initDb(): Promise<Database> {
     // Column already exists
   }
 
+  try {
+    await db.execute('ALTER TABLE task_attempts ADD COLUMN is_conflict INTEGER DEFAULT 0');
+  } catch (_) {
+    // Column already exists
+  }
+
   await db.execute(`
     CREATE TABLE IF NOT EXISTS task_attempts (
       id TEXT PRIMARY KEY,
@@ -58,6 +64,7 @@ export async function initDb(): Promise<Database> {
       canvas_data_json TEXT,
       editor_text TEXT,
       multiple_choice_answers_json TEXT DEFAULT '{}',
+      is_conflict INTEGER DEFAULT 0,
       FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
     )
   `);
@@ -647,6 +654,7 @@ export async function saveAttemptToDisk(attemptId: string, updates: Partial<Task
     if (updates.editorText !== undefined) currentContent.editorText = updates.editorText;
     if (updates.multipleChoiceAnswers !== undefined) currentContent.multipleChoiceAnswers = updates.multipleChoiceAnswers;
     if (updates.canvasData !== undefined) currentContent.canvasData = updates.canvasData;
+    if (updates.isConflict !== undefined) currentContent.isConflict = updates.isConflict;
 
     if (updates.updatedAt !== undefined) {
       currentContent.updatedAt = updates.updatedAt;
@@ -691,6 +699,7 @@ export async function loadAttemptFromDisk(attemptId: string): Promise<TaskAttemp
         canvasData: parsed.canvasData || null,
         editorText: parsed.editorText || '',
         multipleChoiceAnswers: parsed.multipleChoiceAnswers || {},
+        isConflict: Boolean(parsed.isConflict),
         updatedAt: parsed.updatedAt || parsed.timestamp
       };
     }
@@ -1192,7 +1201,7 @@ export async function loadAllData(db: Database): Promise<AllData> {
 export async function getAttemptsForTask(db: Database, taskId: string): Promise<TaskAttempt[]> {
   try {
     const rows: any[] = await db.select(
-      'SELECT id, task_id, name, timestamp, created_at, background, critique_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE task_id = ?',
+      'SELECT id, task_id, name, timestamp, created_at, background, critique_json, editor_text, multiple_choice_answers_json, is_conflict FROM task_attempts WHERE task_id = ?',
       [taskId]
     );
     const attempts = rows.map(r => ({
@@ -1205,7 +1214,8 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
       canvasData: null, // Loaded on-demand
       editorText: r.editor_text || '',
       critique: r.critique_json ? JSON.parse(r.critique_json) : null,
-      multipleChoiceAnswers: r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {}
+      multipleChoiceAnswers: r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {},
+      isConflict: Boolean(r.is_conflict)
     }));
     attempts.sort((a, b) => getAttemptCreationMs(a) - getAttemptCreationMs(b));
     return attempts;
@@ -1218,7 +1228,7 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
 export async function insertAttempt(db: Database, attempt: TaskAttempt): Promise<void> {
   await saveAttemptToDisk(attempt.id, attempt);
   await db.execute(
-    'INSERT OR REPLACE INTO task_attempts (id, task_id, name, timestamp, created_at, background, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT OR REPLACE INTO task_attempts (id, task_id, name, timestamp, created_at, background, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json, is_conflict) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       attempt.id,
       attempt.taskId,
@@ -1229,7 +1239,8 @@ export async function insertAttempt(db: Database, attempt: TaskAttempt): Promise
       attempt.critique ? JSON.stringify(attempt.critique) : null,
       null, // canvas_data_json column is kept NULL in database
       attempt.editorText,
-      attempt.multipleChoiceAnswers ? JSON.stringify(attempt.multipleChoiceAnswers) : '{}'
+      attempt.multipleChoiceAnswers ? JSON.stringify(attempt.multipleChoiceAnswers) : '{}',
+      attempt.isConflict ? 1 : 0
     ]
   );
 }

@@ -72,6 +72,7 @@ export interface TaskAttempt {
   editorText: string;
   critique: any;
   multipleChoiceAnswers?: Record<string, string[]>; // questionId -> selectedOptionIds[]
+  isConflict?: boolean;
 }
 
 export interface ProjectSettingsOverride {

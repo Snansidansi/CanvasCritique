@@ -634,7 +634,10 @@
         "syncSuccess": "WebDAV sync completed successfully.",
         "syncNoChanges": "WebDAV sync completed. No changes detected.",
         "syncError": "WebDAV sync failed.",
-        "syncDbDownloaded": "Database downloaded from WebDAV. Local data updated."
+        "syncDbDownloaded": "Database downloaded from WebDAV. Local data updated.",
+        "syncConflictDetected": "Sync conflict detected! {count} attempt(s) saved as separate conflict attempt.",
+        "syncConflictAttemptName": "{name} (Sync Conflict)",
+        "syncConflictBanner": "There was a sync conflict for this task. A new attempt was created."
       }
     },
     "update": {
