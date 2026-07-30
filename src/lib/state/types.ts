@@ -141,6 +141,8 @@ export interface Project {
   hideCompleted?: boolean;
   settingsOverride?: ProjectSettingsOverride;
   default_background?: string | null;
+  isTemplate?: boolean;
+  isGlobal?: boolean;
 }
 
 export interface StylusButton {

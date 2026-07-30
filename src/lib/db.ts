@@ -116,6 +116,16 @@ export async function initDb(): Promise<Database> {
   `);
 
   await db.execute(`
+    CREATE TABLE IF NOT EXISTS lesson_templates (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL UNIQUE,
+      is_global INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -466,9 +476,12 @@ export async function saveSettings(db: Database, settings: Settings): Promise<vo
 // ── Projects ──
 
 export async function getProjects(db: Database): Promise<Project[]> {
-  const rows: any[] = await db.select(
-    'SELECT id, name, icon_media_path, guidelines, categories_json, profile_id, hide_completed, settings_override_json, default_background FROM projects'
-  );
+  const rows: any[] = await db.select(`
+    SELECT p.id, p.name, p.icon_media_path, p.guidelines, p.categories_json, p.profile_id, p.hide_completed, p.settings_override_json, p.default_background,
+           t.id AS template_id, t.is_global
+    FROM projects p
+    LEFT JOIN lesson_templates t ON p.id = t.project_id
+  `);
   return rows.map(r => {
     const project: Project = {
       id: r.id,
@@ -479,13 +492,36 @@ export async function getProjects(db: Database): Promise<Project[]> {
       tasks: [],
       profileId: r.profile_id,
       hideCompleted: !!r.hide_completed,
-      default_background: r.default_background || null
+      default_background: r.default_background || null,
+      isTemplate: !!r.template_id,
+      isGlobal: r.template_id ? !!r.is_global : false
     };
     if (r.settings_override_json) {
       try { project.settingsOverride = JSON.parse(r.settings_override_json); } catch (_) {}
     }
     return project;
   });
+}
+
+// ── Templates ──
+
+export async function insertTemplateRecord(db: Database, projectId: string, isGlobal: boolean): Promise<void> {
+  const id = 'tmpl_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+  await db.execute(
+    'INSERT OR REPLACE INTO lesson_templates (id, project_id, is_global) VALUES (?, ?, ?)',
+    [id, projectId, isGlobal ? 1 : 0]
+  );
+}
+
+export async function updateTemplateGlobal(db: Database, projectId: string, isGlobal: boolean): Promise<void> {
+  await db.execute(
+    'UPDATE lesson_templates SET is_global = ? WHERE project_id = ?',
+    [isGlobal ? 1 : 0, projectId]
+  );
+}
+
+export async function deleteTemplateRecord(db: Database, projectId: string): Promise<void> {
+  await db.execute('DELETE FROM lesson_templates WHERE project_id = ?', [projectId]);
 }
 
 export async function insertProject(db: Database, project: Project): Promise<void> {
