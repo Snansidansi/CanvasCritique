@@ -5,11 +5,16 @@
   import { saveMediaToDb, isImageFile, isAudioFile, isVideoFile, getFileIcon } from '../../db/media';
   import type { MultipleChoiceTask, MultipleChoiceOption, MediaFile } from '../../state/types';
 
+  import McCsvImportModal from './McCsvImportModal.svelte';
+
   let {
     multipleChoiceTasks = $bindable([]),
     fontSize = 13,
     onOpenPreview = () => {}
   } = $props();
+
+  // CSV Import Modal state
+  let isCsvModalOpen = $state(false);
 
   // Active preview states per question (mapping question.id -> boolean)
   let showQuestionPreview = $state<Record<string, boolean>>({});
@@ -548,6 +553,15 @@
       {/if}
       <button
         type="button"
+        onclick={() => (isCsvModalOpen = true)}
+        class="flex items-center gap-1.5 px-3 py-2 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 text-on-surface rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer focus:outline-none"
+        title={t('taskEditor.mc.importCsvTitle') || 'Multiple-Choice-Fragen aus CSV importieren'}
+      >
+        <span class="material-symbols-outlined text-[16px]">table_chart</span>
+        <span>{t('taskEditor.mc.importCsv') || 'CSV Import'}</span>
+      </button>
+      <button
+        type="button"
         onclick={addQuestion}
         class="flex items-center gap-1.5 px-4 py-2 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold shadow-sm transition-colors border-0 cursor-pointer focus:outline-none"
       >
@@ -1034,4 +1048,14 @@
     </div>
   {/if}
   {/if}
+
+  <!-- CSV Import Modal -->
+  <McCsvImportModal
+    isOpen={isCsvModalOpen}
+    onClose={() => (isCsvModalOpen = false)}
+    onImport={(newQuestions) => {
+      isEditorExpanded = true;
+      multipleChoiceTasks = [...multipleChoiceTasks, ...newQuestions];
+    }}
+  />
 </div>
