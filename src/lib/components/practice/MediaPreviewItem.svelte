@@ -253,7 +253,7 @@
       </span>
       <span class="truncate pr-4">{getBaseName(file.name)}</span>
     </div>
-    <div class="flex items-center shrink-0 gap-1.5" onclick={e => e.stopPropagation()}>
+    <div class="flex items-center shrink-0 gap-1.5">
       {#if isImageFile(file.name) && onSelectProvidedImage}
         <button
           type="button"
@@ -270,7 +270,10 @@
       {#if isIntegratedFile(file.name) && !isAudioFile(file.name)}
         <button
           type="button"
-          onclick={() => onOpenPreview({ name: file.name, dataUrl: fileUrl, mediaId: file.mediaId })}
+          onclick={(e) => {
+            e.stopPropagation();
+            onOpenPreview({ name: file.name, dataUrl: fileUrl, mediaId: file.mediaId });
+          }}
           class="material-symbols-outlined text-[18px] text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
           title={t('practice.infoPanels.openFullScreen') || 'Vorschau'}
         >
