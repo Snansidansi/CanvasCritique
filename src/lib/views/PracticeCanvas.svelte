@@ -5955,7 +5955,23 @@
                   >
                     <span class="material-symbols-outlined text-sm">remove</span>
                   </button>
-                  <span class="w-16 text-center text-xs font-bold text-on-surface">{targetSettings.editorFontSize || 16} px</span>
+                  <div class="flex items-center justify-center gap-1">
+                    <input 
+                      id="editor-font-size-spinbox"
+                      type="number" 
+                      min="1"
+                      value={targetSettings.editorFontSize || 16}
+                      oninput={(e) => {
+                        const val = parseInt((e.currentTarget as HTMLInputElement).value, 10);
+                        if (!isNaN(val) && val > 0) {
+                          targetSettings.editorFontSize = val;
+                          if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                        }
+                      }}
+                      class="w-12 text-center text-xs font-bold text-on-surface bg-transparent border border-outline-variant/40 rounded px-1 py-0.5 focus:outline-none focus:border-primary focus:bg-surface-container-high [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span class="text-xs font-bold text-on-surface-variant select-none">px</span>
+                  </div>
                   <button 
                     type="button"
                     onclick={() => {
@@ -5988,7 +6004,23 @@
                   >
                     <span class="material-symbols-outlined text-sm">remove</span>
                   </button>
-                  <span class="w-16 text-center text-xs font-bold text-on-surface">{targetSettings.canvasFontSize || 13} px</span>
+                  <div class="flex items-center justify-center gap-1">
+                    <input 
+                      id="canvas-font-size-spinbox"
+                      type="number" 
+                      min="1"
+                      value={targetSettings.canvasFontSize || 13}
+                      oninput={(e) => {
+                        const val = parseInt((e.currentTarget as HTMLInputElement).value, 10);
+                        if (!isNaN(val) && val > 0) {
+                          targetSettings.canvasFontSize = val;
+                          if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
+                        }
+                      }}
+                      class="w-12 text-center text-xs font-bold text-on-surface bg-transparent border border-outline-variant/40 rounded px-1 py-0.5 focus:outline-none focus:border-primary focus:bg-surface-container-high [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span class="text-xs font-bold text-on-surface-variant select-none">px</span>
+                  </div>
                   <button 
                     type="button"
                     onclick={() => {
