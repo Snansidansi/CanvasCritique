@@ -1992,10 +1992,21 @@
           }
         }
 
+        const isNewTask = taskId !== lastInitializedTaskId;
         lastInitializedTaskId = taskId;
         lastInitializedAttemptId = attemptId;
         
         performLoadState(taskId);
+
+        if (isNewTask && task.attempts && task.attempts.some((a: any) => a.isConflict)) {
+          store.confirm(
+            t('practice.conflictTaskTitle') || 'Sync-Konflikt bei dieser Aufgabe',
+            t('practice.conflictTaskMessage') || 'Bei dieser Aufgabe gab es einen Synchronisationskonflikt. Bitte überprüfe die verschiedenen Versuche in der Auswahlliste oben.',
+            () => {},
+            null,
+            true
+          );
+        }
       });
     }
   });

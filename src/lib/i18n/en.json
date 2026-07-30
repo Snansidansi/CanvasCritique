@@ -298,6 +298,8 @@
     "attemptsNew": "New Attempt",
     "attemptsDeleteTitle": "Delete Attempt",
     "attemptsDeleteConfirm": "Are you sure you want to delete '{name}'?",
+    "conflictTaskTitle": "Sync Conflict in Task",
+    "conflictTaskMessage": "There was a sync conflict for this task. Please check the different attempts in the selector menu above.",
     "markIncomplete": "Mark as Incomplete",
     "markCompleted": "Mark as Completed",
     "prevTask": "Previous Task",
@@ -635,6 +637,7 @@
         "syncNoChanges": "WebDAV sync completed. No changes detected.",
         "syncError": "WebDAV sync failed.",
         "syncDbDownloaded": "Database downloaded from WebDAV. Local data updated.",
+        "syncConflictTitle": "Sync Conflict Detected",
         "syncConflictDetected": "Sync conflict detected! {count} attempt(s) saved as separate conflict attempt.",
         "syncConflictAttemptName": "{name} (Sync Conflict)",
         "syncConflictBanner": "There was a sync conflict for this task. A new attempt was created."

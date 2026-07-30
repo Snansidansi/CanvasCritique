@@ -297,6 +297,8 @@
     "attemptsNew": "Neuer Versuch",
     "attemptsDeleteTitle": "Versuch löschen",
     "attemptsDeleteConfirm": "Möchtest du '{name}' wirklich löschen?",
+    "conflictTaskTitle": "Sync-Konflikt bei dieser Aufgabe",
+    "conflictTaskMessage": "Bei dieser Aufgabe gab es einen Synchronisationskonflikt. Bitte überprüfe die verschiedenen Versuche in der Auswahlliste oben.",
     "markIncomplete": "Als unvollständig markieren",
     "markCompleted": "Als abgeschlossen markieren",
     "prevTask": "Vorherige Aufgabe",
@@ -634,6 +636,7 @@
         "syncNoChanges": "WebDAV-Synchronisation abgeschlossen. Keine Änderungen vorhanden.",
         "syncError": "WebDAV-Synchronisation fehlgeschlagen.",
         "syncDbDownloaded": "Datenbank von WebDAV heruntergeladen. Lokale Daten aktualisiert.",
+        "syncConflictTitle": "Sync-Konflikt erkannt",
         "syncConflictDetected": "Sync-Konflikt erkannt! {count} Versuch(e) wurden als neuer Konflikt-Versuch gerettet.",
         "syncConflictAttemptName": "{name} (Sync-Konflikt)",
         "syncConflictBanner": "Bei dieser Aufgabe gab es einen Synchronisationskonflikt. Ein neuer Versuch wurde erstellt."

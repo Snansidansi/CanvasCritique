@@ -595,10 +595,13 @@ export async function syncWebDav(forceMode?: 'download' | 'upload', skipCleanup 
       await syncAttemptsTableWithFiles(db);
 
       if (conflictRes.conflictCount > 0) {
-        store.showNotification(
+        store.confirm(
+          t('settings.data.notifications.syncConflictTitle') || 'Sync-Konflikt erkannt',
           t('settings.data.notifications.syncConflictDetected', { count: conflictRes.conflictCount }) ||
             `Sync-Konflikt erkannt! ${conflictRes.conflictCount} Versuch(e) wurden als neuer Konflikt-Versuch gerettet.`,
-          'info'
+          () => {},
+          null,
+          true
         );
       }
 

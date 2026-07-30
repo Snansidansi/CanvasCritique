@@ -138,7 +138,7 @@
       </button>
 
       {#if showAttemptsMenu}
-        <div class="absolute top-full left-0 mt-1.5 w-60 bg-surface border border-outline-variant rounded-xl shadow-xl z-50 flex flex-col animate-fade-in font-sans">
+        <div class="absolute top-full left-0 mt-1.5 min-w-64 max-w-[calc(100vw-2rem)] w-max bg-surface border border-outline-variant rounded-xl shadow-xl z-50 flex flex-col animate-fade-in font-sans">
           <div class="px-3.5 py-2.5 border-b border-outline-variant/30 text-xs font-bold text-primary flex items-center gap-1.5">
             <span class="material-symbols-outlined text-sm">history</span>
             <span>{t('practice.attemptsTitle')}</span>
@@ -194,7 +194,7 @@
                       >close</button>
                     </div>
                   {:else}
-                    <span class="truncate pr-1">{attempt.name}</span>
+                    <span class="wrap-break-word whitespace-normal font-medium leading-tight pr-1">{attempt.name}</span>
                     {#if attempt.isConflict}
                       <span class="material-symbols-outlined text-amber-500 text-xs shrink-0" title={t('settings.data.notifications.syncConflictBanner')}>warning</span>
                     {/if}
