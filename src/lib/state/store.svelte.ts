@@ -3139,10 +3139,28 @@ class CanvasCritiqueStore {
   // ── Template Management ──
 
   async createTemplate(name: string, icon: string = 'history_edu', isGlobal: boolean = false): Promise<Project> {
+    const tmplId = 'tmpl_proj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    let resolvedIcon = icon || 'history_edu';
+
+    if (resolvedIcon && !resolvedIcon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(resolvedIcon)) {
+      this._projectIconMediaIds[tmplId] = resolvedIcon;
+      try {
+        resolvedIcon = await getMediaDataUrl(resolvedIcon);
+      } catch (_) {}
+    } else if (resolvedIcon && resolvedIcon.startsWith('data:')) {
+      try {
+        const mediaId = await saveMediaToDb(resolvedIcon);
+        this._projectIconMediaIds[tmplId] = mediaId;
+        resolvedIcon = await getMediaDataUrl(mediaId);
+      } catch (err) {
+        console.error('[store] Failed to save media icon for template:', err);
+      }
+    }
+
     const newTemplate: Project = {
-      id: 'tmpl_proj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      id: tmplId,
       name: name.trim(),
-      icon: icon || 'history_edu',
+      icon: resolvedIcon,
       guidelines: '',
       categories: ['Basics'],
       tasks: [],
@@ -3160,6 +3178,7 @@ class CanvasCritiqueStore {
     }
 
     this.projects.push(newTemplate);
+    await this.saveProjects();
     this.showNotification(t('templates.createdNotification') || 'Vorlage erfolgreich erstellt.', 'success');
     return newTemplate;
   }
@@ -3173,6 +3192,19 @@ class CanvasCritiqueStore {
     clonedProject.profileId = this.activeProfileId;
     clonedProject.isTemplate = true;
     clonedProject.isGlobal = isGlobal;
+
+    if (source.icon) {
+      const existingMediaId = this._projectIconMediaIds[source.id];
+      if (existingMediaId) {
+        this._projectIconMediaIds[clonedProject.id] = existingMediaId;
+      } else if (source.icon.startsWith('data:')) {
+        try {
+          const newMediaId = await saveMediaToDb(source.icon);
+          this._projectIconMediaIds[clonedProject.id] = newMediaId;
+          clonedProject.icon = await getMediaDataUrl(newMediaId);
+        } catch (_) {}
+      }
+    }
 
     // Clean user progress from cloned tasks
     if (clonedProject.tasks) {
@@ -3201,6 +3233,7 @@ class CanvasCritiqueStore {
     }
 
     this.projects.push(clonedProject);
+    await this.saveProjects();
     this.showNotification(t('templates.copiedNotification') || 'Lektion als Vorlage kopiert.', 'success');
     return clonedProject;
   }
@@ -3214,6 +3247,19 @@ class CanvasCritiqueStore {
     newProject.profileId = targetProfileId || this.activeProfileId;
     newProject.isTemplate = false;
     newProject.isGlobal = false;
+
+    if (template.icon) {
+      const existingMediaId = this._projectIconMediaIds[template.id];
+      if (existingMediaId) {
+        this._projectIconMediaIds[newProject.id] = existingMediaId;
+      } else if (template.icon.startsWith('data:')) {
+        try {
+          const newMediaId = await saveMediaToDb(template.icon);
+          this._projectIconMediaIds[newProject.id] = newMediaId;
+          newProject.icon = await getMediaDataUrl(newMediaId);
+        } catch (_) {}
+      }
+    }
 
     // Clean user progress from tasks
     if (newProject.tasks) {
@@ -3241,6 +3287,7 @@ class CanvasCritiqueStore {
     }
 
     this.projects.push(newProject);
+    await this.saveProjects();
     this.showNotification(
       (t('templates.lessonCreatedNotification') || "Lektion aus Vorlage '{name}' erstellt.").replace('{name}', template.name),
       'success'
@@ -3279,6 +3326,13 @@ class CanvasCritiqueStore {
     try {
       const clonedTasks = (project.tasks || []).map(t => ({ ...t }));
       const mediaIdsToPack: string[] = [];
+
+      // Pack icon media if applicable
+      const iconMediaId = this._projectIconMediaIds[project.id];
+      if (iconMediaId) {
+        mediaIdsToPack.push(iconMediaId);
+      }
+
       for (const task of clonedTasks) {
         if (task.instructionFiles) {
           for (const file of task.instructionFiles) {
@@ -3304,7 +3358,7 @@ class CanvasCritiqueStore {
 
       const exportData: any = {
         name: project.name,
-        icon: project.icon,
+        icon: iconMediaId || project.icon,
         guidelines: project.guidelines,
         categories: project.categories,
         tasks: clonedTasks,
@@ -3336,10 +3390,26 @@ class CanvasCritiqueStore {
       const projData = Array.isArray(projectData) ? projectData[0] : projectData;
       if (!projData || typeof projData !== 'object') return null;
 
+      const templateId = 'tmpl_proj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+      let icon = projData.icon || 'history_edu';
+
+      if (icon && icon.startsWith('data:')) {
+        try {
+          const mediaId = await saveMediaToDb(icon);
+          this._projectIconMediaIds[templateId] = mediaId;
+          icon = await getMediaDataUrl(mediaId);
+        } catch (_) {}
+      } else if (icon && !icon.startsWith('data:') && /^[a-f0-9-]{36}(\.[a-z0-9]+)?$/i.test(icon)) {
+        this._projectIconMediaIds[templateId] = icon;
+        try {
+          icon = await getMediaDataUrl(icon);
+        } catch (_) {}
+      }
+
       const templateProject: Project = {
-        id: 'tmpl_proj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+        id: templateId,
         name: projData.name || 'Importierte Vorlage',
-        icon: projData.icon || 'history_edu',
+        icon: icon,
         guidelines: projData.guidelines || '',
         categories: Array.isArray(projData.categories) ? projData.categories : ['Basics'],
         tasks: [],
@@ -3383,6 +3453,7 @@ class CanvasCritiqueStore {
       }
 
       this.projects.push(templateProject);
+      await this.saveProjects();
       this.showNotification(t('templates.importedNotification') || 'Vorlage erfolgreich importiert.', 'success');
       return templateProject;
     } catch (err) {

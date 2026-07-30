@@ -184,8 +184,12 @@
             <div>
               <!-- Header & Badges -->
               <div class="flex items-start justify-between gap-3 mb-3">
-                <div class="w-11 h-11 rounded-xl bg-primary-container/30 text-primary border border-primary/20 flex items-center justify-center shrink-0">
-                  <span class="material-symbols-outlined text-[24px]">{template.icon || 'history_edu'}</span>
+                <div class="w-11 h-11 rounded-xl bg-primary-container/30 text-primary border border-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
+                  {#if template.icon && (template.icon.startsWith('data:') || template.icon.startsWith('blob:') || template.icon.startsWith('http') || template.icon.includes('/') || template.icon.includes('.'))}
+                    <img src={template.icon} class="w-8 h-8 object-contain rounded" alt="" />
+                  {:else}
+                    <span class="material-symbols-outlined text-[24px]">{template.icon || 'history_edu'}</span>
+                  {/if}
                 </div>
                 <div class="flex items-center gap-1.5">
                   {#if template.isGlobal}
