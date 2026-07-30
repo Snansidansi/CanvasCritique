@@ -165,9 +165,7 @@
     }
 
     try {
-      // 1x1 transparent PNG data URL for vision test
-      const tinyImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-      const prompt = 'Describe this image in 1 word.';
+      const prompt = "Reply EXCLUSIVELY with the word 'yes' and nothing else.";
       const providers = targetSettings.ocrOpenRouterProvider || store.settings.ocrOpenRouterProvider || [];
       const reasoning = targetSettings.ocrOpenRouterReasoning !== undefined ? targetSettings.ocrOpenRouterReasoning : store.settings.ocrOpenRouterReasoning;
 
@@ -176,10 +174,7 @@
         messages: [
           {
             role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: tinyImage } }
-            ]
+            content: prompt
           }
         ]
       };
