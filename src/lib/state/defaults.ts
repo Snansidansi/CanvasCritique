@@ -37,6 +37,8 @@ Task: "{{task_name}}"
 
 Evaluate the student's work accurately. Use LaTeX math notation for math symbols (e.g. $x^2$ or $$\\int_0^1 f(x)\\,dx$$). Do not critique handwriting quality. Keep feedback very brief (1 sentence max).`;
 
+export const DEFAULT_OCR_PROMPT = `Extract all handwritten and printed text from this image accurately in plain text. Output only the extracted text without introductory or concluding comments.`;
+
 function getSystemLanguage(): string {
   if (typeof navigator !== 'undefined' && navigator.language) {
     const lang = navigator.language.toLowerCase();
@@ -113,6 +115,11 @@ export const defaultSettings: Settings = {
   filterImage: true,
   filterPdf: false,
   filterAudio: false,
-  filterVideo: false
+  filterVideo: false,
+  ocrEnabled: true,
+  ocrOpenRouterModel: '',
+  ocrOpenRouterProvider: [],
+  ocrOpenRouterReasoning: true,
+  ocrCustomPrompt: ''
 };
 

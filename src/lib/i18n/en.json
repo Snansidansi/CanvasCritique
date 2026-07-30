@@ -290,7 +290,36 @@
     "overrideEditorFontSizeLabel": "Override Text Editor Font Size",
     "overrideEditorFontSizeDesc": "Use custom text editor font size settings for this lesson instead of global settings",
     "editorFontSizeTitle": "Text Editor Font Size",
-    "usingGlobalEditorFontSizeDesc": "This lesson is using the global text editor font size."
+    "usingGlobalEditorFontSizeDesc": "This lesson is using the global text editor font size.",
+    "ocrTitle": "OCR Recognition",
+    "ocrOverrideDesc": "Override OCR settings for this lesson?"
+  },
+  "ocr": {
+    "modalTitle": "Extract Text via OCR from Image",
+    "targetLabelPrefix": "Target Field",
+    "dragDropPrompt": "Drag & drop image here",
+    "supportedFormats": "Supports PNG, JPG, WEBP",
+    "selectFileBtn": "Select File",
+    "pasteClipboardBtn": "From Clipboard",
+    "promptAndModelSettings": "Customize Prompt Settings",
+    "extractTextBtn": "Extract Text",
+    "processingText": "Processing Image...",
+    "processing": "Processing...",
+    "buttonTooltip": "Insert text from image via OCR",
+    "successNotify": "Text successfully extracted via OCR!",
+    "failedNotify": "OCR text extraction failed.",
+    "errorInvalidImage": "Please select a valid image file.",
+    "errorNoClipboardImage": "No image found in clipboard.",
+    "errorClipboardAccess": "Failed to access clipboard.",
+    "errorNoImageSelected": "Please select an image first."
+  },
+  "stats": {
+    "filterTypesTitle": "Filter Request Types",
+    "typeCorrection": "Correction",
+    "typeOcr": "OCR",
+    "requestTypeColumn": "Request Type",
+    "chartLinesLabel": "Chart Series",
+    "lineTotal": "Total"
   },
   "practice": {
     "backToProject": "Back to project",
@@ -464,6 +493,17 @@
       "data": "Data",
       "stats": "Stats",
       "update": "Update"
+    },
+    "ocr": {
+      "sectionTitle": "OCR (Image-to-Text)",
+      "enableTitle": "Enable OCR Feature",
+      "enableDesc": "Allows extracting text from images via OCR during task creation",
+      "modelTitle": "OpenRouter Model for OCR",
+      "modelDesc": "Select a custom vision model for OCR (uses primary model if left blank)",
+      "useDefaultModel": "Use Primary Model",
+      "promptTitle": "Custom OCR Prompt",
+      "promptDesc": "Customize prompt instructions for image text extraction",
+      "resetPrompt": "Reset to Default"
     },
     "appearance": {
       "title": "Appearance",

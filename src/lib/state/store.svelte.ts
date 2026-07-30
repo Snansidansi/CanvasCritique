@@ -17,7 +17,8 @@ import { getAttemptCreationMs } from '../utils/attempts';
 
 import {
   defaultProjects,
-  defaultSettings
+  defaultSettings,
+  DEFAULT_OCR_PROMPT
 } from './defaults';
 
 import {
@@ -2740,13 +2741,52 @@ class CanvasCritiqueStore {
     return result;
   }
 
+  getEffectiveOcrSettings(project?: Project | null) {
+    const globalSettings = this.settings;
+    const projOverride = project?.settingsOverride;
+    const useProjOcr = projOverride?.overrideOcr;
+
+    const ocrEnabled = useProjOcr
+      ? (projOverride?.ocrEnabled ?? globalSettings.ocrEnabled ?? true)
+      : (globalSettings.ocrEnabled ?? true);
+
+    const model = (useProjOcr && projOverride?.ocrOpenRouterModel)
+      ? projOverride.ocrOpenRouterModel
+      : (globalSettings.ocrOpenRouterModel || globalSettings.openRouterModel);
+
+    const provider = (useProjOcr && projOverride?.ocrOpenRouterProvider && projOverride.ocrOpenRouterProvider.length > 0)
+      ? projOverride.ocrOpenRouterProvider
+      : (globalSettings.ocrOpenRouterProvider && globalSettings.ocrOpenRouterProvider.length > 0
+          ? globalSettings.ocrOpenRouterProvider
+          : globalSettings.openRouterProvider);
+
+    const reasoning = (useProjOcr && projOverride?.ocrOpenRouterReasoning !== undefined)
+      ? projOverride.ocrOpenRouterReasoning
+      : (globalSettings.ocrOpenRouterReasoning !== undefined
+          ? globalSettings.ocrOpenRouterReasoning
+          : globalSettings.openRouterReasoning);
+
+    const customPrompt = (useProjOcr && projOverride?.ocrCustomPrompt !== undefined && projOverride?.ocrCustomPrompt !== '')
+      ? projOverride.ocrCustomPrompt
+      : (globalSettings.ocrCustomPrompt || DEFAULT_OCR_PROMPT);
+
+    return {
+      ocrEnabled,
+      model,
+      provider,
+      reasoning,
+      customPrompt
+    };
+  }
+
   async recordRequest(
     provider: 'openrouter',
     model: string,
     inputTokens: number,
     outputTokens: number,
     reasoningTokens: number,
-    cost: number
+    cost: number,
+    requestType: string = 'correction'
   ): Promise<void> {
     if (!this.settings.statsEnabled) return;
 
@@ -2758,7 +2798,8 @@ class CanvasCritiqueStore {
       inputTokens,
       outputTokens,
       reasoningTokens,
-      cost
+      cost,
+      requestType
     };
 
     // Update in-memory reactive state

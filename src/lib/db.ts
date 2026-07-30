@@ -95,7 +95,8 @@ export async function initDb(): Promise<Database> {
       input_tokens INTEGER NOT NULL,
       output_tokens INTEGER NOT NULL,
       reasoning_tokens INTEGER NOT NULL DEFAULT 0,
-      cost REAL NOT NULL
+      cost REAL NOT NULL,
+      request_type TEXT NOT NULL DEFAULT 'correction'
     )
   `);
 
@@ -199,6 +200,10 @@ export async function initDb(): Promise<Database> {
 
   try {
     await db.execute('ALTER TABLE task_attempts ADD COLUMN background TEXT');
+  } catch (_) {}
+
+  try {
+    await db.execute('ALTER TABLE api_request_logs ADD COLUMN request_type TEXT NOT NULL DEFAULT "correction"');
   } catch (_) {}
 
   // Check if task_canvas_media table exists before creating it, to see if we need to migrate existing references
@@ -1129,7 +1134,7 @@ export async function deleteCustomBackground(db: Database, id: string): Promise<
 export async function getRequestLogs(db: Database): Promise<RequestLog[]> {
   try {
     const rows: any[] = await db.select(
-      'SELECT id, timestamp, provider, model, input_tokens, output_tokens, reasoning_tokens, cost FROM api_request_logs ORDER BY timestamp ASC'
+      'SELECT id, timestamp, provider, model, input_tokens, output_tokens, reasoning_tokens, cost, request_type FROM api_request_logs ORDER BY timestamp ASC'
     );
     return rows.map(r => ({
       id: r.id,
@@ -1139,7 +1144,8 @@ export async function getRequestLogs(db: Database): Promise<RequestLog[]> {
       inputTokens: r.input_tokens,
       outputTokens: r.output_tokens,
       reasoningTokens: r.reasoning_tokens,
-      cost: r.cost
+      cost: r.cost,
+      requestType: r.request_type || 'correction'
     }));
   } catch (err) {
     console.error('Failed to load request logs from DB:', err);
@@ -1149,8 +1155,8 @@ export async function getRequestLogs(db: Database): Promise<RequestLog[]> {
 
 export async function insertRequestLog(db: Database, log: RequestLog): Promise<void> {
   await db.execute(
-    `INSERT INTO api_request_logs (id, timestamp, provider, model, input_tokens, output_tokens, reasoning_tokens, cost)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO api_request_logs (id, timestamp, provider, model, input_tokens, output_tokens, reasoning_tokens, cost, request_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       log.id,
       log.timestamp,
@@ -1159,7 +1165,8 @@ export async function insertRequestLog(db: Database, log: RequestLog): Promise<v
       log.inputTokens,
       log.outputTokens,
       log.reasoningTokens,
-      log.cost
+      log.cost,
+      log.requestType || 'correction'
     ]
   );
 }

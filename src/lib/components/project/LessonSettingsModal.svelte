@@ -6,6 +6,7 @@
   import CanvasBackgroundSelector from '../settings/CanvasBackgroundSelector.svelte';
   import TaskNumberingConfig from '../settings/TaskNumberingConfig.svelte';
   import MediaFilterSettings from '../settings/MediaFilterSettings.svelte';
+  import OcrSettings from '../settings/OcrSettings.svelte';
   import type { Project } from '../../state/types';
   import { t } from '../../services/i18n';
 
@@ -23,11 +24,17 @@
       project.settingsOverride = {
         overrideSettings: false,
         overrideModel: false,
+        overrideOcr: false,
         overrideCanvas: false,
         overrideEvaluation: false,
         overrideSystemPrompt: false,
         overrideMediaFilter: false,
         openRouterModel: store.settings.openRouterModel,
+        ocrEnabled: store.settings.ocrEnabled,
+        ocrOpenRouterModel: store.settings.ocrOpenRouterModel,
+        ocrOpenRouterProvider: [...(store.settings.ocrOpenRouterProvider || [])],
+        ocrOpenRouterReasoning: store.settings.ocrOpenRouterReasoning,
+        ocrCustomPrompt: store.settings.ocrCustomPrompt || '',
         showCanvasAnnotations: store.settings.showCanvasAnnotations,
         openRouterProvider: [...(store.settings.openRouterProvider || [])],
         openRouterReasoning: store.settings.openRouterReasoning,
@@ -60,11 +67,12 @@
   let hasCustomSystemPrompt = $state(false);
 
   // Tab navigation state
-  type TabId = 'model' | 'canvas' | 'eraser' | 'evaluation' | 'prompt' | 'numbering' | 'mediaFilter';
+  type TabId = 'model' | 'ocr' | 'canvas' | 'eraser' | 'evaluation' | 'prompt' | 'numbering' | 'mediaFilter';
   let activeTab = $state<TabId>('model');
 
   const tabs = [
     { id: 'model', labelKey: 'lessonSettings.modelConfigTitle', icon: 'smart_toy' },
+    { id: 'ocr', labelKey: 'lessonSettings.ocrTitle', icon: 'document_scanner' },
     { id: 'evaluation', labelKey: 'lessonSettings.evaluationDetailsTitle', icon: 'fact_check' },
     { id: 'mediaFilter', labelKey: 'settings.api.mediaFilterMode', icon: 'filter_alt' },
     { id: 'canvas', labelKey: 'lessonSettings.canvasLayoutTitle', icon: 'aspect_ratio' },
@@ -130,7 +138,7 @@
     isOpen = false;
   }
 
-  function handleToggleOverride(category: 'overrideModel' | 'overrideCanvas' | 'overrideEditorFontSize' | 'overrideEraser' | 'overrideEvaluation' | 'overrideSystemPrompt' | 'overrideTaskNumbering' | 'overrideMediaFilter', e: Event & { currentTarget: HTMLInputElement }) {
+  function handleToggleOverride(category: 'overrideModel' | 'overrideOcr' | 'overrideCanvas' | 'overrideEditorFontSize' | 'overrideEraser' | 'overrideEvaluation' | 'overrideSystemPrompt' | 'overrideTaskNumbering' | 'overrideMediaFilter', e: Event & { currentTarget: HTMLInputElement }) {
     if (!project.settingsOverride) return;
     const checked = e.currentTarget.checked;
     project.settingsOverride[category] = checked;
@@ -138,6 +146,7 @@
     // Keep overall overrideSettings in sync
     project.settingsOverride.overrideSettings = !!(
       project.settingsOverride.overrideModel ||
+      project.settingsOverride.overrideOcr ||
       project.settingsOverride.overrideCanvas ||
       project.settingsOverride.overrideEditorFontSize ||
       project.settingsOverride.overrideEraser ||
@@ -381,15 +390,52 @@
                         </div>
                         <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">{t('settings.canvas.eraser.strokeDesc')}</p>
                       </div>
+                    </button>
                   </div>
                 </div>
               </div>
             {:else}
               <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
-                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">backspace</span>
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">ink_eraser</span>
                 <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
-                <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto">
-                  {t('lessonSettings.usingGlobalEraserDesc')}
+                <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto font-medium">
+                  {t('settings.canvas.eraser.title')}: {store.settings.eraserMode === 'stroke' ? t('settings.canvas.eraser.stroke') : t('settings.canvas.eraser.normal')}
+                </p>
+              </div>
+            {/if}
+
+          {:else if activeTab === 'ocr'}
+            <!-- OCR Override Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-xs font-bold text-on-surface">{t('lessonSettings.ocrTitle')} (Override)</span>
+                <span class="text-[10.5px] text-outline leading-tight">{t('lessonSettings.ocrOverrideDesc')}</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={project.settingsOverride?.overrideOcr || false} 
+                  onchange={(e) => handleToggleOverride('overrideOcr', e)}
+                  class="sr-only peer"
+                />
+                <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+
+            {#if project.settingsOverride?.overrideOcr}
+              <div class="border-t border-outline-variant/30 pt-4 animate-fade-in">
+                <OcrSettings 
+                  targetSettings={project.settingsOverride} 
+                  isLessonOverride={true}
+                  onchange={() => store.saveProjects()} 
+                />
+              </div>
+            {:else}
+              <div class="text-center py-10 px-4 bg-surface-container-low rounded-xl border border-dashed border-outline-variant animate-fade-in">
+                <span class="material-symbols-outlined text-[40px] text-on-surface-variant/40 mb-2">document_scanner</span>
+                <p class="text-xs text-on-surface font-semibold">{t('lessonSettings.usingGlobalTitle')}</p>
+                <p class="text-[11.5px] text-on-surface-variant leading-normal mt-1 max-w-sm mx-auto font-medium">
+                  {store.settings.ocrEnabled ? `${t('settings.ocr.enableTitle')}: ${t('common.enabled')}` : `${t('settings.ocr.enableTitle')}: ${t('common.disabled')}`}
                 </p>
               </div>
             {/if}

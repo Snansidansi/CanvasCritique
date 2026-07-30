@@ -119,6 +119,12 @@ export interface ProjectSettingsOverride {
   sendMcMedia?: boolean;
   mcMediaFilterMode?: string;
   mcMediaFilterExtensions?: string;
+  overrideOcr?: boolean;
+  ocrEnabled?: boolean;
+  ocrOpenRouterModel?: string;
+  ocrOpenRouterProvider?: string[];
+  ocrOpenRouterReasoning?: boolean | string;
+  ocrCustomPrompt?: string;
 }
 
 export interface Project {
@@ -159,6 +165,7 @@ export interface RequestLog {
   outputTokens: number;
   reasoningTokens: number;
   cost: number;
+  requestType?: 'correction' | 'ocr' | string;
 }
 
 export interface DailyStats {
@@ -232,6 +239,11 @@ export interface Settings {
   filterPdf?: boolean;
   filterAudio?: boolean;
   filterVideo?: boolean;
+  ocrEnabled: boolean;
+  ocrOpenRouterModel: string;
+  ocrOpenRouterProvider: string[];
+  ocrOpenRouterReasoning: boolean | string;
+  ocrCustomPrompt: string;
 }
 
 export interface Profile {

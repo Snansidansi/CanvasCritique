@@ -12,7 +12,19 @@
   let modelStatsMode = $state<'chart' | 'selection' | 'total'>('chart');
   let requestHistoryMode = $state<'chart' | 'selection' | 'total'>('chart');
 
-  // statsDaily fallback is no longer used since statistics are in own table
+  // Request types filter state
+  let selectedRequestTypes = $state<string[]>(['correction', 'ocr']);
+  let visibleSeries = $state<Record<string, boolean>>({ total: true, correction: true, ocr: true });
+
+  function toggleRequestType(typeId: string) {
+    if (selectedRequestTypes.includes(typeId)) {
+      if (selectedRequestTypes.length > 1) {
+        selectedRequestTypes = selectedRequestTypes.filter(t => t !== typeId);
+      }
+    } else {
+      selectedRequestTypes = [...selectedRequestTypes, typeId];
+    }
+  }
 
   // Calculate date boundaries
   const activeRangeDates = $derived.by(() => {
@@ -67,12 +79,18 @@
   let customStartDate = $state(getLocalDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
   let customEndDate = $state(getLocalDateStr(new Date()));
 
+  // Filter logs by selected request types
+  const typeFilteredHistory = $derived.by(() => {
+    const history = store.statsHistory;
+    return history.filter(log => selectedRequestTypes.includes(log.requestType || 'correction'));
+  });
+
   // 1. Calculate range aggregate statistics
   const aggregates = $derived.by(() => {
     let openrouter = { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 };
 
     const { start, end } = activeRangeDates;
-    const history = store.statsHistory;
+    const history = typeFilteredHistory;
 
     for (const log of history) {
       const logDate = new Date(log.timestamp);
@@ -94,7 +112,7 @@
   // Calculate all-time aggregate statistics for the top card
   const totalAggregates = $derived.by(() => {
     let total = { requests: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cost: 0 };
-    const history = store.statsHistory;
+    const history = typeFilteredHistory;
 
     for (const log of history) {
       total.requests += 1;
@@ -143,7 +161,7 @@
       }
     }
 
-    const history = store.statsHistory;
+    const history = typeFilteredHistory;
     const models: Record<string, { requests: number, inputTokens: number, outputTokens: number, cost: number }> = {};
 
     for (const log of history) {
@@ -194,19 +212,19 @@
     const list: Array<{
       date: string;
       label: string;
-      geminiCost: number;
-      openRouterCost: number;
-      geminiRequests: number;
-      openRouterRequests: number;
-      geminiTokens: number;
-      openRouterTokens: number;
+      correctionCost: number;
+      ocrCost: number;
       totalCost: number;
+      correctionRequests: number;
+      ocrRequests: number;
       totalRequests: number;
+      correctionTokens: number;
+      ocrTokens: number;
       totalTokens: number;
     }> = [];
 
     const { start, end } = activeRangeDates;
-    const history = store.statsHistory;
+    const history = typeFilteredHistory;
 
     if (timeframe === '1') {
       // Group by hour of the current day (since 0:00)
@@ -217,14 +235,14 @@
         list.push({
           date: d.toISOString(),
           label,
-          geminiCost: 0,
-          openRouterCost: 0,
-          geminiRequests: 0,
-          openRouterRequests: 0,
-          geminiTokens: 0,
-          openRouterTokens: 0,
+          correctionCost: 0,
+          ocrCost: 0,
           totalCost: 0,
+          correctionRequests: 0,
+          ocrRequests: 0,
           totalRequests: 0,
+          correctionTokens: 0,
+          ocrTokens: 0,
           totalTokens: 0
         });
       }
@@ -235,12 +253,23 @@
           const hour = logDate.getHours();
           const item = list[hour];
           if (item) {
-            item.openRouterCost += log.cost || 0;
-            item.openRouterRequests += 1;
-            item.openRouterTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
-            item.totalCost = item.geminiCost + item.openRouterCost;
-            item.totalRequests = item.geminiRequests + item.openRouterRequests;
-            item.totalTokens = item.geminiTokens + item.openRouterTokens;
+            const reqType = log.requestType || 'correction';
+            const cost = log.cost || 0;
+            const tokens = (log.inputTokens || 0) + (log.outputTokens || 0);
+
+            if (reqType === 'ocr') {
+              item.ocrCost += cost;
+              item.ocrRequests += 1;
+              item.ocrTokens += tokens;
+            } else {
+              item.correctionCost += cost;
+              item.correctionRequests += 1;
+              item.correctionTokens += tokens;
+            }
+
+            item.totalCost += cost;
+            item.totalRequests += 1;
+            item.totalTokens += tokens;
           }
         }
       }
@@ -270,28 +299,42 @@
       const d = new Date(dateStr + 'T12:00:00');
       const label = d.toLocaleDateString(store.settings.language === 'Deutsch' ? 'de-DE' : 'en-US', { month: 'short', day: 'numeric' });
 
-      let geminiCost = 0, openRouterCost = 0;
-      let geminiRequests = 0, openRouterRequests = 0;
-      let geminiTokens = 0, openRouterTokens = 0;
+      let correctionCost = 0, ocrCost = 0, totalCost = 0;
+      let correctionRequests = 0, ocrRequests = 0, totalRequests = 0;
+      let correctionTokens = 0, ocrTokens = 0, totalTokens = 0;
 
       for (const log of logs) {
-        openRouterCost += log.cost || 0;
-        openRouterRequests += 1;
-        openRouterTokens += (log.inputTokens || 0) + (log.outputTokens || 0);
+        const reqType = log.requestType || 'correction';
+        const cost = log.cost || 0;
+        const tokens = (log.inputTokens || 0) + (log.outputTokens || 0);
+
+        if (reqType === 'ocr') {
+          ocrCost += cost;
+          ocrRequests += 1;
+          ocrTokens += tokens;
+        } else {
+          correctionCost += cost;
+          correctionRequests += 1;
+          correctionTokens += tokens;
+        }
+
+        totalCost += cost;
+        totalRequests += 1;
+        totalTokens += tokens;
       }
 
       list.push({
         date: dateStr,
         label,
-        geminiCost,
-        openRouterCost,
-        geminiRequests,
-        openRouterRequests,
-        geminiTokens,
-        openRouterTokens,
-        totalCost: geminiCost + openRouterCost,
-        totalRequests: geminiRequests + openRouterRequests,
-        totalTokens: geminiTokens + openRouterTokens
+        correctionCost,
+        ocrCost,
+        totalCost,
+        correctionRequests,
+        ocrRequests,
+        totalRequests,
+        correctionTokens,
+        ocrTokens,
+        totalTokens
       });
     }
 
@@ -616,6 +659,32 @@
       <span class="text-sm font-medium {store.settings.statsEnabled ? 'text-primary' : 'text-on-surface-variant'}">
         {store.settings.statsEnabled ? t('settings.stats.trackingEnabled') : t('settings.stats.trackingDisabled')}
       </span>
+    </div>
+  </section>
+
+  <!-- Global Request Type Filter Bar -->
+  <section class="bg-surface p-4 rounded-xl border border-outline-variant shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-primary text-[20px]">filter_alt</span>
+      <span class="text-xs font-bold text-on-surface">{t('stats.filterTypesTitle')}</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onclick={() => toggleRequestType('correction')}
+        class="px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer {selectedRequestTypes.includes('correction') ? 'bg-blue-500/15 border-blue-500/50 text-blue-600 dark:text-blue-400' : 'bg-surface-container-low border-outline-variant/40 text-outline opacity-60'}"
+      >
+        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+        {t('stats.typeCorrection')}
+      </button>
+      <button
+        type="button"
+        onclick={() => toggleRequestType('ocr')}
+        class="px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer {selectedRequestTypes.includes('ocr') ? 'bg-purple-500/15 border-purple-500/50 text-purple-600 dark:text-purple-400' : 'bg-surface-container-low border-outline-variant/40 text-outline opacity-60'}"
+      >
+        <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+        {t('stats.typeOcr')}
+      </button>
     </div>
   </section>
 
@@ -1067,6 +1136,7 @@
           <thead>
             <tr class="border-b border-outline-variant/60 text-on-surface-variant font-semibold">
               <th class="py-2 pr-4">{store.settings.language === 'Deutsch' ? 'Zeitstempel' : 'Timestamp'}</th>
+              <th class="py-2 px-4">{t('stats.requestTypeColumn')}</th>
               <th class="py-2 px-4">{store.settings.language === 'Deutsch' ? 'Modell' : 'Model'}</th>
               <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Input Tokens' : 'Input Tokens'}</th>
               <th class="py-2 px-4 text-right">{store.settings.language === 'Deutsch' ? 'Output Tokens' : 'Output Tokens'}</th>
@@ -1078,6 +1148,17 @@
               <tr class="hover:bg-surface-container-low/30 transition-colors">
                 <td class="py-2.5 pr-4 text-on-surface-variant font-mono">
                   {new Date(log.timestamp).toLocaleString(store.settings.language === 'Deutsch' ? 'de-DE' : 'en-US', { dateStyle: 'short', timeStyle: 'short' })}
+                </td>
+                <td class="py-2.5 px-4 font-medium">
+                  {#if (log.requestType || 'correction') === 'ocr'}
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                      OCR
+                    </span>
+                  {:else}
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                      {t('stats.typeCorrection')}
+                    </span>
+                  {/if}
                 </td>
                 <td class="py-2.5 px-4 font-mono font-medium truncate max-w-50" title={log.model}>{log.model}</td>
                 <td class="py-2.5 px-4 text-right font-mono">{log.inputTokens.toLocaleString()}</td>

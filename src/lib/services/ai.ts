@@ -7,6 +7,7 @@ import {
   getStrokesBoundingBox 
 } from '../utils/canvas';
 import { store } from '../state/store.svelte';
+import { DEFAULT_OCR_PROMPT } from '../state/defaults';
 import { getMediaDataUrl } from '../db/media';
 import { OpenRouter, HTTPClient } from '@openrouter/sdk';
 
@@ -1285,4 +1286,121 @@ function gradeMultipleChoiceLocally(questions: any[], answers: Record<string, st
     feedbackText: feedbackLines.join('\n'),
     feedbackScore: score
   };
+}
+
+export interface RunOcrOptions {
+  imageDataUrl: string;
+  model?: string;
+  prompt?: string;
+  provider?: string[];
+  reasoning?: boolean | string;
+  apiKey?: string;
+  signal?: AbortSignal;
+}
+
+export async function runOcrImage(options: RunOcrOptions): Promise<string> {
+  const apiKey = options.apiKey || store.settings.openRouterApiKey;
+  if (!apiKey) {
+    throw new Error('OpenRouter API Key is required for OCR.');
+  }
+
+  const model = options.model || store.settings.ocrOpenRouterModel || store.settings.openRouterModel || 'google/gemini-flash-1.5';
+  const prompt = options.prompt || store.settings.ocrCustomPrompt || DEFAULT_OCR_PROMPT;
+  const providers = options.provider && options.provider.length > 0 ? options.provider : (store.settings.ocrOpenRouterProvider || []);
+  const reasoning = options.reasoning !== undefined ? options.reasoning : (store.settings.ocrOpenRouterReasoning !== undefined ? store.settings.ocrOpenRouterReasoning : true);
+
+  const payload: any = {
+    model: model,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          {
+            type: 'image_url',
+            image_url: {
+              url: options.imageDataUrl
+            }
+          }
+        ]
+      }
+    ]
+  };
+
+  if (providers.length > 0) {
+    payload.provider = { order: providers };
+  }
+
+  if (reasoning === false) {
+    payload.reasoning = { exclude: true };
+  } else if (typeof reasoning === 'string' && reasoning !== 'none') {
+    payload.reasoning = { exclude: false, effort: reasoning };
+  } else if (reasoning === true) {
+    payload.reasoning = { exclude: false };
+  }
+
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://github.com/CanvasCritique',
+      'X-Title': 'CanvasCritique'
+    },
+    body: JSON.stringify(payload),
+    signal: options.signal
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OCR API Error (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  const textResult = data.choices?.[0]?.message?.content || '';
+
+  // Extract tokens & record LLM statistics with requestType = 'ocr'
+  try {
+    const inputTokens = data.usage?.prompt_tokens || 0;
+    const outputTokens = data.usage?.completion_tokens || 0;
+    const reasoningTokens = data.usage?.completion_tokens_details?.reasoning_tokens || 0;
+    const generationId = data.id;
+
+    let cost = 0;
+    let costResolved = false;
+
+    if (generationId && apiKey) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 800));
+        const genRes = await fetch(`https://openrouter.ai/api/v1/generation?id=${generationId}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` },
+          signal: options.signal
+        });
+        if (genRes.ok) {
+          const genData = await genRes.json();
+          if (genData?.data) {
+            const byokUsage = genData.data.byok_usage_inference || 0;
+            const normalUsage = genData.data.usage || 0;
+            cost = byokUsage || normalUsage || 0;
+            if (cost > 0) costResolved = true;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!costResolved) {
+      const price = store.openRouterPrices[model];
+      if (price) {
+        cost = (inputTokens * price.prompt) + (outputTokens * price.completion);
+      } else {
+        cost = estimateCost(model, inputTokens, outputTokens);
+      }
+    }
+
+    store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost, 'ocr');
+  } catch (err) {
+    console.error('Failed to log OCR request statistics:', err);
+  }
+
+  return textResult;
 }

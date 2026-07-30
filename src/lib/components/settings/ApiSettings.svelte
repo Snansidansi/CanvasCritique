@@ -1,6 +1,7 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import AiModelConfig from './AiModelConfig.svelte';
+  import OcrSettings from './OcrSettings.svelte';
   import { t } from '../../services/i18n';
   import { estimateCost } from '../../services/ai';
   import { OpenRouter, HTTPClient } from '@openrouter/sdk';
@@ -202,6 +203,15 @@
   <div class="relative z-10 flex flex-col gap-6">
     <!-- Reusable AI Model selection component -->
     <AiModelConfig settings={store.settings} showKeys={true} onchange={handleInputChange} />
+
+    <!-- OCR Settings Section -->
+    <div class="mt-4 pt-6 border-t border-outline-variant/30">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="material-symbols-outlined text-primary text-[20px]">document_scanner</span>
+        <h4 class="text-md font-bold text-on-surface">{t('settings.ocr.sectionTitle')}</h4>
+      </div>
+      <OcrSettings targetSettings={store.settings} onchange={handleInputChange} />
+    </div>
 
     <!-- Connection Test Panel -->
     <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">

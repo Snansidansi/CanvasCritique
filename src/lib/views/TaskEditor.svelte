@@ -12,6 +12,7 @@
   import MediaFilterSettings from '../components/settings/MediaFilterSettings.svelte';
   import TaskNumberingConfig from '../components/settings/TaskNumberingConfig.svelte';
   import MultipleChoiceEditor from '../components/task-editor/MultipleChoiceEditor.svelte';
+  import OcrModal from '../components/task-editor/OcrModal.svelte';
 
   // Form states
   let taskName = $state('');
@@ -30,6 +31,28 @@
   let isDragOverProvided = $state(false);
   let providedFilesExpanded = $state(false);
   let multipleChoiceTasks = $state<any[]>([]);
+
+  // OCR modal and processing states
+  let ocrModalOpen = $state(false);
+  let ocrTargetField = $state<'instructions' | 'solution'>('instructions');
+  let isInstructionsOcrProcessing = $state(false);
+  let isSolutionOcrProcessing = $state(false);
+
+  const activeProject = $derived(store.projects.find(p => p.id === targetProjectId) || store.activeProject || null);
+  const effectiveOcrSettings = $derived(store.getEffectiveOcrSettings(activeProject));
+
+  function handleOcrExtracted(text: string) {
+    if (ocrTargetField === 'instructions') {
+      instructions = instructions ? (instructions + '\n\n' + text) : text;
+    } else {
+      solution = solution ? (solution + '\n\n' + text) : text;
+    }
+  }
+
+  function openOcrModal(field: 'instructions' | 'solution') {
+    ocrTargetField = field;
+    ocrModalOpen = true;
+  }
 
   // Task specific override settings
   let settingsOverride = $state<any>({
@@ -1230,6 +1253,23 @@
               <span class="w-1.5 h-1.5 rounded-full {showInstructionsRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
               {showInstructionsRaw ? t('taskEditor.editMode') : t('taskEditor.previewMode')}
             </button>
+
+            {#if effectiveOcrSettings.ocrEnabled}
+              <button
+                type="button"
+                onclick={() => openOcrModal('instructions')}
+                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-primary/10 hover:bg-primary/20 text-primary flex items-center gap-1 border border-primary/20 cursor-pointer transition-all focus:outline-none"
+                title={t('ocr.buttonTooltip')}
+              >
+                {#if isInstructionsOcrProcessing}
+                  <span class="w-2.5 h-2.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
+                  <span>{t('ocr.processingText')}</span>
+                {:else}
+                  <span class="material-symbols-outlined text-[13px]">document_scanner</span>
+                  <span>OCR</span>
+                {/if}
+              </button>
+            {/if}
           </div>
         </div>
         
@@ -1391,6 +1431,23 @@
               <span class="w-1.5 h-1.5 rounded-full {showSolutionRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
               {showSolutionRaw ? t('taskEditor.editMode') : t('taskEditor.previewMode')}
             </button>
+
+            {#if effectiveOcrSettings.ocrEnabled}
+              <button
+                type="button"
+                onclick={() => openOcrModal('solution')}
+                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-primary/10 hover:bg-primary/20 text-primary flex items-center gap-1 border border-primary/20 cursor-pointer transition-all focus:outline-none"
+                title={t('ocr.buttonTooltip')}
+              >
+                {#if isSolutionOcrProcessing}
+                  <span class="w-2.5 h-2.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
+                  <span>{t('ocr.processingText')}</span>
+                {:else}
+                  <span class="material-symbols-outlined text-[13px]">document_scanner</span>
+                  <span>OCR</span>
+                {/if}
+              </button>
+            {/if}
           </div>
         </div>
 
@@ -2324,4 +2381,18 @@
     </div>
   </div>
 {/if}
+
+<OcrModal 
+  bind:isOpen={ocrModalOpen} 
+  targetLabel={ocrTargetField === 'instructions' ? t('taskEditor.instructionsLabel') : t('taskEditor.solutionLabel')} 
+  project={activeProject} 
+  onextract={handleOcrExtracted} 
+  onProcessingChange={(processing) => {
+    if (ocrTargetField === 'instructions') {
+      isInstructionsOcrProcessing = processing;
+    } else {
+      isSolutionOcrProcessing = processing;
+    }
+  }} 
+/>
 

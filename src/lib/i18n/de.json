@@ -289,7 +289,36 @@
     "overrideEditorFontSizeLabel": "Texteditor-Schriftgröße überschreiben",
     "overrideEditorFontSizeDesc": "Verwende für diese Lektion eine eigene Texteditor-Schriftgröße statt der globalen Einstellung",
     "editorFontSizeTitle": "Texteditor-Schriftgröße",
-    "usingGlobalEditorFontSizeDesc": "Diese Lektion verwendet die globale Texteditor-Schriftgröße."
+    "usingGlobalEditorFontSizeDesc": "Diese Lektion verwendet die globale Texteditor-Schriftgröße.",
+    "ocrTitle": "OCR-Texterkennung",
+    "ocrOverrideDesc": "Möchtest du die OCR-Einstellungen für diese Lektion überschreiben?"
+  },
+  "ocr": {
+    "modalTitle": "Text per OCR aus Bild extrahieren",
+    "targetLabelPrefix": "Ziel-Feld",
+    "dragDropPrompt": "Bild hierher ziehen & ablegen",
+    "supportedFormats": "Unterstützt PNG, JPG, WEBP",
+    "selectFileBtn": "Datei auswählen",
+    "pasteClipboardBtn": "Aus Zwischenablage",
+    "promptAndModelSettings": "Prompt-Einstellungen anpassen",
+    "extractTextBtn": "Text extrahieren",
+    "processingText": "Verarbeite Bild...",
+    "processing": "Verarbeite...",
+    "buttonTooltip": "Bild per OCR als Text einfügen",
+    "successNotify": "Text erfolgreich per OCR extrahiert!",
+    "failedNotify": "Texterkennung fehlgeschlagen.",
+    "errorInvalidImage": "Bitte wähle eine gültige Bilddatei aus.",
+    "errorNoClipboardImage": "Kein Bild in der Zwischenablage gefunden.",
+    "errorClipboardAccess": "Zugriff auf die Zwischenablage fehlgeschlagen.",
+    "errorNoImageSelected": "Bitte wähle zuerst ein Bild aus."
+  },
+  "stats": {
+    "filterTypesTitle": "Anfragetypen filtern",
+    "typeCorrection": "Korrektur",
+    "typeOcr": "OCR",
+    "requestTypeColumn": "Anfragetyp",
+    "chartLinesLabel": "Diagrammlinien",
+    "lineTotal": "Gesamt"
   },
   "practice": {
     "backToProject": "Zurück zum Projekt",
@@ -463,6 +492,17 @@
       "data": "Daten",
       "stats": "Statistiken",
       "update": "Update"
+    },
+    "ocr": {
+      "sectionTitle": "OCR (Bilder-Texterkennung)",
+      "enableTitle": "OCR-Feature aktivieren",
+      "enableDesc": "Erlaubt das Erkennen und Einfügen von Text aus Bildern beim Erstellen von Aufgaben",
+      "modelTitle": "OpenRouter-Modell für OCR",
+      "modelDesc": "Eigenes Modell für die Texterkennung wählen (falls leer, wird das Hauptmodell verwendet)",
+      "useDefaultModel": "Hauptmodell verwenden",
+      "promptTitle": "Custom OCR Prompt",
+      "promptDesc": "System-Prompt für die Texterkennung anpassen",
+      "resetPrompt": "Auf Standard zurücksetzen"
     },
     "appearance": {
       "title": "Erscheinungsbild",
