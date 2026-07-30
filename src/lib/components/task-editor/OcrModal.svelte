@@ -35,6 +35,16 @@
   let editingFileNameValue = $state<string>('');
   let previewFile = $state<OcrImageItem | null>(null);
 
+  // Pointer-based media drag state (Exact copy from TaskEditor)
+  let draggedFileIndex = $state<number | null>(null);
+  let hoveredFileIndex = $state<number | null>(null);
+  let isMediaDragActive = $state(false);
+  let mediaDragGhostEl: HTMLElement | null = null;
+  let mediaDragPointerStartX = 0;
+  let mediaDragPointerStartY = 0;
+  let mediaDragGhostOffsetX = 0;
+  let mediaDragGhostOffsetY = 0;
+
   $effect(() => {
     if (isOpen) {
       const effective = store.getEffectiveOcrSettings(project);
@@ -43,6 +53,9 @@
       errorMsg = '';
       editingFileIndex = null;
       previewFile = null;
+      isMediaDragActive = false;
+      draggedFileIndex = null;
+      hoveredFileIndex = null;
     }
   });
 
@@ -128,6 +141,97 @@
       imageItems[index].name = editingFileNameValue.trim();
     }
     editingFileIndex = null;
+  }
+
+  function openPreview(file: OcrImageItem) {
+    previewFile = file;
+  }
+
+  // Pointer drag reordering (Exact copy from TaskEditor)
+  function handleFilePointerDown(e: PointerEvent, index: number) {
+    if (e.button !== 0 && e.button !== -1) return;
+    const target = e.currentTarget as HTMLElement;
+
+    if ((e.target as HTMLElement).closest('.remove-file-btn') || 
+        ((e.target as HTMLElement).closest('.preview-file-click') && !(e.target as HTMLElement).closest('.drag-handle'))) return;
+
+    mediaDragPointerStartX = e.clientX;
+    mediaDragPointerStartY = e.clientY;
+
+    try { target.setPointerCapture(e.pointerId); } catch (_) {}
+
+    function onMove(me: PointerEvent) {
+      const dx = me.clientX - mediaDragPointerStartX;
+      const dy = me.clientY - mediaDragPointerStartY;
+
+      if (!isMediaDragActive && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+        isMediaDragActive = true;
+        draggedFileIndex = index;
+
+        const ghost = target.cloneNode(true) as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        ghost.style.cssText = `
+          position: fixed;
+          pointer-events: none;
+          z-index: 9999;
+          width: ${rect.width}px;
+          opacity: 0.85;
+          left: ${rect.left}px;
+          top: ${rect.top}px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+          border-radius: 0.5rem;
+          transform: scale(1.02);
+          transition: none;
+        `;
+        mediaDragGhostOffsetX = me.clientX - rect.left;
+        mediaDragGhostOffsetY = me.clientY - rect.top;
+        document.body.appendChild(ghost);
+        mediaDragGhostEl = ghost;
+      }
+
+      if (!isMediaDragActive) return;
+
+      if (mediaDragGhostEl) {
+        mediaDragGhostEl.style.left = `${me.clientX - mediaDragGhostOffsetX}px`;
+        mediaDragGhostEl.style.top  = `${me.clientY - mediaDragGhostOffsetY}px`;
+      }
+
+      const elemUnder = document.elementFromPoint(me.clientX, me.clientY);
+      const rowUnder = elemUnder?.closest('[data-file-index]') as HTMLElement;
+      if (rowUnder) {
+        const targetIdx = parseInt(rowUnder.dataset.fileIndex || '-1', 10);
+        if (targetIdx >= 0) {
+          hoveredFileIndex = targetIdx;
+        }
+      }
+    }
+
+    function onUp(ue: PointerEvent) {
+      try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
+
+      if (mediaDragGhostEl) {
+        mediaDragGhostEl.remove();
+        mediaDragGhostEl = null;
+      }
+
+      if (isMediaDragActive && draggedFileIndex !== null && hoveredFileIndex !== null && draggedFileIndex !== hoveredFileIndex) {
+        const list = [...imageItems];
+        const [moved] = list.splice(draggedFileIndex, 1);
+        list.splice(hoveredFileIndex, 0, moved);
+        imageItems = list;
+      }
+
+      isMediaDragActive = false;
+      draggedFileIndex = null;
+      hoveredFileIndex = null;
+    }
+
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
   }
 
   function submitOcr() {
@@ -223,17 +327,30 @@
         {#if imageItems.length > 0}
           <div class="mt-2 flex flex-col gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
             {#each imageItems as file, index (file.id)}
+              {#if isMediaDragActive && hoveredFileIndex === index}
+                <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
+              {/if}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div 
-                class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none"
+                data-file-index={index}
+                onpointerdown={(e) => handleFilePointerDown(e, index)}
+                class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none {isMediaDragActive && draggedFileIndex === index ? 'opacity-40 scale-95' : ''}"
               >
-                <div class="flex items-center gap-2 min-w-0 grow">
-                  <span class="material-symbols-outlined text-[20px] text-outline cursor-grab select-none drag-handle">
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div 
+                  onclick={() => openPreview(file)}
+                  class="flex items-center gap-2 min-w-0 grow cursor-pointer"
+                >
+                  <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
                     drag_indicator
                   </span>
                   <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
                     {getFileIcon(file.name)}
                   </span>
                   {#if editingFileIndex === index}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <input
                       type="text"
                       bind:value={editingFileNameValue}
@@ -246,21 +363,21 @@
                       class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none"
                     />
                   {:else}
-                    <span class="text-xs text-on-surface truncate font-medium max-w-72" title={file.name}>{file.name}</span>
+                    <span class="text-xs text-on-surface truncate font-medium max-w-72 hover:text-primary hover:underline" title={file.name}>{file.name}</span>
                   {/if}
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                   <button 
                     type="button"
-                    onclick={(e) => { e.stopPropagation(); previewFile = file; }}
-                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+                    onclick={(e) => { e.stopPropagation(); openPreview(file); }}
+                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer preview-file-click"
                     title={t('taskEditor.preview')}
                   >
                     <span class="material-symbols-outlined text-[18px]">visibility</span>
                   </button>
                   <button 
                     type="button"
-                    onclick={() => startRenameFile(index)}
+                    onclick={(e) => { e.stopPropagation(); startRenameFile(index); }}
                     class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
                     title={t('taskEditor.renameFileTooltip') || 'Rename File'}
                   >
@@ -268,8 +385,8 @@
                   </button>
                   <button 
                     type="button"
-                    onclick={() => removeImage(index)}
-                    class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0"
+                    onclick={(e) => { e.stopPropagation(); removeImage(index); }}
+                    class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
                     title={t('taskEditor.remove') || 'Remove'}
                   >
                     close
@@ -341,7 +458,7 @@
   </div>
 {/if}
 
-<!-- Preview Image Modal -->
+<!-- Preview Image Modal (Exact copy from TaskEditor preview) -->
 {#if previewFile}
   <div 
     class="fixed inset-0 z-60 bg-black/80 flex items-center justify-center p-4 animate-fade-in"

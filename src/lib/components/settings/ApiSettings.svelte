@@ -115,6 +115,8 @@
         httpClient: httpClient
       });
 
+      const maxTokens = store.settings.maxOutputTokens;
+
       const chatResult = await client.chat.send({
         chatRequest: {
           model: model,
@@ -124,7 +126,7 @@
               content: "Reply EXCLUSIVELY with the word 'yes' and nothing else."
             }
           ],
-          ...(store.settings.maxOutputTokens && store.settings.maxOutputTokens > 0 ? { maxTokens: store.settings.maxOutputTokens } : {})
+          ...(maxTokens && maxTokens > 0 ? { maxTokens: maxTokens } : {})
         }
       });
 
