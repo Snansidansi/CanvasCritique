@@ -5948,7 +5948,7 @@
                   <button 
                     type="button"
                     onclick={() => {
-                      targetSettings.editorFontSize = Math.min(40, (targetSettings.editorFontSize || 16) + 1);
+                      targetSettings.editorFontSize = (targetSettings.editorFontSize || 16) + 1;
                       if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
                     }}
                     class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
@@ -5981,7 +5981,7 @@
                   <button 
                     type="button"
                     onclick={() => {
-                      targetSettings.canvasFontSize = Math.min(24, (targetSettings.canvasFontSize || 13) + 1);
+                      targetSettings.canvasFontSize = (targetSettings.canvasFontSize || 13) + 1;
                       if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
                     }}
                     class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
