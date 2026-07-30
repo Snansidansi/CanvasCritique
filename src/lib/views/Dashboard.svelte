@@ -238,13 +238,14 @@
   // Derived state using $derived rune
   let filteredProjects = $derived(
     store.projects.filter((project) =>
+      !project.isTemplate &&
       project.profileId === store.activeProfileId &&
       project.name.toLowerCase().includes(searchQuery.toLowerCase()),
     ),
   );
 
   let activeProjectsCount = $derived(
-    store.projects.filter((p) => p.profileId === store.activeProfileId && p.tasks.some((t) => !t.completed)).length,
+    store.projects.filter((p) => !p.isTemplate && p.profileId === store.activeProfileId && p.tasks.some((t) => !t.completed)).length,
   );
 
   function openPractice(task: any, project: any) {
@@ -673,6 +674,16 @@
       title={t('dashboard.importLesson')}
     >
       <span class="material-symbols-outlined text-[20px]">file_download</span>
+    </button>
+
+    <!-- Templates Button -->
+    <button
+      onclick={() => store.setView('templates')}
+      class="bg-surface-container-low text-on-surface py-2 px-3 rounded-lg border border-outline-variant hover:bg-surface-container-high transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer text-xs font-semibold"
+      title={t('templates.title')}
+    >
+      <span class="material-symbols-outlined text-[18px] text-primary">bookmark_manager</span>
+      <span>{t('templates.title')}</span>
     </button>
 
     <!-- Create lesson button -->

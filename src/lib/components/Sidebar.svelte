@@ -112,7 +112,7 @@
       try { target.releasePointerCapture(ue.pointerId); } catch (_) {}
       if (sidebarDragGhostEl) { sidebarDragGhostEl.remove(); sidebarDragGhostEl = null; }
       if (isSidebarDragActive && draggedLessonId && sidebarDropIndex !== null) {
-        const projects = store.projects.filter(p => p.profileId === store.activeProfileId);
+        const projects = store.projects.filter(p => !p.isTemplate && p.profileId === store.activeProfileId);
         const ids = projects.map(p => p.id);
         const draggedIdx = ids.indexOf(draggedLessonId);
         if (draggedIdx !== -1 && draggedIdx !== sidebarDropIndex) {
@@ -216,7 +216,7 @@
       class="flex flex-col gap-1 overflow-x-hidden max-h-[50vh]
              {isCollapsed ? 'overflow-y-auto hide-scrollbar' : 'overflow-y-auto custom-scrollbar'}"
     >
-      {#each store.projects.filter(p => p.profileId === store.activeProfileId) as project, idx}
+      {#each store.projects.filter(p => !p.isTemplate && p.profileId === store.activeProfileId) as project, idx}
         {#if isSidebarDragActive && sidebarDropIndex === idx && draggedLessonId && draggedLessonId !== project.id}
           <div class="h-0.5 bg-primary rounded-full mx-2 animate-pulse"></div>
         {/if}

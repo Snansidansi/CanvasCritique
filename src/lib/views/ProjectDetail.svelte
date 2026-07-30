@@ -271,7 +271,11 @@
   let progress = $derived(getProjectProgress());
 
   function handleBack() {
-    store.setView('dashboard');
+    if (project?.isTemplate) {
+      store.setView('templates');
+    } else {
+      store.setView('dashboard');
+    }
   }
 
   // Guidelines state
@@ -360,7 +364,15 @@
     store.setEditingTask(task);
   }
 
-  function openPractice(task) {
+  function openPractice(task: any) {
+    if (project?.isTemplate) {
+      store.showNotification(
+        t('templates.cannotPracticeTemplate') || 'In einer Vorlage können Aufgaben nicht gestartet werden.',
+        'info'
+      );
+      handleEditTask(task);
+      return;
+    }
     saveCurrentScrollPosition();
     store.selectTask(task);
   }
@@ -883,6 +895,15 @@
           >
             <span class="truncate">{project.name}</span>
             <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity text-outline-variant">edit</span>
+            {#if project.isTemplate}
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary-container text-on-primary-container border border-primary/30 flex items-center gap-1 shrink-0 ml-1">
+                <span class="material-symbols-outlined text-[12px]">bookmark</span>
+                {t('templates.templateBadge')}
+                {#if project.isGlobal}
+                  ({t('templates.globalBadge')})
+                {/if}
+              </span>
+            {/if}
           </button>
         {:else}
           <h1 class="font-bold text-lg text-on-surface truncate">{project.name}</h1>

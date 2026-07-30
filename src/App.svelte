@@ -54,6 +54,7 @@
   import PracticeCanvas from "./lib/views/PracticeCanvas.svelte";
   import Settings from "./lib/views/Settings.svelte";
   import TaskEditor from "./lib/views/TaskEditor.svelte";
+  import Templates from "./lib/views/Templates.svelte";
   import Notification from "./lib/components/Notification.svelte";
   import { initTouchDragPolyfill } from "./lib/utils/touchDragPolyfill";
   import { isWindowsPlatform, restoreWindowState, setupWindowStateListeners } from "./lib/services/windowState";
@@ -197,6 +198,8 @@
       <Settings />
     {:else if store.currentView === "task-editor"}
       <TaskEditor />
+    {:else if store.currentView === "templates"}
+      <Templates />
     {/if}
   </div>
 </div>
