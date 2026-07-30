@@ -59,6 +59,7 @@ export interface Task {
   attempts?: TaskAttempt[];
   activeAttemptId?: string | null;
   multipleChoiceTasks?: MultipleChoiceTask[];
+  multipleChoiceAnswers?: Record<string, string[]>;
 }
 
 export interface TaskAttempt {

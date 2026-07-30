@@ -1826,12 +1826,32 @@ class CanvasCritiqueStore {
     for (const proj of data) {
       if (proj && typeof proj === 'object') {
         if (proj.canvasSaves && Object.keys(proj.canvasSaves).length > 0) {
-          hasCanvas = true;
+          for (const save of Object.values(proj.canvasSaves) as any[]) {
+            if (save && (
+              (save.pages && save.pages.some((p: any) => p.strokeHistory?.length > 0)) ||
+              (save.infiniteStrokes && save.infiniteStrokes.length > 0) ||
+              (save.canvasImages && save.canvasImages.length > 0)
+            )) {
+              hasCanvas = true;
+            }
+          }
         }
         if (proj.tasks) {
           for (const task of proj.tasks) {
             if (task.critique) {
               hasCritique = true;
+            }
+            if (
+              task.canvasData ||
+              (task.editorText && task.editorText.trim() !== '') ||
+              (task.multipleChoiceAnswers && Object.keys(task.multipleChoiceAnswers).length > 0) ||
+              (task.attempts && task.attempts.some((a: any) => 
+                a.canvasData || 
+                (a.editorText && a.editorText.trim() !== '') || 
+                (a.multipleChoiceAnswers && Object.keys(a.multipleChoiceAnswers).length > 0)
+              ))
+            ) {
+              hasCanvas = true;
             }
           }
         }
@@ -2019,11 +2039,16 @@ class CanvasCritiqueStore {
                   if (options.importCritique && t.critique !== undefined) matchedTask.critique = t.critique;
                   if (t.settingsOverride !== undefined) matchedTask.settingsOverride = t.settingsOverride;
 
-                  await dbUpdateTask(db, matchedTask.id, matchedTask);
-                  if (options.importCanvas && t.id && importedCanvasSaves[t.id]) {
-                    this.canvasSaves[matchedTask.id] = importedCanvasSaves[t.id];
-                    await setCanvasState(db, matchedTask.id, importedCanvasSaves[t.id]);
+                  if (options.importCanvas) {
+                    if (t.editorText !== undefined) matchedTask.editorText = t.editorText;
+                    if (t.multipleChoiceAnswers !== undefined) matchedTask.multipleChoiceAnswers = t.multipleChoiceAnswers;
+                    if (t.id && importedCanvasSaves[t.id]) {
+                      this.canvasSaves[matchedTask.id] = importedCanvasSaves[t.id];
+                      await setCanvasState(db, matchedTask.id, importedCanvasSaves[t.id]);
+                    }
                   }
+
+                  await dbUpdateTask(db, matchedTask.id, matchedTask);
                 }
               } else {
                 // Task doesn't exist in this section -> always import
@@ -2062,18 +2087,18 @@ class CanvasCritiqueStore {
                   solutionFiles,
                   providedFiles,
                   contextFiles,
-                  editorText: t.editorText || '',
+                  editorText: options.importCanvas ? (t.editorText || '') : '',
                   defaultEditMode: t.defaultEditMode || 'both',
                   templateCanvasData: t.templateCanvasData || null,
                   settingsOverride: t.settingsOverride || null,
                   multipleChoiceTasks: t.multipleChoiceTasks || []
                 };
-                if (t.editorText) {
+                if (options.importCanvas && t.editorText) {
                   this.editorTexts[taskId] = t.editorText;
                 }
                 if (options.importCritique && t.critique) newTask.critique = t.critique;
 
-                if (t.attempts && Array.isArray(t.attempts)) {
+                if (options.importCanvas && t.attempts && Array.isArray(t.attempts)) {
                   newTask.attempts = [];
                   for (const att of t.attempts) {
                     let attId = att.id;
@@ -2088,7 +2113,7 @@ class CanvasCritiqueStore {
                       timestamp: att.timestamp || new Date().toISOString(),
                       createdAt: att.createdAt || att.timestamp || new Date().toISOString(),
                       background: attBg || undefined,
-                      canvasData: options.importCanvas ? (att.canvasData || null) : null,
+                      canvasData: att.canvasData || null,
                       editorText: att.editorText || '',
                       critique: options.importCritique ? att.critique : null,
                       multipleChoiceAnswers: att.multipleChoiceAnswers || {}
@@ -2156,18 +2181,18 @@ class CanvasCritiqueStore {
               solutionFiles,
               providedFiles,
               contextFiles,
-              editorText: t.editorText || '',
+              editorText: options.importCanvas ? (t.editorText || '') : '',
               defaultEditMode: t.defaultEditMode || 'both',
               templateCanvasData: t.templateCanvasData || null,
               settingsOverride: t.settingsOverride || null,
               multipleChoiceTasks: t.multipleChoiceTasks || []
             };
-            if (t.editorText) {
+            if (options.importCanvas && t.editorText) {
               this.editorTexts[taskId] = t.editorText;
             }
             if (options.importCritique && t.critique) newTask.critique = t.critique;
 
-            if (t.attempts && Array.isArray(t.attempts)) {
+            if (options.importCanvas && t.attempts && Array.isArray(t.attempts)) {
               newTask.attempts = [];
               for (const att of t.attempts) {
                 let attId = att.id;
