@@ -133,7 +133,7 @@
               <button
                 type="button"
                 onclick={() => { onSelect(icon); isOpen = false; }}
-                class="p-2.5 border border-outline-variant rounded-lg flex items-center justify-center hover:bg-surface-container text-on-surface-variant cursor-pointer transition-colors"
+                class="h-11 border border-outline-variant rounded-lg flex items-center justify-center hover:bg-surface-container text-on-surface-variant cursor-pointer transition-colors"
               >
                 <span class="material-symbols-outlined text-[24px]">{icon}</span>
               </button>
@@ -149,13 +149,13 @@
             </span>
             <div class="grid grid-cols-4 gap-2">
               {#each resolvedUserIcons as userIcon}
-                <div class="relative group aspect-square">
+                <div class="relative group h-11">
                   <button
                     type="button"
                     onclick={() => { onSelect(userIcon.id); isOpen = false; }}
-                    class="w-full h-full p-2 border border-outline-variant rounded-lg flex items-center justify-center hover:bg-surface-container cursor-pointer overflow-hidden transition-colors"
+                    class="w-full h-full p-2.5 border border-outline-variant rounded-lg flex items-center justify-center hover:bg-surface-container cursor-pointer overflow-hidden transition-colors"
                   >
-                    <img src={userIcon.url} class="w-full h-full object-contain rounded" alt="" />
+                    <img src={userIcon.url} class="w-6 h-6 object-contain rounded shrink-0" alt="" />
                   </button>
                   <!-- Delete button on hover -->
                   <button

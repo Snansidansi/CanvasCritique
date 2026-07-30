@@ -93,7 +93,7 @@
               {#if newProjectIconPreview}
                 <img
                   src={newProjectIconPreview}
-                  class="w-8 h-8 object-contain rounded"
+                  class="w-6 h-6 object-contain rounded shrink-0"
                   alt=""
                 />
               {:else}
