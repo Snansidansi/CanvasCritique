@@ -203,6 +203,15 @@
 
                 {#if editingAttemptId !== attempt.id}
                   <div class="flex items-center gap-0.5 shrink-0" onclick={e => e.stopPropagation()} role="presentation">
+                    {#if attempt.isConflict}
+                      <button 
+                        onclick={() => {
+                          store.resolveAttemptConflict(store.activeProject.id, task.id, attempt.id);
+                        }}
+                        class="material-symbols-outlined text-xs text-primary hover:bg-primary/10 p-1 rounded transition-colors border-0 bg-transparent cursor-pointer flex items-center justify-center"
+                        title={t('practice.attemptsMarkResolved')}
+                      >check_circle</button>
+                    {/if}
                     <button 
                       onclick={() => {
                         editingAttemptId = attempt.id;

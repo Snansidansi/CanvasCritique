@@ -1264,6 +1264,7 @@ export async function updateAttempt(db: Database, id: string, updates: Partial<T
   }
   if (updates.editorText !== undefined) { fields.push('editor_text = ?'); values.push(updates.editorText); }
   if (updates.multipleChoiceAnswers !== undefined) { fields.push('multiple_choice_answers_json = ?'); values.push(JSON.stringify(updates.multipleChoiceAnswers)); }
+  if (updates.isConflict !== undefined) { fields.push('is_conflict = ?'); values.push(updates.isConflict ? 1 : 0); }
 
   if (fields.length > 0) {
     values.push(id);

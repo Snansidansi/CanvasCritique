@@ -1764,6 +1764,19 @@ class CanvasCritiqueStore {
     }
   }
 
+  async resolveAttemptConflict(projectId: string, taskId: string, attemptId: string): Promise<void> {
+    const project = this.projects.find(p => p.id === projectId);
+    if (!project) return;
+    const task = project.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const attempt = task.attempts?.find(a => a.id === attemptId);
+    if (attempt) {
+      attempt.isConflict = false;
+      await dbUpdateAttempt(this.getDb(), attemptId, { isConflict: false });
+    }
+  }
+
   async deleteAttempt(projectId: string, taskId: string, attemptId: string): Promise<void> {
     const project = this.projects.find(p => p.id === projectId);
     if (!project) return;
