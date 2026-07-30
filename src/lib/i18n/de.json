@@ -316,6 +316,7 @@
     "filterTypesTitle": "Anfragetypen filtern",
     "typeCorrection": "Korrektur",
     "typeOcr": "OCR",
+    "typeTest": "API-Test",
     "requestTypeColumn": "Anfragetyp",
     "chartLinesLabel": "Diagrammlinien",
     "lineTotal": "Gesamt"

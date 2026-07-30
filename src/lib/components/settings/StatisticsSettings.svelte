@@ -13,8 +13,8 @@
   let requestHistoryMode = $state<'chart' | 'selection' | 'total'>('chart');
 
   // Request types filter state
-  let selectedRequestTypes = $state<string[]>(['correction', 'ocr']);
-  let visibleSeries = $state<Record<string, boolean>>({ total: true, correction: true, ocr: true });
+  let selectedRequestTypes = $state<string[]>(['correction', 'ocr', 'test']);
+  let visibleSeries = $state<Record<string, boolean>>({ total: true, correction: true, ocr: true, test: true });
 
   function toggleRequestType(typeId: string) {
     if (selectedRequestTypes.includes(typeId)) {
@@ -214,12 +214,15 @@
       label: string;
       correctionCost: number;
       ocrCost: number;
+      testCost: number;
       totalCost: number;
       correctionRequests: number;
       ocrRequests: number;
+      testRequests: number;
       totalRequests: number;
       correctionTokens: number;
       ocrTokens: number;
+      testTokens: number;
       totalTokens: number;
     }> = [];
 
@@ -237,12 +240,15 @@
           label,
           correctionCost: 0,
           ocrCost: 0,
+          testCost: 0,
           totalCost: 0,
           correctionRequests: 0,
           ocrRequests: 0,
+          testRequests: 0,
           totalRequests: 0,
           correctionTokens: 0,
           ocrTokens: 0,
+          testTokens: 0,
           totalTokens: 0
         });
       }
@@ -261,6 +267,10 @@
               item.ocrCost += cost;
               item.ocrRequests += 1;
               item.ocrTokens += tokens;
+            } else if (reqType === 'test') {
+              item.testCost += cost;
+              item.testRequests += 1;
+              item.testTokens += tokens;
             } else {
               item.correctionCost += cost;
               item.correctionRequests += 1;
@@ -299,9 +309,9 @@
       const d = new Date(dateStr + 'T12:00:00');
       const label = d.toLocaleDateString(store.settings.language === 'Deutsch' ? 'de-DE' : 'en-US', { month: 'short', day: 'numeric' });
 
-      let correctionCost = 0, ocrCost = 0, totalCost = 0;
-      let correctionRequests = 0, ocrRequests = 0, totalRequests = 0;
-      let correctionTokens = 0, ocrTokens = 0, totalTokens = 0;
+      let correctionCost = 0, ocrCost = 0, testCost = 0, totalCost = 0;
+      let correctionRequests = 0, ocrRequests = 0, testRequests = 0, totalRequests = 0;
+      let correctionTokens = 0, ocrTokens = 0, testTokens = 0, totalTokens = 0;
 
       for (const log of logs) {
         const reqType = log.requestType || 'correction';
@@ -312,6 +322,10 @@
           ocrCost += cost;
           ocrRequests += 1;
           ocrTokens += tokens;
+        } else if (reqType === 'test') {
+          testCost += cost;
+          testRequests += 1;
+          testTokens += tokens;
         } else {
           correctionCost += cost;
           correctionRequests += 1;
@@ -328,12 +342,15 @@
         label,
         correctionCost,
         ocrCost,
+        testCost,
         totalCost,
         correctionRequests,
         ocrRequests,
+        testRequests,
         totalRequests,
         correctionTokens,
         ocrTokens,
+        testTokens,
         totalTokens
       });
     }
@@ -594,7 +611,7 @@
 
   // Derive filtered logs
   const filteredHistory = $derived.by(() => {
-    const history = store.statsHistory;
+    const history = typeFilteredHistory;
     let list = [...history];
 
     if (requestHistoryMode === 'chart') {
@@ -684,6 +701,14 @@
       >
         <span class="w-2 h-2 rounded-full bg-purple-500"></span>
         {t('stats.typeOcr')}
+      </button>
+      <button
+        type="button"
+        onclick={() => toggleRequestType('test')}
+        class="px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer {selectedRequestTypes.includes('test') ? 'bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400' : 'bg-surface-container-low border-outline-variant/40 text-outline opacity-60'}"
+      >
+        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+        {t('stats.typeTest')}
       </button>
     </div>
   </section>
@@ -1153,6 +1178,10 @@
                   {#if (log.requestType || 'correction') === 'ocr'}
                     <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
                       OCR
+                    </span>
+                  {:else if (log.requestType || 'correction') === 'test'}
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                      {t('stats.typeTest')}
                     </span>
                   {:else}
                     <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">

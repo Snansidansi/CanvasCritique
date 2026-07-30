@@ -176,7 +176,7 @@
             }
           }
 
-          await store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost);
+          await store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost, 'test');
         } catch (statsErr) {
           console.error('Failed to log OpenRouter connection test stats:', statsErr);
         }

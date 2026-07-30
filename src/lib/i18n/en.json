@@ -317,6 +317,7 @@
     "filterTypesTitle": "Filter Request Types",
     "typeCorrection": "Correction",
     "typeOcr": "OCR",
+    "typeTest": "API Test",
     "requestTypeColumn": "Request Type",
     "chartLinesLabel": "Chart Series",
     "lineTotal": "Total"

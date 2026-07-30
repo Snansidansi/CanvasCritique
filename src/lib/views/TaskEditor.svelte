@@ -1258,14 +1258,14 @@
               <button
                 type="button"
                 onclick={() => openOcrModal('instructions')}
-                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-primary/10 hover:bg-primary/20 text-primary flex items-center gap-1 border border-primary/20 cursor-pointer transition-all focus:outline-none"
+                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
                 title={t('ocr.buttonTooltip')}
               >
                 {#if isInstructionsOcrProcessing}
                   <span class="w-2.5 h-2.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
                   <span>{t('ocr.processingText')}</span>
                 {:else}
-                  <span class="material-symbols-outlined text-[13px]">document_scanner</span>
+                  <span class="material-symbols-outlined text-[13px] text-primary">document_scanner</span>
                   <span>OCR</span>
                 {/if}
               </button>
@@ -1354,13 +1354,7 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div 
-                  onclick={() => {
-                    if (editingFileIndex !== index || editingFileType !== 'instruction') {
-                      openPreview(file);
-                    }
-                  }}
-                  class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
-                  title={t('taskEditor.clickToPreview')}
+                  class="flex items-center gap-2 min-w-0 grow"
                 >
                   <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
                     drag_indicator
@@ -1378,20 +1372,22 @@
                       onclick={(e) => e.stopPropagation()}
                       onkeydown={(e) => {
                         e.stopPropagation();
-                        if (e.key === 'Enter') {
-                          saveInlineRename();
-                        } else if (e.key === 'Escape') {
-                          cancelInlineRename();
-                        }
                       }}
-                      onblur={saveInlineRename}
-                      class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
+                      class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none"
                     />
                   {:else}
-                    <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
+                    <span class="text-xs text-on-surface truncate font-medium max-w-72" title={file.name}>{file.name}</span>
                   {/if}
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
+                  <button 
+                    type="button"
+                    onclick={(e) => { e.stopPropagation(); openPreview(file); }}
+                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+                    title={t('taskEditor.preview')}
+                  >
+                    <span class="material-symbols-outlined text-[18px]">visibility</span>
+                  </button>
                   <button 
                     type="button"
                     onclick={() => handleRenameFile(index, 'instruction')}
@@ -1406,7 +1402,7 @@
                       instructionFiles = instructionFiles.filter((_, i) => i !== index);
                     }}
                     class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
-                    title={t('taskEditor.remove')}
+                    title={t('taskEditor.remove') || 'Remove'}
                   >
                     close
                   </button>
@@ -1436,14 +1432,14 @@
               <button
                 type="button"
                 onclick={() => openOcrModal('solution')}
-                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-primary/10 hover:bg-primary/20 text-primary flex items-center gap-1 border border-primary/20 cursor-pointer transition-all focus:outline-none"
+                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
                 title={t('ocr.buttonTooltip')}
               >
                 {#if isSolutionOcrProcessing}
                   <span class="w-2.5 h-2.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
                   <span>{t('ocr.processingText')}</span>
                 {:else}
-                  <span class="material-symbols-outlined text-[13px]">document_scanner</span>
+                  <span class="material-symbols-outlined text-[13px] text-primary">document_scanner</span>
                   <span>OCR</span>
                 {/if}
               </button>
