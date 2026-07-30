@@ -137,8 +137,7 @@
 
 <LessonIconModal
   bind:isOpen={isIconModalOpen}
-  currentIcon={templateIcon}
-  onSelectIcon={(icon) => {
+  onSelect={(icon) => {
     templateIcon = icon;
     resolvePreview(icon);
   }}
