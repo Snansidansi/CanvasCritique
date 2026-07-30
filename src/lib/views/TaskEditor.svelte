@@ -1428,7 +1428,13 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div 
-                  class="flex items-center gap-2 min-w-0 grow"
+                  onclick={() => {
+                    if (editingFileIndex !== index || editingFileType !== 'instruction') {
+                      openPreview(file);
+                    }
+                  }}
+                  class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
+                  title={t('taskEditor.clickToPreview')}
                 >
                   <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
                     drag_indicator
@@ -1450,22 +1456,14 @@
                       class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none"
                     />
                   {:else}
-                    <span class="text-xs text-on-surface truncate font-medium max-w-72" title={file.name}>{file.name}</span>
+                    <span class="text-xs text-on-surface truncate font-medium max-w-72 hover:text-primary hover:underline" title={file.name}>{file.name}</span>
                   {/if}
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                   <button 
                     type="button"
-                    onclick={(e) => { e.stopPropagation(); openPreview(file); }}
-                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
-                    title={t('taskEditor.preview')}
-                  >
-                    <span class="material-symbols-outlined text-[18px]">visibility</span>
-                  </button>
-                  <button 
-                    type="button"
                     onclick={() => handleRenameFile(index, 'instruction')}
-                    class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
+                    class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
                     title={t('taskEditor.renameFileTooltip') || 'Rename File'}
                   >
                     edit

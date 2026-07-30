@@ -35,7 +35,7 @@
   let editingFileNameValue = $state<string>('');
   let previewFile = $state<OcrImageItem | null>(null);
 
-  // Pointer-based media drag state (Exact copy from TaskEditor)
+  // Pointer-based media drag state (EXACT 1:1 match to TaskEditor)
   let draggedFileIndex = $state<number | null>(null);
   let hoveredFileIndex = $state<number | null>(null);
   let isMediaDragActive = $state(false);
@@ -147,13 +147,16 @@
     previewFile = file;
   }
 
-  // Pointer drag reordering (Exact copy from TaskEditor)
+  // Pointer drag reordering (EXACT 1:1 match to TaskEditor)
   function handleFilePointerDown(e: PointerEvent, index: number) {
     if (e.button !== 0 && e.button !== -1) return;
     const target = e.currentTarget as HTMLElement;
 
-    if ((e.target as HTMLElement).closest('.remove-file-btn') || 
-        ((e.target as HTMLElement).closest('.preview-file-click') && !(e.target as HTMLElement).closest('.drag-handle'))) return;
+    const targetEl = e.target as HTMLElement;
+    if (targetEl.closest('.remove-file-btn') || 
+        targetEl.closest('button') || 
+        targetEl.closest('input') || 
+        (targetEl.closest('.preview-file-click') && !targetEl.closest('.drag-handle'))) return;
 
     mediaDragPointerStartX = e.clientX;
     mediaDragPointerStartY = e.clientY;
@@ -323,7 +326,7 @@
           {t('taskEditor.pasteClipboard')}
         </button>
 
-        <!-- Uploaded Files List (EXACT match to TaskEditor file rows) -->
+        <!-- Uploaded Files List (EXACT 1:1 match to TaskEditor file rows) -->
         {#if imageItems.length > 0}
           <div class="mt-2 flex flex-col gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
             {#each imageItems as file, index (file.id)}
@@ -339,8 +342,13 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div 
-                  onclick={() => openPreview(file)}
-                  class="flex items-center gap-2 min-w-0 grow cursor-pointer"
+                  onclick={() => {
+                    if (editingFileIndex !== index) {
+                      openPreview(file);
+                    }
+                  }}
+                  class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
+                  title={t('taskEditor.clickToPreview')}
                 >
                   <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
                     drag_indicator
@@ -369,15 +377,7 @@
                 <div class="flex items-center gap-1 shrink-0">
                   <button 
                     type="button"
-                    onclick={(e) => { e.stopPropagation(); openPreview(file); }}
-                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer preview-file-click"
-                    title={t('taskEditor.preview')}
-                  >
-                    <span class="material-symbols-outlined text-[18px]">visibility</span>
-                  </button>
-                  <button 
-                    type="button"
-                    onclick={(e) => { e.stopPropagation(); startRenameFile(index); }}
+                    onclick={() => startRenameFile(index)}
                     class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
                     title={t('taskEditor.renameFileTooltip') || 'Rename File'}
                   >
@@ -385,7 +385,7 @@
                   </button>
                   <button 
                     type="button"
-                    onclick={(e) => { e.stopPropagation(); removeImage(index); }}
+                    onclick={() => removeImage(index)}
                     class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
                     title={t('taskEditor.remove') || 'Remove'}
                   >
