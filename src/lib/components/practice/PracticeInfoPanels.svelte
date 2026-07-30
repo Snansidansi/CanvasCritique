@@ -266,6 +266,13 @@
 
   let expandedMediaIds = $state<Record<string, boolean>>({});
 
+  // Reset expanded media state whenever the current task changes
+  $effect(() => {
+    if (task?.id) {
+      expandedMediaIds = {};
+    }
+  });
+
   // Cache loaded media URLs with loading state
   let loadedMedia = $state<Record<string, { url: string; loading: boolean; error: boolean }>>({});
 

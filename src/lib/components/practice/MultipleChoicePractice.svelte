@@ -24,6 +24,13 @@
 
   let expandedMediaIds = $state<Record<string, boolean>>({});
 
+  // Reset expanded media state whenever tasks change
+  $effect(() => {
+    if (multipleChoiceTasks) {
+      expandedMediaIds = {};
+    }
+  });
+
   // Preview Modal states matching PracticeInfoPanels 1-to-1
   let previewFile = $state<{ name: string; dataUrl: string; mediaId?: string } | null>(null);
   let modalZoom = $state(1);
