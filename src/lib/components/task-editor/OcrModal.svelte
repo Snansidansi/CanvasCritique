@@ -2,6 +2,7 @@
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
   import type { Project } from '../../state/types';
+  import { getFileIcon } from '../../db/media';
 
   interface OcrImageItem {
     id: string;
@@ -29,12 +30,19 @@
   let showAdvancedPrompt = $state<boolean>(false);
   let fileInputEl = $state<HTMLInputElement | null>(null);
 
+  // File item editing & preview state
+  let editingFileIndex = $state<number | null>(null);
+  let editingFileNameValue = $state<string>('');
+  let previewFile = $state<OcrImageItem | null>(null);
+
   $effect(() => {
     if (isOpen) {
       const effective = store.getEffectiveOcrSettings(project);
       customPrompt = effective.customPrompt;
       selectedModel = effective.model;
       errorMsg = '';
+      editingFileIndex = null;
+      previewFile = null;
     }
   });
 
@@ -106,28 +114,20 @@
     }
   }
 
-  function removeImage(id: string) {
-    imageItems = imageItems.filter(img => img.id !== id);
+  function removeImage(index: number) {
+    imageItems = imageItems.filter((_, i) => i !== index);
   }
 
-  function moveImage(index: number, direction: 'up' | 'down') {
-    if (direction === 'up' && index > 0) {
-      const updated = [...imageItems];
-      const temp = updated[index];
-      updated[index] = updated[index - 1];
-      updated[index - 1] = temp;
-      imageItems = updated;
-    } else if (direction === 'down' && index < imageItems.length - 1) {
-      const updated = [...imageItems];
-      const temp = updated[index];
-      updated[index] = updated[index + 1];
-      updated[index + 1] = temp;
-      imageItems = updated;
+  function startRenameFile(index: number) {
+    editingFileIndex = index;
+    editingFileNameValue = imageItems[index]?.name || '';
+  }
+
+  function saveRenameFile(index: number) {
+    if (editingFileNameValue.trim()) {
+      imageItems[index].name = editingFileNameValue.trim();
     }
-  }
-
-  function clearAllImages() {
-    imageItems = [];
+    editingFileIndex = null;
   }
 
   function submitOcr() {
@@ -180,7 +180,7 @@
         </button>
       </div>
 
-      <!-- Instruction/Upload Dropzone Box (Exact match to Bild 3 and TaskEditor) -->
+      <!-- Upload Dropzone (EXACT match to TaskEditor media upload) -->
       <div class="flex flex-col gap-2">
         <input 
           bind:this={fileInputEl}
@@ -190,7 +190,7 @@
           onchange={handleFileInputChange} 
           class="hidden" 
         />
-        <button
+        <button 
           type="button"
           onclick={() => fileInputEl?.click()}
           ondragover={(e) => { e.preventDefault(); isDragOver = true; }}
@@ -203,15 +203,13 @@
           </div>
           <div class="text-center">
             <p class="text-sm font-semibold text-on-surface">
-              {imageItems.length > 0 
-                ? (store.settings.language === 'Deutsch' ? `${imageItems.length} Bild(er) ausgewählt – Klicken zum Hinzufügen` : `${imageItems.length} image(s) selected – Click to add more`) 
-                : (store.settings.language === 'Deutsch' ? 'Klicken zum Hochladen von OCR-Bildern' : 'Click to upload OCR images')}
+              {imageItems.length > 0 ? t('taskEditor.filesSelected', { count: imageItems.length }) : t('taskEditor.uploadPrompt')}
             </p>
-            <p class="text-xs text-on-surface-variant mt-1">{t('ocr.supportedFormats')}</p>
+            <p class="text-xs text-on-surface-variant mt-1">{t('taskEditor.uploadSupportInfo')}</p>
           </div>
         </button>
 
-        <!-- Full-width Paste from Clipboard button (Exact match to Bild 3) -->
+        <!-- Paste from Clipboard button (EXACT match to TaskEditor) -->
         <button
           type="button"
           onclick={handlePasteFromClipboard}
@@ -220,69 +218,68 @@
           <span class="material-symbols-outlined text-[16px]">content_paste</span>
           {t('taskEditor.pasteClipboard')}
         </button>
-      </div>
 
-      <!-- Selected Images List & Reordering -->
-      {#if imageItems.length > 0}
-        <div class="flex flex-col gap-2 bg-surface-container-low/50 p-3 rounded-xl border border-outline-variant/30">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-on-surface flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[16px] text-primary">collections</span>
-              {store.settings.language === 'Deutsch' ? `Ausgewählte Bilder (${imageItems.length})` : `Selected Images (${imageItems.length})`}
-            </span>
-            <button
-              type="button"
-              onclick={clearAllImages}
-              class="text-[11px] text-error hover:underline cursor-pointer font-medium"
-            >
-              {store.settings.language === 'Deutsch' ? 'Alle entfernen' : 'Clear all'}
-            </button>
-          </div>
-
-          <div class="flex flex-col gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-            {#each imageItems as img, index (img.id)}
-              <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none">
+        <!-- Uploaded Files List (EXACT match to TaskEditor file rows) -->
+        {#if imageItems.length > 0}
+          <div class="mt-2 flex flex-col gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+            {#each imageItems as file, index (file.id)}
+              <div 
+                class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none"
+              >
                 <div class="flex items-center gap-2 min-w-0 grow">
-                  <span class="material-symbols-outlined text-[20px] text-outline select-none drag-handle">
+                  <span class="material-symbols-outlined text-[20px] text-outline cursor-grab select-none drag-handle">
                     drag_indicator
                   </span>
-                  <img src={img.dataUrl} alt={img.name} class="w-8 h-8 object-cover rounded border border-outline-variant/40 shrink-0" />
-                  <span class="text-xs text-on-surface truncate font-medium max-w-64" title={img.name}>{img.name}</span>
+                  <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
+                    {getFileIcon(file.name)}
+                  </span>
+                  {#if editingFileIndex === index}
+                    <input
+                      type="text"
+                      bind:value={editingFileNameValue}
+                      onclick={(e) => e.stopPropagation()}
+                      onkeydown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === 'Enter') saveRenameFile(index);
+                      }}
+                      onblur={() => saveRenameFile(index)}
+                      class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none"
+                    />
+                  {:else}
+                    <span class="text-xs text-on-surface truncate font-medium max-w-72" title={file.name}>{file.name}</span>
+                  {/if}
                 </div>
-
                 <div class="flex items-center gap-1 shrink-0">
-                  <button
+                  <button 
                     type="button"
-                    disabled={index === 0}
-                    onclick={() => moveImage(index, 'up')}
-                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer disabled:opacity-30"
-                    title={store.settings.language === 'Deutsch' ? 'Nach oben verschieben' : 'Move up'}
+                    onclick={(e) => { e.stopPropagation(); previewFile = file; }}
+                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+                    title={t('taskEditor.preview')}
                   >
-                    <span class="material-symbols-outlined text-[18px]">keyboard_arrow_up</span>
+                    <span class="material-symbols-outlined text-[18px]">visibility</span>
                   </button>
-                  <button
+                  <button 
                     type="button"
-                    disabled={index === imageItems.length - 1}
-                    onclick={() => moveImage(index, 'down')}
-                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer disabled:opacity-30"
-                    title={store.settings.language === 'Deutsch' ? 'Nach unten verschieben' : 'Move down'}
+                    onclick={() => startRenameFile(index)}
+                    class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                    title={t('taskEditor.renameFileTooltip') || 'Rename File'}
                   >
-                    <span class="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
+                    edit
                   </button>
-                  <button
+                  <button 
                     type="button"
-                    onclick={() => removeImage(img.id)}
-                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-error transition-colors cursor-pointer"
-                    title={t('common.delete')}
+                    onclick={() => removeImage(index)}
+                    class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0"
+                    title={t('taskEditor.remove') || 'Remove'}
                   >
-                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                    close
                   </button>
                 </div>
               </div>
             {/each}
           </div>
-        </div>
-      {/if}
+        {/if}
+      </div>
 
       <!-- Prompt Collapsible Option -->
       <div class="flex flex-col gap-2">
@@ -339,6 +336,35 @@
           <span class="material-symbols-outlined text-[18px]">document_scanner</span>
           <span>{t('ocr.extractTextBtn')} ({imageItems.length})</span>
         </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Preview Image Modal -->
+{#if previewFile}
+  <div 
+    class="fixed inset-0 z-60 bg-black/80 flex items-center justify-center p-4 animate-fade-in"
+    onclick={() => previewFile = null}
+    role="presentation"
+  >
+    <div 
+      class="bg-surface-container-high border border-outline-variant/40 rounded-2xl p-4 max-w-2xl max-h-[80vh] flex flex-col gap-3 relative overflow-hidden"
+      onclick={(e) => e.stopPropagation()}
+      role="presentation"
+    >
+      <div class="flex items-center justify-between border-b border-outline-variant/30 pb-2">
+        <span class="text-sm font-bold text-on-surface truncate">{previewFile.name}</span>
+        <button 
+          type="button" 
+          onclick={() => previewFile = null}
+          class="w-7 h-7 rounded-full hover:bg-surface-container-highest flex items-center justify-center text-on-surface-variant cursor-pointer"
+        >
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+      <div class="flex items-center justify-center overflow-auto max-h-[65vh]">
+        <img src={previewFile.dataUrl} alt={previewFile.name} class="max-w-full max-h-full object-contain rounded shadow-md" />
       </div>
     </div>
   </div>
