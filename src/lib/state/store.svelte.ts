@@ -14,6 +14,7 @@ import type {
 } from './types';
 
 import { getAttemptCreationMs } from '../utils/attempts';
+import { t } from '../services/i18n';
 
 import {
   defaultProjects,
@@ -47,7 +48,10 @@ import {
   updateAttempt as dbUpdateAttempt,
   deleteAttempt as dbDeleteAttempt,
   loadAttemptCanvasDataFromDisk,
-  saveAttemptCanvasDataToDisk
+  saveAttemptCanvasDataToDisk,
+  insertTemplateRecord,
+  updateTemplateGlobal,
+  deleteTemplateRecord
 } from '../db';
 
 import { tick } from 'svelte';
@@ -123,6 +127,14 @@ class CanvasCritiqueStore {
 
   get isDbReady(): boolean {
     return this._dbReady;
+  }
+
+  get templates(): Project[] {
+    return this.projects.filter(p => p.isTemplate && (p.isGlobal || p.profileId === this.activeProfileId));
+  }
+
+  get activeProfileProjects(): Project[] {
+    return this.projects.filter(p => !p.isTemplate && p.profileId === this.activeProfileId);
   }
 
   generateNextTaskName(projectId: string, category?: string): string {
@@ -3122,6 +3134,262 @@ class CanvasCritiqueStore {
     };
 
     return JSON.stringify(payload, null, 2);
+  }
+
+  // ── Template Management ──
+
+  async createTemplate(name: string, icon: string = 'history_edu', isGlobal: boolean = false): Promise<Project> {
+    const newTemplate: Project = {
+      id: 'tmpl_proj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      name: name.trim(),
+      icon: icon || 'history_edu',
+      guidelines: '',
+      categories: ['Basics'],
+      tasks: [],
+      profileId: this.activeProfileId,
+      isTemplate: true,
+      isGlobal: isGlobal
+    };
+
+    if (this._dbReady) {
+      const db = getDb();
+      if (db) {
+        await insertProject(db, newTemplate);
+        await insertTemplateRecord(db, newTemplate.id, isGlobal);
+      }
+    }
+
+    this.projects.push(newTemplate);
+    this.showNotification(t('templates.createdNotification') || 'Vorlage erfolgreich erstellt.', 'success');
+    return newTemplate;
+  }
+
+  async copyLessonAsTemplate(projectId: string, isGlobal: boolean = false): Promise<Project | null> {
+    const source = this.projects.find(p => p.id === projectId);
+    if (!source) return null;
+
+    const clonedProject: Project = JSON.parse(JSON.stringify(source));
+    clonedProject.id = 'tmpl_proj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    clonedProject.profileId = this.activeProfileId;
+    clonedProject.isTemplate = true;
+    clonedProject.isGlobal = isGlobal;
+
+    // Clean user progress from cloned tasks
+    if (clonedProject.tasks) {
+      for (const task of clonedProject.tasks) {
+        task.id = 'tmpl_task_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        task.projectId = clonedProject.id;
+        task.completed = false;
+        task.critique = null;
+        task.attempts = [];
+        task.activeAttemptId = null;
+        task.editorText = '';
+        task.templateCanvasData = null;
+        task.multipleChoiceAnswers = {};
+      }
+    }
+
+    if (this._dbReady) {
+      const db = getDb();
+      if (db) {
+        await insertProject(db, clonedProject);
+        await insertTemplateRecord(db, clonedProject.id, isGlobal);
+        for (const task of clonedProject.tasks || []) {
+          await insertTask(db, task, clonedProject.id);
+        }
+      }
+    }
+
+    this.projects.push(clonedProject);
+    this.showNotification(t('templates.copiedNotification') || 'Lektion als Vorlage kopiert.', 'success');
+    return clonedProject;
+  }
+
+  async createLessonFromTemplate(templateProjectId: string, targetProfileId?: string): Promise<Project | null> {
+    const template = this.projects.find(p => p.id === templateProjectId);
+    if (!template) return null;
+
+    const newProject: Project = JSON.parse(JSON.stringify(template));
+    newProject.id = 'proj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    newProject.profileId = targetProfileId || this.activeProfileId;
+    newProject.isTemplate = false;
+    newProject.isGlobal = false;
+
+    // Clean user progress from tasks
+    if (newProject.tasks) {
+      for (const task of newProject.tasks) {
+        task.id = 'task_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        task.projectId = newProject.id;
+        task.completed = false;
+        task.critique = null;
+        task.attempts = [];
+        task.activeAttemptId = null;
+        task.editorText = '';
+        task.templateCanvasData = null;
+        task.multipleChoiceAnswers = {};
+      }
+    }
+
+    if (this._dbReady) {
+      const db = getDb();
+      if (db) {
+        await insertProject(db, newProject);
+        for (const task of newProject.tasks || []) {
+          await insertTask(db, task, newProject.id);
+        }
+      }
+    }
+
+    this.projects.push(newProject);
+    this.showNotification(
+      (t('templates.lessonCreatedNotification') || "Lektion aus Vorlage '{name}' erstellt.").replace('{name}', template.name),
+      'success'
+    );
+    return newProject;
+  }
+
+  async toggleTemplateGlobal(projectId: string, isGlobal: boolean): Promise<void> {
+    const proj = this.projects.find(p => p.id === projectId);
+    if (!proj) return;
+    proj.isGlobal = isGlobal;
+    if (this._dbReady) {
+      const db = getDb();
+      if (db) {
+        await updateTemplateGlobal(db, projectId, isGlobal);
+      }
+    }
+  }
+
+  async deleteTemplate(projectId: string): Promise<void> {
+    if (this._dbReady) {
+      const db = getDb();
+      if (db) {
+        await deleteTemplateRecord(db, projectId);
+      }
+    }
+    await this.deleteProject(projectId);
+  }
+
+  async exportTemplate(project: Project): Promise<void> {
+    // Export template directly bypassing option selection checkboxes
+    const filePath = await this.getSavePath(`template_${project.name.toLowerCase().replace(/\s+/g, '_')}.ccpack`, 'ccpack', 'Canvas Critique Package');
+    if (!filePath) return;
+
+    this.showLoading(t('common.exporting') || 'Exportiere...');
+    try {
+      const clonedTasks = (project.tasks || []).map(t => ({ ...t }));
+      const mediaIdsToPack: string[] = [];
+      for (const task of clonedTasks) {
+        if (task.instructionFiles) {
+          for (const file of task.instructionFiles) {
+            if (file.mediaId) mediaIdsToPack.push(file.mediaId);
+          }
+        }
+        if (task.solutionFiles) {
+          for (const file of task.solutionFiles) {
+            if (file.mediaId) mediaIdsToPack.push(file.mediaId);
+          }
+        }
+        if (task.contextFiles) {
+          for (const file of task.contextFiles) {
+            if (file.mediaId) mediaIdsToPack.push(file.mediaId);
+          }
+        }
+        if (task.providedFiles) {
+          for (const file of task.providedFiles) {
+            if (file.mediaId) mediaIdsToPack.push(file.mediaId);
+          }
+        }
+      }
+
+      const exportData: any = {
+        name: project.name,
+        icon: project.icon,
+        guidelines: project.guidelines,
+        categories: project.categories,
+        tasks: clonedTasks,
+        settingsOverride: project.settingsOverride,
+        isTemplate: true
+      };
+
+      const packBytes = await (await import('../utils/ccpack')).createPack(exportData, mediaIdsToPack);
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
+      await writeFile(filePath, packBytes);
+
+      this.showNotification(
+        this.settings?.language === 'Deutsch' ? 'Erfolgreich exportiert.' : 'Exported successfully.',
+        'success'
+      );
+    } catch (e) {
+      console.error('Template export failed:', e);
+      this.showNotification(
+        this.settings?.language === 'Deutsch' ? `Export fehlgeschlagen: ${e}` : `Export failed: ${e}`,
+        'error'
+      );
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  async importTemplateFile(projectData: any, isGlobal: boolean = false): Promise<Project | null> {
+    try {
+      const projData = Array.isArray(projectData) ? projectData[0] : projectData;
+      if (!projData || typeof projData !== 'object') return null;
+
+      const templateProject: Project = {
+        id: 'tmpl_proj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+        name: projData.name || 'Importierte Vorlage',
+        icon: projData.icon || 'history_edu',
+        guidelines: projData.guidelines || '',
+        categories: Array.isArray(projData.categories) ? projData.categories : ['Basics'],
+        tasks: [],
+        profileId: this.activeProfileId,
+        isTemplate: true,
+        isGlobal: isGlobal,
+        settingsOverride: projData.settingsOverride || undefined
+      };
+
+      const rawTasks = Array.isArray(projData.tasks) ? projData.tasks : [];
+      templateProject.tasks = rawTasks.map((rt: any) => ({
+        id: 'tmpl_task_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+        name: rt.name || 'Aufgabe',
+        completed: false,
+        instructions: rt.instructions || '',
+        solution: rt.solution || '',
+        category: rt.category || 'Basics',
+        projectId: templateProject.id,
+        instructionFiles: rt.instructionFiles || [],
+        solutionFiles: rt.solutionFiles || [],
+        contextFiles: rt.contextFiles || [],
+        providedFiles: rt.providedFiles || [],
+        multipleChoiceTasks: rt.multipleChoiceTasks || [],
+        critique: null,
+        attempts: [],
+        activeAttemptId: null,
+        editorText: '',
+        templateCanvasData: null,
+        multipleChoiceAnswers: {}
+      }));
+
+      if (this._dbReady) {
+        const db = getDb();
+        if (db) {
+          await insertProject(db, templateProject);
+          await insertTemplateRecord(db, templateProject.id, isGlobal);
+          for (const task of templateProject.tasks) {
+            await insertTask(db, task, templateProject.id);
+          }
+        }
+      }
+
+      this.projects.push(templateProject);
+      this.showNotification(t('templates.importedNotification') || 'Vorlage erfolgreich importiert.', 'success');
+      return templateProject;
+    } catch (err) {
+      console.error('Failed to import template:', err);
+      this.showNotification(t('dashboard.notifications.parseFailed'), 'error');
+      return null;
+    }
   }
 }
 
