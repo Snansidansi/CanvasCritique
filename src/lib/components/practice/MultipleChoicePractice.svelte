@@ -79,6 +79,9 @@
   }
 
   function getIsCheckbox(question: MultipleChoiceTask): boolean {
+    if (question.allowMultipleSelection !== undefined) {
+      return question.allowMultipleSelection;
+    }
     return question.options.filter(o => o.isCorrect).length > 1;
   }
 

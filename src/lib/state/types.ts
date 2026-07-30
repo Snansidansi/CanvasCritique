@@ -19,6 +19,7 @@ export interface MultipleChoiceTask {
   question: string;
   questionMedia: MediaFile[];
   options: MultipleChoiceOption[];
+  allowMultipleSelection?: boolean;
 }
 
 export interface Task {

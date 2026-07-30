@@ -604,6 +604,21 @@
             </div>
 
             <div class="flex items-center gap-2">
+              <!-- Multiple Selection Toggle -->
+              <label class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high border border-outline-variant/30 text-[11px] text-on-surface font-semibold cursor-pointer select-none hover:bg-surface-container-highest transition-colors">
+                <input
+                  type="checkbox"
+                  checked={question.allowMultipleSelection !== undefined ? question.allowMultipleSelection : (question.options.filter(o => o.isCorrect).length > 1)}
+                  onchange={(e) => {
+                    const list = [...multipleChoiceTasks];
+                    list[qIndex].allowMultipleSelection = (e.target as HTMLInputElement).checked;
+                    multipleChoiceTasks = list;
+                  }}
+                  class="rounded border-outline-variant text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer"
+                />
+                <span>{t('taskEditor.mc.allowMultipleSelection') || 'Mehrfachauswahl'}</span>
+              </label>
+
               <!-- Edit/Preview Toggle -->
               <button
                 type="button"
