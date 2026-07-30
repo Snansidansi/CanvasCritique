@@ -563,6 +563,8 @@
       "maxOutputTokensTooltip": "Legt die maximale Anzahl von Antworttoken fest. Nützlich, um teure Fehler bei Modellen mit hohen Kosten zu vermeiden oder wenn das Guthaben knapp ist. Hinweis: Wenn die Antwort des Modells wegen eines zu niedrigen Limits abgeschnitten wird, ist sie unvollständig, unbrauchbar und kann nicht verarbeitet werden.",
       "aiFeedbackLang": "KI-Feedback-Sprache",
       "aiFeedbackLangPlaceholder": "z.B. Deutsch",
+      "mediaFilterCardTitle": "Medienfilter",
+      "mediaFilterCardDesc": "Definiere getrennte Filter für die Dateiendungen von Aufgabenmedien, Lösungsmedien und Multiple Choice.",
       "taskMediaFilterTitle": "Medienfilter für Aufgabenstellung",
       "solutionMediaFilterTitle": "Medienfilter für Lösung",
       "mcMediaFilterTitle": "Medienfilter für Multiple Choice",

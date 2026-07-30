@@ -8,6 +8,8 @@
   import TextEditorSettings from '../components/settings/TextEditorSettings.svelte';
   import DataManagement from '../components/settings/DataManagement.svelte';
   import ApiSettings from '../components/settings/ApiSettings.svelte';
+  import EvaluationDetailsCard from '../components/settings/EvaluationDetailsCard.svelte';
+  import MediaFilterCard from '../components/settings/MediaFilterCard.svelte';
   import SystemPromptSettings from '../components/settings/SystemPromptSettings.svelte';
   import StatisticsSettings from '../components/settings/StatisticsSettings.svelte';
   import UpdateSettings from '../components/settings/UpdateSettings.svelte';
@@ -117,6 +119,8 @@
 
       {:else if activeTab === 'ai'}
         <ApiSettings />
+        <EvaluationDetailsCard />
+        <MediaFilterCard />
         <SystemPromptSettings />
 
       {:else if activeTab === 'data'}

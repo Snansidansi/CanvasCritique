@@ -564,6 +564,8 @@
       "maxOutputTokensTooltip": "Sets the maximum number of response tokens. Useful to prevent expensive errors for models with high costs or when credits are low. Note: If the model's response is cut off due to a low limit, it will be incomplete, unusable, and cannot be processed.",
       "aiFeedbackLang": "AI Feedback Language",
       "aiFeedbackLangPlaceholder": "e.g. English",
+      "mediaFilterCardTitle": "Media Filters",
+      "mediaFilterCardDesc": "Define separate file extension filters for task media, solution media, and multiple choice.",
       "taskMediaFilterTitle": "Task Media Filter",
       "solutionMediaFilterTitle": "Solution Media Filter",
       "mcMediaFilterTitle": "Multiple Choice Media Filter",
