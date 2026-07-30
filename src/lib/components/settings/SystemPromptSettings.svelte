@@ -2,28 +2,21 @@
   import { store, DEFAULT_SYSTEM_PROMPT } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
 
-  function togglePromptEditing(e: Event & { currentTarget: HTMLInputElement }) {
-    const checked = e.currentTarget.checked;
-    if (checked) {
-      // Show confirmation dialog before enabling
+  function handleToggleClick(e: MouseEvent) {
+    e.preventDefault();
+    if (!store.settings.systemPromptEditingEnabled) {
       store.confirm(
         t('settings.systemPrompt.confirmEditTitle'),
         t('settings.systemPrompt.confirmEditMsg'),
         () => {
           store.settings.systemPromptEditingEnabled = true;
-          // Pre-populate with default if currently empty
           if (!store.settings.customSystemPrompt) {
             store.settings.customSystemPrompt = DEFAULT_SYSTEM_PROMPT;
           }
           store.saveSettings();
-        },
-        () => {
-          // Revert toggle
-          e.currentTarget.checked = false;
         }
       );
     } else {
-      // Disabling editing automatically resets to default
       store.settings.systemPromptEditingEnabled = false;
       store.settings.customSystemPrompt = '';
       store.saveSettings();
@@ -35,8 +28,8 @@
     store.saveSettings();
   }
 
-  function handlePromptInput(e) {
-    store.settings.customSystemPrompt = e.target.value;
+  function handlePromptInput(e: Event & { currentTarget: HTMLTextAreaElement }) {
+    store.settings.customSystemPrompt = e.currentTarget.value;
     store.saveSettings();
   }
 </script>
@@ -66,7 +59,7 @@
           <input 
             type="checkbox" 
             checked={store.settings.systemPromptEditingEnabled} 
-            onchange={togglePromptEditing}
+            onclick={handleToggleClick}
             class="sr-only peer"
           />
           <div class="w-9 h-5 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
