@@ -124,6 +124,7 @@ export interface ProjectSettingsOverride {
   ocrOpenRouterModel?: string;
   ocrOpenRouterProvider?: string[];
   ocrOpenRouterReasoning?: boolean | string;
+  ocrMaxOutputTokens?: number;
   ocrCustomPrompt?: string;
 }
 
@@ -243,6 +244,7 @@ export interface Settings {
   ocrOpenRouterModel: string;
   ocrOpenRouterProvider: string[];
   ocrOpenRouterReasoning: boolean | string;
+  ocrMaxOutputTokens?: number;
   ocrCustomPrompt: string;
 }
 

@@ -2770,11 +2770,18 @@ class CanvasCritiqueStore {
       ? projOverride.ocrCustomPrompt
       : (globalSettings.ocrCustomPrompt || DEFAULT_OCR_PROMPT);
 
+    const maxOutputTokens = (useProjOcr && projOverride?.ocrMaxOutputTokens !== undefined)
+      ? projOverride.ocrMaxOutputTokens
+      : (globalSettings.ocrMaxOutputTokens !== undefined
+          ? globalSettings.ocrMaxOutputTokens
+          : globalSettings.maxOutputTokens);
+
     return {
       ocrEnabled,
       model,
       provider,
       reasoning,
+      maxOutputTokens,
       customPrompt
     };
   }

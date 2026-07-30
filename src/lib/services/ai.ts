@@ -1295,6 +1295,7 @@ export interface RunOcrOptions {
   prompt?: string;
   provider?: string[];
   reasoning?: boolean | string;
+  maxOutputTokens?: number;
   apiKey?: string;
   signal?: AbortSignal;
 }
@@ -1317,6 +1318,11 @@ export async function runOcrImage(options: RunOcrOptions): Promise<string> {
   const prompt = options.prompt || store.settings.ocrCustomPrompt || DEFAULT_OCR_PROMPT;
   const providers = options.provider && options.provider.length > 0 ? options.provider : (store.settings.ocrOpenRouterProvider || []);
   const reasoning = options.reasoning !== undefined ? options.reasoning : (store.settings.ocrOpenRouterReasoning !== undefined ? store.settings.ocrOpenRouterReasoning : true);
+  const maxTokens = options.maxOutputTokens !== undefined 
+    ? options.maxOutputTokens 
+    : (store.settings.ocrMaxOutputTokens !== undefined && store.settings.ocrMaxOutputTokens !== null && store.settings.ocrMaxOutputTokens > 0
+        ? store.settings.ocrMaxOutputTokens
+        : store.settings.maxOutputTokens);
 
   const imageParts = images.map((url, idx) => [
     ...(images.length > 1 ? [{ type: 'text', text: `[Image ${idx + 1}]` }] : []),
@@ -1336,7 +1342,8 @@ export async function runOcrImage(options: RunOcrOptions): Promise<string> {
           ...imageParts
         ]
       }
-    ]
+    ],
+    ...(maxTokens && maxTokens > 0 ? { max_tokens: maxTokens } : {})
   };
 
   if (providers.length > 0) {

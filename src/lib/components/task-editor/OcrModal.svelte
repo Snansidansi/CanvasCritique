@@ -155,10 +155,12 @@
     activeAbortController = new AbortController();
 
     try {
+      const effective = store.getEffectiveOcrSettings(project);
       const resultText = await runOcrImage({
         imageDataUrls: imageItems.map(item => item.dataUrl),
         model: selectedModel,
         prompt: customPrompt,
+        maxOutputTokens: effective.maxOutputTokens,
         signal: activeAbortController.signal
       });
 

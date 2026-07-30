@@ -169,6 +169,10 @@
       const providers = targetSettings.ocrOpenRouterProvider || store.settings.ocrOpenRouterProvider || [];
       const reasoning = targetSettings.ocrOpenRouterReasoning !== undefined ? targetSettings.ocrOpenRouterReasoning : store.settings.ocrOpenRouterReasoning;
 
+      const maxTokens = targetSettings.ocrMaxOutputTokens !== undefined && targetSettings.ocrMaxOutputTokens !== null && targetSettings.ocrMaxOutputTokens > 0
+        ? targetSettings.ocrMaxOutputTokens
+        : store.settings.ocrMaxOutputTokens;
+
       const payload: any = {
         model: model,
         messages: [
@@ -176,7 +180,8 @@
             role: 'user',
             content: prompt
           }
-        ]
+        ],
+        ...(maxTokens && maxTokens > 0 ? { max_tokens: maxTokens } : {})
       };
 
       if (providers.length > 0) {
@@ -316,6 +321,26 @@
           {/if}
         </div>
       {/if}
+    </div>
+
+    <!-- Max Output Tokens for OCR -->
+    <div class="flex flex-col gap-1.5 mt-1">
+      <div class="flex items-center gap-1.5">
+        <label class="text-xs font-semibold text-on-surface flex items-center gap-1" for="ocrMaxTokens">
+          {t('settings.api.maxOutputTokens')} (OCR)
+          <span class="text-[10px] text-on-surface-variant font-normal">({t('settings.api.maxOutputTokensDesc')})</span>
+        </label>
+        <HelpTooltip icon="help" text={t('settings.api.maxOutputTokensTooltip')} />
+      </div>
+      <input 
+        type="number" 
+        id="ocrMaxTokens"
+        min="0"
+        placeholder="0"
+        bind:value={targetSettings.ocrMaxOutputTokens}
+        oninput={handleChange}
+        class="w-full bg-surface-container-lowest border border-outline-variant text-sm text-on-surface rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+      />
     </div>
 
     <!-- Provider Selection for OCR (Multiple Tag Autocomplete UI) -->

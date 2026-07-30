@@ -120,6 +120,7 @@ export const defaultSettings: Settings = {
   ocrOpenRouterModel: '',
   ocrOpenRouterProvider: [],
   ocrOpenRouterReasoning: true,
+  ocrMaxOutputTokens: 0,
   ocrCustomPrompt: ''
 };
 
