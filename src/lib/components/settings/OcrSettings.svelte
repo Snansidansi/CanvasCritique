@@ -220,7 +220,7 @@
           const outputTokens = data.usage?.completion_tokens || 0;
           const reasoningTokens = data.usage?.completion_tokens_details?.reasoning_tokens || 0;
           const cost = estimateCost(model, inputTokens, outputTokens);
-          await store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost, 'ocr');
+          await store.recordRequest('openrouter', model, inputTokens, outputTokens, reasoningTokens, cost, 'test');
         } catch (_) {}
       } else {
         testStatus = 'error';
