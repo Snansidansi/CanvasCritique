@@ -191,7 +191,7 @@
   }
 </script>
 
-<!-- API Settings Section -->
+<!-- API Settings Section Card -->
 <section class="mb-8 bg-surface p-6 md:p-8 rounded-xl border border-outline-variant shadow-sm relative overflow-visible">
   <div class="absolute top-0 right-0 w-64 h-64 bg-primary-fixed/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none z-0"></div>
   
@@ -204,16 +204,7 @@
     <!-- Reusable AI Model selection component -->
     <AiModelConfig settings={store.settings} showKeys={true} onchange={handleInputChange} />
 
-    <!-- OCR Settings Section -->
-    <div class="mt-4 pt-6 border-t border-outline-variant/30">
-      <div class="flex items-center gap-2 mb-4">
-        <span class="material-symbols-outlined text-primary text-[20px]">document_scanner</span>
-        <h4 class="text-md font-bold text-on-surface">{t('settings.ocr.sectionTitle')}</h4>
-      </div>
-      <OcrSettings targetSettings={store.settings} onchange={handleInputChange} />
-    </div>
-
-    <!-- Connection Test Panel -->
+    <!-- Connection Test Panel for API Card -->
     <div class="mt-4 pt-4 border-t border-outline-variant/30 flex flex-col gap-3">
       <div class="flex items-center gap-3">
         <button
@@ -251,6 +242,20 @@
         </p>
       {/if}
     </div>
+  </div>
+</section>
+
+<!-- OCR (Bilder-Texterkennung) Settings Section Card -->
+<section class="mb-8 bg-surface p-6 md:p-8 rounded-xl border border-outline-variant shadow-sm relative overflow-visible">
+  <div class="absolute top-0 right-0 w-64 h-64 bg-primary-fixed/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none z-0"></div>
+
+  <div class="flex items-center gap-3 mb-6 border-b border-outline-variant pb-4 relative z-10">
+    <span class="material-symbols-outlined text-primary">document_scanner</span>
+    <h3 class="text-lg font-bold text-on-surface">{t('settings.ocr.sectionTitle')}</h3>
+  </div>
+
+  <div class="relative z-10">
+    <OcrSettings targetSettings={store.settings} onchange={handleInputChange} />
   </div>
 </section>
 

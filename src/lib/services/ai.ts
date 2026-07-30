@@ -1289,7 +1289,8 @@ function gradeMultipleChoiceLocally(questions: any[], answers: Record<string, st
 }
 
 export interface RunOcrOptions {
-  imageDataUrl: string;
+  imageDataUrl?: string;
+  imageDataUrls?: string[];
   model?: string;
   prompt?: string;
   provider?: string[];
@@ -1304,10 +1305,26 @@ export async function runOcrImage(options: RunOcrOptions): Promise<string> {
     throw new Error('OpenRouter API Key is required for OCR.');
   }
 
+  const images = options.imageDataUrls && options.imageDataUrls.length > 0
+    ? options.imageDataUrls
+    : (options.imageDataUrl ? [options.imageDataUrl] : []);
+
+  if (images.length === 0) {
+    throw new Error('No images provided for OCR.');
+  }
+
   const model = options.model || store.settings.ocrOpenRouterModel || store.settings.openRouterModel || 'google/gemini-flash-1.5';
   const prompt = options.prompt || store.settings.ocrCustomPrompt || DEFAULT_OCR_PROMPT;
   const providers = options.provider && options.provider.length > 0 ? options.provider : (store.settings.ocrOpenRouterProvider || []);
   const reasoning = options.reasoning !== undefined ? options.reasoning : (store.settings.ocrOpenRouterReasoning !== undefined ? store.settings.ocrOpenRouterReasoning : true);
+
+  const imageParts = images.map((url, idx) => [
+    ...(images.length > 1 ? [{ type: 'text', text: `[Image ${idx + 1}]` }] : []),
+    {
+      type: 'image_url',
+      image_url: { url }
+    }
+  ]).flat();
 
   const payload: any = {
     model: model,
@@ -1316,12 +1333,7 @@ export async function runOcrImage(options: RunOcrOptions): Promise<string> {
         role: 'user',
         content: [
           { type: 'text', text: prompt },
-          {
-            type: 'image_url',
-            image_url: {
-              url: options.imageDataUrl
-            }
-          }
+          ...imageParts
         ]
       }
     ]
@@ -1331,12 +1343,41 @@ export async function runOcrImage(options: RunOcrOptions): Promise<string> {
     payload.provider = { order: providers };
   }
 
-  if (reasoning === false) {
-    payload.reasoning = { exclude: true };
-  } else if (typeof reasoning === 'string' && reasoning !== 'none') {
-    payload.reasoning = { exclude: false, effort: reasoning };
-  } else if (reasoning === true) {
-    payload.reasoning = { exclude: false };
+  // Check if model supports reasoning from store (matching runCheckWork logic)
+  const modelInfo = store.openRouterModels.find((m: any) => m.id === model);
+  let supportsReasoning = false;
+  let isMandatory = false;
+  if (modelInfo) {
+    supportsReasoning = !!modelInfo.reasoning;
+    isMandatory = !!modelInfo.reasoning?.mandatory;
+  } else {
+    const modelLower = model.toLowerCase();
+    if (
+      modelLower.includes('deepseek-r1') ||
+      modelLower.includes('o1-') ||
+      modelLower.includes('o3-') ||
+      modelLower.includes('thinking') ||
+      modelLower.includes('qwq')
+    ) {
+      supportsReasoning = true;
+      if (modelLower.includes('deepseek-r1') || modelLower.includes('qwq')) {
+        isMandatory = true;
+      }
+    }
+  }
+
+  if (supportsReasoning) {
+    if (reasoning === 'none' || reasoning === false) {
+      if (isMandatory) {
+        payload.reasoning = { exclude: true };
+      } else {
+        payload.reasoning = { effort: 'none', exclude: true };
+      }
+    } else if (typeof reasoning === 'string' && reasoning !== 'auto') {
+      payload.reasoning = { exclude: false, effort: reasoning };
+    } else {
+      payload.reasoning = { exclude: false };
+    }
   }
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
