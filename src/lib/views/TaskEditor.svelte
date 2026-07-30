@@ -1276,386 +1276,425 @@
       </div>
     </div>
 
-    <form onsubmit={handleSave} class="flex flex-col gap-8 bg-surface-container-lowest p-6 rounded-xl border border-outline-variant shadow-sm">
+    <form onsubmit={handleSave} class="flex flex-col gap-6">
       
-
-
-      <!-- Task Name -->
-      <div class="flex flex-col gap-2 group">
-        <label class="text-sm font-semibold text-on-surface group-focus-within:text-primary transition-colors" for="taskName">{t('taskEditor.nameLabel')}</label>
-        <input 
-          id="taskName" 
-          type="text" 
-          bind:this={nameInput}
-          bind:value={taskName}
-          placeholder={t('taskEditor.namePlaceholder')}
-          class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-2.5 text-base text-on-surface placeholder:text-outline focus:ring-0 focus:border-primary focus:border-b-2 transition-all focus:outline-none"
-          required
-        />
-      </div>
-
-      <!-- Category Level -->
-      <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-on-surface" for="category">{t('taskEditor.categoryLabel')}</label>
-        <select 
-          id="category"
-          value={category}
-          onchange={(e) => {
-            const oldCategory = category;
-            category = e.currentTarget.value;
-            if (category !== oldCategory) {
-              handleCategoryChange(category);
-            }
-          }}
-          class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-        >
-          {#each categories as cat}
-            <option value={cat} class="bg-surface-container-low text-on-surface">{cat}</option>
-          {/each}
-        </select>
-      </div>
-
-      <!-- Instructions -->
-      <div class="flex flex-col gap-2 relative">
-        <div class="flex justify-between items-center select-none">
-          <div class="flex items-center gap-2">
-            <label class="text-sm font-semibold text-on-surface" for="instructions">{t('taskEditor.instructionsLabel')}</label>
-            <button 
-              type="button"
-              onclick={() => showInstructionsRaw = !showInstructionsRaw}
-              class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
-              title="Toggle preview/edit mode"
-            >
-              <span class="w-1.5 h-1.5 rounded-full {showInstructionsRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
-              {showInstructionsRaw ? t('taskEditor.editMode') : t('taskEditor.previewMode')}
-            </button>
-
-            {#if effectiveOcrSettings.ocrEnabled}
-              <button
-                type="button"
-                onclick={() => openOcrModal('instructions')}
-                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center gap-1.5 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
-                title={t('ocr.buttonTooltip')}
-              >
-                <span class="material-symbols-outlined text-[13px] text-primary">document_scanner</span>
-                <span>OCR</span>
-                {#if isInstructionsOcrProcessing}
-                  <span class="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
-                {/if}
-              </button>
-            {/if}
+      <!-- CARD 1: Aufgabenstellung -->
+      <section class="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-6">
+        <!-- Card Header -->
+        <div class="flex items-center gap-3 border-b border-outline-variant/40 pb-4">
+          <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[20px]">assignment</span>
+          </div>
+          <div class="flex flex-col gap-0.5">
+            <h2 class="text-base font-bold text-on-surface leading-tight">{t('taskEditor.sectionInstructions')}</h2>
+            <p class="text-xs text-on-surface-variant">{t('taskEditor.sectionInstructionsDesc')}</p>
           </div>
         </div>
-        
-        {#if showInstructionsRaw}
-          <textarea 
-            id="instructions" 
-            bind:value={instructions}
-            use:autoResize={instructions}
-            placeholder={t('taskEditor.instructionsPlaceholder')} 
-            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-none shadow-sm focus:outline-none overflow-hidden font-sans"
-          ></textarea>
-        {:else}
-          <div 
-            class="w-full border border-outline-variant rounded-lg p-4 text-sm text-on-surface bg-surface-container-low/20 min-h-30 text-left leading-relaxed max-w-none prose dark:prose-invert"
+
+        <!-- Task Name -->
+        <div class="flex flex-col gap-2 group">
+          <label class="text-sm font-semibold text-on-surface group-focus-within:text-primary transition-colors" for="taskName">{t('taskEditor.nameLabel')}</label>
+          <input 
+            id="taskName" 
+            type="text" 
+            bind:this={nameInput}
+            bind:value={taskName}
+            placeholder={t('taskEditor.namePlaceholder')}
+            class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-2.5 text-base text-on-surface placeholder:text-outline focus:ring-0 focus:border-primary focus:border-b-2 transition-all focus:outline-none"
+            required
+          />
+        </div>
+
+        <!-- Category Level -->
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-semibold text-on-surface" for="category">{t('taskEditor.categoryLabel')}</label>
+          <select 
+            id="category"
+            value={category}
+            onchange={(e) => {
+              const oldCategory = category;
+              category = e.currentTarget.value;
+              if (category !== oldCategory) {
+                handleCategoryChange(category);
+              }
+            }}
+            class="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
           >
-            {@html parseMarkdown(instructions)}
-          </div>
-        {/if}
-      </div>
-
-      <!-- Warning Note about API context size and cost -->
-      <div class="flex gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-amber-800 dark:text-amber-300">
-        <span class="material-symbols-outlined text-[20px] shrink-0 mt-0.5">warning</span>
-        <div class="flex flex-col gap-0.5">
-          <p class="text-xs font-semibold">{t('taskEditor.apiCostWarningTitle')}</p>
-          <p class="text-[11px] leading-normal opacity-90">{t('taskEditor.apiCostWarningDesc')}</p>
+            {#each categories as cat}
+              <option value={cat} class="bg-surface-container-low text-on-surface">{cat}</option>
+            {/each}
+          </select>
         </div>
-      </div>
 
-      <!-- Instruction Material Upload -->
-      <div class="flex flex-col gap-2">
-        <span class="text-sm font-semibold text-on-surface">{t('taskEditor.instructionMaterial')}</span>
-        <input 
-          type="file" 
-          id="instructionFileInput" 
-          class="hidden" 
-          multiple
-          onchange={(e) => handleFileSelect(e, 'instruction')}
-        />
-        <button 
-          type="button"
-          onclick={() => triggerUpload('instruction')}
-          ondragover={(e) => handleDragOver('instruction', e)}
-          ondragleave={() => handleDragLeave('instruction')}
-          ondrop={(e) => handleFileDrop('instruction', e)}
-          class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer {isDragOverInstruction ? 'border-primary bg-primary/5' : ''}"
-        >
-          <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
-            <span class="material-symbols-outlined text-[24px]">upload_file</span>
-          </div>
-          <div class="text-center">
-            <p class="text-sm font-semibold text-on-surface">
-              {instructionFiles.length > 0 ? t('taskEditor.filesSelected', { count: instructionFiles.length }) : t('taskEditor.uploadPrompt')}
-            </p>
-            <p class="text-xs text-on-surface-variant mt-1">{t('taskEditor.uploadSupportInfo')}</p>
-          </div>
-        </button>
-
-        <!-- Paste from Clipboard button -->
-        <button
-          type="button"
-          onclick={() => handlePasteFromClipboard('instruction')}
-          class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
-        >
-          <span class="material-symbols-outlined text-[16px]">content_paste</span>
-          {t('taskEditor.pasteClipboard')}
-        </button>
-
-        {#if instructionFiles.length > 0}
-          <div class="mt-2 flex flex-col gap-1.5">
-            {#each instructionFiles as file, index}
-              {#if isMediaDragActive && draggedFileType === 'instruction' && hoveredFileIndex === index}
-                <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
-              {/if}
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div 
-                data-file-index={index}
-                data-file-type="instruction"
-                onpointerdown={(e) => handleFilePointerDown(e, index, 'instruction')}
-                class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none {isMediaDragActive && draggedFileType === 'instruction' && draggedFileIndex === index ? 'opacity-40 scale-95' : ''}"
+        <!-- Instructions -->
+        <div class="flex flex-col gap-2 relative">
+          <div class="flex justify-between items-center select-none">
+            <div class="flex items-center gap-2">
+              <label class="text-sm font-semibold text-on-surface" for="instructions">{t('taskEditor.instructionsLabel')}</label>
+              <button 
+                type="button"
+                onclick={() => showInstructionsRaw = !showInstructionsRaw}
+                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
+                title="Toggle preview/edit mode"
               >
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <span class="w-1.5 h-1.5 rounded-full {showInstructionsRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
+                {showInstructionsRaw ? t('taskEditor.editMode') : t('taskEditor.previewMode')}
+              </button>
+
+              {#if effectiveOcrSettings.ocrEnabled}
+                <button
+                  type="button"
+                  onclick={() => openOcrModal('instructions')}
+                  class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center gap-1.5 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
+                  title={t('ocr.buttonTooltip')}
+                >
+                  <span class="material-symbols-outlined text-[13px] text-primary">document_scanner</span>
+                  <span>OCR</span>
+                  {#if isInstructionsOcrProcessing}
+                    <span class="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
+                  {/if}
+                </button>
+              {/if}
+            </div>
+          </div>
+          
+          {#if showInstructionsRaw}
+            <textarea 
+              id="instructions" 
+              bind:value={instructions}
+              use:autoResize={instructions}
+              placeholder={t('taskEditor.instructionsPlaceholder')} 
+              class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-none shadow-sm focus:outline-none overflow-hidden font-sans"
+            ></textarea>
+          {:else}
+            <div 
+              class="w-full border border-outline-variant rounded-lg p-4 text-sm text-on-surface bg-surface-container-low/20 min-h-30 text-left leading-relaxed max-w-none prose dark:prose-invert"
+            >
+              {@html parseMarkdown(instructions)}
+            </div>
+          {/if}
+        </div>
+
+        <!-- Warning Note about API context size and cost -->
+        <div class="flex gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-amber-800 dark:text-amber-300">
+          <span class="material-symbols-outlined text-[20px] shrink-0 mt-0.5">warning</span>
+          <div class="flex flex-col gap-0.5">
+            <p class="text-xs font-semibold">{t('taskEditor.apiCostWarningTitle')}</p>
+            <p class="text-[11px] leading-normal opacity-90">{t('taskEditor.apiCostWarningDesc')}</p>
+          </div>
+        </div>
+
+        <!-- Instruction Material Upload -->
+        <div class="flex flex-col gap-2">
+          <span class="text-sm font-semibold text-on-surface">{t('taskEditor.instructionMaterial')}</span>
+          <input 
+            type="file" 
+            id="instructionFileInput" 
+            class="hidden" 
+            multiple
+            onchange={(e) => handleFileSelect(e, 'instruction')}
+          />
+          <button 
+            type="button"
+            onclick={() => triggerUpload('instruction')}
+            ondragover={(e) => handleDragOver('instruction', e)}
+            ondragleave={() => handleDragLeave('instruction')}
+            ondrop={(e) => handleFileDrop('instruction', e)}
+            class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer {isDragOverInstruction ? 'border-primary bg-primary/5' : ''}"
+          >
+            <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+              <span class="material-symbols-outlined text-[24px]">upload_file</span>
+            </div>
+            <div class="text-center">
+              <p class="text-sm font-semibold text-on-surface">
+                {instructionFiles.length > 0 ? t('taskEditor.filesSelected', { count: instructionFiles.length }) : t('taskEditor.uploadPrompt')}
+              </p>
+              <p class="text-xs text-on-surface-variant mt-1">{t('taskEditor.uploadSupportInfo')}</p>
+            </div>
+          </button>
+
+          <!-- Paste from Clipboard button -->
+          <button
+            type="button"
+            onclick={() => handlePasteFromClipboard('instruction')}
+            class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
+          >
+            <span class="material-symbols-outlined text-[16px]">content_paste</span>
+            {t('taskEditor.pasteClipboard')}
+          </button>
+
+          {#if instructionFiles.length > 0}
+            <div class="mt-2 flex flex-col gap-1.5">
+              {#each instructionFiles as file, index}
+                {#if isMediaDragActive && draggedFileType === 'instruction' && hoveredFileIndex === index}
+                  <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
+                {/if}
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div 
-                  onclick={() => {
-                    if (editingFileIndex !== index || editingFileType !== 'instruction') {
-                      openPreview(file);
-                    }
-                  }}
-                  class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
-                  title={t('taskEditor.clickToPreview')}
+                  data-file-index={index}
+                  data-file-type="instruction"
+                  onpointerdown={(e) => handleFilePointerDown(e, index, 'instruction')}
+                  class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none {isMediaDragActive && draggedFileType === 'instruction' && draggedFileIndex === index ? 'opacity-40 scale-95' : ''}"
                 >
-                  <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
-                    drag_indicator
-                  </span>
-                  <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
-                    {getFileIcon(file.name)}
-                  </span>
-                  {#if editingFileIndex === index && editingFileType === 'instruction'}
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <input
-                      bind:this={renameInputEl}
-                      type="text"
-                      bind:value={editingFileNameValue}
-                      onclick={(e) => e.stopPropagation()}
-                      onkeydown={(e) => {
-                        e.stopPropagation();
-                      }}
-                      class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none"
-                    />
-                  {:else}
-                    <span class="text-xs text-on-surface truncate font-medium max-w-72 hover:text-primary hover:underline" title={file.name}>{file.name}</span>
-                  {/if}
-                </div>
-                <div class="flex items-center gap-1 shrink-0">
-                  <button 
-                    type="button"
-                    onclick={() => handleRenameFile(index, 'instruction')}
-                    class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
-                    title={t('taskEditor.renameFileTooltip') || 'Rename File'}
-                  >
-                    edit
-                  </button>
-                  <button 
-                    type="button"
+                  <!-- svelte-ignore a11y_click_events_have_key_events -->
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+                  <div 
                     onclick={() => {
-                      instructionFiles = instructionFiles.filter((_, i) => i !== index);
+                      if (editingFileIndex !== index || editingFileType !== 'instruction') {
+                        openPreview(file);
+                      }
                     }}
-                    class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
-                    title={t('taskEditor.remove') || 'Remove'}
+                    class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
+                    title={t('taskEditor.clickToPreview')}
                   >
-                    close
-                  </button>
+                    <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
+                      drag_indicator
+                    </span>
+                    <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
+                      {getFileIcon(file.name)}
+                    </span>
+                    {#if editingFileIndex === index && editingFileType === 'instruction'}
+                      <!-- svelte-ignore a11y_click_events_have_key_events -->
+                      <!-- svelte-ignore a11y_no_static_element_interactions -->
+                      <input
+                        bind:this={renameInputEl}
+                        type="text"
+                        bind:value={editingFileNameValue}
+                        onclick={(e) => e.stopPropagation()}
+                        onkeydown={(e) => {
+                          e.stopPropagation();
+                        }}
+                        class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none"
+                      />
+                    {:else}
+                      <span class="text-xs text-on-surface truncate font-medium max-w-72 hover:text-primary hover:underline" title={file.name}>{file.name}</span>
+                    {/if}
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button 
+                      type="button"
+                      onclick={() => handleRenameFile(index, 'instruction')}
+                      class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                      title={t('taskEditor.renameFileTooltip') || 'Rename File'}
+                    >
+                      edit
+                    </button>
+                    <button 
+                      type="button"
+                      onclick={() => {
+                        instructionFiles = instructionFiles.filter((_, i) => i !== index);
+                      }}
+                      class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
+                      title={t('taskEditor.remove') || 'Remove'}
+                    >
+                      close
+                    </button>
+                  </div>
                 </div>
-              </div>
-            {/each}
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </section>
+
+      <!-- CARD 2: Musterlösung -->
+      <section class="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-6">
+        <!-- Card Header -->
+        <div class="flex items-center gap-3 border-b border-outline-variant/40 pb-4">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[20px]">lightbulb</span>
           </div>
-        {/if}
-      </div>
-
-      <!-- Expected Solution -->
-      <div class="flex flex-col gap-2 relative">
-        <div class="flex justify-between items-center select-none">
-          <div class="flex items-center gap-2">
-            <label class="text-sm font-semibold text-on-surface" for="solution">{t('taskEditor.solutionLabel')}</label>
-            <button 
-              type="button"
-              onclick={() => showSolutionRaw = !showSolutionRaw}
-              class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
-              title="Toggle preview/edit mode"
-            >
-              <span class="w-1.5 h-1.5 rounded-full {showSolutionRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
-              {showSolutionRaw ? t('taskEditor.editMode') : t('taskEditor.previewMode')}
-            </button>
-
-            {#if effectiveOcrSettings.ocrEnabled}
-              <button
-                type="button"
-                onclick={() => openOcrModal('solution')}
-                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center gap-1.5 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
-                title={t('ocr.buttonTooltip')}
-              >
-                <span class="material-symbols-outlined text-[13px] text-primary">document_scanner</span>
-                <span>OCR</span>
-                {#if isSolutionOcrProcessing}
-                  <span class="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
-                {/if}
-              </button>
-            {/if}
+          <div class="flex flex-col gap-0.5">
+            <h2 class="text-base font-bold text-on-surface leading-tight">{t('taskEditor.sectionSolution')}</h2>
+            <p class="text-xs text-on-surface-variant">{t('taskEditor.sectionSolutionDesc')}</p>
           </div>
         </div>
 
-        {#if showSolutionRaw}
-          <textarea 
-            id="solution" 
-            bind:value={solution}
-            use:autoResize={solution}
-            placeholder={t('taskEditor.solutionPlaceholder')} 
-            class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-none shadow-sm focus:outline-none overflow-hidden font-sans"
-          ></textarea>
-        {:else}
-          <div 
-            class="w-full border border-outline-variant rounded-lg p-4 text-sm text-on-surface bg-surface-container-low/20 min-h-25 text-left leading-relaxed max-w-none prose dark:prose-invert"
-          >
-            {@html parseMarkdown(solution)}
-          </div>
-        {/if}
-      </div>
-
-      <!-- Expected Solution Material Upload -->
-      <div class="flex flex-col gap-2">
-        <span class="text-sm font-semibold text-on-surface">{t('taskEditor.solutionMaterial')}</span>
-        <input 
-          type="file" 
-          id="solutionFileInput" 
-          class="hidden" 
-          multiple
-          onchange={(e) => handleFileSelect(e, 'solution')}
-        />
-        <button 
-          type="button"
-          onclick={() => triggerUpload('solution')}
-          ondragover={(e) => handleDragOver('solution', e)}
-          ondragleave={() => handleDragLeave('solution')}
-          ondrop={(e) => handleFileDrop('solution', e)}
-          class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer {isDragOverSolution ? 'border-primary bg-primary/5' : ''}"
-        >
-          <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
-            <span class="material-symbols-outlined text-[24px]">upload_file</span>
-          </div>
-          <div class="text-center">
-            <p class="text-sm font-semibold text-on-surface">
-              {solutionFiles.length > 0 ? t('taskEditor.filesSelected', { count: solutionFiles.length }) : t('taskEditor.uploadPromptSolution')}
-            </p>
-            <p class="text-xs text-on-surface-variant mt-1">{t('taskEditor.uploadSupportInfo')}</p>
-          </div>
-        </button>
-
-        <!-- Paste from Clipboard button -->
-        <button
-          type="button"
-          onclick={() => handlePasteFromClipboard('solution')}
-          class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
-        >
-          <span class="material-symbols-outlined text-[16px]">content_paste</span>
-          {t('taskEditor.pasteClipboard')}
-        </button>
-
-        {#if solutionFiles.length > 0}
-          <div class="mt-2 flex flex-col gap-1.5">
-            {#each solutionFiles as file, index}
-              {#if isMediaDragActive && draggedFileType === 'solution' && hoveredFileIndex === index}
-                <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
-              {/if}
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div 
-                data-file-index={index}
-                data-file-type="solution"
-                onpointerdown={(e) => handleFilePointerDown(e, index, 'solution')}
-                class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none {isMediaDragActive && draggedFileType === 'solution' && draggedFileIndex === index ? 'opacity-40 scale-95' : ''}"
+        <!-- Expected Solution -->
+        <div class="flex flex-col gap-2 relative">
+          <div class="flex justify-between items-center select-none">
+            <div class="flex items-center gap-2">
+              <label class="text-sm font-semibold text-on-surface" for="solution">{t('taskEditor.solutionLabel')}</label>
+              <button 
+                type="button"
+                onclick={() => showSolutionRaw = !showSolutionRaw}
+                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
+                title="Toggle preview/edit mode"
               >
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <span class="w-1.5 h-1.5 rounded-full {showSolutionRaw ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
+                {showSolutionRaw ? t('taskEditor.editMode') : t('taskEditor.previewMode')}
+              </button>
+
+              {#if effectiveOcrSettings.ocrEnabled}
+                <button
+                  type="button"
+                  onclick={() => openOcrModal('solution')}
+                  class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center gap-1.5 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
+                  title={t('ocr.buttonTooltip')}
+                >
+                  <span class="material-symbols-outlined text-[13px] text-primary">document_scanner</span>
+                  <span>OCR</span>
+                  {#if isSolutionOcrProcessing}
+                    <span class="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
+                  {/if}
+                </button>
+              {/if}
+            </div>
+          </div>
+
+          {#if showSolutionRaw}
+            <textarea 
+              id="solution" 
+              bind:value={solution}
+              use:autoResize={solution}
+              placeholder={t('taskEditor.solutionPlaceholder')} 
+              class="w-full bg-transparent border border-outline-variant rounded-lg p-4 text-sm text-on-surface focus:ring-1 focus:ring-primary focus:border-primary resize-none shadow-sm focus:outline-none overflow-hidden font-sans"
+            ></textarea>
+          {:else}
+            <div 
+              class="w-full border border-outline-variant rounded-lg p-4 text-sm text-on-surface bg-surface-container-low/20 min-h-25 text-left leading-relaxed max-w-none prose dark:prose-invert"
+            >
+              {@html parseMarkdown(solution)}
+            </div>
+          {/if}
+        </div>
+
+        <!-- Expected Solution Material Upload -->
+        <div class="flex flex-col gap-2">
+          <span class="text-sm font-semibold text-on-surface">{t('taskEditor.solutionMaterial')}</span>
+          <input 
+            type="file" 
+            id="solutionFileInput" 
+            class="hidden" 
+            multiple
+            onchange={(e) => handleFileSelect(e, 'solution')}
+          />
+          <button 
+            type="button"
+            onclick={() => triggerUpload('solution')}
+            ondragover={(e) => handleDragOver('solution', e)}
+            ondragleave={() => handleDragLeave('solution')}
+            ondrop={(e) => handleFileDrop('solution', e)}
+            class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer {isDragOverSolution ? 'border-primary bg-primary/5' : ''}"
+          >
+            <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+              <span class="material-symbols-outlined text-[24px]">upload_file</span>
+            </div>
+            <div class="text-center">
+              <p class="text-sm font-semibold text-on-surface">
+                {solutionFiles.length > 0 ? t('taskEditor.filesSelected', { count: solutionFiles.length }) : t('taskEditor.uploadPromptSolution')}
+              </p>
+              <p class="text-xs text-on-surface-variant mt-1">{t('taskEditor.uploadSupportInfo')}</p>
+            </div>
+          </button>
+
+          <!-- Paste from Clipboard button -->
+          <button
+            type="button"
+            onclick={() => handlePasteFromClipboard('solution')}
+            class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
+          >
+            <span class="material-symbols-outlined text-[16px]">content_paste</span>
+            {t('taskEditor.pasteClipboard')}
+          </button>
+
+          {#if solutionFiles.length > 0}
+            <div class="mt-2 flex flex-col gap-1.5">
+              {#each solutionFiles as file, index}
+                {#if isMediaDragActive && draggedFileType === 'solution' && hoveredFileIndex === index}
+                  <div class="h-1 bg-primary rounded my-1 animate-pulse"></div>
+                {/if}
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div 
-                  onclick={() => {
-                    if (editingFileIndex !== index || editingFileType !== 'solution') {
-                      openPreview(file);
-                    }
-                  }}
-                  class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
-                  title={t('taskEditor.clickToPreview')}
+                  data-file-index={index}
+                  data-file-type="solution"
+                  onpointerdown={(e) => handleFilePointerDown(e, index, 'solution')}
+                  class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none {isMediaDragActive && draggedFileType === 'solution' && draggedFileIndex === index ? 'opacity-40 scale-95' : ''}"
                 >
-                  <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
-                    drag_indicator
-                  </span>
-                  <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
-                    {getFileIcon(file.name)}
-                  </span>
-                  {#if editingFileIndex === index && editingFileType === 'solution'}
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <input
-                      bind:this={renameInputEl}
-                      type="text"
-                      bind:value={editingFileNameValue}
-                      onclick={(e) => e.stopPropagation()}
-                      onkeydown={(e) => {
-                        e.stopPropagation();
-                        if (e.key === 'Enter') {
-                          saveInlineRename();
-                        } else if (e.key === 'Escape') {
-                          cancelInlineRename();
-                        }
-                      }}
-                      onblur={saveInlineRename}
-                      class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
-                    />
-                  {:else}
-                    <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
-                  {/if}
-                </div>
-                <div class="flex items-center gap-1 shrink-0">
-                  <button 
-                    type="button"
-                    onclick={() => handleRenameFile(index, 'solution')}
-                    class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
-                    title={t('taskEditor.renameFileTooltip') || 'Rename File'}
-                  >
-                    edit
-                  </button>
-                  <button 
-                    type="button"
+                  <!-- svelte-ignore a11y_click_events_have_key_events -->
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+                  <div 
                     onclick={() => {
-                      solutionFiles = solutionFiles.filter((_, i) => i !== index);
+                      if (editingFileIndex !== index || editingFileType !== 'solution') {
+                        openPreview(file);
+                      }
                     }}
-                    class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
-                    title={t('taskEditor.remove')}
+                    class="flex items-center gap-2 min-w-0 cursor-pointer hover:text-primary transition-colors grow preview-file-click"
+                    title={t('taskEditor.clickToPreview')}
                   >
-                    close
-                  </button>
+                    <span class="material-symbols-outlined text-[20px] text-outline cursor-grab active:cursor-grabbing hover:text-primary select-none drag-handle">
+                      drag_indicator
+                    </span>
+                    <span class="material-symbols-outlined text-[20px] text-primary shrink-0">
+                      {getFileIcon(file.name)}
+                    </span>
+                    {#if editingFileIndex === index && editingFileType === 'solution'}
+                      <!-- svelte-ignore a11y_click_events_have_key_events -->
+                      <!-- svelte-ignore a11y_no_static_element_interactions -->
+                      <input
+                        bind:this={renameInputEl}
+                        type="text"
+                        bind:value={editingFileNameValue}
+                        onclick={(e) => e.stopPropagation()}
+                        onkeydown={(e) => {
+                          e.stopPropagation();
+                          if (e.key === 'Enter') {
+                            saveInlineRename();
+                          } else if (e.key === 'Escape') {
+                            cancelInlineRename();
+                          }
+                        }}
+                        onblur={saveInlineRename}
+                        class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
+                      />
+                    {:else}
+                      <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
+                    {/if}
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button 
+                      type="button"
+                      onclick={() => handleRenameFile(index, 'solution')}
+                      class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
+                      title={t('taskEditor.renameFileTooltip') || 'Rename File'}
+                    >
+                      edit
+                    </button>
+                    <button 
+                      type="button"
+                      onclick={() => {
+                        solutionFiles = solutionFiles.filter((_, i) => i !== index);
+                      }}
+                      class="material-symbols-outlined text-[18px] text-error hover:bg-error/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors shrink-0 remove-file-btn"
+                      title={t('taskEditor.remove')}
+                    >
+                      close
+                    </button>
+                  </div>
                 </div>
-              </div>
-            {/each}
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </section>
+
+
+
+      <!-- CARD 3: Sonstiges & Konfiguration -->
+      <section class="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col gap-6">
+        <!-- Card Header -->
+        <div class="flex items-center gap-3 border-b border-outline-variant/40 pb-4">
+          <div class="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[20px]">tune</span>
           </div>
-        {/if}
-      </div>
+          <div class="flex flex-col gap-0.5">
+            <h2 class="text-base font-bold text-on-surface leading-tight">{t('taskEditor.sectionOther')}</h2>
+            <p class="text-xs text-on-surface-variant">{t('taskEditor.sectionOtherDesc')}</p>
+          </div>
+        </div>
 
-
-
-      <!-- Default Edit Mode Selector -->
-      <div class="flex flex-col gap-2.5 p-4 rounded-xl bg-surface-container-low border border-outline-variant mt-4 font-sans text-left">
+        <!-- Default Edit Mode Selector -->
+        <div class="flex flex-col gap-2.5 p-4 rounded-xl bg-surface-container-low border border-outline-variant font-sans text-left">
         <div class="flex flex-col gap-0.5">
           <span class="text-xs font-bold text-on-surface">{t('taskEditor.defaultEditModeTitle')}</span>
           <span class="text-[10.5px] text-on-surface-variant">{t('taskEditor.defaultEditModeSubtitle')}</span>
@@ -2351,9 +2390,10 @@
           </div>
         {/if}
       </div>
+    </section>
 
-      <!-- Save / Cancel Buttons -->
-      <div class="flex justify-end gap-3 mt-4">
+    <!-- Save / Cancel Buttons -->
+      <div class="flex justify-end gap-3 pt-2">
         <button 
           type="button" 
           onclick={handleCancel}
