@@ -523,9 +523,85 @@
     });
   });
 
+  let instructionsOcrAbortController: AbortController | null = null;
+  let solutionOcrAbortController: AbortController | null = null;
+
   onDestroy(() => {
     store.registerTaskEditorGuard(null);
+    if (instructionsOcrAbortController) {
+      instructionsOcrAbortController.abort();
+      instructionsOcrAbortController = null;
+    }
+    if (solutionOcrAbortController) {
+      solutionOcrAbortController.abort();
+      solutionOcrAbortController = null;
+    }
   });
+
+  async function handleStartOcr(options: { imageDataUrls: string[]; customPrompt: string; selectedModel: string }) {
+    const field = ocrTargetField;
+    const { runOcrImage } = await import('../services/ai');
+
+    if (field === 'instructions') {
+      if (isInstructionsOcrProcessing && instructionsOcrAbortController) {
+        instructionsOcrAbortController.abort();
+      }
+      instructionsOcrAbortController = new AbortController();
+      isInstructionsOcrProcessing = true;
+
+      try {
+        const effective = store.getEffectiveOcrSettings(activeProject);
+        const extractedText = await runOcrImage({
+          imageDataUrls: options.imageDataUrls,
+          model: options.selectedModel || effective.model,
+          prompt: options.customPrompt || effective.customPrompt,
+          maxOutputTokens: effective.maxOutputTokens,
+          signal: instructionsOcrAbortController.signal
+        });
+
+        if (extractedText) {
+          instructions = instructions ? `${instructions}\n\n${extractedText}` : extractedText;
+          store.showNotification(t('ocr.successNotify'), 'success');
+        }
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          store.showNotification(err?.message || t('ocr.failedNotify'), 'error');
+        }
+      } finally {
+        isInstructionsOcrProcessing = false;
+        instructionsOcrAbortController = null;
+      }
+    } else {
+      if (isSolutionOcrProcessing && solutionOcrAbortController) {
+        solutionOcrAbortController.abort();
+      }
+      solutionOcrAbortController = new AbortController();
+      isSolutionOcrProcessing = true;
+
+      try {
+        const effective = store.getEffectiveOcrSettings(activeProject);
+        const extractedText = await runOcrImage({
+          imageDataUrls: options.imageDataUrls,
+          model: options.selectedModel || effective.model,
+          prompt: options.customPrompt || effective.customPrompt,
+          maxOutputTokens: effective.maxOutputTokens,
+          signal: solutionOcrAbortController.signal
+        });
+
+        if (extractedText) {
+          solution = solution ? `${solution}\n\n${extractedText}` : extractedText;
+          store.showNotification(t('ocr.successNotify'), 'success');
+        }
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          store.showNotification(err?.message || t('ocr.failedNotify'), 'error');
+        }
+      } finally {
+        isSolutionOcrProcessing = false;
+        solutionOcrAbortController = null;
+      }
+    }
+  }
 
   function autoResize(node: HTMLTextAreaElement, _val: any) {
     const update = () => {
@@ -1258,15 +1334,13 @@
               <button
                 type="button"
                 onclick={() => openOcrModal('instructions')}
-                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
+                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center gap-1.5 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
                 title={t('ocr.buttonTooltip')}
               >
+                <span class="material-symbols-outlined text-[13px] text-primary">document_scanner</span>
+                <span>OCR</span>
                 {#if isInstructionsOcrProcessing}
-                  <span class="w-2.5 h-2.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
-                  <span>{t('ocr.processingText')}</span>
-                {:else}
-                  <span class="material-symbols-outlined text-[13px] text-primary">document_scanner</span>
-                  <span>OCR</span>
+                  <span class="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
                 {/if}
               </button>
             {/if}
@@ -1432,15 +1506,13 @@
               <button
                 type="button"
                 onclick={() => openOcrModal('solution')}
-                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center gap-1 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
+                class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center gap-1.5 border border-outline-variant/20 cursor-pointer transition-colors focus:outline-none"
                 title={t('ocr.buttonTooltip')}
               >
+                <span class="material-symbols-outlined text-[13px] text-primary">document_scanner</span>
+                <span>OCR</span>
                 {#if isSolutionOcrProcessing}
-                  <span class="w-2.5 h-2.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
-                  <span>{t('ocr.processingText')}</span>
-                {:else}
-                  <span class="material-symbols-outlined text-[13px] text-primary">document_scanner</span>
-                  <span>OCR</span>
+                  <span class="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
                 {/if}
               </button>
             {/if}
@@ -2382,13 +2454,6 @@
   bind:isOpen={ocrModalOpen} 
   targetLabel={ocrTargetField === 'instructions' ? t('taskEditor.instructionsLabel') : t('taskEditor.solutionLabel')} 
   project={activeProject} 
-  onextract={handleOcrExtracted} 
-  onProcessingChange={(processing) => {
-    if (ocrTargetField === 'instructions') {
-      isInstructionsOcrProcessing = processing;
-    } else {
-      isSolutionOcrProcessing = processing;
-    }
-  }} 
+  onstartOcr={handleStartOcr} 
 />
 

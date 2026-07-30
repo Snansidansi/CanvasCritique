@@ -1,8 +1,6 @@
 <script lang="ts">
   import { store } from '../../state/store.svelte';
   import { t } from '../../services/i18n';
-  import { runOcrImage } from '../../services/ai';
-  import { onDestroy } from 'svelte';
   import type { Project } from '../../state/types';
 
   interface OcrImageItem {
@@ -15,25 +13,21 @@
     isOpen = $bindable(false),
     targetLabel = '',
     project = null,
-    onextract,
-    onProcessingChange
+    onstartOcr
   }: {
     isOpen: boolean;
     targetLabel?: string;
     project?: Project | null;
-    onextract: (extractedText: string) => void;
-    onProcessingChange?: (processing: boolean) => void;
+    onstartOcr: (options: { imageDataUrls: string[]; customPrompt: string; selectedModel: string }) => void;
   } = $props();
 
   let imageItems = $state<OcrImageItem[]>([]);
   let customPrompt = $state<string>('');
   let selectedModel = $state<string>('');
-  let isProcessing = $state<boolean>(false);
   let errorMsg = $state<string>('');
   let isDragOver = $state<boolean>(false);
   let showAdvancedPrompt = $state<boolean>(false);
-
-  let activeAbortController: AbortController | null = null;
+  let fileInputEl = $state<HTMLInputElement | null>(null);
 
   $effect(() => {
     if (isOpen) {
@@ -45,12 +39,6 @@
   });
 
   function close() {
-    if (isProcessing && activeAbortController) {
-      activeAbortController.abort();
-      activeAbortController = null;
-      isProcessing = false;
-      if (onProcessingChange) onProcessingChange(false);
-    }
     isOpen = false;
   }
 
@@ -142,48 +130,21 @@
     imageItems = [];
   }
 
-  async function startOcrProcess() {
+  function submitOcr() {
     if (imageItems.length === 0) {
       errorMsg = t('ocr.errorNoImageSelected');
       return;
     }
 
-    isProcessing = true;
-    if (onProcessingChange) onProcessingChange(true);
-    errorMsg = '';
+    onstartOcr({
+      imageDataUrls: imageItems.map(item => item.dataUrl),
+      customPrompt,
+      selectedModel
+    });
 
-    activeAbortController = new AbortController();
-
-    try {
-      const effective = store.getEffectiveOcrSettings(project);
-      const resultText = await runOcrImage({
-        imageDataUrls: imageItems.map(item => item.dataUrl),
-        model: selectedModel,
-        prompt: customPrompt,
-        maxOutputTokens: effective.maxOutputTokens,
-        signal: activeAbortController.signal
-      });
-
-      onextract(resultText);
-      store.showNotification(t('ocr.successNotify'), 'success');
-      imageItems = [];
-      isOpen = false;
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        errorMsg = err?.message || t('ocr.failedNotify');
-      }
-    } finally {
-      isProcessing = false;
-      if (onProcessingChange) onProcessingChange(false);
-      activeAbortController = null;
-    }
+    imageItems = [];
+    isOpen = false;
   }
-
-  onDestroy(() => {
-    if (activeAbortController) {
-      activeAbortController.abort();
-    }
-  });
 </script>
 
 {#if isOpen}
@@ -219,36 +180,46 @@
         </button>
       </div>
 
-      <!-- Drag & Drop Upload Zone -->
-      <div
-        role="region"
-        aria-label="OCR Drop Zone"
-        ondragover={(e) => { e.preventDefault(); isDragOver = true; }}
-        ondragleave={() => isDragOver = false}
-        ondrop={handleFileDrop}
-        class="border-2 border-dashed border-outline-variant rounded-xl p-4 bg-surface-container-low flex flex-col items-center justify-center gap-2 transition-all hover:border-primary/60 {isDragOver ? 'border-primary bg-primary/5 scale-[1.01]' : ''}"
-      >
-        <span class="material-symbols-outlined text-[32px] text-primary">add_a_photo</span>
-        <div class="text-center">
-          <p class="text-xs font-semibold text-on-surface">{t('ocr.dragDropPrompt')}</p>
-          <p class="text-[11px] text-on-surface-variant mt-0.5">{t('ocr.supportedFormats')}</p>
-        </div>
-        
-        <div class="flex items-center gap-2 mt-1">
-          <label class="cursor-pointer bg-primary text-on-primary hover:bg-primary/90 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all inline-flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-[16px]">folder_open</span>
-            {t('ocr.selectFileBtn')}
-            <input type="file" accept="image/*" multiple onchange={handleFileInputChange} class="hidden" />
-          </label>
-          <button
-            type="button"
-            onclick={handlePasteFromClipboard}
-            class="bg-surface-container-highest hover:bg-surface-container-low text-on-surface border border-outline-variant/40 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer"
-          >
-            <span class="material-symbols-outlined text-[16px]">content_paste</span>
-            {t('ocr.pasteClipboardBtn')}
-          </button>
-        </div>
+      <!-- Instruction/Upload Dropzone Box (Exact match to Bild 3 and TaskEditor) -->
+      <div class="flex flex-col gap-2">
+        <input 
+          bind:this={fileInputEl}
+          type="file" 
+          accept="image/*" 
+          multiple
+          onchange={handleFileInputChange} 
+          class="hidden" 
+        />
+        <button
+          type="button"
+          onclick={() => fileInputEl?.click()}
+          ondragover={(e) => { e.preventDefault(); isDragOver = true; }}
+          ondragleave={() => isDragOver = false}
+          ondrop={handleFileDrop}
+          class="w-full border-2 border-dashed border-outline-variant rounded-xl bg-surface-container-low p-6 flex flex-col items-center justify-center gap-2 hover:bg-surface-container hover:border-primary/50 transition-all group relative overflow-hidden focus:outline-none cursor-pointer {isDragOver ? 'border-primary bg-primary/5 scale-[1.01]' : ''}"
+        >
+          <div class="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+            <span class="material-symbols-outlined text-[24px]">upload_file</span>
+          </div>
+          <div class="text-center">
+            <p class="text-sm font-semibold text-on-surface">
+              {imageItems.length > 0 
+                ? (store.settings.language === 'Deutsch' ? `${imageItems.length} Bild(er) ausgewählt – Klicken zum Hinzufügen` : `${imageItems.length} image(s) selected – Click to add more`) 
+                : (store.settings.language === 'Deutsch' ? 'Klicken zum Hochladen von OCR-Bildern' : 'Click to upload OCR images')}
+            </p>
+            <p class="text-xs text-on-surface-variant mt-1">{t('ocr.supportedFormats')}</p>
+          </div>
+        </button>
+
+        <!-- Full-width Paste from Clipboard button (Exact match to Bild 3) -->
+        <button
+          type="button"
+          onclick={handlePasteFromClipboard}
+          class="w-full flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all cursor-pointer focus:outline-none"
+        >
+          <span class="material-symbols-outlined text-[16px]">content_paste</span>
+          {t('taskEditor.pasteClipboard')}
+        </button>
       </div>
 
       <!-- Selected Images List & Reordering -->
@@ -268,13 +239,15 @@
             </button>
           </div>
 
-          <div class="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+          <div class="flex flex-col gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
             {#each imageItems as img, index (img.id)}
-              <div class="flex items-center justify-between bg-surface-container-high p-2 rounded-lg border border-outline-variant/40 gap-3 shadow-xs">
-                <div class="flex items-center gap-2.5 min-w-0">
-                  <span class="text-[11px] font-bold font-mono text-on-surface-variant w-4 text-center">{index + 1}.</span>
-                  <img src={img.dataUrl} alt={img.name} class="w-10 h-10 object-cover rounded-md border border-outline-variant/30 shrink-0" />
-                  <span class="text-xs font-medium text-on-surface truncate max-w-48" title={img.name}>{img.name}</span>
+              <div class="flex items-center justify-between bg-surface-container-low rounded-lg px-3 py-2 border border-outline-variant shadow-sm touch-none select-none">
+                <div class="flex items-center gap-2 min-w-0 grow">
+                  <span class="material-symbols-outlined text-[20px] text-outline select-none drag-handle">
+                    drag_indicator
+                  </span>
+                  <img src={img.dataUrl} alt={img.name} class="w-8 h-8 object-cover rounded border border-outline-variant/40 shrink-0" />
+                  <span class="text-xs text-on-surface truncate font-medium max-w-64" title={img.name}>{img.name}</span>
                 </div>
 
                 <div class="flex items-center gap-1 shrink-0">
@@ -282,7 +255,7 @@
                     type="button"
                     disabled={index === 0}
                     onclick={() => moveImage(index, 'up')}
-                    class="p-1 text-on-surface-variant hover:text-primary disabled:opacity-30 rounded hover:bg-surface-container-highest cursor-pointer"
+                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer disabled:opacity-30"
                     title={store.settings.language === 'Deutsch' ? 'Nach oben verschieben' : 'Move up'}
                   >
                     <span class="material-symbols-outlined text-[18px]">keyboard_arrow_up</span>
@@ -291,7 +264,7 @@
                     type="button"
                     disabled={index === imageItems.length - 1}
                     onclick={() => moveImage(index, 'down')}
-                    class="p-1 text-on-surface-variant hover:text-primary disabled:opacity-30 rounded hover:bg-surface-container-highest cursor-pointer"
+                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary transition-colors cursor-pointer disabled:opacity-30"
                     title={store.settings.language === 'Deutsch' ? 'Nach unten verschieben' : 'Move down'}
                   >
                     <span class="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
@@ -299,8 +272,8 @@
                   <button
                     type="button"
                     onclick={() => removeImage(img.id)}
-                    class="p-1 text-error/80 hover:text-error rounded hover:bg-error/10 cursor-pointer ml-1"
-                    title={t('common.remove')}
+                    class="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-error transition-colors cursor-pointer"
+                    title={t('common.delete')}
                   >
                     <span class="material-symbols-outlined text-[18px]">delete</span>
                   </button>
@@ -359,17 +332,12 @@
         </button>
         <button
           type="button"
-          disabled={imageItems.length === 0 || isProcessing}
-          onclick={startOcrProcess}
+          disabled={imageItems.length === 0}
+          onclick={submitOcr}
           class="px-5 py-2 rounded-xl text-xs font-bold bg-primary text-on-primary hover:bg-primary/90 disabled:opacity-50 transition-all shadow-sm flex items-center gap-2 cursor-pointer"
         >
-          {#if isProcessing}
-            <span class="w-3.5 h-3.5 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin"></span>
-            <span>{t('ocr.processing')}</span>
-          {:else}
-            <span class="material-symbols-outlined text-[18px]">document_scanner</span>
-            <span>{t('ocr.extractTextBtn')} ({imageItems.length})</span>
-          {/if}
+          <span class="material-symbols-outlined text-[18px]">document_scanner</span>
+          <span>{t('ocr.extractTextBtn')} ({imageItems.length})</span>
         </button>
       </div>
     </div>
