@@ -119,6 +119,17 @@
         <span class="material-symbols-outlined text-[16px]">rule</span>
         <span>{t('taskEditor.mc.title') || 'Multiple-Choice-Aufgaben'}</span>
       </button>
+
+      <!-- Audio Recording Toggle Button -->
+      <button
+        type="button"
+        onclick={() => toggleMode('audio')}
+        class="px-4 py-2 text-xs font-semibold rounded-xl border border-outline-variant cursor-pointer transition-all flex items-center gap-1.5 focus:outline-none
+               {isModeActive('audio') ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'}"
+      >
+        <span class="material-symbols-outlined text-[16px]">mic</span>
+        <span>{t('practice.modeAudioLabel') || 'Audioaufnahme'}</span>
+      </button>
     </div>
   </div>
 

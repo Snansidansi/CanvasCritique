@@ -9,6 +9,7 @@
     showCanvas = $bindable(true),
     showText = $bindable(false),
     showMultipleChoice = $bindable(false),
+    showAudio = $bindable(false),
     pages = $bindable(),
     activePageIndex = $bindable(),
     strokeHistory,
@@ -328,6 +329,24 @@
               />
             </label>
           {/if}
+
+          <!-- Audio Recording Toggle -->
+          <label 
+            class="flex items-center justify-between px-3 py-2 hover:bg-surface-container-low transition-colors cursor-pointer select-none font-medium text-on-surface"
+          >
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-base text-on-surface-variant">mic</span>
+              <span>{t('practice.modeAudioLabel') || (store.settings.language === 'Deutsch' ? 'Audioaufnahme' : 'Audio Recording')}</span>
+            </div>
+            <input 
+              type="checkbox" 
+              checked={showAudio} 
+              onchange={(e) => {
+                showAudio = e.currentTarget.checked;
+              }}
+              class="accent-primary h-4 w-4 cursor-pointer"
+            />
+          </label>
         </div>
       {/if}
     </div>

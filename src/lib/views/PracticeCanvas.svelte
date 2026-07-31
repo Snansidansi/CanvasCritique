@@ -18,6 +18,8 @@
   import MultipleChoicePractice from '../components/practice/MultipleChoicePractice.svelte';
   import CanvasModeSelector from '../components/settings/CanvasModeSelector.svelte';
   import CanvasBackgroundSelector from '../components/settings/CanvasBackgroundSelector.svelte';
+  import AudioRecorder from '../components/practice/AudioRecorder.svelte';
+  import type { AudioRecordingItem } from '../state/types';
 
   // External Helpers
   import { parseMarkdown } from '../utils/markdown';
@@ -78,10 +80,12 @@
   });
   let customBgUrl = $state(null);
   
-  // Active editing mode ('canvas', 'text', 'multiple_choice')
+  // Active editing mode ('canvas', 'text', 'multiple_choice', 'audio')
   let showCanvas = $state(true);
   let showText = $state(false);
   let showMultipleChoice = $state(false);
+  let showAudio = $state(false);
+  let audioRecordings = $state<AudioRecordingItem[]>([]);
   let selectedAnswers = $state<Record<string, string[]>>({});
 
   let infoPanelsLayout = $state<'vertical' | 'horizontal'>('vertical');
@@ -130,6 +134,7 @@
   $effect(() => {
     if (task && task.id) {
       editorText = store.getEditorText(task.id) || '';
+      audioRecordings = store.getAudioRecordings(task.id) || [];
     }
   });
 
@@ -1809,6 +1814,7 @@
       (saved.canvasImages && saved.canvasImages.length > 0)
     );
     const hasText = text.trim() !== '';
+    const hasAudio = (store.getAudioRecordings(taskId) || []).length > 0;
     
     // Union logic: start with default edit mode, then additionally show any editor with existing data
     const defaultMode = task.defaultEditMode !== undefined ? task.defaultEditMode : 'both';
@@ -1818,14 +1824,17 @@
       showCanvas = true;
       showText = true;
       showMultipleChoice = false;
+      showAudio = false;
     } else if (defaultMode === 'none' || defaultMode === '') {
       showCanvas = false;
       showText = false;
       showMultipleChoice = false;
+      showAudio = false;
     } else {
       showCanvas = activeModes.includes('canvas');
       showText = activeModes.includes('text');
       showMultipleChoice = activeModes.includes('multiple_choice');
+      showAudio = activeModes.includes('audio');
     }
 
     // Check if MC tasks are defined
@@ -1837,9 +1846,10 @@
     // Union logic: Additionally open editors that contain data
     if (hasDrawing) showCanvas = true;
     if (hasText) showText = true;
+    if (hasAudio) showAudio = true;
     
     // If none are open and defaultMode is not explicitly 'none'/'', fallback
-    if (!showCanvas && !showText && !showMultipleChoice && defaultMode !== 'none' && defaultMode !== '') {
+    if (!showCanvas && !showText && !showMultipleChoice && !showAudio && defaultMode !== 'none' && defaultMode !== '') {
       if (hasMc) {
         showMultipleChoice = true;
       } else {
@@ -5072,6 +5082,12 @@
       }
     }
 
+    if (effectiveSettings.sendAudioRecordings !== false && audioRecordings && audioRecordings.length > 0) {
+      audioRecordings.forEach(rec => {
+        filesToSend.push({ name: rec.name, source: 'solution', modality: 'audio' });
+      });
+    }
+
     const supported = getModelSupportedModalities('openrouter', selectedModelId);
     const unsupportedFiles = filesToSend.filter(f => 
       (f.modality === 'image' && !supported.image) ||
@@ -5156,6 +5172,7 @@
           sendSolutionText: effectiveSettings.sendSolutionText,
           sendContextText: effectiveSettings.sendContextText,
           sendContextMedia: effectiveSettings.sendContextMedia,
+          sendAudioRecordings: effectiveSettings.sendAudioRecordings,
           maxOutputTokens: effectiveSettings.maxOutputTokens,
           language: effectiveSettings.language,
           customSystemPrompt: effectiveSettings.customSystemPrompt,
@@ -5167,7 +5184,8 @@
         defaultSystemPrompt: DEFAULT_SYSTEM_PROMPT,
         activeMode,
         editorText,
-        multipleChoiceAnswers: selectedAnswers
+        multipleChoiceAnswers: selectedAnswers,
+        audioRecordings: (effectiveSettings.sendAudioRecordings !== false) ? audioRecordings : []
       });
 
       // Auto-toggle to Preview mode when feedback is submitted
@@ -5206,6 +5224,7 @@
     bind:showCanvas
     bind:showText
     bind:showMultipleChoice
+    bind:showAudio
     bind:pages
     bind:activePageIndex
     {strokeHistory}
@@ -5601,7 +5620,7 @@
     </section>
     {/if}
 
-    {#if showCanvas && (showText || showMultipleChoice)}
+    {#if showCanvas && (showText || showMultipleChoice || showAudio)}
       <!-- Adjustable Split Separator -->
       {#if workspaceLayout === 'vertical'}
         <div 
@@ -5628,7 +5647,7 @@
       {/if}
     {/if}
 
-    {#if showText || showMultipleChoice}
+    {#if showText || showMultipleChoice || showAudio}
       <!-- Right/Bottom Workspace container -->
       <div 
         class="flex overflow-hidden relative {showCanvas ? 'shrink-0' : 'grow'} {workspaceLayout === 'vertical' ? 'w-full flex-col' : 'h-full flex-row'}"
@@ -5709,6 +5728,23 @@
             </div>
 
           </section>
+        {/if}
+
+        <!-- Split separator between previous editor and Audio Recorder if visible -->
+        {#if (showCanvas || showText || showMultipleChoice) && showAudio}
+          {#if workspaceLayout === 'vertical'}
+            <div class="h-px bg-outline-variant/30 w-full shrink-0"></div>
+          {:else}
+            <div class="w-px bg-outline-variant/30 self-stretch shrink-0 border-r border-outline-variant/10"></div>
+          {/if}
+        {/if}
+
+        <!-- Audio Recorder Workspace -->
+        {#if showAudio}
+          <AudioRecorder
+            taskId={task.id}
+            bind:recordings={audioRecordings}
+          />
         {/if}
       </div>
     {/if}
@@ -5896,42 +5932,7 @@
               </div>
             </div>
 
-            <!-- Eraser Radius Spinbox (Normal Eraser Only) -->
-            {#if targetSettings.eraserMode === 'normal'}
-              <div class="flex flex-col gap-2 border-t border-outline-variant/30 pt-4">
-                <label for="eraser-radius-spinbox" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-                  {t('settings.canvas.eraser.normalSize')}
-                </label>
-                <div class="flex items-center gap-3">
-                  <span class="material-symbols-outlined text-base text-outline">cleaning_services</span>
-                  <div class="flex items-center bg-surface-container rounded-lg border border-outline-variant p-0.5 grow justify-between">
-                    <button 
-                      type="button"
-                      onclick={() => {
-                        targetSettings.eraserRadiusNormal = Math.max(5, (targetSettings.eraserRadiusNormal || 24) - 2);
-                        if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
-                      }}
-                      class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
-                    >
-                      <span class="material-symbols-outlined text-sm">remove</span>
-                    </button>
-                    <span class="w-16 text-center text-xs font-bold text-on-surface">
-                      {targetSettings.eraserRadiusNormal || 24} px
-                    </span>
-                    <button 
-                      type="button"
-                      onclick={() => {
-                        targetSettings.eraserRadiusNormal = Math.min(100, (targetSettings.eraserRadiusNormal || 24) + 2);
-                        if (store.activeTask?.settingsOverride?.overrideSettings) store.saveProjects(); else store.saveSettings();
-                      }}
-                      class="p-1 hover:bg-surface-container-high rounded text-on-surface-variant focus:outline-none cursor-pointer border-0 bg-transparent flex items-center justify-center"
-                    >
-                      <span class="material-symbols-outlined text-sm">add</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            {/if}
+
           </div>
 
         {:else if canvasSettingsTab === 'viewText'}
