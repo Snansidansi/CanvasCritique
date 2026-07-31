@@ -384,6 +384,23 @@
     "modeTextLabel": "Texteditor",
     "modeMultipleChoice": "Zu Multiple-Choice-Aufgaben wechseln",
     "modeMultipleChoiceLabel": "Multiple Choice",
+    "modeAudio": "Zur Audioaufnahme wechseln",
+    "modeAudioLabel": "Audioaufnahme",
+    "audioRecorder": {
+      "title": "Audioaufnahmen",
+      "subtitle": "Nimm Sprachnachrichten oder Erklärungen zu deiner Aufgabe auf",
+      "startRecord": "Aufnahme starten",
+      "stopRecord": "Aufnahme beenden",
+      "pauseRecord": "Pausieren",
+      "resumeRecord": "Fortsetzen",
+      "recordingActive": "Aufnahme läuft...",
+      "recordingPaused": "Aufnahme pausiert",
+      "keepAliveToggle": "Mikrofon aktiv halten",
+      "clickToDelete": "Nochmal klicken zum Löschen",
+      "deleteTooltip": "Aufnahme löschen",
+      "defaultName": "Aufnahme {number}",
+      "noRecordings": "Noch keine Audioaufnahmen vorhanden. Klicke auf 'Aufnahme starten', um zu beginnen."
+    },
     "mc": {
       "multipleAnswers": "Mehrfachauswahl",
       "singleAnswer": "Einfachauswahl",
@@ -509,9 +526,19 @@
       "workspace": "Arbeitsbereich",
       "stylus": "Stift",
       "ai": "KI",
+      "audio": "Audio & Mikrofon",
       "data": "Daten",
       "stats": "Statistiken",
       "update": "Update"
+    },
+    "audio": {
+      "sectionTitle": "Audio & Mikrofon-Einstellungen",
+      "keepAliveTitle": "Mikrofon-Aktivierungsschalter auf Audio-UI",
+      "keepAliveDesc": "Fügt der Audio-Aufnahmefläche einen Umschalter hinzu, um das Mikrofon vorab bereit zu halten.",
+      "keepAliveExplanationTitle": "Warum gibt es diese Einstellung?",
+      "keepAliveExplanationText": "Auf manchen Laptops und Mikrofonen braucht die Hardware beim Starten jeder Aufnahme 1–2 Sekunden zur Initialisierung. Wenn dieser Schalter aktiviert ist, kannst du das Mikrofon auf der Aufnahmefläche vorab einschalten, damit die Aufnahme beim Klick auf 'Aufnahme starten' sofort und ohne Verzögerung beginnt. Sobald du den Schalter ausschaltest oder den Bereich verlässt, wird der Mikrofonzugriff sofort wieder beendet.",
+      "sendAudioTitle": "Audioaufnahmen an KI senden",
+      "sendAudioDesc": "Bestimmt, ob deine aufgenommenen Sprachnachrichten bei der Korrektur an das LLM mitgesendet werden."
     },
     "ocr": {
       "sectionTitle": "OCR (Bilder-Texterkennung)",
@@ -569,9 +596,7 @@
         "normal": "Normal",
         "normalDesc": "Nur dort radieren, wo du zeichnest – wie beim Stift.",
         "stroke": "Strich",
-        "strokeDesc": "Löscht den gesamten berührten Strich (wie bei OneNote).",
-        "normalSize": "Normaler Radierer-Radius",
-        "strokeRadius": "Strich-Radierer-Radius"
+        "strokeDesc": "Löscht den gesamten berührten Strich (wie bei OneNote)."
       },
       "resetLayout": "Canvas-Layout zurücksetzen",
       "resetLayoutDesc": "Setzt die Position der Bedienfelder und das Workspace-Split-Layout auf die Standardwerte zurück.",

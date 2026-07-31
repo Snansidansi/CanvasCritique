@@ -13,16 +13,18 @@
   import SystemPromptSettings from '../components/settings/SystemPromptSettings.svelte';
   import StatisticsSettings from '../components/settings/StatisticsSettings.svelte';
   import UpdateSettings from '../components/settings/UpdateSettings.svelte';
+  import AudioSettings from '../components/settings/AudioSettings.svelte';
   import { t } from '../services/i18n';
   import pkg from '../../../package.json';
   import { store } from '../state/store.svelte';
 
-  type TabId = 'general' | 'workspace' | 'stylus' | 'ai' | 'data' | 'stats' | 'update';
+  type TabId = 'general' | 'workspace' | 'stylus' | 'audio' | 'ai' | 'data' | 'stats' | 'update';
 
   const tabs: { id: TabId; labelKey: string; icon: string }[] = [
     { id: 'general',    labelKey: 'settings.tabs.general',   icon: 'tune'           },
     { id: 'workspace',  labelKey: 'settings.tabs.workspace', icon: 'edit_square'    },
     { id: 'stylus',     labelKey: 'settings.tabs.stylus',    icon: 'stylus_pen'     },
+    { id: 'audio',      labelKey: 'settings.tabs.audio',     icon: 'mic'            },
     { id: 'data',       labelKey: 'settings.tabs.data',      icon: 'database'       },
     { id: 'ai',         labelKey: 'settings.tabs.ai',        icon: 'smart_toy'      },
     { id: 'stats',      labelKey: 'settings.tabs.stats',     icon: 'bar_chart'      },
@@ -116,6 +118,9 @@
 
       {:else if activeTab === 'stylus'}
         <StylusSettings />
+
+      {:else if activeTab === 'audio'}
+        <AudioSettings />
 
       {:else if activeTab === 'ai'}
         <ApiSettings />

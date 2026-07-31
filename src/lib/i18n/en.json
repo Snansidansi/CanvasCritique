@@ -385,6 +385,23 @@
     "modeTextLabel": "Text Editor",
     "modeMultipleChoice": "Switch to Multiple Choice Tasks",
     "modeMultipleChoiceLabel": "Multiple Choice",
+    "modeAudio": "Switch to Audio Recording",
+    "modeAudioLabel": "Audio Recording",
+    "audioRecorder": {
+      "title": "Audio Recordings",
+      "subtitle": "Record audio responses or explanations for your task",
+      "startRecord": "Start Recording",
+      "stopRecord": "Stop Recording",
+      "pauseRecord": "Pause",
+      "resumeRecord": "Resume",
+      "recordingActive": "Recording active...",
+      "recordingPaused": "Recording paused",
+      "keepAliveToggle": "Keep Microphone Active",
+      "clickToDelete": "Click again to delete",
+      "deleteTooltip": "Delete recording",
+      "defaultName": "Recording {number}",
+      "noRecordings": "No audio recordings yet. Click 'Start Recording' to begin."
+    },
     "mc": {
       "multipleAnswers": "Multiple Choice",
       "singleAnswer": "Single Choice",
@@ -510,9 +527,19 @@
       "workspace": "Workspace",
       "stylus": "Stylus",
       "ai": "AI",
+      "audio": "Audio & Microphone",
       "data": "Data",
       "stats": "Stats",
       "update": "Update"
+    },
+    "audio": {
+      "sectionTitle": "Audio & Microphone Settings",
+      "keepAliveTitle": "Microphone Activation Toggle on Audio UI",
+      "keepAliveDesc": "Adds a toggle switch to the audio recording view to pre-activate your microphone.",
+      "keepAliveExplanationTitle": "Why does this setting exist?",
+      "keepAliveExplanationText": "On some laptops and microphones, hardware initialization takes 1-2 seconds every time a recording starts. Enabling this setting adds a toggle switch to the audio recording view so you can keep the microphone ready in advance, ensuring your recording starts instantly when clicking start. Turning the toggle off or leaving the view immediately releases microphone access.",
+      "sendAudioTitle": "Send Audio Recordings to AI",
+      "sendAudioDesc": "Determines whether your recorded audio clips are included when submitting work to the AI."
     },
     "ocr": {
       "sectionTitle": "OCR (Image-to-Text)",
@@ -570,9 +597,7 @@
         "normal": "Normal",
         "normalDesc": "Erase only where you draw, just like the pen.",
         "stroke": "Stroke",
-        "strokeDesc": "Delete the entire stroke you touch (like OneNote).",
-        "normalSize": "Normal Eraser Size",
-        "strokeRadius": "Stroke Eraser Radius"
+        "strokeDesc": "Delete the entire stroke you touch (like OneNote)."
       },
       "resetLayout": "Reset Canvas Layout",
       "resetLayoutDesc": "Reset the panels position and workspace split layouts back to default.",
