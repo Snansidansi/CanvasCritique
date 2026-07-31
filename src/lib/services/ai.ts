@@ -64,6 +64,7 @@ export interface CheckWorkSettings {
   sendSolutionText?: boolean;
   sendContextText?: boolean;
   sendContextMedia?: boolean;
+  sendAudioRecordings?: boolean;
   maxOutputTokens?: number;
   language?: string;
   customSystemPrompt?: string;
@@ -92,6 +93,7 @@ export interface CheckWorkOptions {
   activeMode?: 'canvas' | 'text' | 'both' | 'none';
   editorText?: string;
   multipleChoiceAnswers?: Record<string, string[]>;
+  audioRecordings?: Array<{ id: string; mediaId: string; name: string; timestamp: string; duration?: number; dataUrl?: string }>;
 }
 
 export interface CheckWorkMarker {
@@ -331,12 +333,13 @@ export async function runCheckWork(options: CheckWorkOptions): Promise<CheckWork
 
   const sendCanvas = activePagesWithIndex.length > 0;
   const sendText = !!(editorText && editorText.trim());
+  const sendAudio = !!(settings.sendAudioRecordings !== false && options.audioRecordings && options.audioRecordings.length > 0);
 
-  if (!sendCanvas && !sendText) {
+  if (!sendCanvas && !sendText && !sendAudio) {
     throw new Error(
       settings.language === 'Deutsch'
-        ? "Sowohl die Leinwand als auch der Text-Editor sind leer. Bitte schreiben oder zeichnen Sie etwas, bevor Sie Ihre Arbeit überprüfen."
-        : "Both the canvas and the text editor are empty. Please write or draw something before checking your work."
+        ? "Die Leinwand, der Text-Editor und die Audioaufnahmen sind leer. Bitte geben Sie etwas ein oder nehmen Sie Audio auf, bevor Sie Ihre Arbeit überprüfen."
+        : "The canvas, text editor, and audio recordings are empty. Please submit something or record audio before checking your work."
     );
   }
 
@@ -859,6 +862,23 @@ Return a SINGLE JSON object with the following schema:
         const orPart = getOpenRouterMedia(file);
         if (orPart) additionalOpenRouterParts.push(orPart);
       });
+    }
+  }
+
+  if (settings.sendAudioRecordings !== false && options.audioRecordings && options.audioRecordings.length > 0) {
+    for (const rec of options.audioRecordings) {
+      let dataUrl = rec.dataUrl;
+      if (!dataUrl && rec.mediaId) {
+        try {
+          dataUrl = await getMediaDataUrl(rec.mediaId);
+        } catch (_) {}
+      }
+      if (dataUrl) {
+        const audioName = rec.name ? (rec.name.includes('.') ? rec.name : `${rec.name}.m4a`) : 'recording.m4a';
+        additionalOpenRouterParts.push({ type: 'text', text: `[Student Audio Recording: "${rec.name}"]` });
+        const orPart = getOpenRouterMedia({ name: audioName, dataUrl });
+        if (orPart) additionalOpenRouterParts.push(orPart);
+      }
     }
   }
 

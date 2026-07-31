@@ -61,6 +61,15 @@ export interface Task {
   activeAttemptId?: string | null;
   multipleChoiceTasks?: MultipleChoiceTask[];
   multipleChoiceAnswers?: Record<string, string[]>;
+  editors?: Record<string, any>;
+}
+
+export interface AudioRecordingItem {
+  id: string;
+  mediaId: string;
+  name: string;
+  timestamp: string;
+  duration?: number;
 }
 
 export interface TaskAttempt {
@@ -74,6 +83,8 @@ export interface TaskAttempt {
   editorText: string;
   critique: any;
   multipleChoiceAnswers?: Record<string, string[]>; // questionId -> selectedOptionIds[]
+  audioRecordings?: AudioRecordingItem[];
+  editors?: Record<string, any>;
   isConflict?: boolean;
 }
 
@@ -98,6 +109,8 @@ export interface ProjectSettingsOverride {
   sendSolutionText?: boolean;
   sendContextText?: boolean;
   sendContextMedia?: boolean;
+  sendAudioRecordings?: boolean;
+  enableMicKeepAliveToggle?: boolean;
   maxOutputTokens?: number;
   customSystemPrompt?: string;
   language?: string;
@@ -191,6 +204,8 @@ export interface Settings {
   sendSolutionText: boolean;
   sendContextText: boolean;
   sendContextMedia: boolean;
+  sendAudioRecordings: boolean;
+  enableMicKeepAliveToggle: boolean;
   maxOutputTokens: number;
   canvasMode: string;
   a4Orientation?: 'portrait' | 'landscape';

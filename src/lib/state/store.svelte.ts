@@ -10,7 +10,8 @@ import type {
   ExportDialog,
   ImportDialog,
   RequestLog,
-  TaskAttempt
+  TaskAttempt,
+  AudioRecordingItem
 } from './types';
 
 import { getAttemptCreationMs } from '../utils/attempts';
@@ -49,6 +50,8 @@ import {
   deleteAttempt as dbDeleteAttempt,
   loadAttemptCanvasDataFromDisk,
   saveAttemptCanvasDataToDisk,
+  saveTaskSolutionToDisk,
+  loadTaskSolutionFromDisk,
   insertTemplateRecord,
   updateTemplateGlobal,
   deleteTemplateRecord
@@ -1618,8 +1621,9 @@ class CanvasCritiqueStore {
 
   async saveEditorText(taskId: string, text: string): Promise<void> {
     this.editorTexts[taskId] = text;
+    await saveTaskSolutionToDisk(taskId, { editorText: text });
     const db = this.getDb();
-    await dbUpdateTask(db, taskId, { editorText: text });
+    await dbUpdateTask(db, taskId, { editorText: '' });
 
     const task = this.findTaskById(taskId);
     if (task && task.activeAttemptId) {
@@ -1641,6 +1645,7 @@ class CanvasCritiqueStore {
   }
 
   async saveMultipleChoiceAnswers(taskId: string, answers: Record<string, string[]>): Promise<void> {
+    await saveTaskSolutionToDisk(taskId, { multipleChoiceAnswers: answers });
     const db = this.getDb();
     const task = this.findTaskById(taskId);
     if (task && task.activeAttemptId) {
@@ -1654,6 +1659,60 @@ class CanvasCritiqueStore {
         });
       }
     }
+  }
+
+  async saveAudioRecordings(taskId: string, recordings: AudioRecordingItem[]): Promise<void> {
+    await saveTaskSolutionToDisk(taskId, { audioRecordings: recordings });
+    const db = this.getDb();
+    const task = this.findTaskById(taskId);
+    if (task && task.activeAttemptId) {
+      const attempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+      if (attempt) {
+        attempt.audioRecordings = recordings;
+        attempt.timestamp = new Date().toISOString();
+        await dbUpdateAttempt(db, attempt.id, { 
+          audioRecordings: recordings, 
+          timestamp: attempt.timestamp 
+        });
+      }
+    }
+  }
+
+  getAudioRecordings(taskId: string): AudioRecordingItem[] {
+    const task = this.findTaskById(taskId);
+    if (task && task.activeAttemptId) {
+      const attempt = task.attempts?.find(a => a.id === task.activeAttemptId);
+      if (attempt?.audioRecordings) {
+        return attempt.audioRecordings;
+      }
+    }
+    return [];
+  }
+
+  async addAudioRecording(taskId: string, item: AudioRecordingItem): Promise<void> {
+    const current = this.getAudioRecordings(taskId);
+    const updated = [...current, item];
+    await this.saveAudioRecordings(taskId, updated);
+  }
+
+  async renameAudioRecording(taskId: string, recordingId: string, newName: string): Promise<void> {
+    const current = this.getAudioRecordings(taskId);
+    const updated = current.map(r => r.id === recordingId ? { ...r, name: newName } : r);
+    await this.saveAudioRecordings(taskId, updated);
+  }
+
+  async deleteAudioRecording(taskId: string, recordingId: string): Promise<void> {
+    const current = this.getAudioRecordings(taskId);
+    const itemToDelete = current.find(r => r.id === recordingId);
+    if (itemToDelete?.mediaId) {
+      try {
+        await deleteMediaFromDb(itemToDelete.mediaId);
+      } catch (err) {
+        console.warn('Failed to delete media for recording:', err);
+      }
+    }
+    const updated = current.filter(r => r.id !== recordingId);
+    await this.saveAudioRecordings(taskId, updated);
   }
 
   getEditorText(taskId: string): string {
@@ -2634,6 +2693,17 @@ class CanvasCritiqueStore {
                           mediaIdsToPack.push(file.mediaId);
                         }
                       }
+                    }
+                  }
+                }
+              }
+            }
+            if (task.attempts) {
+              for (const attempt of task.attempts) {
+                if (attempt.audioRecordings) {
+                  for (const rec of attempt.audioRecordings) {
+                    if (rec.mediaId) {
+                      mediaIdsToPack.push(rec.mediaId);
                     }
                   }
                 }

@@ -63,6 +63,8 @@ export const defaultSettings: Settings = {
   sendSolutionText: true,
   sendContextText: true,
   sendContextMedia: true,
+  sendAudioRecordings: true,
+  enableMicKeepAliveToggle: false,
   maxOutputTokens: 0,
   canvasMode: 'infinite',
   a4Orientation: 'portrait',

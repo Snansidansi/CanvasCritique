@@ -602,14 +602,22 @@ export async function getCanvasDataDir(): Promise<string> {
   return canvasDataPath;
 }
 
-export async function saveTaskSolutionToDisk(taskId: string, solutionData: { canvasData?: any; editorText?: string }): Promise<void> {
+export async function saveTaskSolutionToDisk(taskId: string, solutionData: { canvasData?: any; editorText?: string; multipleChoiceAnswers?: Record<string, string[]>; audioRecordings?: any[]; editors?: Record<string, any> }): Promise<void> {
   try {
     const canvasDataDir = await getCanvasDataDir();
     const { join } = await import('@tauri-apps/api/path');
     const { exists, readFile, writeFile } = await import('@tauri-apps/plugin-fs');
     const filePath = await join(canvasDataDir, `${taskId}.json`);
 
-    let currentData: { canvasData: any; editorText: string; updatedAt?: string } = { canvasData: null, editorText: '', updatedAt: '' };
+    let currentData: { canvasData: any; editorText: string; multipleChoiceAnswers?: Record<string, string[]>; audioRecordings?: any[]; editors: Record<string, any>; updatedAt?: string } = {
+      canvasData: null,
+      editorText: '',
+      multipleChoiceAnswers: {},
+      audioRecordings: [],
+      editors: {},
+      updatedAt: ''
+    };
+
     if (await exists(filePath)) {
       try {
         const raw = await readFile(filePath);
@@ -620,11 +628,26 @@ export async function saveTaskSolutionToDisk(taskId: string, solutionData: { can
       }
     }
 
+    if (!currentData.editors) currentData.editors = {};
+
+    if (solutionData.editors) {
+      currentData.editors = { ...currentData.editors, ...solutionData.editors };
+    }
     if (solutionData.canvasData !== undefined) {
       currentData.canvasData = solutionData.canvasData;
+      currentData.editors.canvas = solutionData.canvasData;
     }
     if (solutionData.editorText !== undefined) {
       currentData.editorText = solutionData.editorText;
+      currentData.editors.text = solutionData.editorText;
+    }
+    if (solutionData.multipleChoiceAnswers !== undefined) {
+      currentData.multipleChoiceAnswers = solutionData.multipleChoiceAnswers;
+      currentData.editors.multipleChoice = solutionData.multipleChoiceAnswers;
+    }
+    if (solutionData.audioRecordings !== undefined) {
+      currentData.audioRecordings = solutionData.audioRecordings;
+      currentData.editors.audioRecordings = solutionData.audioRecordings;
     }
 
     currentData.updatedAt = new Date().toISOString();
@@ -637,7 +660,7 @@ export async function saveTaskSolutionToDisk(taskId: string, solutionData: { can
   }
 }
 
-export async function loadTaskSolutionFromDisk(taskId: string): Promise<{ canvasData: any; editorText: string; updatedAt?: string }> {
+export async function loadTaskSolutionFromDisk(taskId: string): Promise<{ canvasData: any; editorText: string; multipleChoiceAnswers: Record<string, string[]>; audioRecordings: any[]; editors: Record<string, any>; updatedAt?: string }> {
   try {
     const canvasDataDir = await getCanvasDataDir();
     const { join } = await import('@tauri-apps/api/path');
@@ -647,16 +670,26 @@ export async function loadTaskSolutionFromDisk(taskId: string): Promise<{ canvas
       const raw = await readFile(filePath);
       const text = new TextDecoder().decode(raw);
       const parsed = JSON.parse(text);
+
+      const editors = parsed.editors || {};
+      if (parsed.canvasData !== undefined && editors.canvas === undefined) editors.canvas = parsed.canvasData;
+      if (parsed.editorText !== undefined && editors.text === undefined) editors.text = parsed.editorText;
+      if (parsed.multipleChoiceAnswers !== undefined && editors.multipleChoice === undefined) editors.multipleChoice = parsed.multipleChoiceAnswers;
+      if (parsed.audioRecordings !== undefined && editors.audioRecordings === undefined) editors.audioRecordings = parsed.audioRecordings;
+
       return {
-        canvasData: parsed.canvasData || null,
-        editorText: parsed.editorText || '',
+        canvasData: editors.canvas ?? parsed.canvasData ?? null,
+        editorText: editors.text ?? parsed.editorText ?? '',
+        multipleChoiceAnswers: editors.multipleChoice ?? parsed.multipleChoiceAnswers ?? {},
+        audioRecordings: editors.audioRecordings ?? parsed.audioRecordings ?? [],
+        editors,
         updatedAt: parsed.updatedAt || undefined
       };
     }
   } catch (err) {
     // Don't warn for missing solution files as new tasks won't have one
   }
-  return { canvasData: null, editorText: '' };
+  return { canvasData: null, editorText: '', multipleChoiceAnswers: {}, audioRecordings: [], editors: {} };
 }
 
 export async function saveAttemptToDisk(attemptId: string, updates: Partial<TaskAttempt & { updatedAt?: string }>): Promise<void> {
@@ -686,16 +719,35 @@ export async function saveAttemptToDisk(attemptId: string, updates: Partial<Task
       } catch (_) {}
     }
 
+    if (!currentContent.editors) currentContent.editors = {};
+
     // Merge updates
     if (updates.id !== undefined) currentContent.id = updates.id;
     if (updates.taskId !== undefined) currentContent.taskId = updates.taskId;
     if (updates.name !== undefined) currentContent.name = updates.name;
     if (updates.timestamp !== undefined) currentContent.timestamp = updates.timestamp;
     if (updates.critique !== undefined) currentContent.critique = updates.critique;
-    if (updates.editorText !== undefined) currentContent.editorText = updates.editorText;
-    if (updates.multipleChoiceAnswers !== undefined) currentContent.multipleChoiceAnswers = updates.multipleChoiceAnswers;
-    if (updates.canvasData !== undefined) currentContent.canvasData = updates.canvasData;
     if (updates.isConflict !== undefined) currentContent.isConflict = updates.isConflict;
+
+    if (updates.editors) {
+      currentContent.editors = { ...currentContent.editors, ...updates.editors };
+    }
+    if (updates.editorText !== undefined) {
+      currentContent.editorText = updates.editorText;
+      currentContent.editors.text = updates.editorText;
+    }
+    if (updates.multipleChoiceAnswers !== undefined) {
+      currentContent.multipleChoiceAnswers = updates.multipleChoiceAnswers;
+      currentContent.editors.multipleChoice = updates.multipleChoiceAnswers;
+    }
+    if (updates.canvasData !== undefined) {
+      currentContent.canvasData = updates.canvasData;
+      currentContent.editors.canvas = updates.canvasData;
+    }
+    if (updates.audioRecordings !== undefined) {
+      currentContent.audioRecordings = updates.audioRecordings;
+      currentContent.editors.audioRecordings = updates.audioRecordings;
+    }
 
     if (updates.updatedAt !== undefined) {
       currentContent.updatedAt = updates.updatedAt;
@@ -731,15 +783,24 @@ export async function loadAttemptFromDisk(attemptId: string): Promise<TaskAttemp
       const raw = await readFile(filePath);
       const text = new TextDecoder().decode(raw);
       const parsed = JSON.parse(text);
+
+      const editors = parsed.editors || {};
+      if (parsed.canvasData !== undefined && editors.canvas === undefined) editors.canvas = parsed.canvasData;
+      if (parsed.editorText !== undefined && editors.text === undefined) editors.text = parsed.editorText;
+      if (parsed.multipleChoiceAnswers !== undefined && editors.multipleChoice === undefined) editors.multipleChoice = parsed.multipleChoiceAnswers;
+      if (parsed.audioRecordings !== undefined && editors.audioRecordings === undefined) editors.audioRecordings = parsed.audioRecordings;
+
       return {
         id: parsed.id || attemptId,
         taskId: parsed.taskId || parsed.task_id || '',
         name: parsed.name || '',
         timestamp: parsed.timestamp || new Date().toISOString(),
         critique: parsed.critique || null,
-        canvasData: parsed.canvasData || null,
-        editorText: parsed.editorText || '',
-        multipleChoiceAnswers: parsed.multipleChoiceAnswers || {},
+        canvasData: editors.canvas ?? parsed.canvasData ?? null,
+        editorText: editors.text ?? parsed.editorText ?? '',
+        multipleChoiceAnswers: editors.multipleChoice ?? parsed.multipleChoiceAnswers ?? {},
+        audioRecordings: editors.audioRecordings ?? parsed.audioRecordings ?? [],
+        editors,
         isConflict: Boolean(parsed.isConflict),
         updatedAt: parsed.updatedAt || parsed.timestamp
       };
@@ -780,34 +841,37 @@ export async function deleteAttemptCanvasDataFile(attemptId: string): Promise<vo
 export async function migrateAttemptCanvasDataToFiles(db: Database): Promise<void> {
   try {
     const rows = await db.select(
-      'SELECT id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE canvas_data_json IS NOT NULL'
+      'SELECT id, task_id, name, timestamp, critique_json, canvas_data_json, editor_text, multiple_choice_answers_json FROM task_attempts WHERE canvas_data_json IS NOT NULL OR (editor_text IS NOT NULL AND editor_text != "") OR (multiple_choice_answers_json IS NOT NULL AND multiple_choice_answers_json != "{}" AND multiple_choice_answers_json != "")'
     ) as any[];
     
     if (rows.length > 0) {
-      console.log(`Migrating ${rows.length} attempts canvas data to separate files...`);
+      console.log(`Migrating ${rows.length} attempts solution data to disk files...`);
       for (const row of rows) {
         try {
-          const canvasData = JSON.parse(row.canvas_data_json);
+          const canvasData = row.canvas_data_json ? JSON.parse(row.canvas_data_json) : undefined;
+          const editorText = row.editor_text || undefined;
+          const multipleChoiceAnswers = (row.multiple_choice_answers_json && row.multiple_choice_answers_json !== '{}') ? JSON.parse(row.multiple_choice_answers_json) : undefined;
+
           await saveAttemptToDisk(row.id, {
             id: row.id,
             taskId: row.task_id,
             name: row.name,
             timestamp: row.timestamp,
             critique: row.critique_json ? JSON.parse(row.critique_json) : null,
-            editorText: row.editor_text || '',
-            multipleChoiceAnswers: row.multiple_choice_answers_json ? JSON.parse(row.multiple_choice_answers_json) : {},
-            canvasData
+            ...(editorText !== undefined && { editorText }),
+            ...(multipleChoiceAnswers !== undefined && { multipleChoiceAnswers }),
+            ...(canvasData !== undefined && { canvasData })
           });
-          // Clear the column in the database so we don't migrate it again
-          await db.execute('UPDATE task_attempts SET canvas_data_json = NULL WHERE id = ?', [row.id]);
+          // Clear DB columns so we don't migrate again and DB sync won't overwrite disk files
+          await db.execute('UPDATE task_attempts SET canvas_data_json = NULL, editor_text = "", multiple_choice_answers_json = "{}" WHERE id = ?', [row.id]);
         } catch (err) {
           console.error(`Failed to migrate attempt ${row.id}:`, err);
         }
       }
-      console.log('Migration of attempt canvas data completed.');
+      console.log('Migration of attempt solution data to disk files completed.');
     }
   } catch (err) {
-    console.error('Failed to run attempt canvas data migration:', err);
+    console.error('Failed to run attempt solution data migration:', err);
   }
 }
 
@@ -844,7 +908,7 @@ export async function migrateSolutionsFromDbToFs(db: Database): Promise<void> {
     if (rows.length > 0) {
       console.log(`Migrating ${rows.length} task solutions from SQLite to disk files...`);
       for (const row of rows) {
-        let canvasData = null;
+        let canvasData = undefined;
         if (row.canvas_data_json) {
           try {
             canvasData = JSON.parse(row.canvas_data_json);
@@ -852,8 +916,11 @@ export async function migrateSolutionsFromDbToFs(db: Database): Promise<void> {
             console.warn(`Failed to parse canvas_data_json for migration of task ${row.id}:`, e);
           }
         }
-        const editorText = row.editor_text || '';
-        await saveTaskSolutionToDisk(row.id, { canvasData, editorText });
+        const editorText = row.editor_text || undefined;
+        await saveTaskSolutionToDisk(row.id, {
+          ...(canvasData !== undefined && { canvasData }),
+          ...(editorText !== undefined && { editorText })
+        });
       }
       await db.execute('UPDATE tasks SET canvas_data_json = NULL, editor_text = ""');
       console.log('Task solutions migrated successfully. Running VACUUM to reclaim space...');
@@ -927,6 +994,8 @@ export async function getTasks(db: Database): Promise<Task[]> {
         timestamp: new Date().toISOString(),
         canvasData: solution.canvasData,
         editorText: solution.editorText,
+        multipleChoiceAnswers: solution.multipleChoiceAnswers,
+        editors: solution.editors,
         critique: task.critique
       };
       
@@ -1247,18 +1316,22 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
       'SELECT id, task_id, name, timestamp, created_at, background, critique_json, editor_text, multiple_choice_answers_json, is_conflict FROM task_attempts WHERE task_id = ?',
       [taskId]
     );
-    const attempts = rows.map(r => ({
-      id: r.id,
-      taskId: r.task_id,
-      name: r.name,
-      timestamp: r.timestamp,
-      createdAt: r.created_at || r.timestamp,
-      background: r.background || undefined,
-      canvasData: null, // Loaded on-demand
-      editorText: r.editor_text || '',
-      critique: r.critique_json ? JSON.parse(r.critique_json) : null,
-      multipleChoiceAnswers: r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {},
-      isConflict: Boolean(r.is_conflict)
+    const attempts = await Promise.all(rows.map(async r => {
+      const diskAttempt = await loadAttemptFromDisk(r.id);
+      return {
+        id: r.id,
+        taskId: r.task_id,
+        name: r.name,
+        timestamp: r.timestamp,
+        createdAt: r.created_at || r.timestamp,
+        background: r.background || undefined,
+        canvasData: diskAttempt?.canvasData ?? null,
+        editorText: diskAttempt?.editorText ?? r.editor_text ?? '',
+        critique: diskAttempt?.critique ?? (r.critique_json ? JSON.parse(r.critique_json) : null),
+        multipleChoiceAnswers: diskAttempt?.multipleChoiceAnswers ?? (r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {}),
+        editors: diskAttempt?.editors ?? {},
+        isConflict: Boolean(r.is_conflict)
+      };
     }));
     attempts.sort((a, b) => getAttemptCreationMs(a) - getAttemptCreationMs(b));
     return attempts;
