@@ -1073,10 +1073,14 @@
   function handleFilePointerDown(e: PointerEvent, index: number, type: 'instruction' | 'solution' | 'context' | 'provided') {
     if (e.button !== 0 && e.button !== -1) return;
     const target = e.currentTarget as HTMLElement;
+    const targetEl = e.target as HTMLElement;
     
-    // Ignore if close/remove button is clicked or if preview is clicked (but allow drag-handle inside preview)
-    if ((e.target as HTMLElement).closest('.remove-file-btn') || 
-        ((e.target as HTMLElement).closest('.preview-file-click') && !(e.target as HTMLElement).closest('.drag-handle'))) return;
+    // Ignore if close/remove button is clicked, rename button/input is clicked, or if preview is clicked (but allow drag-handle inside preview)
+    if (targetEl.closest('.remove-file-btn') || 
+        targetEl.closest('.rename-file-btn') || 
+        targetEl.closest('button') || 
+        targetEl.closest('input') || 
+        (targetEl.closest('.preview-file-click') && !targetEl.closest('.drag-handle'))) return;
 
     mediaDragPointerStartX = e.clientX;
     mediaDragPointerStartY = e.clientY;
@@ -1456,25 +1460,39 @@
                     {#if editingFileIndex === index && editingFileType === 'instruction'}
                       <!-- svelte-ignore a11y_click_events_have_key_events -->
                       <!-- svelte-ignore a11y_no_static_element_interactions -->
-                      <input
-                        bind:this={renameInputEl}
-                        type="text"
-                        bind:value={editingFileNameValue}
-                        onclick={(e) => e.stopPropagation()}
-                        onkeydown={(e) => {
-                          e.stopPropagation();
-                        }}
-                        class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none"
-                      />
+                      <div class="flex items-center gap-1 shrink grow min-w-0" onclick={(e) => e.stopPropagation()} onpointerdown={(e) => e.stopPropagation()}>
+                        <input
+                          bind:this={renameInputEl}
+                          type="text"
+                          bind:value={editingFileNameValue}
+                          onkeydown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter') {
+                              saveInlineRename();
+                            } else if (e.key === 'Escape') {
+                              cancelInlineRename();
+                            }
+                          }}
+                          onblur={saveInlineRename}
+                          class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none shrink grow min-w-0 font-medium"
+                        />
+                        {#if editingFileExtension}
+                          <span class="text-xs text-on-surface-variant font-mono shrink-0 select-none">{editingFileExtension}</span>
+                        {/if}
+                      </div>
                     {:else}
-                      <span class="text-xs text-on-surface truncate font-medium max-w-72 hover:text-primary hover:underline" title={file.name}>{file.name}</span>
+                      <span class="text-xs text-on-surface hover:text-primary truncate font-medium max-w-72" title={file.name}>{file.name}</span>
                     {/if}
                   </div>
                   <div class="flex items-center gap-1 shrink-0">
                     <button 
                       type="button"
-                      onclick={() => handleRenameFile(index, 'instruction')}
-                      class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        handleRenameFile(index, 'instruction');
+                      }}
+                      onpointerdown={(e) => e.stopPropagation()}
+                      class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors rename-file-btn"
                       title={t('taskEditor.renameFileTooltip') || 'Rename File'}
                     >
                       edit
@@ -1631,31 +1649,39 @@
                     {#if editingFileIndex === index && editingFileType === 'solution'}
                       <!-- svelte-ignore a11y_click_events_have_key_events -->
                       <!-- svelte-ignore a11y_no_static_element_interactions -->
-                      <input
-                        bind:this={renameInputEl}
-                        type="text"
-                        bind:value={editingFileNameValue}
-                        onclick={(e) => e.stopPropagation()}
-                        onkeydown={(e) => {
-                          e.stopPropagation();
-                          if (e.key === 'Enter') {
-                            saveInlineRename();
-                          } else if (e.key === 'Escape') {
-                            cancelInlineRename();
-                          }
-                        }}
-                        onblur={saveInlineRename}
-                        class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
-                      />
+                      <div class="flex items-center gap-1 shrink grow min-w-0" onclick={(e) => e.stopPropagation()} onpointerdown={(e) => e.stopPropagation()}>
+                        <input
+                          bind:this={renameInputEl}
+                          type="text"
+                          bind:value={editingFileNameValue}
+                          onkeydown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter') {
+                              saveInlineRename();
+                            } else if (e.key === 'Escape') {
+                              cancelInlineRename();
+                            }
+                          }}
+                          onblur={saveInlineRename}
+                          class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none shrink grow min-w-0 font-medium"
+                        />
+                        {#if editingFileExtension}
+                          <span class="text-xs text-on-surface-variant font-mono shrink-0 select-none">{editingFileExtension}</span>
+                        {/if}
+                      </div>
                     {:else}
-                      <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
+                      <span class="text-xs text-on-surface hover:text-primary truncate font-medium max-w-72" title={file.name}>{file.name}</span>
                     {/if}
                   </div>
                   <div class="flex items-center gap-1 shrink-0">
                     <button 
                       type="button"
-                      onclick={() => handleRenameFile(index, 'solution')}
-                      class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        handleRenameFile(index, 'solution');
+                      }}
+                      onpointerdown={(e) => e.stopPropagation()}
+                      class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors rename-file-btn"
                       title={t('taskEditor.renameFileTooltip') || 'Rename File'}
                     >
                       edit
@@ -1840,31 +1866,39 @@
                       {#if editingFileIndex === index && editingFileType === 'provided'}
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <input
-                          bind:this={renameInputEl}
-                          type="text"
-                          bind:value={editingFileNameValue}
-                          onclick={(e) => e.stopPropagation()}
-                          onkeydown={(e) => {
-                            e.stopPropagation();
-                            if (e.key === 'Enter') {
-                              saveInlineRename();
-                            } else if (e.key === 'Escape') {
-                              cancelInlineRename();
-                            }
-                          }}
-                          onblur={saveInlineRename}
-                          class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
-                        />
+                        <div class="flex items-center gap-1 shrink grow min-w-0" onclick={(e) => e.stopPropagation()} onpointerdown={(e) => e.stopPropagation()}>
+                          <input
+                            bind:this={renameInputEl}
+                            type="text"
+                            bind:value={editingFileNameValue}
+                            onkeydown={(e) => {
+                              e.stopPropagation();
+                              if (e.key === 'Enter') {
+                                saveInlineRename();
+                              } else if (e.key === 'Escape') {
+                                cancelInlineRename();
+                              }
+                            }}
+                            onblur={saveInlineRename}
+                            class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none shrink grow min-w-0 font-medium"
+                          />
+                          {#if editingFileExtension}
+                            <span class="text-xs text-on-surface-variant font-mono shrink-0 select-none">{editingFileExtension}</span>
+                          {/if}
+                        </div>
                       {:else}
-                        <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
+                        <span class="text-xs text-on-surface hover:text-primary truncate font-medium max-w-72" title={file.name}>{file.name}</span>
                       {/if}
                     </div>
                     <div class="flex items-center gap-1 shrink-0">
                       <button 
                         type="button"
-                        onclick={() => handleRenameFile(index, 'provided')}
-                        class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          handleRenameFile(index, 'provided');
+                        }}
+                        onpointerdown={(e) => e.stopPropagation()}
+                        class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors rename-file-btn"
                         title={t('taskEditor.renameFileTooltip') || 'Rename File'}
                       >
                         edit
@@ -1996,31 +2030,39 @@
                         {#if editingFileIndex === index && editingFileType === 'context'}
                           <!-- svelte-ignore a11y_click_events_have_key_events -->
                           <!-- svelte-ignore a11y_no_static_element_interactions -->
-                          <input
-                            bind:this={renameInputEl}
-                            type="text"
-                            bind:value={editingFileNameValue}
-                            onclick={(e) => e.stopPropagation()}
-                            onkeydown={(e) => {
-                              e.stopPropagation();
-                              if (e.key === 'Enter') {
-                                saveInlineRename();
-                              } else if (e.key === 'Escape') {
-                                cancelInlineRename();
-                              }
-                            }}
-                            onblur={saveInlineRename}
-                            class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none w-full font-medium"
-                          />
+                          <div class="flex items-center gap-1 shrink grow min-w-0" onclick={(e) => e.stopPropagation()} onpointerdown={(e) => e.stopPropagation()}>
+                            <input
+                              bind:this={renameInputEl}
+                              type="text"
+                              bind:value={editingFileNameValue}
+                              onkeydown={(e) => {
+                                e.stopPropagation();
+                                if (e.key === 'Enter') {
+                                  saveInlineRename();
+                                } else if (e.key === 'Escape') {
+                                  cancelInlineRename();
+                                }
+                              }}
+                              onblur={saveInlineRename}
+                              class="bg-surface border border-primary rounded px-2 py-0.5 text-xs text-on-surface focus:outline-none shrink grow min-w-0 font-medium"
+                            />
+                            {#if editingFileExtension}
+                              <span class="text-xs text-on-surface-variant font-mono shrink-0 select-none">{editingFileExtension}</span>
+                            {/if}
+                          </div>
                         {:else}
-                          <span class="text-xs text-on-surface hover:text-primary truncate font-medium">{getBaseName(file.name)}</span>
+                          <span class="text-xs text-on-surface hover:text-primary truncate font-medium max-w-72" title={file.name}>{file.name}</span>
                         {/if}
                       </div>
                       <div class="flex items-center gap-1 shrink-0">
                         <button 
                           type="button"
-                          onclick={() => handleRenameFile(index, 'context')}
-                          class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors preview-file-click"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            handleRenameFile(index, 'context');
+                          }}
+                          onpointerdown={(e) => e.stopPropagation()}
+                          class="material-symbols-outlined text-[18px] text-on-surface-variant hover:text-primary hover:bg-primary/10 p-1 rounded-full cursor-pointer focus:outline-none flex items-center justify-center transition-colors rename-file-btn"
                           title={t('taskEditor.renameFileTooltip') || 'Rename File'}
                         >
                           edit
