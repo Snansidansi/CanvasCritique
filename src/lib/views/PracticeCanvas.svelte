@@ -119,11 +119,15 @@
     localStorage.setItem('sidebar_position', sidebarPosition);
   });
 
-  let activeMode = $derived.by<'canvas' | 'text' | 'both' | 'none'>(() => {
-    if (showCanvas && showText) return 'both';
-    if (showCanvas) return 'canvas';
-    if (showText) return 'text';
-    return 'none';
+  let activeMode = $derived.by<string>(() => {
+    const modes: string[] = [];
+    if (showCanvas) modes.push('canvas');
+    if (showText) modes.push('text');
+    if (showMultipleChoice) modes.push('multiple_choice');
+    if (showAudio) modes.push('audio');
+    if (modes.length === 0) return 'none';
+    if (modes.length === 2 && showCanvas && showText) return 'both';
+    return modes.join(',');
   });
   let editorText = $state('');
   
@@ -5258,13 +5262,13 @@
       {handleCritiqueClick}
       {task}
       textFontSize={canvasTextFontSize}
-      isRightContentVisible={showCanvas || showText || showMultipleChoice}
+      isRightContentVisible={showCanvas || showText || showMultipleChoice || showAudio}
       infoPanelsLayout={infoPanelsLayout}
       {sidebarPosition}
       onSelectProvidedImage={handleSelectProvidedImage}
     />
 
-    {#if showCanvas || showText || showMultipleChoice}
+    {#if showCanvas || showText || showMultipleChoice || showAudio}
     <div 
       class="grow flex overflow-hidden relative {workspaceLayout === 'vertical' ? 'flex-col' : 'flex-row'}" 
       style="order: {sidebarPosition === 'right' || sidebarPosition === 'bottom' ? 1 : 3}; 
