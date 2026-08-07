@@ -505,7 +505,7 @@
 
             <!-- Audio Player -->
             {#if recordingDataUrls[rec.id]}
-              <AudioPlayer dataUrl={recordingDataUrls[rec.id]} compact={true} />
+              <AudioPlayer dataUrl={recordingDataUrls[rec.id]} compact={true} initialDuration={rec.duration} />
             {:else}
               <div class="text-[10px] text-on-surface-variant animate-pulse py-2">
                 {t('common.loading')}
