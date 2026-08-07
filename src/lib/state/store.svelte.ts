@@ -242,11 +242,14 @@ class CanvasCritiqueStore {
       sendSolutionText: useTaskEvaluation ? (taskOverride.sendSolutionText ?? globalSettings.sendSolutionText) : (useProjEvaluation ? (projOverride.sendSolutionText ?? globalSettings.sendSolutionText) : globalSettings.sendSolutionText),
       sendContextText: useTaskEvaluation ? (taskOverride.sendContextText ?? globalSettings.sendContextText) : (useProjEvaluation ? (projOverride.sendContextText ?? globalSettings.sendContextText) : globalSettings.sendContextText),
       sendContextMedia: useTaskEvaluation ? (taskOverride.sendContextMedia ?? globalSettings.sendContextMedia) : (useProjEvaluation ? (projOverride.sendContextMedia ?? globalSettings.sendContextMedia) : globalSettings.sendContextMedia),
+      sendAudioRecordings: useTaskEvaluation ? (taskOverride.sendAudioRecordings ?? globalSettings.sendAudioRecordings) : (useProjEvaluation ? (projOverride.sendAudioRecordings ?? globalSettings.sendAudioRecordings) : globalSettings.sendAudioRecordings),
+      enableMicKeepAliveToggle: useTaskEvaluation ? (taskOverride.enableMicKeepAliveToggle ?? globalSettings.enableMicKeepAliveToggle) : (useProjEvaluation ? (projOverride.enableMicKeepAliveToggle ?? globalSettings.enableMicKeepAliveToggle) : globalSettings.enableMicKeepAliveToggle),
       maxOutputTokens: useTaskModel ? (taskOverride.maxOutputTokens ?? globalSettings.maxOutputTokens) : (useProjModel ? (projOverride.maxOutputTokens ?? globalSettings.maxOutputTokens) : globalSettings.maxOutputTokens),
       customSystemPrompt: useTaskSystemPrompt ? (taskOverride.customSystemPrompt !== undefined && taskOverride.customSystemPrompt !== null ? taskOverride.customSystemPrompt : globalSettings.customSystemPrompt) : (useProjSystemPrompt ? (projOverride.customSystemPrompt !== undefined && projOverride.customSystemPrompt !== null ? projOverride.customSystemPrompt : globalSettings.customSystemPrompt) : globalSettings.customSystemPrompt),
       canvasMode: useTaskCanvas ? (taskOverride.canvasMode ?? globalSettings.canvasMode) : (useProjCanvas ? (projOverride.canvasMode ?? globalSettings.canvasMode) : globalSettings.canvasMode),
       a4Orientation: useTaskCanvas ? (taskOverride.a4Orientation ?? globalSettings.a4Orientation ?? 'portrait') : (useProjCanvas ? (projOverride.a4Orientation ?? globalSettings.a4Orientation ?? 'portrait') : (globalSettings.a4Orientation ?? 'portrait')),
       canvasBgPattern: useTaskCanvas ? (taskOverride.canvasBgPattern ?? globalSettings.canvasBgPattern ?? 'grid') : (useProjCanvas ? (projOverride.canvasBgPattern ?? globalSettings.canvasBgPattern ?? 'grid') : (globalSettings.canvasBgPattern ?? 'grid')),
+      canvasBgOpacity: useTaskCanvas ? (taskOverride.canvasBgOpacity ?? globalSettings.canvasBgOpacity) : (useProjCanvas ? (projOverride.canvasBgOpacity ?? globalSettings.canvasBgOpacity) : globalSettings.canvasBgOpacity),
       canvasFontSize: useTaskCanvas ? (taskOverride.canvasFontSize ?? globalSettings.canvasFontSize) : (useProjCanvas ? (projOverride.canvasFontSize ?? globalSettings.canvasFontSize) : globalSettings.canvasFontSize),
       editorFontSize: useTaskEditorFontSize ? (taskOverride.editorFontSize ?? globalSettings.editorFontSize) : (useProjEditorFontSize ? (projOverride.editorFontSize ?? globalSettings.editorFontSize) : globalSettings.editorFontSize),
       eraserMode: useTaskEraser ? (taskOverride.eraserMode ?? globalSettings.eraserMode) : (useProjEraser ? (projOverride.eraserMode ?? globalSettings.eraserMode) : globalSettings.eraserMode),
@@ -263,7 +266,7 @@ class CanvasCritiqueStore {
       sendMcMedia: useTaskEvaluation ? (taskOverride.sendMcMedia ?? globalSettings.sendMcMedia) : (useProjEvaluation ? (projOverride.sendMcMedia ?? globalSettings.sendMcMedia) : globalSettings.sendMcMedia),
       mcMediaFilterMode: useTaskMediaFilter ? (taskOverride.mcMediaFilterMode ?? globalSettings.mcMediaFilterMode) : (useProjMediaFilter ? (projOverride.mcMediaFilterMode ?? globalSettings.mcMediaFilterMode) : globalSettings.mcMediaFilterMode),
       mcMediaFilterExtensions: useTaskMediaFilter ? (taskOverride.mcMediaFilterExtensions ?? globalSettings.mcMediaFilterExtensions) : (useProjMediaFilter ? (projOverride.mcMediaFilterExtensions ?? globalSettings.mcMediaFilterExtensions) : globalSettings.mcMediaFilterExtensions),
-      language: (taskOverride?.overrideSettings) ? (taskOverride.language ?? globalSettings.language) : ((projOverride?.overrideSettings) ? (projOverride.language ?? globalSettings.language) : globalSettings.language),
+      language: useTaskEvaluation ? (taskOverride.language ?? globalSettings.language) : (useProjEvaluation ? (projOverride.language ?? globalSettings.language) : globalSettings.language),
     };
   }
 

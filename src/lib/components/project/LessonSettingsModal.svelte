@@ -36,6 +36,7 @@
         ocrOpenRouterReasoning: store.settings.ocrOpenRouterReasoning,
         ocrCustomPrompt: store.settings.ocrCustomPrompt || '',
         showCanvasAnnotations: store.settings.showCanvasAnnotations,
+        maxOutputTokens: store.settings.maxOutputTokens,
         openRouterProvider: [...(store.settings.openRouterProvider || [])],
         openRouterReasoning: store.settings.openRouterReasoning,
         sendTaskMedia: store.settings.sendTaskMedia,
@@ -43,9 +44,17 @@
         sendCanvasBackground: store.settings.sendCanvasBackground,
         sendTaskText: store.settings.sendTaskText,
         sendSolutionText: store.settings.sendSolutionText,
+        sendContextText: store.settings.sendContextText,
+        sendContextMedia: store.settings.sendContextMedia,
+        sendAudioRecordings: store.settings.sendAudioRecordings,
+        enableMicKeepAliveToggle: store.settings.enableMicKeepAliveToggle,
+        sendMcMedia: store.settings.sendMcMedia,
         language: store.settings.language,
         customSystemPrompt: store.settings.customSystemPrompt || '',
         canvasMode: store.settings.canvasMode,
+        a4Orientation: store.settings.a4Orientation || 'portrait',
+        canvasBgPattern: store.settings.canvasBgPattern || 'grid',
+        canvasBgOpacity: store.settings.canvasBgOpacity,
         canvasFontSize: store.settings.canvasFontSize,
         overrideEditorFontSize: false,
         editorFontSize: store.settings.editorFontSize || 16,
@@ -55,10 +64,14 @@
         overrideTaskNumbering: false,
         autoNumberTasks: store.settings.autoNumberTasks,
         taskNumberingTemplate: store.settings.taskNumberingTemplate,
+        hideCompletedSections: store.settings.hideCompletedSections,
+        defaultEditMode: store.settings.defaultEditMode || 'canvas',
         taskMediaFilterMode: store.settings.taskMediaFilterMode || 'blacklist',
         taskMediaFilterExtensions: store.settings.taskMediaFilterExtensions || '',
         solutionMediaFilterMode: store.settings.solutionMediaFilterMode || 'blacklist',
-        solutionMediaFilterExtensions: store.settings.solutionMediaFilterExtensions || ''
+        solutionMediaFilterExtensions: store.settings.solutionMediaFilterExtensions || '',
+        mcMediaFilterMode: store.settings.mcMediaFilterMode || 'blacklist',
+        mcMediaFilterExtensions: store.settings.mcMediaFilterExtensions || ''
       };
     }
   });
@@ -129,6 +142,18 @@
       if (project.settingsOverride.editorFontSize === undefined) {
         project.settingsOverride.editorFontSize = store.settings.editorFontSize || 16;
       }
+      if (project.settingsOverride.sendContextText === undefined) {
+        project.settingsOverride.sendContextText = store.settings.sendContextText;
+      }
+      if (project.settingsOverride.sendContextMedia === undefined) {
+        project.settingsOverride.sendContextMedia = store.settings.sendContextMedia;
+      }
+      if (project.settingsOverride.sendAudioRecordings === undefined) {
+        project.settingsOverride.sendAudioRecordings = store.settings.sendAudioRecordings;
+      }
+      if (project.settingsOverride.sendMcMedia === undefined) {
+        project.settingsOverride.sendMcMedia = store.settings.sendMcMedia;
+      }
       hasCustomSystemPrompt = !!project.settingsOverride.customSystemPrompt;
     }
   });
@@ -162,8 +187,12 @@
         project.settingsOverride.openRouterProvider = project.settingsOverride.openRouterProvider ?? store.settings.openRouterProvider;
         project.settingsOverride.openRouterReasoning = project.settingsOverride.openRouterReasoning ?? store.settings.openRouterReasoning;
         project.settingsOverride.showCanvasAnnotations = project.settingsOverride.showCanvasAnnotations ?? store.settings.showCanvasAnnotations;
+        project.settingsOverride.maxOutputTokens = project.settingsOverride.maxOutputTokens ?? store.settings.maxOutputTokens;
       } else if (category === 'overrideCanvas') {
         project.settingsOverride.canvasMode = project.settingsOverride.canvasMode ?? store.settings.canvasMode;
+        project.settingsOverride.a4Orientation = project.settingsOverride.a4Orientation ?? store.settings.a4Orientation;
+        project.settingsOverride.canvasBgPattern = project.settingsOverride.canvasBgPattern ?? store.settings.canvasBgPattern;
+        project.settingsOverride.canvasBgOpacity = project.settingsOverride.canvasBgOpacity ?? store.settings.canvasBgOpacity;
         project.settingsOverride.canvasFontSize = project.settingsOverride.canvasFontSize ?? store.settings.canvasFontSize;
       } else if (category === 'overrideEditorFontSize') {
         project.settingsOverride.editorFontSize = project.settingsOverride.editorFontSize ?? store.settings.editorFontSize;
@@ -177,14 +206,24 @@
         project.settingsOverride.sendCanvasBackground = project.settingsOverride.sendCanvasBackground ?? store.settings.sendCanvasBackground;
         project.settingsOverride.sendTaskText = project.settingsOverride.sendTaskText ?? store.settings.sendTaskText;
         project.settingsOverride.sendSolutionText = project.settingsOverride.sendSolutionText ?? store.settings.sendSolutionText;
+        project.settingsOverride.sendContextText = project.settingsOverride.sendContextText ?? store.settings.sendContextText;
+        project.settingsOverride.sendContextMedia = project.settingsOverride.sendContextMedia ?? store.settings.sendContextMedia;
+        project.settingsOverride.sendAudioRecordings = project.settingsOverride.sendAudioRecordings ?? store.settings.sendAudioRecordings;
+        project.settingsOverride.enableMicKeepAliveToggle = project.settingsOverride.enableMicKeepAliveToggle ?? store.settings.enableMicKeepAliveToggle;
+        project.settingsOverride.sendMcMedia = project.settingsOverride.sendMcMedia ?? store.settings.sendMcMedia;
+        project.settingsOverride.language = project.settingsOverride.language ?? store.settings.language;
       } else if (category === 'overrideMediaFilter') {
         project.settingsOverride.taskMediaFilterMode = project.settingsOverride.taskMediaFilterMode ?? store.settings.taskMediaFilterMode;
         project.settingsOverride.taskMediaFilterExtensions = project.settingsOverride.taskMediaFilterExtensions ?? store.settings.taskMediaFilterExtensions;
         project.settingsOverride.solutionMediaFilterMode = project.settingsOverride.solutionMediaFilterMode ?? store.settings.solutionMediaFilterMode;
         project.settingsOverride.solutionMediaFilterExtensions = project.settingsOverride.solutionMediaFilterExtensions ?? store.settings.solutionMediaFilterExtensions;
+        project.settingsOverride.mcMediaFilterMode = project.settingsOverride.mcMediaFilterMode ?? store.settings.mcMediaFilterMode;
+        project.settingsOverride.mcMediaFilterExtensions = project.settingsOverride.mcMediaFilterExtensions ?? store.settings.mcMediaFilterExtensions;
       } else if (category === 'overrideTaskNumbering') {
         project.settingsOverride.autoNumberTasks = project.settingsOverride.autoNumberTasks ?? store.settings.autoNumberTasks;
         project.settingsOverride.taskNumberingTemplate = project.settingsOverride.taskNumberingTemplate ?? store.settings.taskNumberingTemplate;
+        project.settingsOverride.hideCompletedSections = project.settingsOverride.hideCompletedSections ?? store.settings.hideCompletedSections;
+        project.settingsOverride.defaultEditMode = project.settingsOverride.defaultEditMode ?? store.settings.defaultEditMode;
       }
     }
 

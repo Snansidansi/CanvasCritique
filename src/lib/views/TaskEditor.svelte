@@ -54,39 +54,68 @@
     ocrModalOpen = true;
   }
 
+  function buildSettingsOverride(existing: any = null, parentSettings: any = null): any {
+    const p = parentSettings || store.getEffectiveSettings(targetProjectId);
+    const src = existing || {};
+    return {
+      overrideSettings: src.overrideSettings ?? false,
+      overrideModel: src.overrideModel ?? false,
+      overrideCanvas: src.overrideCanvas ?? false,
+      overrideEditorFontSize: src.overrideEditorFontSize ?? false,
+      overrideEraser: src.overrideEraser ?? false,
+      overrideEvaluation: src.overrideEvaluation ?? false,
+      overrideSystemPrompt: src.overrideSystemPrompt ?? false,
+      overrideTaskNumbering: src.overrideTaskNumbering ?? false,
+      overrideMediaFilter: src.overrideMediaFilter ?? false,
+
+      openRouterModel: src.openRouterModel ?? p.openRouterModel,
+      openRouterProvider: src.openRouterProvider ? [...src.openRouterProvider] : [...(p.openRouterProvider || [])],
+      openRouterReasoning: src.openRouterReasoning ?? p.openRouterReasoning,
+      showCanvasAnnotations: src.showCanvasAnnotations ?? p.showCanvasAnnotations,
+      maxOutputTokens: src.maxOutputTokens ?? p.maxOutputTokens,
+
+      sendTaskMedia: src.sendTaskMedia ?? p.sendTaskMedia,
+      sendSolutionMedia: src.sendSolutionMedia ?? p.sendSolutionMedia,
+      sendCanvasBackground: src.sendCanvasBackground ?? p.sendCanvasBackground,
+      sendTaskText: src.sendTaskText ?? p.sendTaskText,
+      sendSolutionText: src.sendSolutionText ?? p.sendSolutionText,
+      sendContextText: src.sendContextText ?? p.sendContextText,
+      sendContextMedia: src.sendContextMedia ?? p.sendContextMedia,
+      sendAudioRecordings: src.sendAudioRecordings ?? p.sendAudioRecordings,
+      enableMicKeepAliveToggle: src.enableMicKeepAliveToggle ?? p.enableMicKeepAliveToggle,
+      sendMcMedia: src.sendMcMedia ?? p.sendMcMedia,
+      language: src.language ?? p.language,
+
+      customSystemPrompt: src.customSystemPrompt ?? p.customSystemPrompt,
+
+      canvasMode: src.canvasMode ?? p.canvasMode,
+      a4Orientation: src.a4Orientation ?? p.a4Orientation ?? 'portrait',
+      canvasBgPattern: src.canvasBgPattern ?? p.canvasBgPattern ?? 'grid',
+      canvasBgOpacity: src.canvasBgOpacity ?? p.canvasBgOpacity,
+      canvasFontSize: src.canvasFontSize ?? p.canvasFontSize,
+
+      editorFontSize: src.editorFontSize ?? p.editorFontSize,
+
+      autoNumberTasks: src.autoNumberTasks ?? p.autoNumberTasks,
+      taskNumberingTemplate: src.taskNumberingTemplate ?? p.taskNumberingTemplate,
+      hideCompletedSections: src.hideCompletedSections ?? p.hideCompletedSections,
+      defaultEditMode: src.defaultEditMode ?? p.defaultEditMode,
+
+      eraserMode: src.eraserMode ?? p.eraserMode,
+      eraserRadiusNormal: src.eraserRadiusNormal ?? p.eraserRadiusNormal,
+      eraserRadiusStroke: src.eraserRadiusStroke ?? p.eraserRadiusStroke,
+
+      taskMediaFilterMode: src.taskMediaFilterMode ?? p.taskMediaFilterMode,
+      taskMediaFilterExtensions: src.taskMediaFilterExtensions ?? p.taskMediaFilterExtensions,
+      solutionMediaFilterMode: src.solutionMediaFilterMode ?? p.solutionMediaFilterMode,
+      solutionMediaFilterExtensions: src.solutionMediaFilterExtensions ?? p.solutionMediaFilterExtensions,
+      mcMediaFilterMode: src.mcMediaFilterMode ?? p.mcMediaFilterMode,
+      mcMediaFilterExtensions: src.mcMediaFilterExtensions ?? p.mcMediaFilterExtensions
+    };
+  }
+
   // Task specific override settings
-  let settingsOverride = $state<any>({
-    overrideSettings: false,
-    overrideModel: false,
-    overrideCanvas: false,
-    overrideEraser: false,
-    overrideEvaluation: false,
-    overrideSystemPrompt: false,
-    overrideTaskNumbering: false,
-    overrideMediaFilter: false,
-    openRouterModel: 'google/gemini-2.0-pro-exp-02-05:free',
-    showCanvasAnnotations: true,
-    openRouterProvider: [],
-    openRouterReasoning: false,
-    sendTaskMedia: true,
-    sendSolutionMedia: true,
-    sendCanvasBackground: true,
-    sendTaskText: true,
-    sendSolutionText: true,
-    customSystemPrompt: '',
-    language: 'de',
-    canvasMode: 'infinite',
-    canvasFontSize: 13,
-    autoNumberTasks: true,
-    taskNumberingTemplate: 'Aufgabe {n}',
-    eraserMode: 'normal',
-    eraserRadiusNormal: 24,
-    eraserRadiusStroke: 24,
-    taskMediaFilterMode: 'blacklist',
-    taskMediaFilterExtensions: '',
-    solutionMediaFilterMode: 'blacklist',
-    solutionMediaFilterExtensions: ''
-  });
+  let settingsOverride = $state<any>(buildSettingsOverride());
 
   // Overrides tab state
   type TaskTabId = 'model' | 'evaluation' | 'mediaFilter' | 'canvas' | 'editorFontSize' | 'eraser' | 'prompt' | 'numbering';
@@ -174,21 +203,33 @@
       if (category === 'overrideModel') {
         settingsOverride.openRouterModel = parent.openRouterModel;
         settingsOverride.openRouterReasoning = parent.openRouterReasoning;
-        settingsOverride.openRouterProvider = parent.openRouterProvider;
+        settingsOverride.openRouterProvider = [...(parent.openRouterProvider || [])];
         settingsOverride.showCanvasAnnotations = parent.showCanvasAnnotations;
+        settingsOverride.maxOutputTokens = parent.maxOutputTokens;
       } else if (category === 'overrideEvaluation') {
         settingsOverride.sendTaskMedia = parent.sendTaskMedia;
         settingsOverride.sendSolutionMedia = parent.sendSolutionMedia;
         settingsOverride.sendCanvasBackground = parent.sendCanvasBackground;
         settingsOverride.sendTaskText = parent.sendTaskText;
         settingsOverride.sendSolutionText = parent.sendSolutionText;
+        settingsOverride.sendContextText = parent.sendContextText;
+        settingsOverride.sendContextMedia = parent.sendContextMedia;
+        settingsOverride.sendAudioRecordings = parent.sendAudioRecordings;
+        settingsOverride.enableMicKeepAliveToggle = parent.enableMicKeepAliveToggle;
+        settingsOverride.sendMcMedia = parent.sendMcMedia;
+        settingsOverride.language = parent.language;
       } else if (category === 'overrideMediaFilter') {
         settingsOverride.taskMediaFilterMode = parent.taskMediaFilterMode;
         settingsOverride.taskMediaFilterExtensions = parent.taskMediaFilterExtensions;
         settingsOverride.solutionMediaFilterMode = parent.solutionMediaFilterMode;
         settingsOverride.solutionMediaFilterExtensions = parent.solutionMediaFilterExtensions;
+        settingsOverride.mcMediaFilterMode = parent.mcMediaFilterMode;
+        settingsOverride.mcMediaFilterExtensions = parent.mcMediaFilterExtensions;
       } else if (category === 'overrideCanvas') {
         settingsOverride.canvasMode = parent.canvasMode;
+        settingsOverride.a4Orientation = parent.a4Orientation;
+        settingsOverride.canvasBgPattern = parent.canvasBgPattern;
+        settingsOverride.canvasBgOpacity = parent.canvasBgOpacity;
         settingsOverride.canvasFontSize = parent.canvasFontSize;
       } else if (category === 'overrideEditorFontSize') {
         settingsOverride.editorFontSize = parent.editorFontSize;
@@ -201,6 +242,8 @@
       } else if (category === 'overrideTaskNumbering') {
         settingsOverride.autoNumberTasks = parent.autoNumberTasks;
         settingsOverride.taskNumberingTemplate = parent.taskNumberingTemplate;
+        settingsOverride.hideCompletedSections = parent.hideCompletedSections;
+        settingsOverride.defaultEditMode = parent.defaultEditMode;
       }
     } else {
       if (category === 'overrideSystemPrompt') {
@@ -301,78 +344,7 @@
       multipleChoiceTasks = store.editingTask.multipleChoiceTasks ? JSON.parse(JSON.stringify(store.editingTask.multipleChoiceTasks)) : [];
 
       const parentSettings = store.getEffectiveSettings(targetProjectId);
-
-      if (store.editingTask.settingsOverride) {
-        settingsOverride = {
-          overrideSettings: store.editingTask.settingsOverride.overrideSettings ?? false,
-          overrideModel: store.editingTask.settingsOverride.overrideModel ?? false,
-          overrideCanvas: store.editingTask.settingsOverride.overrideCanvas ?? false,
-          overrideEditorFontSize: store.editingTask.settingsOverride.overrideEditorFontSize ?? false,
-          overrideEraser: store.editingTask.settingsOverride.overrideEraser ?? false,
-          overrideEvaluation: store.editingTask.settingsOverride.overrideEvaluation ?? false,
-          overrideSystemPrompt: store.editingTask.settingsOverride.overrideSystemPrompt ?? false,
-          overrideTaskNumbering: store.editingTask.settingsOverride.overrideTaskNumbering ?? false,
-          overrideMediaFilter: store.editingTask.settingsOverride.overrideMediaFilter ?? false,
-          openRouterModel: store.editingTask.settingsOverride.openRouterModel ?? parentSettings.openRouterModel,
-          openRouterProvider: store.editingTask.settingsOverride.openRouterProvider ?? parentSettings.openRouterProvider,
-          openRouterReasoning: store.editingTask.settingsOverride.openRouterReasoning ?? parentSettings.openRouterReasoning,
-          showCanvasAnnotations: store.editingTask.settingsOverride.showCanvasAnnotations ?? parentSettings.showCanvasAnnotations,
-          sendTaskMedia: store.editingTask.settingsOverride.sendTaskMedia ?? parentSettings.sendTaskMedia,
-          sendSolutionMedia: store.editingTask.settingsOverride.sendSolutionMedia ?? parentSettings.sendSolutionMedia,
-          sendCanvasBackground: store.editingTask.settingsOverride.sendCanvasBackground ?? parentSettings.sendCanvasBackground,
-          sendTaskText: store.editingTask.settingsOverride.sendTaskText ?? parentSettings.sendTaskText,
-          sendSolutionText: store.editingTask.settingsOverride.sendSolutionText ?? parentSettings.sendSolutionText,
-          customSystemPrompt: store.editingTask.settingsOverride.customSystemPrompt ?? parentSettings.customSystemPrompt,
-          language: store.editingTask.settingsOverride.language ?? parentSettings.language,
-          canvasMode: store.editingTask.settingsOverride.canvasMode ?? parentSettings.canvasMode,
-          canvasFontSize: store.editingTask.settingsOverride.canvasFontSize ?? parentSettings.canvasFontSize,
-          editorFontSize: store.editingTask.settingsOverride.editorFontSize ?? parentSettings.editorFontSize,
-          autoNumberTasks: store.editingTask.settingsOverride.autoNumberTasks ?? parentSettings.autoNumberTasks,
-          taskNumberingTemplate: store.editingTask.settingsOverride.taskNumberingTemplate ?? parentSettings.taskNumberingTemplate,
-          eraserMode: store.editingTask.settingsOverride.eraserMode ?? parentSettings.eraserMode,
-          eraserRadiusNormal: store.editingTask.settingsOverride.eraserRadiusNormal ?? parentSettings.eraserRadiusNormal,
-          eraserRadiusStroke: store.editingTask.settingsOverride.eraserRadiusStroke ?? parentSettings.eraserRadiusStroke,
-          taskMediaFilterMode: store.editingTask.settingsOverride.taskMediaFilterMode ?? parentSettings.taskMediaFilterMode,
-          taskMediaFilterExtensions: store.editingTask.settingsOverride.taskMediaFilterExtensions ?? parentSettings.taskMediaFilterExtensions,
-          solutionMediaFilterMode: store.editingTask.settingsOverride.solutionMediaFilterMode ?? parentSettings.solutionMediaFilterMode,
-          solutionMediaFilterExtensions: store.editingTask.settingsOverride.solutionMediaFilterExtensions ?? parentSettings.solutionMediaFilterExtensions
-        };
-      } else {
-        settingsOverride = {
-          overrideSettings: false,
-          overrideModel: false,
-          overrideCanvas: false,
-          overrideEditorFontSize: false,
-          overrideEraser: false,
-          overrideEvaluation: false,
-          overrideSystemPrompt: false,
-          overrideTaskNumbering: false,
-          overrideMediaFilter: false,
-          openRouterModel: parentSettings.openRouterModel,
-          openRouterProvider: parentSettings.openRouterProvider,
-          openRouterReasoning: parentSettings.openRouterReasoning,
-          showCanvasAnnotations: parentSettings.showCanvasAnnotations,
-          sendTaskMedia: parentSettings.sendTaskMedia,
-          sendSolutionMedia: parentSettings.sendSolutionMedia,
-          sendCanvasBackground: parentSettings.sendCanvasBackground,
-          sendTaskText: parentSettings.sendTaskText,
-          sendSolutionText: parentSettings.sendSolutionText,
-          customSystemPrompt: parentSettings.customSystemPrompt,
-          language: parentSettings.language,
-          canvasMode: parentSettings.canvasMode,
-          canvasFontSize: parentSettings.canvasFontSize,
-          editorFontSize: parentSettings.editorFontSize,
-          autoNumberTasks: parentSettings.autoNumberTasks,
-          taskNumberingTemplate: parentSettings.taskNumberingTemplate,
-          eraserMode: parentSettings.eraserMode,
-          eraserRadiusNormal: parentSettings.eraserRadiusNormal,
-          eraserRadiusStroke: parentSettings.eraserRadiusStroke,
-          taskMediaFilterMode: parentSettings.taskMediaFilterMode,
-          taskMediaFilterExtensions: parentSettings.taskMediaFilterExtensions,
-          solutionMediaFilterMode: parentSettings.solutionMediaFilterMode,
-          solutionMediaFilterExtensions: parentSettings.solutionMediaFilterExtensions
-        };
-      }
+      settingsOverride = buildSettingsOverride(store.editingTask.settingsOverride, parentSettings);
       
       // Load saved files
       if (store.editingTask.instructionFiles && Array.isArray(store.editingTask.instructionFiles)) {
@@ -394,40 +366,7 @@
       
       const parentSettings = store.getEffectiveSettings(targetProjectId);
       defaultEditMode = parentSettings.defaultEditMode || 'canvas';
-      settingsOverride = {
-        overrideSettings: false,
-        overrideModel: false,
-        overrideCanvas: false,
-        overrideEraser: false,
-        overrideEvaluation: false,
-        overrideSystemPrompt: false,
-        overrideTaskNumbering: false,
-        overrideMediaFilter: false,
-        openRouterModel: parentSettings.openRouterModel,
-        openRouterProvider: parentSettings.openRouterProvider,
-        openRouterReasoning: parentSettings.openRouterReasoning,
-        showCanvasAnnotations: parentSettings.showCanvasAnnotations,
-        sendTaskMedia: parentSettings.sendTaskMedia,
-        sendSolutionMedia: parentSettings.sendSolutionMedia,
-        sendCanvasBackground: parentSettings.sendCanvasBackground,
-        sendTaskText: parentSettings.sendTaskText,
-        sendSolutionText: parentSettings.sendSolutionText,
-        customSystemPrompt: parentSettings.customSystemPrompt,
-        language: parentSettings.language,
-        canvasMode: parentSettings.canvasMode,
-        canvasFontSize: parentSettings.canvasFontSize,
-        overrideEditorFontSize: false,
-        editorFontSize: parentSettings.editorFontSize,
-        autoNumberTasks: parentSettings.autoNumberTasks,
-        taskNumberingTemplate: parentSettings.taskNumberingTemplate,
-        eraserMode: parentSettings.eraserMode,
-        eraserRadiusNormal: parentSettings.eraserRadiusNormal,
-        eraserRadiusStroke: parentSettings.eraserRadiusStroke,
-        taskMediaFilterMode: parentSettings.taskMediaFilterMode,
-        taskMediaFilterExtensions: parentSettings.taskMediaFilterExtensions,
-        solutionMediaFilterMode: parentSettings.solutionMediaFilterMode,
-        solutionMediaFilterExtensions: parentSettings.solutionMediaFilterExtensions
-      };
+      settingsOverride = buildSettingsOverride(undefined, parentSettings);
 
       if (!taskName && targetProjectId) {
         taskName = store.generateNextTaskName(targetProjectId, category);
@@ -437,40 +376,7 @@
       
       const parentSettings = store.getEffectiveSettings(targetProjectId);
       defaultEditMode = parentSettings.defaultEditMode || 'canvas';
-      settingsOverride = {
-        overrideSettings: false,
-        overrideModel: false,
-        overrideCanvas: false,
-        overrideEditorFontSize: false,
-        overrideEraser: false,
-        overrideEvaluation: false,
-        overrideSystemPrompt: false,
-        overrideTaskNumbering: false,
-        overrideMediaFilter: false,
-        openRouterModel: parentSettings.openRouterModel,
-        openRouterProvider: parentSettings.openRouterProvider,
-        openRouterReasoning: parentSettings.openRouterReasoning,
-        showCanvasAnnotations: parentSettings.showCanvasAnnotations,
-        sendTaskMedia: parentSettings.sendTaskMedia,
-        sendSolutionMedia: parentSettings.sendSolutionMedia,
-        sendCanvasBackground: parentSettings.sendCanvasBackground,
-        sendTaskText: parentSettings.sendTaskText,
-        sendSolutionText: parentSettings.sendSolutionText,
-        customSystemPrompt: parentSettings.customSystemPrompt,
-        language: parentSettings.language,
-        canvasMode: parentSettings.canvasMode,
-        canvasFontSize: parentSettings.canvasFontSize,
-        editorFontSize: parentSettings.editorFontSize,
-        autoNumberTasks: parentSettings.autoNumberTasks,
-        taskNumberingTemplate: parentSettings.taskNumberingTemplate,
-        eraserMode: parentSettings.eraserMode,
-        eraserRadiusNormal: parentSettings.eraserRadiusNormal,
-        eraserRadiusStroke: parentSettings.eraserRadiusStroke,
-        taskMediaFilterMode: parentSettings.taskMediaFilterMode,
-        taskMediaFilterExtensions: parentSettings.taskMediaFilterExtensions,
-        solutionMediaFilterMode: parentSettings.solutionMediaFilterMode,
-        solutionMediaFilterExtensions: parentSettings.solutionMediaFilterExtensions
-      };
+      settingsOverride = buildSettingsOverride(undefined, parentSettings);
 
       taskName = '';
       providedFiles = [];
