@@ -833,9 +833,26 @@ class CanvasCritiqueStore {
                   isReferenced = true;
                   break;
                 }
+                if (task.providedFiles && task.providedFiles.some((f: any) => f.mediaId === mediaId)) {
+                  isReferenced = true;
+                  break;
+                }
+                if (task.contextFiles && task.contextFiles.some((f: any) => f.mediaId === mediaId)) {
+                  isReferenced = true;
+                  break;
+                }
                 if (task.templateCanvasData && task.templateCanvasData.includes(mediaId)) {
                   isReferenced = true;
                   break;
+                }
+                if (task.attempts) {
+                  for (const attempt of task.attempts) {
+                    if (attempt.audioRecordings && attempt.audioRecordings.some((rec: any) => rec.mediaId === mediaId)) {
+                      isReferenced = true;
+                      break;
+                    }
+                  }
+                  if (isReferenced) break;
                 }
                 if (task.multipleChoiceTasks) {
                   for (const mcTask of task.multipleChoiceTasks) {
