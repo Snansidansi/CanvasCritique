@@ -737,6 +737,7 @@
       "desc": "Configure automatic updates and search manually for new versions.",
       "autoCheckEnabled": "Automatically search for updates",
       "autoCheckEnabledDesc": "Automatically check for new versions on GitHub when the app starts.",
+      "currentVersion": "Installed Version",
       "checkButton": "Check for Updates",
       "checking": "Checking for updates...",
       "noUpdates": "You already have the latest version.",

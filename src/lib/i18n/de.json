@@ -736,6 +736,7 @@
       "desc": "Konfiguriere automatische Updates und suche manuell nach neuen Versionen.",
       "autoCheckEnabled": "Automatisch nach Updates suchen",
       "autoCheckEnabledDesc": "Beim Programmstart automatisch prüfen, ob eine neue Version auf GitHub verfügbar ist.",
+      "currentVersion": "Installierte Version",
       "checkButton": "Nach Updates suchen",
       "checking": "Prüfe auf Updates...",
       "noUpdates": "Du hast bereits die neueste Version.",
