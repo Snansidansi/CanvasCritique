@@ -398,6 +398,7 @@
       "keepAliveToggle": "Mikrofon aktiv halten",
       "clickToDelete": "Nochmal klicken zum Löschen",
       "deleteTooltip": "Aufnahme löschen",
+      "cancelRecord": "Abbrechen",
       "defaultName": "Aufnahme {number}",
       "noRecordings": "Noch keine Audioaufnahmen vorhanden. Klicke auf 'Aufnahme starten', um zu beginnen."
     },

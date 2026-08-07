@@ -399,6 +399,7 @@
       "keepAliveToggle": "Keep Microphone Active",
       "clickToDelete": "Click again to delete",
       "deleteTooltip": "Delete recording",
+      "cancelRecord": "Cancel",
       "defaultName": "Recording {number}",
       "noRecordings": "No audio recordings yet. Click 'Start Recording' to begin."
     },

@@ -29,6 +29,7 @@
   // Recording UI state
   let isRecording = $state(false);
   let isPaused = $state(false);
+  let isCancelled = $state(false);
   let recordingSeconds = $state(0);
   let timerInterval: any = null;
 
@@ -114,9 +115,11 @@
         clearInterval(timerInterval);
         stopVisualizer();
 
-        const blob = new Blob(recordedChunks, { type: recorder.mimeType || 'audio/webm' });
-        if (blob.size > 0) {
-          await saveRecording(blob, recorder.mimeType);
+        if (!isCancelled) {
+          const blob = new Blob(recordedChunks, { type: recorder.mimeType || 'audio/webm' });
+          if (blob.size > 0) {
+            await saveRecording(blob, recorder.mimeType);
+          }
         }
 
         if (!isMicPreActivated) {
@@ -126,6 +129,7 @@
         mediaRecorder = null;
         isRecording = false;
         isPaused = false;
+        isCancelled = false;
         recordingSeconds = 0;
       };
 
@@ -134,6 +138,7 @@
 
       isRecording = true;
       isPaused = false;
+      isCancelled = false;
       recordingSeconds = 0;
 
       timerInterval = setInterval(() => {
@@ -166,6 +171,13 @@
 
   function stopRecording() {
     if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+    }
+  }
+
+  function cancelRecording() {
+    if (mediaRecorder && isRecording) {
+      isCancelled = true;
       mediaRecorder.stop();
     }
   }
@@ -384,6 +396,15 @@
             </span>
             <span>{isPaused ? t('practice.audioRecorder.resumeRecord') : t('practice.audioRecorder.pauseRecord')}</span>
           </button>
+
+          <button
+            onclick={cancelRecording}
+            class="flex items-center gap-2 px-3 py-2 rounded-xl border border-outline-variant text-error hover:bg-error/10 font-semibold text-xs transition-all cursor-pointer bg-surface"
+            title={t('practice.audioRecorder.cancelRecord')}
+          >
+            <span class="material-symbols-outlined text-base">close</span>
+            <span>{t('practice.audioRecorder.cancelRecord')}</span>
+          </button>
         {/if}
       </div>
 
@@ -414,7 +435,7 @@
         <span class="text-xs">{t('practice.audioRecorder.noRecordings')}</span>
       </div>
     {:else}
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div class="flex flex-col gap-3">
         {#each recordings as rec (rec.id)}
           <div class="bg-surface border border-outline-variant/40 rounded-xl p-4 flex flex-col gap-2 shadow-sm hover:border-outline-variant transition-colors relative">
             <!-- Recording Card Header (Title & Rename & Delete) -->
