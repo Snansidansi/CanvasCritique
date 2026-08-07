@@ -899,11 +899,24 @@ Return a SINGLE JSON object with the following schema:
     }
     
     // Audio Modality
-    if (nameLower.endsWith('.mp3') || nameLower.endsWith('.wav') || nameLower.endsWith('.m4a') || nameLower.endsWith('.ogg')) {
+    const dataUrlLower = mediaFile.dataUrl.toLowerCase();
+    if (
+      nameLower.endsWith('.mp3') ||
+      nameLower.endsWith('.wav') ||
+      nameLower.endsWith('.m4a') ||
+      nameLower.endsWith('.ogg') ||
+      nameLower.endsWith('.webm') ||
+      nameLower.endsWith('.flac') ||
+      nameLower.endsWith('.aac') ||
+      dataUrlLower.startsWith('data:audio/')
+    ) {
       let format = 'mp3';
-      if (nameLower.endsWith('.wav')) format = 'wav';
-      else if (nameLower.endsWith('.ogg')) format = 'ogg';
-      else if (nameLower.endsWith('.m4a')) format = 'm4a';
+      if (nameLower.endsWith('.wav') || dataUrlLower.includes('audio/wav')) format = 'wav';
+      else if (nameLower.endsWith('.ogg') || dataUrlLower.includes('audio/ogg')) format = 'ogg';
+      else if (nameLower.endsWith('.webm') || dataUrlLower.includes('audio/webm')) format = 'webm';
+      else if (nameLower.endsWith('.m4a') || dataUrlLower.includes('audio/m4a') || dataUrlLower.includes('audio/mp4')) format = 'm4a';
+      else if (nameLower.endsWith('.flac') || dataUrlLower.includes('audio/flac')) format = 'flac';
+      else if (nameLower.endsWith('.aac') || dataUrlLower.includes('audio/aac')) format = 'aac';
       
       const base64Data = mediaFile.dataUrl.includes(',') 
         ? mediaFile.dataUrl.split(',')[1] 
@@ -911,6 +924,10 @@ Return a SINGLE JSON object with the following schema:
 
       return {
         type: 'input_audio',
+        inputAudio: {
+          data: base64Data,
+          format: format
+        },
         input_audio: {
           data: base64Data,
           format: format
