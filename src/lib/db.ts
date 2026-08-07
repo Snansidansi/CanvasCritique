@@ -1329,6 +1329,7 @@ export async function getAttemptsForTask(db: Database, taskId: string): Promise<
         editorText: diskAttempt?.editorText ?? r.editor_text ?? '',
         critique: diskAttempt?.critique ?? (r.critique_json ? JSON.parse(r.critique_json) : null),
         multipleChoiceAnswers: diskAttempt?.multipleChoiceAnswers ?? (r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {}),
+        audioRecordings: diskAttempt?.audioRecordings ?? [],
         editors: diskAttempt?.editors ?? {},
         isConflict: Boolean(r.is_conflict)
       };
@@ -1588,6 +1589,7 @@ export async function syncAttemptsTableWithFiles(db: Database): Promise<void> {
                 critique: r.critique_json ? JSON.parse(r.critique_json) : null,
                 editorText: r.editor_text || '',
                 multipleChoiceAnswers: r.multiple_choice_answers_json ? JSON.parse(r.multiple_choice_answers_json) : {},
+                audioRecordings: attempt.audioRecordings || [],
                 updatedAt: r.timestamp // Preserve database timestamp in the file
               });
             }
