@@ -1,6 +1,6 @@
 # Makefile for Canvas Critique
 
-.PHONY: dev build-installer build-portable clean clean-all help
+.PHONY: dev build-installer build-portable build-linux-deb clean clean-all help
 
 # Show help by default
 help:
@@ -8,6 +8,7 @@ help:
 	@echo "  make dev             - Start the frontend development server"
 	@echo "  make build-installer - Build the Windows installer (.exe) from WSL"
 	@echo "  make build-portable  - Build the portable Windows application (.exe) from WSL"
+	@echo "  make build-linux-deb - Build a native Linux .deb package"
 	@echo "  make clean           - Clean build artifacts (dist/, src-tauri/target/, src-tauri/gen/)"
 	@echo "  make clean-all       - Clean everything including node_modules"
 
@@ -19,6 +20,9 @@ build-installer:
 
 build-portable:
 	PATH="$$HOME/.cargo/bin:$$PATH" npm run tauri build -- --target x86_64-pc-windows-msvc --runner cargo-xwin --no-bundle
+
+build-linux-deb:
+	npm run tauri build -- --bundles deb
 
 clean:
 	rm -rf dist

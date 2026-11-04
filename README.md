@@ -95,6 +95,32 @@ These markers are drawn directly on the canvas.
 
 Each marker contains feedback for a specific part of the drawing (for example incorrect angle, wrong height, bad alignment, etc.).
 
+## Linux (.deb) Build Guide
+
+Canvas Critique can be built as a Debian package for Ubuntu and Kubuntu. Build it natively on Ubuntu/Kubuntu 22.04 or newer; a Windows or WSL cross-build does not produce a Linux package.
+
+### Prerequisites
+
+Install Node.js/npm, Rust (via rustup), and the Linux development libraries required by Tauri and WebKitGTK:
+
+```bash
+sudo apt update
+sudo apt install -y build-essential curl wget file libssl-dev libgtk-3-dev \
+  libayatana-appindicator3-dev librsvg2-dev libwebkit2gtk-4.1-dev \
+  libjavascriptcoregtk-4.1-dev libsoup-3.0-dev libdbus-1-dev libxdo-dev
+```
+
+Install the JavaScript dependencies and build the Debian package:
+
+```bash
+npm ci
+make build-linux-deb
+```
+
+The package is created under `src-tauri/target/release/bundle/deb/`. Install it with the desktop package installer or with `sudo apt install ./path/to/package.deb`; the package declares its WebKitGTK, GTK, and `xdg-utils` runtime dependencies. `xdg-open` is used to open attachments in the desktop's default application.
+
+The `.deb` installs the app but does not migrate application data from another operating system. Use the application's existing import/export or WebDAV features to transfer data.
+
 ## WSL Development & Windows Build Guide
 
 To develop this project inside WSL (Windows Subsystem for Linux) and compile it into a native Windows executable (`.exe`), follow this guide.
