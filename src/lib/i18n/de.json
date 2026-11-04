@@ -749,7 +749,11 @@
       "btnYes": "Ja",
       "btnNo": "Nein",
       "btnSkip": "Version überspringen",
-      "noInstallerFound": "Keine Installationsdatei (.exe) in diesem Release gefunden."
+      "linuxPopupMsg": "Version {version} ist verfügbar. Öffne die GitHub-Release-Seite, lade das .deb-Paket herunter und installiere es über den Paketmanager.",
+      "btnOpenRelease": "Release öffnen",
+      "btnLater": "Später",
+      "openReleaseError": "Release-Seite konnte nicht geöffnet werden.",
+      "noInstallerFound": "Keine passende Installationsdatei (.exe oder .deb) in diesem Release gefunden."
     },
     "stylus": {
       "title": "Stift",

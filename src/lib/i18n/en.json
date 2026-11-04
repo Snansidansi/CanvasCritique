@@ -750,7 +750,11 @@
       "btnYes": "Yes",
       "btnNo": "No",
       "btnSkip": "Skip version",
-      "noInstallerFound": "No installation file (.exe) found in this release."
+      "linuxPopupMsg": "Version {version} is available. Open the GitHub release page, download the .deb package, and install it with your package manager.",
+      "btnOpenRelease": "Open release",
+      "btnLater": "Later",
+      "openReleaseError": "Failed to open the release page.",
+      "noInstallerFound": "No compatible installer (.exe or .deb) was found in this release."
     },
     "stylus": {
       "title": "Stylus",

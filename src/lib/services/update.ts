@@ -43,6 +43,13 @@ export async function cleanupInstaller(): Promise<void> {
   }
 }
 
+function getUpdatePlatform(): 'linux' | 'windows' | 'unsupported' {
+  if (typeof navigator === 'undefined') return 'unsupported';
+  if (/Linux/i.test(navigator.userAgent)) return 'linux';
+  if (/Windows/i.test(navigator.userAgent)) return 'windows';
+  return 'unsupported';
+}
+
 async function downloadAndInstall(downloadUrl: string): Promise<void> {
   try {
     store.showNotification(t('settings.update.downloadStarted') || 'Lade Update herunter...', 'info');
@@ -71,6 +78,16 @@ async function downloadAndInstall(downloadUrl: string): Promise<void> {
   }
 }
 
+async function openLinuxReleasePage(tag: string): Promise<void> {
+  const releaseUrl = `https://github.com/Snansidansi/CanvasCritique/releases/tag/${encodeURIComponent(tag)}`;
+  try {
+    await invoke('open_file', { path: releaseUrl });
+  } catch (err) {
+    console.error('[Update Service] Failed to open Linux release page:', err);
+    store.showNotification(t('settings.update.openReleaseError') || 'Release-Seite konnte nicht geöffnet werden.', 'error');
+  }
+}
+
 export async function checkForUpdates(isManual: boolean = false): Promise<void> {
   try {
     console.log(`[Update Service] Checking for updates (manual: ${isManual})...`);
@@ -94,15 +111,27 @@ export async function checkForUpdates(isManual: boolean = false): Promise<void> 
     const hasNewerVersion = compareVersions(currentVersionStr, latestVersionStr) < 0;
 
     if (hasNewerVersion) {
-      // Find the .exe installer asset
-      const exeAsset = release.assets.find(asset => asset.name.endsWith('.exe'));
-      if (!exeAsset) {
-        console.warn('[Update Service] No .exe installer found in assets of latest release.');
+      const platform = getUpdatePlatform();
+      const windowsInstaller = platform === 'windows'
+        ? release.assets.find(asset => asset.name.endsWith('.exe'))
+        : undefined;
+      const linuxPackageAvailable = platform === 'linux'
+        && release.assets.some(asset => asset.name.endsWith('.deb'));
+
+      if (!windowsInstaller && !linuxPackageAvailable) {
+        console.warn(`[Update Service] No installer found for ${platform} in the latest release.`);
         if (isManual) {
           store.showNotification(t('settings.update.noInstallerFound') || 'Keine Installationsdatei gefunden.', 'error');
         }
         return;
       }
+
+      const updateMessage = platform === 'linux'
+        ? t('settings.update.linuxPopupMsg', { version: latestVersionStr })
+        : t('settings.update.popupMsg', { version: latestVersionStr });
+      const openUpdate = platform === 'linux'
+        ? () => openLinuxReleasePage(release.tag_name)
+        : () => downloadAndInstall(windowsInstaller!.browser_download_url);
 
       if (!isManual) {
         // Automatic update check should respect the skipped version
@@ -115,16 +144,13 @@ export async function checkForUpdates(isManual: boolean = false): Promise<void> 
         // Show update popup with 'Skip' option
         store.confirm(
           t('settings.update.popupTitle') || 'Update verfügbar',
-          t('settings.update.popupMsg', { version: latestVersionStr }) || `Eine neue Version (${latestVersionStr}) ist verfügbar. Möchtest du sie jetzt installieren?`,
-          // Yes: Download and run
-          () => {
-            downloadAndInstall(exeAsset.browser_download_url);
-          },
+          updateMessage || `Eine neue Version (${latestVersionStr}) ist verfügbar.`,
+          openUpdate,
           // No: Do nothing
           () => {},
           false, // isAlert: false
-          t('settings.update.btnYes') || 'Ja',
-          t('settings.update.btnNo') || 'Nein',
+          platform === 'linux' ? (t('settings.update.btnOpenRelease') || 'Release öffnen') : (t('settings.update.btnYes') || 'Ja'),
+          platform === 'linux' ? (t('settings.update.btnLater') || 'Später') : (t('settings.update.btnNo') || 'Nein'),
           t('settings.update.btnSkip') || 'Version überspringen',
           // Skip version
           () => {
@@ -136,16 +162,13 @@ export async function checkForUpdates(isManual: boolean = false): Promise<void> 
         // Manual update check should NOT show 'Skip' button, and ignores skipped_update_version
         store.confirm(
           t('settings.update.popupTitle') || 'Update verfügbar',
-          t('settings.update.popupMsg', { version: latestVersionStr }) || `Eine neue Version (${latestVersionStr}) ist verfügbar. Möchtest du sie jetzt installieren?`,
-          // Yes: Download and run
-          () => {
-            downloadAndInstall(exeAsset.browser_download_url);
-          },
+          updateMessage || `Eine neue Version (${latestVersionStr}) ist verfügbar.`,
+          openUpdate,
           // No: Do nothing
           () => {},
           false, // isAlert: false
-          t('settings.update.btnYes') || 'Ja',
-          t('settings.update.btnNo') || 'Nein',
+          platform === 'linux' ? (t('settings.update.btnOpenRelease') || 'Release öffnen') : (t('settings.update.btnYes') || 'Ja'),
+          platform === 'linux' ? (t('settings.update.btnLater') || 'Später') : (t('settings.update.btnNo') || 'Nein'),
           undefined, // no third button
           null,
           true // isPrimary: true
